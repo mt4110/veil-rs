@@ -1,0 +1,51 @@
+name: Veil Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  veil-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Required for diff awareness if using --commit
+
+      # Option 1: Use pre-built binary (future)
+      # - uses: veil-rs/action@v1
+
+      # Option 2: Build from source (Current)
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache Cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Veil
+        run: cargo install --path crates/veil-cli --bin veil
+
+      - name: Run Veil Scan
+        # Scans current directory, fails if Score >= 80 (High/Critical)
+        # Outputs an HTML report for artifacts
+        run: |
+          veil scan . --format html > veil-report.html
+          # Also output to stdout for logs
+          veil scan . --fail-score 80
+
+      - name: Upload Security Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: veil-security-report
+          path: veil-report.html

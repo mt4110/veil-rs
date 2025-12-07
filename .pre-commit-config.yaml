@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: veil-scan
+        name: veil-scan for secrets
+        entry: veil scan
+        language: system
+        types: [text]
+        exclude: '\.git/|\.png$|\.jpg$'

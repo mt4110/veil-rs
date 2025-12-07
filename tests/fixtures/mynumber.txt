@@ -1,0 +1,9 @@
+
+Valid MyNumber: 123456789018
+Invalid MyNumber: 123456789019
+Another Valid (All 1s, check logic?):
+111111111111
+Sum: 1*(6+5+4+3+2+7+6+5+4+3+2) = 1*47 = 47.
+47 % 11 = 3. 11-3=8.
+So 111111111118 should be valid.
+111111111111 should be invalid.

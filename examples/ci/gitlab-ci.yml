@@ -1,0 +1,12 @@
+veil-scan:
+  stage: test
+  image: rust:latest
+  allow_failure: true # Optional: block pipeline on security issues
+  script:
+    - cargo install --path crates/veil-cli --bin veil
+    - veil scan . --format html > veil-report.html
+    - veil scan . --fail-score 80
+  artifacts:
+    paths:
+      - veil-report.html
+    expire_in: 1 week

@@ -1,0 +1,20 @@
+[package]
+name = "veil-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+veil-core = { path = "../veil-core" }
+veil-config = { path = "../veil-config" }
+clap = { version = "4.5.4", features = ["derive"] }
+colored = "2.1.0"
+anyhow = "1.0.86"
+atty = "0.2"
+serde_json = "1.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+git2 = "0.19.0"
+chrono = "0.4.38"
+
+[dev-dependencies]
+trycmd = "0.15"

@@ -1,0 +1,39 @@
+{
+    "version": "0.2",
+    "ignorePaths": [
+        "target/**",
+        "**/*.lock",
+        ".git/**",
+        ".vscode/**",
+        "flake.nix",
+        "flake.lock"
+    ],
+    "words": [
+        "AKIA",
+        "antigravity",
+        "apikey",
+        "axum",
+        "bpar",
+        "chrono",
+        "clippy",
+        "Consolas",
+        "direnv",
+        "dotenvy",
+        "Luhn",
+        "masakitakemura",
+        "minmax",
+        "mise",
+        "nixpkgs",
+        "reqwest",
+        "rustfmt",
+        "rustpkgs",
+        "sendgrid",
+        "sqlx",
+        "tokio",
+        "truecolor",
+        "trycmd",
+        "uncategorized",
+        "veil",
+        "walkdir"
+    ]
+}

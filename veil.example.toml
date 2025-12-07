@@ -1,0 +1,17 @@
+# veil.toml example
+
+[core]
+# Paths to always include in scanning (default: current directory)
+include = ["src", "configs"]
+# Paths to ignore (merged with .gitignore)
+ignore = ["*.test.rs", "fixtures"]
+
+[masking]
+# String to replace secrets with
+placeholder = "<REDACTED>"
+
+[rules]
+# Enable/Disable specific rules and override severity
+# Enable/Disable specific rules and override severity
+"sentry_dsn" = { enabled = true, severity = "medium" }
+"aws_access_key_id" = { enabled = true, severity = "critical" }
