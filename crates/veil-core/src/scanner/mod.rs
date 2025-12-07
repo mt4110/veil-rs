@@ -103,10 +103,10 @@ fn scan_line(
         // Inline Ignore Logic
         // Simple check: if line contains "# veil:ignore", ignore all
         // Improved: check "# veil:ignore=<rule_id>" or "# veil:ignore"
-        if content.contains("# veil:ignore") {
-            if content.contains(&format!("# veil:ignore={}", rule.id)) || !content.contains("=") {
-                continue;
-            }
+        if content.contains("# veil:ignore")
+            && (content.contains(&format!("# veil:ignore={}", rule.id)) || !content.contains("="))
+        {
+            continue;
         }
 
         if let Some(mat) = rule.pattern.find(content) {

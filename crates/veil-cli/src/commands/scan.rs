@@ -225,14 +225,7 @@ pub fn scan(
     } else {
         // 4. Default FS scan
         // Determine targets
-        let targets = if paths.len() == 1
-            && paths[0].to_string_lossy() == "."
-            && !config.core.include.is_empty()
-        {
-            paths.iter().collect::<Vec<_>>()
-        } else {
-            paths.iter().collect::<Vec<_>>()
-        };
+        let targets = paths.iter().collect::<Vec<_>>();
 
         for path in targets {
             let findings = scan_path(path, &rules, &config);
