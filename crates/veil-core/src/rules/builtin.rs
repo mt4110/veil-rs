@@ -1,7 +1,7 @@
 use crate::model::{Rule, Severity};
 use regex::Regex;
-use std::sync::OnceLock;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 use veil_config::Config;
 
 static DEFAULT_RULES: OnceLock<Vec<Rule>> = OnceLock::new();
@@ -154,8 +154,9 @@ pub fn get_default_rules() -> Vec<Rule> {
                 score: 80,
                 category: "uncategorized".to_string(),
                 tags: vec![],
-                validator: None, 
+                validator: None,
             },
+
             Rule {
                 id: "jp_passport_number".to_string(),
                 pattern: Regex::new(r"\b[A-Z]{2}\d{7}\b").unwrap(),
@@ -358,7 +359,7 @@ pub fn get_default_rules() -> Vec<Rule> {
                 tags: vec![],
                 validator: None,
             },
-            
+
             // ============================================
             // 5. Document & Data
             // ============================================
@@ -412,9 +413,8 @@ fn validate_my_number(s: &str) -> bool {
 pub fn get_all_rules(config: &Config) -> Vec<Rule> {
     // defaults is Vec<Rule> (cloned from static)
     let defaults = get_default_rules();
-    let mut rule_map: HashMap<String, Rule> = defaults.into_iter()
-        .map(|r| (r.id.clone(), r))
-        .collect();
+    let mut rule_map: HashMap<String, Rule> =
+        defaults.into_iter().map(|r| (r.id.clone(), r)).collect();
 
     for (id, rule_conf) in &config.rules {
         if let Some(pattern_str) = &rule_conf.pattern {
@@ -423,7 +423,10 @@ pub fn get_all_rules(config: &Config) -> Vec<Rule> {
                 let rule = Rule {
                     id: id.clone(),
                     pattern: regex,
-                    description: rule_conf.description.clone().unwrap_or_else(|| "Custom rule".to_string()),
+                    description: rule_conf
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| "Custom rule".to_string()),
                     severity: rule_conf.severity.as_deref().unwrap_or("medium").into(),
                     score: rule_conf.score.unwrap_or(50) as u32,
                     category: rule_conf.category.clone().unwrap_or("custom".to_string()),
@@ -456,9 +459,8 @@ pub fn get_all_rules(config: &Config) -> Vec<Rule> {
         }
     }
 
-    rule_map.into_values()
-        .filter(|r| {
-            config.rules.get(&r.id).map(|rc| rc.enabled).unwrap_or(true)
-        })
+    rule_map
+        .into_values()
+        .filter(|r| config.rules.get(&r.id).map(|rc| rc.enabled).unwrap_or(true))
         .collect()
 }
