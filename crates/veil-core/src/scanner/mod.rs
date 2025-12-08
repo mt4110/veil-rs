@@ -5,7 +5,7 @@ use crate::rules::scoring::{calculate_base_score, calculate_context_score};
 use ignore::WalkBuilder;
 use rayon::prelude::*;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use veil_config::Config;
 
@@ -40,14 +40,15 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
 
             // Check file size using metadata associated with the entry if possible, or path
             if let Ok(metadata) = std::fs::metadata(path) {
-                if metadata.len() > config.core.max_file_size {
+                let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+                if metadata.len() > max_size {
                     local_findings.push(Finding {
                         path: path.to_path_buf(),
                         line_number: 0,
                         line_content: format!(
                             "File size ({} bytes) exceeds limit ({} bytes)",
                             metadata.len(),
-                            config.core.max_file_size
+                            max_size
                         ),
                         rule_id: "MAX_FILE_SIZE".to_string(),
                         masked_line: "".to_string(),
@@ -59,7 +60,27 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
                 }
             }
 
-            if let Ok(file) = File::open(path) {
+            if let Ok(mut file) = File::open(path) {
+                // Binary Check
+                let mut buffer = [0; 1024];
+                let n = file.read(&mut buffer).unwrap_or(0);
+                if buffer[..n].iter().any(|&b| b == 0) {
+                    local_findings.push(Finding {
+                        path: path.to_path_buf(),
+                        line_number: 0,
+                        line_content: "Binary file detected (skipped)".to_string(),
+                        rule_id: "BINARY_FILE".to_string(),
+                        masked_line: "".to_string(),
+                        severity: crate::model::Severity::Low,
+                        score: 0,
+                        grade: crate::rules::grade::Grade::Safe,
+                    });
+                    return local_findings;
+                }
+
+                // Reset cursor
+                let _ = file.seek(SeekFrom::Start(0));
+
                 let reader = BufReader::new(file);
                 for (line_idx, line) in reader.lines().enumerate() {
                     if let Ok(content) = line {

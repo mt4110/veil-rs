@@ -24,7 +24,7 @@ pub enum Commands {
         #[arg(long, default_value = "text")]
         format: String,
         /// Fail (exit 1) if finding score exceeds this value
-        #[arg(long)]
+        #[arg(long, env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
         /// Scan a specific commit (SHA)
         #[arg(long)]
@@ -42,6 +42,12 @@ pub enum Commands {
     Mask {
         /// Paths to mask
         paths: Vec<PathBuf>,
+        /// Dry run (print change summary without modifying files)
+        #[arg(long)]
+        dry_run: bool,
+        /// Backup original file with this suffix (e.g. .bak)
+        #[arg(long)]
+        backup_suffix: Option<String>,
     },
     /// Run project health checks
     CheckProject,

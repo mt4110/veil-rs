@@ -35,7 +35,12 @@ fn main() {
             *staged,
         ),
         Commands::Filter => commands::filter::filter().map(|_| false),
-        Commands::Mask { paths } => commands::mask::mask(paths, cli.config.as_ref()).map(|_| false),
+        Commands::Mask {
+            paths,
+            dry_run,
+            backup_suffix,
+        } => commands::mask::mask(paths, cli.config.as_ref(), *dry_run, backup_suffix.clone())
+            .map(|_| false),
         Commands::CheckProject => commands::check_project::check_project().map(|res| !res),
         Commands::Init => commands::init::init().map(|_| false),
         Commands::Ignore { path } => {

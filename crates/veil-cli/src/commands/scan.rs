@@ -15,11 +15,32 @@ pub fn scan(
     since: Option<&str>,
     staged: bool,
 ) -> Result<bool> {
-    // Load config
+    // Load configs
+    let mut final_config = Config::default();
+
+    // 1. Org Config (VEIL_ORG_RULES)
+    if let Ok(org_path) = std::env::var("VEIL_ORG_RULES") {
+        let path = PathBuf::from(&org_path);
+        if path.exists() {
+            match load_config(&path) {
+                Ok(org_config) => final_config.merge(org_config),
+                Err(e) => eprintln!("Warning: Failed to load Org config at {:?}: {}", path, e),
+            }
+        } else {
+            eprintln!(
+                "Warning: VEIL_ORG_RULES set to {:?} but file not found.",
+                path
+            );
+        }
+    }
+
+    // 2. Project Config
     let config_file = config_path
         .cloned()
         .unwrap_or_else(|| PathBuf::from("veil.toml"));
-    let config = match load_config(&config_file) {
+
+    // If explicit config path given, fail if missing. If default, fallback to default.
+    let project_config = match load_config(&config_file) {
         Ok(c) => c,
         Err(e) => {
             if config_path.is_some() && !config_file.exists() {
@@ -31,6 +52,9 @@ pub fn scan(
             Config::default()
         }
     };
+
+    final_config.merge(project_config);
+    let config = final_config;
 
     let rules = get_all_rules(&config);
     let mut all_findings = Vec::new();
@@ -62,7 +86,8 @@ pub fn scan(
                             if let Ok(object) = entry.to_object(&repo) {
                                 if let Some(blob) = object.as_blob() {
                                     // Skip large files (re-implement MAX_FILE_SIZE checks logic for git blob?)
-                                    if blob.size() as u64 > config.core.max_file_size {
+                                    let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+                                    if blob.size() as u64 > max_size {
                                         all_findings.push(veil_core::model::Finding {
                                             path: path_val.to_path_buf(),
                                             line_number: 0,
@@ -140,7 +165,9 @@ pub fn scan(
                                 if let Ok(object) = entry.to_object(&repo) {
                                     if let Some(blob) = object.as_blob() {
                                         // Skip large files
-                                        if blob.size() as u64 > config.core.max_file_size {
+                                        let max_size =
+                                            config.core.max_file_size.unwrap_or(1_000_000);
+                                        if blob.size() as u64 > max_size {
                                             continue;
                                         }
 
@@ -194,7 +221,8 @@ pub fn scan(
                     // Retrieve blob from Index
                     if let Some(entry) = index.get_path(path_val, 0) {
                         if let Ok(blob) = repo.find_blob(entry.id) {
-                            if blob.size() as u64 > config.core.max_file_size {
+                            let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+                            if blob.size() as u64 > max_size {
                                 // Add finding? Or silent skip?
                                 // Consistent with others: add finding
                                 all_findings.push(veil_core::model::Finding {
@@ -246,8 +274,7 @@ pub fn scan(
     }
 
     // Determine exit code
-    // If fail_score is provided OR config.core.fail_on_score > 0
-    let threshold = fail_score.unwrap_or(config.core.fail_on_score);
+    let threshold = fail_score.or(config.core.fail_on_score).unwrap_or(0);
 
     let should_fail = if all_findings.is_empty() {
         false

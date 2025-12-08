@@ -17,10 +17,36 @@ pub struct CoreConfig {
     pub include: Vec<String>,
     #[serde(default)]
     pub ignore: Vec<String>,
-    #[serde(default = "default_max_file_size")]
-    pub max_file_size: u64,
-    #[serde(default)]
-    pub fail_on_score: u32,
+    pub max_file_size: Option<u64>,
+    pub fail_on_score: Option<u32>,
+}
+
+impl Config {
+    pub fn merge(&mut self, other: Config) {
+        // Merge Core
+        // For lists, we usually append? Or should project override?
+        // Appending seems safer for "ignore" (Org says ignore X, Project says ignore Y -> Ignore X+Y).
+        // For include, likely same?
+        self.core.include.extend(other.core.include);
+        self.core.ignore.extend(other.core.ignore);
+
+        // Scalars: Override if other has value
+        if let Some(val) = other.core.max_file_size {
+            self.core.max_file_size = Some(val);
+        }
+        if let Some(val) = other.core.fail_on_score {
+            self.core.fail_on_score = Some(val);
+        }
+
+        // Merge Rules (Override/Insert)
+        for (id, rule) in other.rules {
+            self.rules.insert(id, rule);
+        }
+
+        // Merge Masking (Override if set? MaskingConfig doesn't have Options yet, it uses defaults)
+        // Ideally MaskingConfig should also be Options, but let's leave it for now unless requested.
+        // Assuming Project config overrides Org config for placeholder if we implemented it.
+    }
 }
 
 impl Default for CoreConfig {
@@ -28,19 +54,16 @@ impl Default for CoreConfig {
         Self {
             include: default_include(),
             ignore: Vec::new(),
-            max_file_size: default_max_file_size(),
-            fail_on_score: 0,
+            max_file_size: None, // Default handled at usage site
+            fail_on_score: None,
         }
     }
-}
-
-fn default_max_file_size() -> u64 {
-    1_000_000 // 1MB
 }
 
 fn default_include() -> Vec<String> {
     vec![".".to_string()]
 }
+// Remove default_max_file_size as it's no longer used in serde default
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MaskingConfig {

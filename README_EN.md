@@ -7,7 +7,10 @@
 - **🇯🇵 Japan PII Ready**: Specialized detection for MyNumber, Driver's Licenses, and local PII formats.
 - **👮 Commercial Grade**: Custom rules via TOML, inline ignores, and commercial-ready reporting.
 - **📊 Reporting**: Output to JSON or beautiful HTML dashboards (`--format html`).
-- **🔧 Configurable**: Fully customizable via `veil.toml`.
+- **🛡️ Robust Controls**: `--fail-score` for CI pass/fail logic, enabling flexible `WARN` level operations.
+- **⚡ Staged Scan**: `--staged` option scans only files staged for commit. Perfect for `pre-commit`.
+- **📦 Binary Safe**: Automatically skips binary files and files >1MB to prevent CI bottlenecks.
+- **🔧 Configurable & Layered**: Supports `veil.toml` and organization-wide policy layers (`VEIL_ORG_RULES`).
 
 ## Installation
 
@@ -57,7 +60,16 @@ Suppress findings directly in code using comments.
 
 ```rust
 let fake_key = "AKIA1234567890"; // veil:ignore
-let test_token = "ghp_xxxxxxxx"; // veil:ignore=github_personal_access_token
+let test_token = "ghp_xxxxxxxx"; *   `// veil:ignore`: Ignore all findings on this line.
+*   `// veil:ignore=rule_id`: Ignore only the specified rule ID.
+
+### 3. Policy Layering (Organization Rules)
+Manage organization-wide blocklists or allowance settings centrally.
+Set the `VEIL_ORG_RULES` environment variable to point to a shared config file. It merges with project-level `veil.toml` (project overrides org).
+
+```bash
+export VEIL_ORG_RULES=/etc/veil/org_policy.toml
+# Configuring "fail_on_score = 50" in org_policy.toml enforcing strict checks across all projects.
 ```
 
 ### 3. CI/CD Integration
@@ -68,7 +80,11 @@ Drop-in templates are available in `examples/ci/`.
 - name: Run Veil Scan
   run: |
     veil scan . --format html > report.html
+    veil scan . --format html > report.html
+    # Fail CI if score >= 80
     veil scan . --fail-score 80
+    # Or scan only staged files (for PRs)
+    # veil scan --staged
 ```
 
 
@@ -90,3 +106,5 @@ repos:
 
 ## License
 Dual licensed under Apache 2.0 or MIT.
+
+> **Note**: While currently provided as OSS under MIT/Apache-2.0, future versions introducing advanced enterprise-grade features may adopt different licensing models or paid add-ons (the v0.x series will remain OSS). We are exploring optimal models for sustainable OSS development.

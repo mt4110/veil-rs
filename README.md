@@ -8,7 +8,10 @@ English README is available [here](README_EN.md).
 - **🇯🇵 日本の個人情報に対応**: マイナンバー、運転免許証番号、住所、電話番号などの日本固有フォーマットを高精度に検出。
 - **👮 商用グレード機能**: TOMLによるカスタムルール定義、インライン無視機能 (`# veil:ignore`)、商用レベルのレポート出力。
 - **📊 レポート機能**: 機械処理可能な JSON 出力に加え、提出用としてそのまま使える HTML ダッシュボード (`--format html`) を生成可能。
-- **🔧 完全設定可能**: `veil.toml` でプロジェクトごとの細やかな調整が可能。
+- **🛡️ 堅牢な制御**: `--fail-score` によるCI合否判定、`WARN` レベルの柔軟な運用が可能。
+- **⚡ Staged Scan**: `--staged` オプションでコミット予定のファイルだけを高速スキャン。`pre-commit` に最適。
+- **📦 バイナリ/巨大ファイル対策**: バイナリファイルや1MB超の巨大ファイルは自動でスキップし、CIの詰まりや文字化けを防止。
+- **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
 
 ## インストール
 
@@ -62,7 +65,17 @@ let test_token = "ghp_xxxxxxxx"; // veil:ignore=github_personal_access_token
 ```
 
 *   `// veil:ignore`: その行のすべての検知を無視します。
+*   `// veil:ignore`: その行のすべての検知を無視します。
 *   `// veil:ignore=rule_id`: 指定したルールIDの検知のみを無視します。
+
+### 3. ポリシーの階層化 (Policy Layering)
+全社共通のブラックリストや許容設定を一括管理できます。
+環境変数 `VEIL_ORG_RULES` に共通設定ファイルのパスを指定すると、各プロジェクトの `veil.toml` とマージされます（プロジェクト設定が優先）。
+
+```bash
+export VEIL_ORG_RULES=/etc/veil/org_policy.toml
+# org_policy.toml で "fail_on_score = 50" を設定しておけば、全プロジェクトで厳格なチェックを強制可能
+```
 
 ### 3. CI/CD インテグレーション
 GitHub Actions や GitLab CI ですぐに使えるテンプレートを `examples/ci/` に用意しています。
@@ -74,7 +87,11 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
     # HTMLレポートを生成（アーティファクト保存用）
     veil scan . --format html > report.html
     # スコア80以上の検出があれば失敗させる（CI用）
+    veil scan . --format html > report.html
+    # スコア80以上の検出があれば失敗させる（CI用）
     veil scan . --fail-score 80
+    # または、変更されたファイルだけをチェック (Pull Request時など)
+    # veil scan --staged
 ```
 
 
@@ -96,3 +113,5 @@ repos:
 
 ## ライセンス
 Apache 2.0 または MIT ライセンスのデュアルライセンスです。
+
+> **Note**: 現在は MIT/Apache-2.0 のOSSとして提供していますが、将来のバージョンでエンタープライズ向けの高度な機能については、異なるライセンス体系や有償アドオンとして提供する可能性があります（v0.x系はOSSのまま維持されます）。私たちは持続可能なOSS開発のために、最適なモデルを模索しています。

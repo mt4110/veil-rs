@@ -4,7 +4,14 @@
 # Paths to always include in scanning (default: current directory)
 include = ["src", "configs"]
 # Paths to ignore (merged with .gitignore)
+# Paths to ignore (merged with .gitignore)
 ignore = ["*.test.rs", "fixtures"]
+
+# Maximum file size to scan in bytes (default: 1,000,000 = 1MB)
+max_file_size = 1000000
+
+# Fail the scan if any valid finding has a score >= this value (0 = disable fail)
+fail_on_score = 0
 
 [masking]
 # String to replace secrets with
