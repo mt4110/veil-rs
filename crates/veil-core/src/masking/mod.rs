@@ -51,7 +51,7 @@ mod tests {
     fn test_mask_ranges_simple() {
         let text = "Hello World";
         // Mask "World" (6..11)
-        let ranges = vec![6..11];
+        let ranges = vec![6..11; 1];
         assert_eq!(mask_ranges(text, ranges), "Hello <REDACTED>");
     }
 
