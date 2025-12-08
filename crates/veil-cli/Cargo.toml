@@ -1,7 +1,17 @@
 [package]
 name = "veil-cli"
-version = "0.2.1"
+version = "0.4.0"
 edition = "2021"
+
+
+[[bin]]
+name = "veil"
+path = "src/main.rs"
+
+[features]
+default = ["wizard", "table"]
+wizard = ["dep:inquire"]
+table = ["dep:prettytable-rs"]
 
 [dependencies]
 veil-core = { path = "../veil-core" }
@@ -10,14 +20,22 @@ clap = { version = "4.5.4", features = ["derive", "env"] }
 colored = "2.1.0"
 anyhow = "1.0.86"
 atty = "0.2"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 git2 = "0.19.0"
 chrono = "0.4.38"
+indicatif = "0.17"
+inquire = { version = "0.7", optional = true }
+prettytable-rs = { version = "0.10", optional = true }
+toml = "0.8"
+rayon = "1.10"
+ignore = "0.4"
 
 [dev-dependencies]
 trycmd = "0.15"
 assert_cmd = "2.0"
 predicates = "3.1"
 tempfile = "3.10"
+

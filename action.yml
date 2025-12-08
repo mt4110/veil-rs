@@ -1,0 +1,34 @@
+name: "Veil Security Scan"
+description: "Scan your codebase for secrets and security risks using Veil-RS"
+author: "Veil Team"
+inputs:
+  target:
+    description: "Path or files to scan"
+    required: false
+    default: "."
+  config:
+    description: "Path to veil.toml configuration file"
+    required: false
+    default: "veil.toml"
+  fail-on-score:
+    description: "Fail the action if any finding exceeds this score (e.g. 80)"
+    required: false
+  format:
+    description: "Output format (table, json, html, markdown)"
+    required: false
+    default: "table"
+  debug:
+    description: "Enable debug logging"
+    required: false
+    default: "false"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "scan"
+    - ${{ inputs.target }}
+    - "--config"
+    - ${{ inputs.config }}
+    - "--format"
+    - ${{ inputs.format }}

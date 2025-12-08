@@ -17,6 +17,10 @@ fn main() {
 
     let cli = Cli::parse();
 
+    if cli.no_color {
+        colored::control::set_override(false);
+    }
+
     let result = match &cli.command {
         Commands::Scan {
             paths,
@@ -25,15 +29,21 @@ fn main() {
             commit,
             since,
             staged,
-        } => commands::scan::scan(
-            paths,
-            cli.config.as_ref(),
-            format,
-            *fail_score,
-            commit.as_deref(),
-            since.as_deref(),
-            *staged,
-        ),
+            progress,
+        } => {
+            // Quiet overrides progress
+            let show_progress = *progress && !cli.quiet;
+            commands::scan::scan(
+                paths,
+                cli.config.as_ref(),
+                format,
+                *fail_score,
+                commit.as_deref(),
+                since.as_deref(),
+                *staged,
+                show_progress,
+            )
+        }
         Commands::Filter => commands::filter::filter().map(|_| false),
         Commands::Mask {
             paths,
@@ -42,7 +52,10 @@ fn main() {
         } => commands::mask::mask(paths, cli.config.as_ref(), *dry_run, backup_suffix.clone())
             .map(|_| false),
         Commands::CheckProject => commands::check_project::check_project().map(|res| !res),
-        Commands::Init => commands::init::init().map(|_| false),
+        Commands::Init {
+            wizard,
+            non_interactive,
+        } => commands::init::init(*wizard, *non_interactive).map(|_| false),
         Commands::Ignore { path } => {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }

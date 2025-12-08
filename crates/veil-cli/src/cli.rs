@@ -9,6 +9,14 @@ pub struct Cli {
     #[arg(long, short, global = true)]
     pub config: Option<PathBuf>,
 
+    /// Disable colored output
+    #[arg(long, global = true)]
+    pub no_color: bool,
+
+    /// Suppress non-essential output
+    #[arg(long, short, global = true)]
+    pub quiet: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -20,7 +28,7 @@ pub enum Commands {
         /// Paths to scan
         #[arg(default_value = ".")]
         paths: Vec<PathBuf>,
-        /// Output format (text, json)
+        /// Output format (text, json, html, markdown, table)
         #[arg(long, default_value = "text")]
         format: String,
         /// Fail (exit 1) if finding score exceeds this value
@@ -35,6 +43,9 @@ pub enum Commands {
         /// Scan staged files only
         #[arg(long)]
         staged: bool,
+        /// Show progress bar (if TTY)
+        #[arg(long)]
+        progress: bool,
     },
     /// Filter STDIN and mask secrets (outputs to STDOUT)
     Filter,
@@ -52,7 +63,14 @@ pub enum Commands {
     /// Run project health checks
     CheckProject,
     /// Initialize a new configuration file
-    Init,
+    Init {
+        /// Run interactive wizard
+        #[arg(long)]
+        wizard: bool,
+        /// Fail if file exists (script mode)
+        #[arg(long)]
+        non_interactive: bool,
+    },
     /// Add path to ignore list
     Ignore {
         /// Path to ignore

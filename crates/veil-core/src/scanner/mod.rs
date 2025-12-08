@@ -34,64 +34,65 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
     // 2. Process files in parallel
     entries
         .par_iter()
-        .flat_map(|entry| {
-            let path = entry.path();
-            let mut local_findings = Vec::new();
-
-            // Check file size using metadata associated with the entry if possible, or path
-            if let Ok(metadata) = std::fs::metadata(path) {
-                let max_size = config.core.max_file_size.unwrap_or(1_000_000);
-                if metadata.len() > max_size {
-                    local_findings.push(Finding {
-                        path: path.to_path_buf(),
-                        line_number: 0,
-                        line_content: format!(
-                            "File size ({} bytes) exceeds limit ({} bytes)",
-                            metadata.len(),
-                            max_size
-                        ),
-                        rule_id: "MAX_FILE_SIZE".to_string(),
-                        masked_line: "".to_string(),
-                        severity: crate::model::Severity::High, // Treat as High/Critical
-                        score: 100,                             // Force high score
-                        grade: crate::rules::grade::Grade::Critical,
-                    });
-                    return local_findings;
-                }
-            }
-
-            if let Ok(mut file) = File::open(path) {
-                // Binary Check
-                let mut buffer = [0; 1024];
-                let n = file.read(&mut buffer).unwrap_or(0);
-                if buffer[..n].contains(&0) {
-                    local_findings.push(Finding {
-                        path: path.to_path_buf(),
-                        line_number: 0,
-                        line_content: "Binary file detected (skipped)".to_string(),
-                        rule_id: "BINARY_FILE".to_string(),
-                        masked_line: "".to_string(),
-                        severity: crate::model::Severity::Low,
-                        score: 0,
-                        grade: crate::rules::grade::Grade::Safe,
-                    });
-                    return local_findings;
-                }
-
-                // Reset cursor
-                let _ = file.seek(SeekFrom::Start(0));
-
-                let reader = BufReader::new(file);
-                for (line_idx, line) in reader.lines().enumerate() {
-                    if let Ok(content) = line {
-                        let line_findings = scan_line(&content, line_idx + 1, path, rules, config);
-                        local_findings.extend(line_findings);
-                    }
-                }
-            }
-            local_findings
-        })
+        .flat_map(|entry| scan_file(entry.path(), rules, config))
         .collect()
+}
+
+pub fn scan_file(path: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
+    let mut local_findings = Vec::new();
+
+    // Check file size
+    if let Ok(metadata) = std::fs::metadata(path) {
+        let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+        if metadata.len() > max_size {
+            local_findings.push(Finding {
+                path: path.to_path_buf(),
+                line_number: 0,
+                line_content: format!(
+                    "File size ({} bytes) exceeds limit ({} bytes)",
+                    metadata.len(),
+                    max_size
+                ),
+                rule_id: "MAX_FILE_SIZE".to_string(),
+                masked_line: "".to_string(),
+                severity: crate::model::Severity::High, // Treat as High/Critical
+                score: 100,                             // Force high score
+                grade: crate::rules::grade::Grade::Critical,
+            });
+            return local_findings;
+        }
+    }
+
+    if let Ok(mut file) = File::open(path) {
+        // Binary Check
+        let mut buffer = [0; 1024];
+        let n = file.read(&mut buffer).unwrap_or(0);
+        if buffer[..n].contains(&0) {
+            local_findings.push(Finding {
+                path: path.to_path_buf(),
+                line_number: 0,
+                line_content: "Binary file detected (skipped)".to_string(),
+                rule_id: "BINARY_FILE".to_string(),
+                masked_line: "".to_string(),
+                severity: crate::model::Severity::Low,
+                score: 0,
+                grade: crate::rules::grade::Grade::Safe,
+            });
+            return local_findings;
+        }
+
+        // Reset cursor
+        let _ = file.seek(SeekFrom::Start(0));
+
+        let reader = BufReader::new(file);
+        for (line_idx, line) in reader.lines().enumerate() {
+            if let Ok(content) = line {
+                let line_findings = scan_line(&content, line_idx + 1, path, rules, config);
+                local_findings.extend(line_findings);
+            }
+        }
+    }
+    local_findings
 }
 
 pub fn scan_content(content: &str, path: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {

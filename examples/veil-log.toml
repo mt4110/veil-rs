@@ -1,0 +1,27 @@
+# veil-log.toml - Template for Log Masking
+# Usage: 
+#   my-app | veil filter --config examples/veil-log.toml
+#   docker logs my-app | veil filter --config examples/veil-log.toml
+
+[core]
+# Add any specific ignore/include if using 'veil scan', but for 'veil filter' this is less relevant
+# unless we support filtering by file path in future log ingestion.
+
+[masking]
+placeholder = "<REDACTED>"
+
+# Custom rules for logs
+[rules.session_id]
+pattern = "(?i)session_?id=['\"]?[a-zA-Z0-9]{16,}['\"]?"
+description = "Session ID in logs"
+severity = "medium"
+
+[rules.bearer_token]
+pattern = "Bearer\\s+([a-zA-Z0-9\\.\\-_]+)"
+description = "Bearer Token in Authorization header"
+severity = "high"
+
+[rules.email]
+pattern = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+description = "Email address"
+severity = "medium"
