@@ -1,38 +1,4 @@
 use crate::formatters::{Formatter, Summary};
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashMap;
-    use std::path::PathBuf;
-    use veil_core::model::{Finding, Severity};
-
-    #[test]
-    fn test_table_output() {
-        let formatter = TableFormatter;
-        let findings = vec![Finding {
-            path: PathBuf::from("test.txt"),
-            line_number: 1,
-            line_content: "secret=123".to_string(),
-            masked_line: "secret=***".to_string(),
-            rule_id: "test_rule".to_string(),
-            severity: Severity::High,
-            score: 80,
-            grade: veil_core::rules::grade::Grade::High,
-        }];
-        let summary = Summary {
-            total_files: 1,
-            scanned_files: 1,
-            skipped_files: 0,
-            findings_count: 1,
-            duration_ms: 100,
-            severity_counts: HashMap::new(),
-        };
-
-        let result = formatter.print(&findings, &summary);
-        assert!(result.is_ok());
-    }
-}
 use anyhow::Result;
 use prettytable::{format, Cell, Row, Table};
 use veil_core::model::Finding;
@@ -116,5 +82,39 @@ impl Formatter for TableFormatter {
         println!("  Time: {}ms", summary.duration_ms);
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+    use veil_core::model::{Finding, Severity};
+
+    #[test]
+    fn test_table_output() {
+        let formatter = TableFormatter;
+        let findings = vec![Finding {
+            path: PathBuf::from("test.txt"),
+            line_number: 1,
+            line_content: "secret=123".to_string(),
+            masked_line: "secret=***".to_string(),
+            rule_id: "test_rule".to_string(),
+            severity: Severity::High,
+            score: 80,
+            grade: veil_core::rules::grade::Grade::High,
+        }];
+        let summary = Summary {
+            total_files: 1,
+            scanned_files: 1,
+            skipped_files: 0,
+            findings_count: 1,
+            duration_ms: 100,
+            severity_counts: HashMap::new(),
+        };
+
+        let result = formatter.print(&findings, &summary);
+        assert!(result.is_ok());
     }
 }

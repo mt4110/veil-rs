@@ -2,6 +2,49 @@ use crate::formatters::{Formatter, Summary};
 use anyhow::Result;
 use veil_core::model::Finding;
 
+pub struct MarkdownFormatter;
+
+impl Formatter for MarkdownFormatter {
+    fn print(&self, findings: &[Finding], summary: &Summary) -> Result<()> {
+        println!("# Veil Security Report");
+        println!("\n## Summary");
+        println!("- **Total Scanned Files**: {}", summary.scanned_files);
+        println!("- **Total Findings**: {}", summary.findings_count);
+        println!("- **Duration**: {}ms", summary.duration_ms);
+
+        if findings.is_empty() {
+            println!("\n✅ No secrets detected.");
+            return Ok(());
+        }
+
+        println!("\n## Findings");
+        println!("| Severity | Score | Rule ID | File | Line | Match |");
+        println!("|---|---|---|---|---|---|");
+
+        for finding in findings {
+            let match_content = if !finding.masked_line.is_empty() {
+                &finding.masked_line
+            } else {
+                &finding.line_content
+            };
+            // Escape pipe chars in content to prevent breaking md table
+            let clean_match = match_content.replace("|", "\\|");
+
+            println!(
+                "| {:?} | {} | {} | {} | {} | `{}` |",
+                finding.severity,
+                finding.score,
+                finding.rule_id,
+                finding.path.display(),
+                finding.line_number,
+                clean_match
+            );
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,48 +76,5 @@ mod tests {
 
         let result = formatter.print(&findings, &summary);
         assert!(result.is_ok());
-    }
-}
-
-pub struct MarkdownFormatter;
-
-impl Formatter for MarkdownFormatter {
-    fn print(&self, findings: &[Finding], summary: &Summary) -> Result<()> {
-        println!("# Veil Security Report");
-        println!("\n## Summary");
-        println!("- **Total Scanned Files**: {}", summary.scanned_files);
-        println!("- **Total Findings**: {}", summary.findings_count);
-        println!("- **Duration**: {}ms", summary.duration_ms);
-
-        if findings.is_empty() {
-            println!("\n✅ No secrets detected.");
-            return Ok(());
-        }
-
-        println!("\n## Findings");
-        println!("| Severity | Score | Rule ID | File | Line | Match |");
-        println!("|---|---|---|---|---|---|");
-
-        for finding in findings {
-            let match_content = if !finding.masked_line.is_empty() {
-                &finding.masked_line
-            } else {
-                &finding.line_content
-            };
-            // Escape pipe chars in content to prevent breaking md table
-            let clean_match = match_content.replace("|", "\\|");
-
-            println!(
-                "| {} | {} | {} | {} | {} | `{}` |",
-                format!("{:?}", finding.severity),
-                finding.score,
-                finding.rule_id,
-                finding.path.display(),
-                finding.line_number,
-                clean_match
-            );
-        }
-
-        Ok(())
     }
 }

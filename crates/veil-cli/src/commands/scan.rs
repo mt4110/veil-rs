@@ -13,6 +13,7 @@ use std::time::Instant;
 use veil_config::{load_config, Config};
 use veil_core::{get_all_rules, scan_content, scan_file};
 
+#[allow(clippy::too_many_arguments)]
 pub fn scan(
     paths: &[PathBuf],
     config_path: Option<&PathBuf>,
@@ -265,7 +266,7 @@ pub fn scan(
         // 4. Default FS scan (Updated for v0.4 with Progress)
         let targets = paths.iter().collect::<Vec<_>>();
         if !targets.is_empty() {
-            let mut builder = WalkBuilder::new(&targets[0]);
+            let mut builder = WalkBuilder::new(targets[0].clone());
             for path in &targets[1..] {
                 builder.add(path);
             }
