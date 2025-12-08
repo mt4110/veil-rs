@@ -28,7 +28,7 @@ pub enum Commands {
         /// Paths to scan
         #[arg(default_value = ".")]
         paths: Vec<PathBuf>,
-        /// Output format (text, json)
+        /// Output format (text, json, html, markdown, table)
         #[arg(long, default_value = "text")]
         format: String,
         /// Fail (exit 1) if finding score exceeds this value

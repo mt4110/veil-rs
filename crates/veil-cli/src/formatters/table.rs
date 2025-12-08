@@ -60,7 +60,12 @@ impl Formatter for TableFormatter {
             Cell::new("Match").style_spec("b"),
         ]));
 
-        for finding in findings {
+        // Clone findings to sort
+        let mut sorted_findings = findings.to_vec();
+        // Sort: Path ASC, Line ASC
+        sorted_findings.sort_by(|a, b| a.path.cmp(&b.path).then(a.line_number.cmp(&b.line_number)));
+
+        for finding in sorted_findings {
             let severity_str = format!("{:?}", finding.severity);
             let sev_style = match finding.score {
                 s if s >= 90 => "Fr", // Red foreground
@@ -68,7 +73,17 @@ impl Formatter for TableFormatter {
                 _ => "",
             };
 
-            let file_loc = format!("{}:{}", finding.path.display(), finding.line_number);
+            let path_str = finding.path.display().to_string();
+            let file_loc = if path_str.len() > 40 {
+                // Truncate path if too long: ".../some/long/path.rs"
+                format!(
+                    "...{}:{}",
+                    &path_str[path_str.len() - 40..],
+                    finding.line_number
+                )
+            } else {
+                format!("{}:{}", path_str, finding.line_number)
+            };
 
             // Truncate match if too long
             let match_content = if finding.masked_line.len() > 50 {

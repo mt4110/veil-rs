@@ -24,7 +24,14 @@ cargo install --path crates/veil-cli --bin veil
 
 ## 使い方
 
-### 基本スキャン
+### 0. 初期セットアップ (推奨)
+プロジェクトに合わせた最適な設定ファイルを対話的に作成します。
+
+```bash
+veil init --wizard
+```
+
+### 1. 基本スキャン
 ```bash
 veil scan .
 ```
