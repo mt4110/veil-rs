@@ -64,7 +64,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
                 // Binary Check
                 let mut buffer = [0; 1024];
                 let n = file.read(&mut buffer).unwrap_or(0);
-                if buffer[..n].iter().any(|&b| b == 0) {
+                if buffer[..n].contains(&0) {
                     local_findings.push(Finding {
                         path: path.to_path_buf(),
                         line_number: 0,
