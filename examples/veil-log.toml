@@ -12,7 +12,7 @@ placeholder = "<REDACTED>"
 
 # Custom rules for logs
 [rules.session_id]
-pattern = "(?i)session_?id=['\"]?([a-zA-Z0-9]{16,})['\"]?"
+pattern = "(?i)session_?id=['\"]?[a-zA-Z0-9]{16,}['\"]?"
 description = "Session ID in logs"
 severity = "medium"
 

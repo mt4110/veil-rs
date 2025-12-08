@@ -84,7 +84,7 @@ pub fn scan(
                 remote_rules = rules;
             }
             Err(e) => {
-                eprintln!("Warning: Failed to fetch remote rules from {}: {}", url, e);
+                eprintln!("Warning: Failed to fetch remote rules from {}: {}. Continuing with local rules only.", url, e);
             }
         }
     }
@@ -304,11 +304,7 @@ pub fn scan(
                 .flat_map(|entry| {
                     let path = entry.path();
                     if let Some(pb) = &pb {
-                        pb.set_message(format!(
-                            "Scanning: {}",
-                            path.file_name().unwrap_or_default().to_string_lossy()
-                        ));
-                        pb.tick();
+                        pb.inc(1);
                     }
                     scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
                     scan_file(path, &rules, &config)

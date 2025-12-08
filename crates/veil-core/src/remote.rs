@@ -20,9 +20,15 @@ pub enum RemoteError {
     Network(#[from] reqwest::Error),
     #[error("Invalid regex in remote rule {id}: {error}")]
     RegexError { id: String, error: regex::Error },
+    #[error("Protocol error: {0}")]
+    Protocol(String),
 }
 
 pub fn fetch_remote_rules(url: &str, timeout_secs: u64) -> Result<Vec<Rule>, RemoteError> {
+    if !url.starts_with("https://") {
+        return Err(RemoteError::Protocol("URL must use HTTPS".to_string()));
+    }
+
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(timeout_secs))
         .build()?;

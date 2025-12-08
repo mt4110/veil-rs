@@ -88,7 +88,7 @@ pub fn init(wizard: bool, non_interactive: bool) -> Result<()> {
         // Current simple init fails.
         if !wizard {
             anyhow::bail!(
-                "veil.toml already exists! Use --wizard to reconfiguration or delete it manually."
+                "veil.toml already exists! Use --wizard to reconfigure or delete it manually."
             );
         }
     }
@@ -185,7 +185,14 @@ fn run_wizard() -> Result<InitAnswers> {
         .prompt()?;
 
     let remote_rules_url = if use_remote {
-        Some(Text::new("Remote Rules URL:").prompt()?)
+        let url = Text::new("Remote Rules URL:").prompt()?.trim().to_string();
+        if !url.starts_with("https://") {
+            eprintln!(
+                "{}",
+                "Warning: Only HTTPS URLs are recommended for security.".yellow()
+            );
+        }
+        Some(url)
     } else {
         None
     };
