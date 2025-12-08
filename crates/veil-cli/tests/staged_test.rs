@@ -12,18 +12,18 @@ fn test_staged_scan() -> Result<(), Box<dyn std::error::Error>> {
 
     // Init git
     std::process::Command::new("git")
-        .args(&["init"])
+        .args(["init"])
         .current_dir(repo_path)
         .output()?;
 
     // Config git user (needed for commits if we were committing, but we are just staging)
     // But helpful to be safe
     std::process::Command::new("git")
-        .args(&["config", "user.email", "you@example.com"])
+        .args(["config", "user.email", "you@example.com"])
         .current_dir(repo_path)
         .output()?;
     std::process::Command::new("git")
-        .args(&["config", "user.name", "Your Name"])
+        .args(["config", "user.name", "Your Name"])
         .current_dir(repo_path)
         .output()?;
 
@@ -35,7 +35,7 @@ fn test_staged_scan() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Stage the file
     std::process::Command::new("git")
-        .args(&["add", "staged_secret.txt"])
+        .args(["add", "staged_secret.txt"])
         .current_dir(repo_path)
         .output()?;
 

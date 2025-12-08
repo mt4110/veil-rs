@@ -1,5 +1,4 @@
 use assert_cmd::Command;
-use predicates::prelude::*;
 use std::fs::File;
 use std::io::Write;
 use tempfile::TempDir;
@@ -70,6 +69,7 @@ fn test_policy_layering_override() -> Result<(), Box<dyn std::error::Error>> {
 
     // Run
     // Should PASS because Project config (100) overrides Org (50), and 80 < 100.
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("veil-cli")?;
     cmd.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_config_path.to_str().unwrap())
@@ -108,6 +108,7 @@ fn test_policy_layering_ignore_extend() -> Result<(), Box<dyn std::error::Error>
     // Run
     // Should ignore BOTH files and succeed (no findings).
     // If it didn't merge properly, one would be detected.
+    #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("veil-cli")?;
     cmd.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_path.to_str().unwrap())
