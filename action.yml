@@ -1,0 +1,48 @@
+name: "Veil Security Scan"
+description: "Scan your codebase for secrets and security risks using Veil-RS"
+author: "Veil Team"
+inputs:
+  target:
+    description: "Path or files to scan"
+    required: false
+    default: "."
+  config:
+    description: "Path to veil.toml configuration file"
+    required: false
+    default: "veil.toml"
+  fail-on-score:
+    description: "Fail the action if any finding exceeds this score (e.g. 80)"
+    required: false
+  format:
+    description: "Output format (table, json, html, markdown)"
+    required: false
+    default: "table"
+  debug:
+    description: "Enable debug logging"
+    required: false
+    default: "false"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "scan"
+    - ${{ inputs.target }}
+    - "--config"
+    - ${{ inputs.config }}
+    - "--format"
+    - ${{ inputs.format }}
+    # Conditional args for optional inputs are tricky in args list.
+    # A common pattern is to use an entrypoint script or handle it in the CLI if empty?
+    # CLI args like `--fail-score` expect a value.
+    # We can pass env vars for cleaner optional handling if CLI supports it.
+    # Or we can construct the arguments carefully.
+    # For now, let's map inputs to Environment Variables where possible to simplify `args`.
+    # But `docker` action `args` are passed directly.
+    # Better approach: Pass EVERYTHING as Env Vars and let CLI pickup Env Vars?
+    # But we want to use CLI args for clarity.
+    # Let's try to map basic args, and use ENV for `fail-on-score` if CLI supports it.
+env:
+  VEIL_FAIL_SCORE: ${{ inputs.fail-on-score }}
+  # If debug is true, set RUST_LOG?
+  # RUST_LOG: ${{ inputs.debug == 'true' && 'debug' || 'info' }} # expression syntax in env?

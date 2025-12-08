@@ -19,6 +19,7 @@ pub struct CoreConfig {
     pub ignore: Vec<String>,
     pub max_file_size: Option<u64>,
     pub fail_on_score: Option<u32>,
+    pub remote_rules_url: Option<String>,
 }
 
 impl Config {
@@ -36,6 +37,9 @@ impl Config {
         }
         if let Some(val) = other.core.fail_on_score {
             self.core.fail_on_score = Some(val);
+        }
+        if let Some(val) = other.core.remote_rules_url {
+            self.core.remote_rules_url = Some(val);
         }
 
         // Merge Rules (Override/Insert)
@@ -56,6 +60,7 @@ impl Default for CoreConfig {
             ignore: Vec::new(),
             max_file_size: None, // Default handled at usage site
             fail_on_score: None,
+            remote_rules_url: None,
         }
     }
 }

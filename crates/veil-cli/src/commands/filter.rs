@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::io::{self, BufRead};
-use veil_core::{get_default_rules, mask_string};
+use veil_core::{get_default_rules, mask_ranges};
 
 pub fn filter() -> Result<()> {
     // Note: 'filter' currently only does simple rule matching without context scoring heavily
@@ -12,18 +12,16 @@ pub fn filter() -> Result<()> {
 
     for line_res in stdin.lock().lines() {
         let line = line_res?;
-        let mut masked = line.clone();
 
+        let mut ranges = Vec::new();
         for rule in &rules {
-            if let Some(mat) = rule.pattern.find(&line) {
-                masked = mask_string(&line, mat.range());
-                // If multiple rules match, we should continue masking the already masked string?
-                // Simple approach: Only one mask per line per rule pass.
-                // Ideally we loop until no more matches or be careful with indices.
-                // For MVP: simple fallback.
+            for mat in rule.pattern.find_iter(&line) {
+                ranges.push(mat.range());
             }
         }
 
+        // mask_ranges handles overlaps and multiple occurrences
+        let masked = mask_ranges(&line, ranges);
         println!("{}", masked);
     }
 

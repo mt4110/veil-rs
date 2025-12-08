@@ -2,7 +2,46 @@ use chrono::Local;
 use std::collections::HashMap;
 use veil_core::model::Finding;
 
+use crate::formatters::{Formatter, Summary};
+use anyhow::Result;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use veil_core::model::{Finding, Severity};
+
+    #[test]
+    fn test_html_generation() {
+        let formatter = HtmlFormatter::new();
+        let findings = vec![Finding {
+            path: PathBuf::from("test.txt"),
+            line_number: 1,
+            line_content: "secret=123".to_string(),
+            masked_line: "secret=***".to_string(),
+            rule_id: "test_rule".to_string(),
+            severity: Severity::High,
+            score: 80,
+            grade: veil_core::rules::grade::Grade::High,
+        }];
+
+        let report = formatter.generate_report(&findings);
+        assert!(report.contains("<!DOCTYPE html>"));
+        assert!(report.contains("test.txt"));
+        assert!(report.contains("test_rule"));
+        assert!(report.contains("secret=123"));
+    }
+}
+
 pub struct HtmlFormatter;
+
+impl Formatter for HtmlFormatter {
+    fn print(&self, findings: &[Finding], _summary: &Summary) -> Result<()> {
+        let report = self.generate_report(findings);
+        println!("{}", report);
+        Ok(())
+    }
+}
 
 impl HtmlFormatter {
     pub fn new() -> Self {

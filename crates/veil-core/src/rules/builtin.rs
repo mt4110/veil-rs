@@ -410,11 +410,18 @@ fn validate_my_number(s: &str) -> bool {
     check_digit == digits[11]
 }
 
-pub fn get_all_rules(config: &Config) -> Vec<Rule> {
+pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
     // defaults is Vec<Rule> (cloned from static)
     let defaults = get_default_rules();
     let mut rule_map: HashMap<String, Rule> =
         defaults.into_iter().map(|r| (r.id.clone(), r)).collect();
+
+    // Merge extra/remote rules
+    // If ID exists (matches builtin), we overwrite it (Remote updates/fixes builtin)
+    // If ID is new, we insert it.
+    for rule in extra_rules {
+        rule_map.insert(rule.id.clone(), rule);
+    }
 
     for (id, rule_conf) in &config.rules {
         if let Some(pattern_str) = &rule_conf.pattern {
@@ -438,7 +445,7 @@ pub fn get_all_rules(config: &Config) -> Vec<Rule> {
                 eprintln!("Invalid Regex pattern for rule {}: {}", id, pattern_str);
             }
         } else {
-            // Override existing rule
+            // Override existing rule (Builtin OR Remote)
             if let Some(rule) = rule_map.get_mut(id) {
                 if let Some(sev) = &rule_conf.severity {
                     rule.severity = sev.as_str().into();

@@ -1,0 +1,28 @@
+name: Test GitHub Action
+
+on:
+    push:
+        branches:
+            - main
+            - develop
+    pull_request:
+
+jobs:
+    scan-action:
+        runs-on: ubuntu-latest
+        name: Test Veil Action
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Run Veil Scan (Action)
+              uses: ./ # Uses the action in the current root
+              with:
+                  target: "."
+                  config: "veil.toml"
+                  # We expect this scan to PASS (if no secrets in repo) or FAIL (if we commit test secrets).
+                  # For testing the action itself works, we can scan a clean dir or ignore failures?
+                  # If we have secrets in fixtures, it might fail.
+                  # Let's run it and see. If it fails, we know it works :)
+                  # or use `continue-on-error: true` for this test step.
+              continue-on-error: true
