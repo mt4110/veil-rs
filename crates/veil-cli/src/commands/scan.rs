@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use git2::{Delta, DiffOptions, Repository};
 use ignore::WalkBuilder;
-use indicatif::{ProgressBar, ProgressStyle};
+// use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -22,7 +22,10 @@ pub fn scan(
     commit: Option<&str>,
     since: Option<&str>,
     staged: bool,
-    progress: bool,
+    _progress: bool,
+    mask_mode_arg: Option<&str>,
+    unsafe_output: bool,
+    limit: Option<usize>,
 ) -> Result<bool> {
     let start_time = Instant::now();
 
@@ -69,6 +72,19 @@ pub fn scan(
     };
 
     final_config.merge(project_config);
+
+    // Apply CLI overrides for mask_mode
+    if unsafe_output {
+        final_config.output.mask_mode = Some(veil_config::MaskMode::Plain);
+    } else if let Some(mode) = mask_mode_arg {
+        match mode.to_lowercase().as_str() {
+            "plain" => final_config.output.mask_mode = Some(veil_config::MaskMode::Plain),
+            "partial" => final_config.output.mask_mode = Some(veil_config::MaskMode::Partial),
+            "redact" => final_config.output.mask_mode = Some(veil_config::MaskMode::Redact),
+            _ => eprintln!("Warning: Unknown mask mode '{}', using default.", mode),
+        }
+    }
+
     let config = final_config;
 
     // Remote Rules
@@ -91,6 +107,20 @@ pub fn scan(
 
     let rules = get_all_rules(&config, remote_rules);
     let mut all_findings = Vec::new();
+
+    // Limit Logic (Global)
+    use veil_core::scanner::ScanLimit;
+    // Explicit limit arg > Config > Default
+    let limit_val = if let Some(l) = limit {
+        if l == 0 {
+            None
+        } else {
+            Some(l)
+        }
+    } else {
+        config.output.max_findings
+    };
+    let limit_tracker = ScanLimit::new(limit_val);
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -126,10 +156,13 @@ pub fn scan(
                                                 blob.size()
                                             ),
                                             rule_id: "MAX_FILE_SIZE".to_string(),
-                                            masked_line: "".to_string(),
+                                            matched_content: "".to_string(),
+                                            masked_snippet: "".to_string(),
                                             severity: veil_core::model::Severity::High,
                                             score: 100,
                                             grade: veil_core::rules::grade::Grade::Critical,
+                                            context_before: vec![],
+                                            context_after: vec![],
                                         });
                                         continue;
                                     }
@@ -245,10 +278,13 @@ pub fn scan(
                                         blob.size()
                                     ),
                                     rule_id: "MAX_FILE_SIZE".to_string(),
-                                    masked_line: "".to_string(),
+                                    matched_content: "".to_string(),
+                                    masked_snippet: "".to_string(),
                                     severity: veil_core::model::Severity::High,
                                     score: 100,
                                     grade: veil_core::rules::grade::Grade::Critical,
+                                    context_before: vec![],
+                                    context_after: vec![],
                                 });
                                 continue;
                             }
@@ -273,24 +309,12 @@ pub fn scan(
 
             let walker = builder.build();
 
-            // Setup Progress
-            let pb = if progress && atty::is(atty::Stream::Stdout) {
-                let pb = ProgressBar::new_spinner();
-                pb.set_style(
-                    ProgressStyle::default_spinner()
-                        .template("{spinner:.green} {msg}")
-                        .unwrap(),
-                );
-                pb.set_message("Scanning...");
-                Some(pb)
-            } else {
-                None
-            };
+            // Setup Progress (Disabled for now to fix clippy, pending properly parallel implementation)
+            // let pb = ...
 
             let findings: Vec<_> = walker
                 .par_bridge()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
                 .filter(|e| {
                     let path = e.path();
                     let path_str = path.to_string_lossy();
@@ -302,18 +326,14 @@ pub fn scan(
                     true
                 })
                 .flat_map(|entry| {
-                    let path = entry.path();
-                    if let Some(pb) = &pb {
-                        pb.inc(1);
+                    if limit_tracker.check() {
+                        return Vec::new();
                     }
                     scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                    scan_file(path, &rules, &config)
+                    scan_file(entry.path(), &rules, &config, Some(&limit_tracker))
                 })
                 .collect();
 
-            if let Some(pb) = &pb {
-                pb.finish_with_message("Done");
-            }
             all_findings.extend(findings);
         }
     }
@@ -328,14 +348,25 @@ pub fn scan(
         *severity_counts.entry(f.severity.clone()).or_insert(0) += 1;
     }
 
-    let summary = Summary {
-        total_files: scanned_files, // We don't track total total, just what we scanned
-        scanned_files,
-        skipped_files: 0, // Not fully tracked yet
-        findings_count: all_findings.len(),
-        duration_ms: duration.as_millis(),
+    // Check truncation
+    let is_truncated = limit_tracker.check();
+    if is_truncated {
+        eprintln!(
+            "⚠ Reached finding limit ({}). Further findings were not scanned.",
+            limit_val.unwrap_or(0)
+        );
+    }
+
+    let summary = Summary::new(
+        scanned_files,      // total_files
+        scanned_files,      // scanned_files
+        0,                  // skipped_files
+        all_findings.len(), // findings_count (total found)
+        all_findings.len(), // shown_findings (in this model findings are strictly what we collected)
+        is_truncated,
+        duration,
         severity_counts,
-    };
+    );
 
     // Select formatter
     let formatter: Box<dyn Formatter> = match format.to_lowercase().as_str() {

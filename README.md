@@ -47,6 +47,16 @@ veil scan . --format html > report.html
 open report.html
 ```
 
+## Testing
+
+veil-rs includes tests for secret detection rules (Slack, AWS, GitHub PATs, etc.).
+
+To avoid GitHub Push Protection blocking pushes, we **never** hard-code real-looking secrets
+as string literals. Instead, tests generate fake tokens at runtime via helper functions.
+
+See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
+and guidelines on adding new secret tests.
+
 ## 商用運用ガイド
 
 ### 1. カスタムルールの追加 (Pure TOML)

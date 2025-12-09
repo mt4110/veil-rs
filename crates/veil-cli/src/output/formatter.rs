@@ -25,6 +25,6 @@ pub fn print_finding(finding: &Finding) {
         finding.rule_id.cyan(),
         finding.path.display(),
         finding.line_number,
-        finding.masked_line
+        finding.masked_snippet
     );
 }

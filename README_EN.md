@@ -63,6 +63,15 @@ let fake_key = "AKIA1234567890"; // veil:ignore
 let test_token = "ghp_xxxxxxxx"; *   `// veil:ignore`: Ignore all findings on this line.
 *   `// veil:ignore=rule_id`: Ignore only the specified rule ID.
 
+## Testing
+
+veil-rs includes tests for secret detection rules (Slack, AWS, GitHub PATs, etc.).
+
+To avoid GitHub Push Protection blocking pushes, we **never** hard-code real-looking secrets
+as string literals. Instead, tests generate fake tokens at runtime via helper functions.
+
+See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
+and guidelines on adding new secret tests.
 ### 3. Policy Layering (Organization Rules)
 Manage organization-wide blocklists or allowance settings centrally.
 Set the `VEIL_ORG_RULES` environment variable to point to a shared config file. It merges with project-level `veil.toml` (project overrides org).

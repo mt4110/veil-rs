@@ -1,0 +1,5 @@
+# RULE: jp.mynumber
+# MODE: fp
+
+# Short
+12345678901 (11 digits)

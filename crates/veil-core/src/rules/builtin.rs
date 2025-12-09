@@ -7,407 +7,169 @@ use veil_config::Config;
 static DEFAULT_RULES: OnceLock<Vec<Rule>> = OnceLock::new();
 
 pub fn get_default_rules() -> Vec<Rule> {
-    DEFAULT_RULES.get_or_init(|| {
-        vec![
-            // ============================================
-            // 1. Auth & Tokens (Kill on Sight)
-            // ============================================
-            Rule {
-                id: "jwt_token".to_string(),
-                pattern: Regex::new(r"ey[a-zA-Z0-9_-]{10,}\.ey[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}").unwrap(),
-                description: "JSON Web Token".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "github_personal_access_token".to_string(),
-                pattern: Regex::new(r"gh[pousr]_[a-zA-Z0-9]{36}").unwrap(),
-                description: "GitHub Personal Access Token".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "github_app_private_key".to_string(),
-                pattern: Regex::new(r"-----BEGIN RSA PRIVATE KEY-----").unwrap(),
-                description: "GitHub App Private Key".to_string(),
-                severity: Severity::Critical,
-                score: 100,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "github_webhook_secret".to_string(),
-                pattern: Regex::new(r"(?i)github_?webhook_?secret.?=.?['\x22]?([a-zA-Z0-9]{40})['\x22]?").unwrap(),
-                description: "GitHub Webhook Secret".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "discord_bot_token".to_string(),
-                pattern: Regex::new(r"([a-zA-Z0-9]{24}\.[\w-]{6}\.[\w-]{27}|mfa\.[\w-]{84})").unwrap(), 
-                description: "Discord Bot Token".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "discord_webhook_url".to_string(),
-                pattern: Regex::new(r"https://discord\.com/api/webhooks/\d+/[a-zA-Z0-9_-]+").unwrap(),
-                description: "Discord Webhook URL".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "line_channel_access_token".to_string(),
-                pattern: Regex::new(r"(?i)channel_access_token.?=.?['\x22]?[a-zA-Z0-9/+=]{43,}['\x22]?").unwrap(),
-                description: "LINE Channel Access Token".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "slack_webhook_url".to_string(),
-                pattern: Regex::new(r"https://hooks\.slack\.com/services/T[0-9a-zA-Z]{8}/B[0-9a-zA-Z]{8}/[0-9a-zA-Z]{24}").unwrap(),
-                description: "Slack Webhook URL".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "sentry_dsn".to_string(),
-                pattern: Regex::new(r"https://[a-f0-9]{32}@o\d+\.ingest\.sentry\.io/\d+").unwrap(),
-                description: "Sentry DSN".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "sendgrid_api_key".to_string(),
-                pattern: Regex::new(r"SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}").unwrap(),
-                description: "SendGrid API Key".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "env_suspicious_secret".to_string(),
-                pattern: Regex::new(r"(?i)(password|secret|api_key|access_key|token)[a-z0-9_]*\s*=\s*['\x22]?[a-zA-Z0-9/+]{20,}").unwrap(),
-                description: "Suspicious Secret in Env".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "generic_api_key".to_string(),
-                pattern: Regex::new(r"(?i)(sk_live_|sk_test_|pk_live_|pk_test_)[0-9a-zA-Z]{24,}").unwrap(),
-                description: "Generic API Key (Stripe-like)".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-
-            // ============================================
-            // 2. Japan PII (Enhanced)
-            // ============================================
-            Rule {
-                id: "jp_my_number".to_string(),
-                pattern: Regex::new(r"\b\d{12}\b").unwrap(),
-                description: "Japanese My Number (Individual Number)".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: Some(validate_my_number),
-            },
-            Rule {
-                id: "jp_driver_license_number".to_string(),
-                pattern: Regex::new(r"\b\d{12}\b").unwrap(),
-                description: "Japanese Driver License Number".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-
-            Rule {
-                id: "jp_passport_number".to_string(),
-                pattern: Regex::new(r"\b[A-Z]{2}\d{7}\b").unwrap(),
-                description: "Japanese Passport Number".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "jp_health_insurance_number".to_string(),
-                pattern: Regex::new(r"\b\d{4}-\d{6}\b").unwrap(), 
-                description: "Japanese Health Insurance Number".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "jp_bank_account".to_string(),
-                pattern: Regex::new(r"\b\d{3}-\d{7}\b").unwrap(),
-                description: "Japanese Bank Account (Branch-Number)".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "jp_phone".to_string(),
-                pattern: Regex::new(r"0\d{1,4}-\d{1,4}-\d{4}").unwrap(),
-                description: "Japanese Phone Number".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "jp_address".to_string(),
-                pattern: Regex::new(r"(?x)
-                    (北海道|東京都|.{2,3}(?:府|県))
-                    .{1,10}
-                    (?:市|区|町|村)
-                ").unwrap(),
-                description: "Japanese Address (Prefecture+City)".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-
-            // ============================================
-            // 3. Infra & Network
-            // ============================================
-            Rule {
-                id: "ipv4_private".to_string(),
-                pattern: Regex::new(r"(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})").unwrap(),
-                description: "Private IPv4 Address".to_string(),
-                severity: Severity::Low,
-                score: 30,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "wireguard_config".to_string(),
-                pattern: Regex::new(r"(?s)\[Interface\].*?PrivateKey\s*=\s*[a-zA-Z0-9+/=]{44}").unwrap(),
-                description: "WireGuard Config PrivateKey".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "openvpn_config".to_string(),
-                pattern: Regex::new(r"BEGIN OpenVPN Static key V1").unwrap(),
-                description: "OpenVPN Static Key".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "wifi_psk_config".to_string(),
-                pattern: Regex::new(r"(?i)psk\s*=\s*['\x22]?[a-f0-9]{64}['\x22]?").unwrap(),
-                description: "WPA Supplicant PSK".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "router_admin_credential".to_string(),
-                pattern: Regex::new(r"(?i)(192\.168\.[01]\.1).*?(admin|password)").unwrap(),
-                description: "Router Admin Credential (Heuristic)".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-
-            // ============================================
-            // 4. Development & Cloud (Leak Prevention)
-            // ============================================
-            Rule {
-                id: "aws_access_key_id".to_string(),
-                pattern: Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(),
-                description: "AWS Access Key ID".to_string(),
-                severity: Severity::Critical,
-                score: 100,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "aws_secret_access_key".to_string(),
-                pattern: Regex::new(r"(?i)aws_?secret_?access_?key.?=.?['\x22]?([a-zA-Z0-9/+]{40})['\x22]?").unwrap(),
-                description: "AWS Secret Access Key".to_string(),
-                severity: Severity::Critical,
-                score: 100,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "gcp_service_account_key".to_string(),
-                pattern: Regex::new(r#""type":\s*"service_account"#).unwrap(),
-                description: "GCP Service Account Key (JSON)".to_string(),
-                severity: Severity::Critical,
-                score: 100,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "azure_connection_string".to_string(),
-                pattern: Regex::new(r"(?i)DefaultEndpointsProtocol=[^;]+;AccountName=[^;]+;AccountKey=[^;]+").unwrap(),
-                description: "Azure Connection String".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "db_connection_string".to_string(),
-                pattern: Regex::new(r"(?i)(postgres|mysql|sqlserver|oracle|mongodb)://[^:]+:([^@]+)@").unwrap(),
-                description: "Database Connection String (Password)".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "k8s_secret_manifest".to_string(),
-                pattern: Regex::new(r"(?s)kind:\s*Secret.*?data:").unwrap(),
-                description: "Kubernetes Secret Manifest".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "docker_registry_auth".to_string(),
-                pattern: Regex::new(r#""auth":\s*"[a-zA-Z0-9+/=]+"#).unwrap(),
-                description: "Docker Config Auth".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "firebase_config_secret".to_string(),
-                pattern: Regex::new(r#""private_key":\s*"-----BEGIN PRIVATE KEY-----"#).unwrap(),
-                description: "Firebase Config Private Key".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "mobile_keystore".to_string(),
-                pattern: Regex::new(r"MIvk...").unwrap(),
-                description: "Mobile Keystore Header (Placeholder)".to_string(),
-                severity: Severity::High,
-                score: 80,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-
-            // ============================================
-            // 5. Document & Data
-            // ============================================
-            Rule {
-                id: "db_dump_file".to_string(),
-                pattern: Regex::new(r"(?i)INSERT INTO [`']?users[`']?").unwrap(),
-                description: "SQL Dump (Users Table)".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            },
-            Rule {
-                id: "csv_with_pii_headers".to_string(),
-                pattern: Regex::new(r"(?i)^(name|email|phone|address|zip|user_id),").unwrap(),
-                description: "CSV Header with PII columns".to_string(),
-                severity: Severity::Medium,
-                score: 50,
-                category: "uncategorized".to_string(),
-                tags: vec![],
-                validator: None,
-            }
-        ]
-    }).clone()
-}
-
-fn validate_my_number(s: &str) -> bool {
-    if s.len() != 12 {
-        return false;
-    }
-    let digits: Vec<u32> = s.chars().filter_map(|c| c.to_digit(10)).collect();
-    if digits.len() != 12 {
-        return false;
-    }
-
-    // Weights: Pn for n=1..11 (from left)
-    // 6 5 4 3 2 7 6 5 4 3 2
-    let weights = [6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-    let mut sum = 0;
-    for i in 0..11 {
-        sum += digits[i] * weights[i];
-    }
-
-    let remainder = sum % 11;
-    let check_digit = if remainder <= 1 { 0 } else { 11 - remainder };
-
-    check_digit == digits[11]
+    DEFAULT_RULES
+        .get_or_init(|| {
+            vec![
+                // ==========================
+                // Credential Pack v1 (RED)
+                // ==========================
+                Rule {
+                    id: "creds.aws.access_key_id".to_string(),
+                    pattern: Regex::new(
+                        r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b",
+                    )
+                    .expect("Valid Regex"),
+                    description: "AWS Access Key ID".to_string(),
+                    severity: Severity::High,
+                    score: 85,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "cloud".to_string(),
+                        "aws".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(85),
+                    context_lines_before: 1,
+                    context_lines_after: 1,
+                    validator: None,
+                },
+                Rule {
+                    id: "creds.aws.secret_key_config".to_string(),
+                    pattern: Regex::new(
+                        r#"aws_secret_access_key\s*=\s*["']?([0-9A-Za-z/+]{40})["']?"#,
+                    )
+                    .expect("Valid Regex"),
+                    description: "AWS Secret Access Key (Config style)".to_string(),
+                    severity: Severity::High,
+                    score: 90,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "cloud".to_string(),
+                        "aws".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(90),
+                    context_lines_before: 1,
+                    context_lines_after: 1,
+                    validator: None,
+                },
+                Rule {
+                    id: "creds.github.pat.ghp".to_string(),
+                    pattern: Regex::new(r"\bghp_[0-9A-Za-z]{36}\b").expect("Valid Regex"),
+                    description: "GitHub Personal Access Token (ghp_)".to_string(),
+                    severity: Severity::High,
+                    score: 90,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "github".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(90),
+                    context_lines_before: 1,
+                    context_lines_after: 1,
+                    validator: None,
+                },
+                Rule {
+                    id: "creds.github.pat.long".to_string(),
+                    pattern: Regex::new(r"\bgithub_pat_[0-9A-Za-z_]{80,100}\b")
+                        .expect("Valid Regex"),
+                    description: "GitHub Personal Access Token (Fine-grained)".to_string(),
+                    severity: Severity::High,
+                    score: 90,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "github".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(90),
+                    context_lines_before: 1,
+                    context_lines_after: 1,
+                    validator: None,
+                },
+                Rule {
+                    id: "creds.slack.token.legacy".to_string(),
+                    pattern: Regex::new(r"\bxox[baps]-\d{10,}-\d{10,}-[0-9A-Za-z]{24,}\b")
+                        .expect("Valid Regex"),
+                    description: "Slack Token (Legacy)".to_string(),
+                    severity: Severity::High,
+                    score: 85,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "slack".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(85),
+                    context_lines_before: 1,
+                    context_lines_after: 1,
+                    validator: None,
+                },
+                Rule {
+                    id: "creds.key.private_pem".to_string(),
+                    pattern: Regex::new(r"-----BEGIN (RSA |EC )?PRIVATE KEY-----")
+                        .expect("Valid Regex"),
+                    description: "Private Key (PEM)".to_string(),
+                    severity: Severity::Critical,
+                    score: 95,
+                    category: "secret".to_string(),
+                    tags: vec![
+                        "credential".to_string(),
+                        "key".to_string(),
+                        "pem".to_string(),
+                        "critical".to_string(),
+                    ],
+                    base_score: Some(95),
+                    context_lines_before: 2,
+                    context_lines_after: 2,
+                    validator: None,
+                },
+                // ==========================
+                // JP PII v1 (RED)
+                // ==========================
+                Rule {
+                    id: "jp.mynumber".to_string(),
+                    pattern: Regex::new(r"(\b\d{12}\b|\b\d{4}-\d{4}-\d{4}\b)")
+                        .expect("Valid Regex"),
+                    description: "Japanese My Number".to_string(),
+                    severity: Severity::High,
+                    score: 90,
+                    category: "pii".to_string(),
+                    tags: vec![
+                        "pii".to_string(),
+                        "jp".to_string(),
+                        "id".to_string(),
+                        "high_risk".to_string(),
+                    ],
+                    base_score: Some(90),
+                    context_lines_before: 2,
+                    context_lines_after: 0,
+                    validator: None,
+                },
+                Rule {
+                    id: "jp.phone.mobile".to_string(),
+                    pattern: Regex::new(r"\b0[789]0[- ]?\d{4}[- ]?\d{4}\b").expect("Valid Regex"),
+                    description: "Japanese Mobile Phone".to_string(),
+                    severity: Severity::Medium,
+                    score: 60,
+                    category: "pii".to_string(),
+                    tags: vec![
+                        "pii".to_string(),
+                        "jp".to_string(),
+                        "phone".to_string(),
+                        "low_risk".to_string(),
+                    ],
+                    base_score: Some(60),
+                    context_lines_before: 1,
+                    context_lines_after: 0,
+                    validator: None,
+                },
+            ]
+        })
+        .clone()
 }
 
 pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
@@ -438,6 +200,9 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
                     score: rule_conf.score.unwrap_or(50) as u32,
                     category: rule_conf.category.clone().unwrap_or("custom".to_string()),
                     tags: rule_conf.tags.clone().unwrap_or_default(),
+                    base_score: rule_conf.base_score,
+                    context_lines_before: rule_conf.context_lines_before.unwrap_or(2),
+                    context_lines_after: rule_conf.context_lines_after.unwrap_or(0),
                     validator: None,
                 };
                 rule_map.insert(id.clone(), rule);

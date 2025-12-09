@@ -30,6 +30,9 @@ fn main() {
             since,
             staged,
             progress,
+            mask_mode,
+            unsafe_output,
+            limit,
         } => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
@@ -42,6 +45,9 @@ fn main() {
                 since.as_deref(),
                 *staged,
                 show_progress,
+                mask_mode.as_deref(),
+                *unsafe_output,
+                *limit,
             )
         }
         Commands::Filter => commands::filter::filter().map(|_| false),

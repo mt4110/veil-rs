@@ -22,8 +22,8 @@ impl Formatter for MarkdownFormatter {
         println!("|---|---|---|---|---|---|");
 
         for finding in findings {
-            let match_content = if !finding.masked_line.is_empty() {
-                &finding.masked_line
+            let match_content = if !finding.masked_snippet.is_empty() {
+                &finding.masked_snippet
             } else {
                 &finding.line_content
             };
@@ -59,18 +59,23 @@ mod tests {
             path: PathBuf::from("test.txt"),
             line_number: 1,
             line_content: "secret=123".to_string(),
-            masked_line: "secret=***".to_string(),
+            matched_content: "123".to_string(),
+            masked_snippet: "secret=***".to_string(),
             rule_id: "test_rule".to_string(),
             severity: Severity::High,
             score: 80,
             grade: veil_core::rules::grade::Grade::High,
+            context_before: vec![],
+            context_after: vec![],
         }];
         let summary = Summary {
-            total_files: 1,
-            scanned_files: 1,
-            skipped_files: 0,
-            findings_count: 1,
-            duration_ms: 100,
+            total_files: 10,
+            scanned_files: 8,
+            skipped_files: 2,
+            findings_count: 5,
+            shown_findings: 5,
+            truncated: false,
+            duration_ms: 1234,
             severity_counts: HashMap::new(),
         };
 

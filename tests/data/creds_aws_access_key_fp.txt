@@ -1,0 +1,6 @@
+# RULE: creds.aws.access_key_id
+# MODE: fp
+
+# Random string that looks like an AWS key but length is wrong or prefix is wrong
+AKIA1234567890ABCDE (19 chars)
+BKIA1234567890ABCDEF (Wrong prefix)

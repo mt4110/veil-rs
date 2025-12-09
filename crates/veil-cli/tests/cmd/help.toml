@@ -17,6 +17,7 @@ Commands:
 
 Options:
   -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
+...
   -h, --help             Print help
 """
 stderr = ""

@@ -42,7 +42,7 @@ pub fn mask(
             let line_num = i + 1;
             // Check if this line has a finding
             if let Some(finding) = findings.iter().find(|f| f.line_number == line_num) {
-                new_lines.push(finding.masked_line.clone());
+                new_lines.push(finding.masked_snippet.clone());
                 masked_count += 1;
             } else {
                 new_lines.push(line.to_string());

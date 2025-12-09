@@ -41,9 +41,18 @@ pub struct Rule {
     pub pattern: regex::Regex,
     pub description: String,
     pub severity: Severity,
+    /// The default score assigned to this rule when a finding is detected.
     pub score: u32,
+    /// An optional base score for the rule, which may override the default score in certain contexts.
+    pub base_score: Option<u32>,
+
     pub category: String,
     pub tags: Vec<String>,
+
+    // New context fields
+    pub context_lines_before: u8,
+    pub context_lines_after: u8,
+
     // Optional additional validation function (e.g. check digits)
     pub validator: Option<fn(&str) -> bool>,
 }
@@ -56,8 +65,11 @@ impl fmt::Debug for Rule {
             .field("description", &self.description)
             .field("severity", &self.severity)
             .field("score", &self.score)
+            .field("base_score", &self.base_score)
             .field("category", &self.category)
             .field("tags", &self.tags)
+            .field("context_lines_before", &self.context_lines_before)
+            .field("context_lines_after", &self.context_lines_after)
             .field(
                 "validator",
                 &if self.validator.is_some() {
@@ -74,11 +86,18 @@ impl fmt::Debug for Rule {
 pub struct Finding {
     pub path: PathBuf,
     pub line_number: usize,
-    pub line_content: String,
+    pub line_content: String, // Raw line content
     pub rule_id: String,
-    pub masked_line: String,
+    pub matched_content: String, // Raw matched secret (new)
+    pub masked_snippet: String,  // Masked line content
     pub severity: Severity,
     // New fields for Phase 2
     pub score: u32,
     pub grade: Grade,
+
+    // New context fields
+    #[serde(default)]
+    pub context_before: Vec<String>,
+    #[serde(default)]
+    pub context_after: Vec<String>,
 }

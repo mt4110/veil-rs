@@ -1,0 +1,4 @@
+# RULE: creds.github.pat.long
+# MODE: hit
+
+github_pat_11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff1122334455667788
