@@ -23,7 +23,12 @@ pub fn filter() -> Result<()> {
         }
 
         // Masking (defaulting to Redact for filter command, maybe configurable later)
-        let masked_line = apply_masks(&line, ranges, MaskMode::Redact);
+        let masked_line = apply_masks(
+            &line,
+            ranges,
+            MaskMode::Redact,
+            veil_core::DEFAULT_PLACEHOLDER,
+        );
         println!("{}", masked_line);
     }
     Ok(())

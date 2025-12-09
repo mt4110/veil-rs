@@ -45,7 +45,13 @@ impl ScanLimit {
     }
 }
 
-pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
+pub mod result;
+use result::ScanResult;
+
+pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
+pub const RULE_ID_MAX_FILE_SIZE: &str = "MAX_FILE_SIZE";
+
+pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let ignore_patterns = &config.core.ignore;
     let limit = ScanLimit::new(config.output.max_findings);
 
@@ -68,16 +74,45 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
         })
         .collect();
 
+    let total_files = entries.len();
+    let scanned_counter = AtomicUsize::new(0);
+    let skipped_counter = AtomicUsize::new(0);
+
     // 2. Process files in parallel
-    entries
+    let findings: Vec<Finding> = entries
         .par_iter()
         .flat_map(|entry| {
             if limit.check() {
                 return Vec::new();
             }
-            scan_file(entry.path(), rules, config, Some(&limit))
+
+            let file_findings = scan_file(entry.path(), rules, config, Some(&limit));
+
+            // Check if file was skipped due to binary/size
+            let mut is_skipped = false;
+            if let Some(first) = file_findings.first() {
+                if first.rule_id == RULE_ID_BINARY_FILE || first.rule_id == RULE_ID_MAX_FILE_SIZE {
+                    is_skipped = true;
+                }
+            }
+
+            if is_skipped {
+                skipped_counter.fetch_add(1, Ordering::Relaxed);
+                Vec::new() // Do not return these as findings
+            } else {
+                scanned_counter.fetch_add(1, Ordering::Relaxed);
+                file_findings
+            }
         })
-        .collect()
+        .collect();
+
+    ScanResult {
+        findings,
+        total_files,
+        scanned_files: scanned_counter.load(Ordering::Relaxed),
+        skipped_files: skipped_counter.load(Ordering::Relaxed),
+        limit_reached: limit.check(),
+    }
 }
 
 pub fn scan_file(
@@ -100,7 +135,7 @@ pub fn scan_file(
                     metadata.len(),
                     max_size
                 ),
-                rule_id: "MAX_FILE_SIZE".to_string(),
+                rule_id: RULE_ID_MAX_FILE_SIZE.to_string(),
                 matched_content: "".to_string(),
                 masked_snippet: "".to_string(),
                 severity: crate::model::Severity::High, // Treat as High/Critical
@@ -124,10 +159,10 @@ pub fn scan_file(
                 path: path.to_path_buf(),
                 line_number: 0,
                 line_content: "Binary file detected (skipped)".to_string(),
-                rule_id: "BINARY_FILE".to_string(),
+                rule_id: RULE_ID_BINARY_FILE.to_string(),
                 matched_content: "".to_string(),
                 masked_snippet: "".to_string(),
-                severity: crate::model::Severity::Low,
+                severity: crate::model::Severity::Medium,
                 score: 0,
                 grade: crate::rules::grade::Grade::Safe,
                 context_before: vec![],
@@ -282,8 +317,13 @@ fn scan_line(
     // 2. Generate Masked Snippet (Safe Output: Mask ALL secrets on the line)
     // Collect all ranges from all matches
     let ranges: Vec<_> = all_matches.iter().map(|(_, m)| m.range()).collect();
-    let masked_snippet =
-        crate::masking::apply_masks(content, ranges, config.output.mask_mode.unwrap_or_default());
+    let placeholder = config.masking.placeholder.as_str();
+    let masked_snippet = crate::masking::apply_masks(
+        content,
+        ranges,
+        config.output.mask_mode.unwrap_or_default(),
+        placeholder,
+    );
 
     // 3. Create Findings
     for (rule, mat) in all_matches {
