@@ -15,7 +15,10 @@ pub fn get_default_rules() -> Vec<Rule> {
                 // ==========================
                 Rule {
                     id: "creds.aws.access_key_id".to_string(),
-                    pattern: Regex::new(r"\b(AKIA|ASIA|AGPA)[0-9A-Z]{16}\b").expect("Valid Regex"),
+                    pattern: Regex::new(
+                        r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b",
+                    )
+                    .expect("Valid Regex"),
                     description: "AWS Access Key ID".to_string(),
                     severity: Severity::High,
                     score: 85,

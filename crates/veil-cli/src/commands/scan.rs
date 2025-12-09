@@ -75,16 +75,13 @@ pub fn scan(
 
     // Apply CLI overrides for mask_mode
     if unsafe_output {
-        final_config.output.mask_mode = veil_config::MaskMode::Plain;
+        final_config.output.mask_mode = Some(veil_config::MaskMode::Plain);
     } else if let Some(mode) = mask_mode_arg {
         match mode.to_lowercase().as_str() {
-            "plain" => final_config.output.mask_mode = veil_config::MaskMode::Plain,
-            "partial" => final_config.output.mask_mode = veil_config::MaskMode::Partial,
-            "redact" => final_config.output.mask_mode = veil_config::MaskMode::Redact,
-            _ => anyhow::bail!(
-                "Invalid mask mode: {}. Use plain, partial, or redact.",
-                mode
-            ),
+            "plain" => final_config.output.mask_mode = Some(veil_config::MaskMode::Plain),
+            "partial" => final_config.output.mask_mode = Some(veil_config::MaskMode::Partial),
+            "redact" => final_config.output.mask_mode = Some(veil_config::MaskMode::Redact),
+            _ => eprintln!("Warning: Unknown mask mode '{}', using default.", mode),
         }
     }
 

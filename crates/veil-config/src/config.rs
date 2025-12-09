@@ -16,7 +16,7 @@ pub struct Config {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct OutputConfig {
     #[serde(default)]
-    pub mask_mode: MaskMode,
+    pub mask_mode: Option<MaskMode>,
     #[serde(default = "default_true")]
     pub show_snippets: bool,
     #[serde(default = "default_max_findings")]
@@ -26,7 +26,7 @@ pub struct OutputConfig {
 impl Default for OutputConfig {
     fn default() -> Self {
         Self {
-            mask_mode: MaskMode::default(),
+            mask_mode: None,
             show_snippets: true,
             max_findings: Some(1000),
         }
@@ -87,9 +87,9 @@ impl Config {
             self.masking.placeholder = other.masking.placeholder;
         }
 
-        // Merge Output (Simple override)
-        if other.output.mask_mode != MaskMode::Redact {
-            self.output.mask_mode = other.output.mask_mode;
+        // Merge Output
+        if let Some(mode) = other.output.mask_mode {
+            self.output.mask_mode = Some(mode);
         }
         // show_snippets default is true. If other is false, override.
         if !other.output.show_snippets {

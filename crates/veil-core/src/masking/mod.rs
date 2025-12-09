@@ -39,11 +39,12 @@ pub fn apply_masks(content: &str, ranges: Vec<std::ops::Range<usize>>, mode: Mas
             MaskMode::Partial => {
                 // TODO: partial masking currently assumes byte offsets which works for ASCII secrets.
                 // For multibyte secrets, this might split characters.
-                if secret.len() <= 4 {
+                let char_count = secret.chars().count();
+                if char_count <= 4 {
                     "****".to_string()
                 } else {
-                    let start = &secret[..4];
-                    let end = &secret[secret.len() - 4..];
+                    let start: String = secret.chars().take(4).collect();
+                    let end: String = secret.chars().skip(char_count.saturating_sub(4)).collect();
                     format!("{}...{}", start, end)
                 }
             }

@@ -251,10 +251,16 @@ fn scan_line(
         }
 
         // Inline Ignore Logic
-        if content.contains("# veil:ignore")
-            && (content.contains(&format!("# veil:ignore={}", rule.id)) || !content.contains("="))
-        {
-            continue;
+        // TODO: Support "//" style comments if needed, currently strict on "#"
+        if content.contains("# veil:ignore") {
+            // Specific ignore: "# veil:ignore=rule.id"
+            if content.contains(&format!("# veil:ignore={}", rule.id)) {
+                continue;
+            }
+            // Generic ignore: "# veil:ignore" NOT followed by "="
+            if !content.contains("# veil:ignore=") {
+                continue;
+            }
         }
 
         // Find ALL matches for this rule on the line
@@ -276,7 +282,8 @@ fn scan_line(
     // 2. Generate Masked Snippet (Safe Output: Mask ALL secrets on the line)
     // Collect all ranges from all matches
     let ranges: Vec<_> = all_matches.iter().map(|(_, m)| m.range()).collect();
-    let masked_snippet = crate::masking::apply_masks(content, ranges, config.output.mask_mode);
+    let masked_snippet =
+        crate::masking::apply_masks(content, ranges, config.output.mask_mode.unwrap_or_default());
 
     // 3. Create Findings
     for (rule, mat) in all_matches {

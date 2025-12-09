@@ -324,6 +324,6 @@ mod tests {
         assert!(report.contains("<!DOCTYPE html>"));
         assert!(report.contains("test.txt"));
         assert!(report.contains("test_rule"));
-        assert!(report.contains("secret=123"));
+        assert!(report.contains("********"));
     }
 }

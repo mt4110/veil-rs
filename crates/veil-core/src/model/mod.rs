@@ -41,13 +41,10 @@ pub struct Rule {
     pub pattern: regex::Regex,
     pub description: String,
     pub severity: Severity,
-    // This 'score' field on Rule might be legacy or the default score?
-    // User plan says add base_score: Option<u32>.
-    // If 'score' already exists, maybe we should use base_score instead?
-    // Existing code uses 'score' as the default/base score.
-    // I will add base_score as requested.
+    /// The default score assigned to this rule when a finding is detected.
     pub score: u32,
-    pub base_score: Option<u32>, // New field
+    /// An optional base score for the rule, which may override the default score in certain contexts.
+    pub base_score: Option<u32>,
 
     pub category: String,
     pub tags: Vec<String>,
@@ -58,14 +55,6 @@ pub struct Rule {
 
     // Optional additional validation function (e.g. check digits)
     pub validator: Option<fn(&str) -> bool>,
-}
-
-pub fn default_context_before() -> u8 {
-    2
-}
-
-pub fn default_context_after() -> u8 {
-    0
 }
 
 impl fmt::Debug for Rule {
