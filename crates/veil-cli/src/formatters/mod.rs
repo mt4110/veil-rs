@@ -17,8 +17,7 @@ pub struct Summary {
     pub skipped_files: usize,
     pub findings_count: usize,
     pub shown_findings: usize,
-    // truncated is effectively limit_reached, let's keep both for backward check or prefer limit_reached
-    // User requested limit_reached.
+    /// Indicates whether the scan stopped early due to limit being reached.
     pub limit_reached: bool,
     pub duration_ms: u128,
     pub severity_counts: HashMap<Severity, usize>,

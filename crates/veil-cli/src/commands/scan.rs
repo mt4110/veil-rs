@@ -155,7 +155,7 @@ pub fn scan(
                                                 "File size ({} bytes) exceeds limit",
                                                 blob.size()
                                             ),
-                                            rule_id: "MAX_FILE_SIZE".to_string(),
+                                            rule_id: veil_core::RULE_ID_MAX_FILE_SIZE.to_string(),
                                             matched_content: "".to_string(),
                                             masked_snippet: "".to_string(),
                                             severity: veil_core::model::Severity::High,
@@ -279,7 +279,7 @@ pub fn scan(
                                         "File size ({} bytes) exceeds limit",
                                         blob.size()
                                     ),
-                                    rule_id: "MAX_FILE_SIZE".to_string(),
+                                    rule_id: veil_core::RULE_ID_MAX_FILE_SIZE.to_string(),
                                     matched_content: "".to_string(),
                                     masked_snippet: "".to_string(),
                                     severity: veil_core::model::Severity::High,
@@ -338,7 +338,9 @@ pub fn scan(
                     // Filter out BINARY_FILE / MAX_FILE_SIZE
                     let mut is_skipped = false;
                     if let Some(first) = file_findings.first() {
-                        if first.rule_id == "BINARY_FILE" || first.rule_id == "MAX_FILE_SIZE" {
+                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                        {
                             is_skipped = true;
                         }
                     }

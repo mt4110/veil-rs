@@ -48,6 +48,9 @@ impl ScanLimit {
 pub mod result;
 use result::ScanResult;
 
+pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
+pub const RULE_ID_MAX_FILE_SIZE: &str = "MAX_FILE_SIZE";
+
 pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let ignore_patterns = &config.core.ignore;
     let limit = ScanLimit::new(config.output.max_findings);
@@ -88,7 +91,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
             // Check if file was skipped due to binary/size
             let mut is_skipped = false;
             if let Some(first) = file_findings.first() {
-                if first.rule_id == "BINARY_FILE" || first.rule_id == "MAX_FILE_SIZE" {
+                if first.rule_id == RULE_ID_BINARY_FILE || first.rule_id == RULE_ID_MAX_FILE_SIZE {
                     is_skipped = true;
                 }
             }
@@ -132,7 +135,7 @@ pub fn scan_file(
                     metadata.len(),
                     max_size
                 ),
-                rule_id: "MAX_FILE_SIZE".to_string(),
+                rule_id: RULE_ID_MAX_FILE_SIZE.to_string(),
                 matched_content: "".to_string(),
                 masked_snippet: "".to_string(),
                 severity: crate::model::Severity::High, // Treat as High/Critical
@@ -156,10 +159,10 @@ pub fn scan_file(
                 path: path.to_path_buf(),
                 line_number: 0,
                 line_content: "Binary file detected (skipped)".to_string(),
-                rule_id: "BINARY_FILE".to_string(),
+                rule_id: RULE_ID_BINARY_FILE.to_string(),
                 matched_content: "".to_string(),
                 masked_snippet: "".to_string(),
-                severity: crate::model::Severity::Low,
+                severity: crate::model::Severity::Medium,
                 score: 0,
                 grade: crate::rules::grade::Grade::Safe,
                 context_before: vec![],
