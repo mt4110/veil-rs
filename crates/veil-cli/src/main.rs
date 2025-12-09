@@ -33,6 +33,7 @@ fn main() {
             mask_mode,
             unsafe_output,
             limit,
+            fail_on_findings,
         } => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
@@ -48,6 +49,7 @@ fn main() {
                 mask_mode.as_deref(),
                 *unsafe_output,
                 *limit,
+                *fail_on_findings,
             )
         }
         Commands::Filter => commands::filter::filter().map(|_| false),

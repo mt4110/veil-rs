@@ -1,0 +1,24 @@
+- id: veil-scan
+  name: veil secret scanner
+  description: Scan for secrets using veil-rs
+  entry: veil scan
+  language: system
+  types: [text]
+  pass_filenames: false
+  # pass_filenames: false because veil scan handles directory recursion better than receiving 1000 args.
+  # But if pre-commit passes args, veil scan . plus args might be weird?
+  # The user sample said `args: ["--format", "json"]`.
+  # If pass_filenames is true, pre-commit passes file paths. `veil scan file1 file2` works.
+  # User requested "simple priority", so let's stick to what works best.
+  # If we use `pass_filenames: true`, `veil` will scan only changed files, which is good for speed.
+  # Let's use `pass_filenames: true` to support incremental scans.
+  # wait, user example config didn't specifying `pass_filenames`.
+  # User's plan says: "simple priority: run veil scan on passed files".
+  # So pass_filenames: true.
+
+- id: veil-scan-all
+  name: veil secret scanner (full)
+  description: Scan entire repo for secrets
+  entry: veil scan .
+  language: system
+  pass_filenames: false

@@ -34,6 +34,9 @@ pub enum Commands {
         /// Fail (exit 1) if finding score exceeds this value
         #[arg(long, env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
+        /// Fail (exit 1) if any secrets are found, regardless of score
+        #[arg(long)]
+        fail_on_findings: bool,
         /// Scan a specific commit (SHA)
         #[arg(long)]
         commit: Option<String>,

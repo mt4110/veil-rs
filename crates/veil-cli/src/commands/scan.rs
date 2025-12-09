@@ -25,8 +25,16 @@ pub fn scan(
     mask_mode_arg: Option<&str>,
     unsafe_output: bool,
     limit: Option<usize>,
+    fail_on_findings: bool,
 ) -> Result<bool> {
     let start_time = Instant::now();
+
+    // ... (rest of function body remains strictly unchanged until exit logic) ...
+
+    // Careful with multi-replace here, the function body is huge.
+    // I will split this into two calls or use multi_replace if supported, but replace_file_content is better for contiguous.
+    // Wait, I need two changes: Signature AND Exit Logic at the end. They are far apart.
+    // I will use `multi_replace_file_content`.
 
     // Stats counters
     let scanned_files_atomic = AtomicUsize::new(0);
@@ -386,6 +394,8 @@ pub fn scan(
 
     let should_fail = if all_findings.is_empty() {
         false
+    } else if fail_on_findings {
+        true
     } else if threshold == 0 {
         true
     } else {

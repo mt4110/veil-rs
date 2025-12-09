@@ -144,21 +144,15 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
 ```
 
 
-### 4. Git フック (pre-commit)
-`pre-commit` を使用して、コミット前に自動スキャンを行うことができます。
-`.pre-commit-config.yaml` に以下を追加してください：
+### 4. Integrations
 
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: veil-scan
-        name: veil-scan
-        entry: veil scan
-        language: system
-        types: [text]
-        exclude: '\.git/|\.png$|\.jpg$'
-```
+Detailed guides for integrating `veil-rs` into your workflow:
+
+*   **[pre-commit Framework](docs/integrations/pre-commit.md)**: Drop-in support for `.pre-commit-config.yaml`.
+*   **[Native Git Hooks](docs/integrations/git-hook.md)**: Simple shell script for `.git/hooks`.
+*   **[GitHub Actions](docs/integrations/github-actions.md)**: CI integration template.
+
+---
 
 ## ライセンス
 Apache 2.0 または MIT ライセンスのデュアルライセンスです。
