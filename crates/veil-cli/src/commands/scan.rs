@@ -3,15 +3,14 @@ use crate::output::formatter::print_finding;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use git2::{Delta, DiffOptions, Repository};
-use ignore::WalkBuilder;
+// use ignore::WalkBuilder;
 // use indicatif::{ProgressBar, ProgressStyle};
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use veil_config::{load_config, Config};
-use veil_core::{get_all_rules, scan_content, scan_file};
+use veil_core::{get_all_rules, scan_content};
 
 #[allow(clippy::too_many_arguments)]
 pub fn scan(
@@ -120,7 +119,7 @@ pub fn scan(
     } else {
         config.output.max_findings
     };
-    let limit_tracker = ScanLimit::new(limit_val);
+    let _limit_tracker = ScanLimit::new(limit_val);
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -301,71 +300,43 @@ pub fn scan(
             }
         }
     } else {
-        // 4. Default FS scan (Updated for v0.4 with Progress)
+        // 4. Default FS scan (Delegated to veil-core::scan_path)
         let targets = paths.iter().collect::<Vec<_>>();
-        if !targets.is_empty() {
-            let mut builder = WalkBuilder::new(targets[0].clone());
-            for path in &targets[1..] {
-                builder.add(path);
+        let mut current_total = all_findings.len();
+
+        for path in targets {
+            // Check global limit
+            if let Some(max) = limit_val {
+                if current_total >= max {
+                    break;
+                }
             }
 
-            let walker = builder.build();
+            // Prepare config for this run (adjust limit)
+            let mut run_config = config.clone();
+            if let Some(max) = limit_val {
+                let remaining = max.saturating_sub(current_total);
+                run_config.output.max_findings = Some(remaining);
+            } else {
+                run_config.output.max_findings = None;
+            }
 
-            // Setup Progress (Disabled for now to fix clippy, pending properly parallel implementation)
-            // let pb = ...
+            let result = veil_core::scan_path(path, &rules, &run_config);
 
-            let findings: Vec<_> = walker
-                .par_bridge()
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    let path = e.path();
-                    let path_str = path.to_string_lossy();
-                    for pattern in &config.core.ignore {
-                        if path_str.contains(pattern) {
-                            return false;
-                        }
-                    }
-                    true
-                })
-                .flat_map(|entry| {
-                    if limit_tracker.check() {
-                        return Vec::new();
-                    }
+            // Accumulate stats
+            scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
+            skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
 
-                    let file_findings =
-                        scan_file(entry.path(), &rules, &config, Some(&limit_tracker));
-
-                    // Filter out BINARY_FILE / MAX_FILE_SIZE
-                    let mut is_skipped = false;
-                    if let Some(first) = file_findings.first() {
-                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                        {
-                            is_skipped = true;
-                        }
-                    }
-
-                    if is_skipped {
-                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                        Vec::new()
-                    } else {
-                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                        file_findings
-                    }
-                })
-                .collect();
-
-            all_findings.extend(findings);
+            // Accumulate findings
+            let count = result.findings.len();
+            all_findings.extend(result.findings);
+            current_total += count;
         }
     }
 
     // Formatting & Output
     let scanned_files = scanned_files_atomic.load(Ordering::Relaxed);
     let skipped_files = skipped_files_atomic.load(Ordering::Relaxed);
-    // Total files is scanned + skipped (approximation for streaming walker)
-    // Actually, `scan_path` defines total_files as entries.len().
-    // Here we don't easily have entries.len() unless we collect first.
-    // For consistency with `scan_path`, let's sum them up.
     let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
 
@@ -376,7 +347,12 @@ pub fn scan(
     }
 
     // Check truncation
-    let is_truncated = limit_tracker.check();
+    let is_truncated = if let Some(max) = limit_val {
+        all_findings.len() >= max
+    } else {
+        false
+    };
+
     if is_truncated {
         eprintln!(
             "⚠ Reached finding limit ({}). Further findings were not scanned.",

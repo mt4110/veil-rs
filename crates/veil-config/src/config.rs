@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
     #[serde(default)]
     pub core: CoreConfig,
@@ -13,7 +13,7 @@ pub struct Config {
     pub rules: HashMap<String, RuleConfig>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OutputConfig {
     #[serde(default)]
     pub mask_mode: Option<MaskMode>,
@@ -46,7 +46,7 @@ pub enum MaskMode {
     Plain,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct CoreConfig {
     #[serde(default = "default_include")]
     pub include: Vec<String>,
@@ -115,7 +115,7 @@ fn default_include() -> Vec<String> {
 }
 // Remove default_max_file_size as it's no longer used in serde default
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MaskingConfig {
     #[serde(default = "default_placeholder")]
     pub placeholder: String,
