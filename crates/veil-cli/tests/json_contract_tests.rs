@@ -37,6 +37,7 @@ fn json_contract_simple_project_matches_golden_file() {
     let actual_findings = build_findings_json(&result.findings);
 
     let mut actual = serde_json::json!({
+        "schemaVersion": "veil-v1",
         "summary": actual_summary,
         "findings": actual_findings,
     });

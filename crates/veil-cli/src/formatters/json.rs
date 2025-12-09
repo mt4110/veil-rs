@@ -49,15 +49,23 @@ mod tests {
 
 pub struct JsonFormatter;
 
+const SCHEMA_VERSION: &str = "veil-v1";
+
 #[derive(Serialize)]
 struct JsonReport<'a> {
+    #[serde(rename = "schemaVersion")]
+    schema_version: &'a str,
     summary: &'a Summary,
     findings: &'a [Finding],
 }
 
 impl Formatter for JsonFormatter {
     fn print(&self, findings: &[Finding], summary: &Summary) -> Result<()> {
-        let report = JsonReport { summary, findings };
+        let report = JsonReport {
+            schema_version: SCHEMA_VERSION,
+            summary,
+            findings,
+        };
         let json = serde_json::to_string_pretty(&report)?;
         println!("{}", json);
         Ok(())

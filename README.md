@@ -57,6 +57,38 @@ as string literals. Instead, tests generate fake tokens at runtime via helper fu
 See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
 and guidelines on adding new secret tests.
 
+## Integration Guide (JSON Output)
+
+`veil-rs` produces a stable, machine-readable JSON output for integrations with CI/CD systems, dashboarding tools, and external verifiers (like `veri-rs`).
+
+### Execution Example
+
+```bash
+veil scan . --format json --limit 1000 > veil-report.json
+```
+
+### Output Structure
+
+The output is guaranteed to follow the [v1 Schema](docs/json-schema.md):
+
+```json
+{
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "findings_count": 5,
+    "severity_counts": { "High": 2, "Medium": 3 },
+    ...
+  },
+  "findings": [ ... ]
+}
+```
+
+*   **`schemaVersion`**: Always check this field first (`veil-v1`). If it differs, the structure may have changed.
+*   **`summary`**: Use this for high-level pass/fail decisions (e.g. `severity_counts.Critical > 0`).
+*   **`findings`**: Full list of detected secrets.
+
+---
+
 ## 商用運用ガイド
 
 ### 1. カスタムルールの追加 (Pure TOML)
