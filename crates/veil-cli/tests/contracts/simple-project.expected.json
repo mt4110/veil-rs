@@ -1,0 +1,31 @@
+{
+    "summary": {
+        "total_files": 2,
+        "scanned_files": 2,
+        "skipped_files": 0,
+        "findings_count": 1,
+        "shown_findings": 1,
+        "limit_reached": false,
+        "duration_ms": 0,
+        "severity_counts": {
+            "High": 1
+        }
+    },
+    "findings": [
+        {
+            "rule_id": "creds.aws.access_key_id",
+            "severity": "High",
+            "path": "src/main.rs",
+            "line_number": 6,
+            "matched_content": "AKIA1234567890ABCDEF",
+            "masked_snippet": "    let aws_key = \"<REDACTED>\";",
+            "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
+            "score": 100,
+            "grade": "Critical",
+            "context_before": [
+                "    // A fake AWS Access Key ID for detection"
+            ],
+            "context_after": []
+        }
+    ]
+}
