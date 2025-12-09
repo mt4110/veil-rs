@@ -3308,6 +3308,7 @@ dependencies = [
  "predicates",
  "prettytable-rs",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",

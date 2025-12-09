@@ -46,6 +46,7 @@ impl ScanLimit {
 }
 
 pub mod result;
+pub mod utils;
 use result::ScanResult;
 
 pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
@@ -127,23 +128,16 @@ pub fn scan_file(
     if let Ok(metadata) = std::fs::metadata(path) {
         let max_size = config.core.max_file_size.unwrap_or(1_000_000);
         if metadata.len() > max_size {
-            local_findings.push(Finding {
-                path: path.to_path_buf(),
-                line_number: 0,
-                line_content: format!(
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_MAX_FILE_SIZE,
+                format!(
                     "File size ({} bytes) exceeds limit ({} bytes)",
                     metadata.len(),
                     max_size
                 ),
-                rule_id: RULE_ID_MAX_FILE_SIZE.to_string(),
-                matched_content: "".to_string(),
-                masked_snippet: "".to_string(),
-                severity: crate::model::Severity::High, // Treat as High/Critical
-                score: 100,                             // Force high score
-                grade: crate::rules::grade::Grade::Critical,
-                context_before: vec![],
-                context_after: vec![],
-            });
+                crate::model::Severity::High,
+            ));
             return local_findings;
         }
     }
@@ -155,19 +149,12 @@ pub fn scan_file(
         let mut buffer = [0; 1024];
         let n = file.read(&mut buffer).unwrap_or(0);
         if buffer[..n].contains(&0) {
-            local_findings.push(Finding {
-                path: path.to_path_buf(),
-                line_number: 0,
-                line_content: "Binary file detected (skipped)".to_string(),
-                rule_id: RULE_ID_BINARY_FILE.to_string(),
-                matched_content: "".to_string(),
-                masked_snippet: "".to_string(),
-                severity: crate::model::Severity::Medium,
-                score: 0,
-                grade: crate::rules::grade::Grade::Safe,
-                context_before: vec![],
-                context_after: vec![],
-            });
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_BINARY_FILE,
+                "Binary file detected (skipped)".to_string(),
+                crate::model::Severity::Medium,
+            ));
             return local_findings;
         }
 

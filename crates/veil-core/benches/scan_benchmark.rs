@@ -3,7 +3,7 @@ use regex::Regex;
 use std::path::PathBuf;
 use veil_config::Config;
 use veil_core::model::Rule;
-use veil_core::scanner::scan_content;
+use veil_core::scanner::{scan_content, utils::scan_data};
 
 fn main() {
     divan::main();
@@ -128,6 +128,43 @@ fn apply_masks_stress(bencher: Bencher) {
             ranges.clone(),
             MaskMode::Partial,
             veil_core::DEFAULT_PLACEHOLDER,
+        )
+    });
+}
+
+#[divan::bench]
+fn scan_data_binary_skip(bencher: Bencher) {
+    let rules = get_rules();
+    let config = get_config();
+    // 5MB binary data (some zeroes)
+    let mut data = vec![b'A'; 5 * 1024 * 1024];
+    data[100] = 0; // early zero
+    let path = PathBuf::from("binary.bin");
+
+    bencher.bench(|| {
+        scan_data(
+            divan::black_box(path.as_path()),
+            divan::black_box(&data),
+            &rules,
+            &config,
+        )
+    });
+}
+
+#[divan::bench]
+fn scan_data_size_skip(bencher: Bencher) {
+    let rules = get_rules();
+    let config = get_config();
+    // 10MB data (over 1MB default limit)
+    let data = vec![b'A'; 10 * 1024 * 1024];
+    let path = PathBuf::from("large_skip.txt");
+
+    bencher.bench(|| {
+        scan_data(
+            divan::black_box(path.as_path()),
+            divan::black_box(&data),
+            &rules,
+            &config,
         )
     });
 }

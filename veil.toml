@@ -1,0 +1,23 @@
+[core]
+# Ignore test data and verification fixtures to prevent false positives in CI
+# Derived from Dogfood Report v0.6.2
+ignore = [
+  "target",
+  "tests/fixtures",
+  "tests/data",
+  "tests/git_check",
+  "tests/verify_output.txt",
+  "crates/veil-cli/tests/contracts",
+  "crates/veil-cli/tests/contracts/simple-project.expected.json",
+  "docs/dogfood",  # Ignore our own reports containing findings
+]
+
+# Exit code is controlled by CI flags (e.g. --fail-on-findings).
+# fail_on_score = 0 means we do NOT enforce score-based failure by default.
+fail_on_score = 0
+
+[output]
+# We prefer standard 'redact' for local dev, preventing leak in terminal logs
+mask_mode = "redact"
+# Limit findings in case we mess up
+max_findings = 1000

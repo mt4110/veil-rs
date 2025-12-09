@@ -1,5 +1,6 @@
 mod cli;
 mod commands;
+mod config_loader;
 mod formatters;
 mod output;
 
@@ -67,6 +68,13 @@ fn main() {
         Commands::Ignore { path } => {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }
+        Commands::Config(cmd) => match cmd {
+            cli::ConfigCommand::Check { config_path } => {
+                // Prefer subcommand arg, fallback to global arg
+                let path = config_path.as_ref().or(cli.config.as_ref());
+                commands::config::check(path)
+            }
+        },
     };
 
     match result {

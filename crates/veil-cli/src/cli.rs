@@ -88,4 +88,17 @@ pub enum Commands {
         /// Path to ignore
         path: String,
     },
+    /// Configuration tools
+    #[command(subcommand)]
+    Config(ConfigCommand),
+}
+
+#[derive(Subcommand)]
+pub enum ConfigCommand {
+    /// Validate configuration and rules
+    Check {
+        /// Path to config file (optional override)
+        #[arg(long)]
+        config_path: Option<PathBuf>,
+    },
 }

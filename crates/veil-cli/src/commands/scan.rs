@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
-use veil_config::{load_config, Config};
-use veil_core::{get_all_rules, scan_content};
+// use veil_config::{load_config, Config};
+use veil_core::get_all_rules;
 
 #[allow(clippy::too_many_arguments)]
 pub fn scan(
@@ -41,44 +41,7 @@ pub fn scan(
     let skipped_files_atomic = AtomicUsize::new(0);
 
     // Load configs
-    let mut final_config = Config::default();
-
-    // 1. Org Config (VEIL_ORG_RULES)
-    if let Ok(org_path) = std::env::var("VEIL_ORG_RULES") {
-        let path = PathBuf::from(&org_path);
-        if path.exists() {
-            match load_config(&path) {
-                Ok(org_config) => final_config.merge(org_config),
-                Err(e) => eprintln!("Warning: Failed to load Org config at {:?}: {}", path, e),
-            }
-        } else {
-            eprintln!(
-                "Warning: VEIL_ORG_RULES set to {:?} but file not found.",
-                path
-            );
-        }
-    }
-
-    // 2. Project Config
-    let config_file = config_path
-        .cloned()
-        .unwrap_or_else(|| PathBuf::from("veil.toml"));
-
-    // If explicit config path given, fail if missing. If default, fallback to default.
-    let project_config = match load_config(&config_file) {
-        Ok(c) => c,
-        Err(e) => {
-            if config_path.is_some() && !config_file.exists() {
-                anyhow::bail!("Config file not found: {:?}", config_file);
-            }
-            if config_file.exists() {
-                return Err(e);
-            }
-            Config::default()
-        }
-    };
-
-    final_config.merge(project_config);
+    let mut final_config = crate::config_loader::load_effective_config(config_path)?;
 
     // Apply CLI overrides for mask_mode
     if unsafe_output {
@@ -149,34 +112,27 @@ pub fn scan(
                         if let Ok(entry) = tree.get_path(path_val) {
                             if let Ok(object) = entry.to_object(&repo) {
                                 if let Some(blob) = object.as_blob() {
-                                    scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                    let file_findings = veil_core::scan_data(
+                                        path_val,
+                                        blob.content(),
+                                        &rules,
+                                        &config,
+                                    );
 
-                                    let max_size = config.core.max_file_size.unwrap_or(1_000_000);
-                                    if blob.size() as u64 > max_size {
-                                        all_findings.push(veil_core::model::Finding {
-                                            path: path_val.to_path_buf(),
-                                            line_number: 0,
-                                            line_content: format!(
-                                                "File size ({} bytes) exceeds limit",
-                                                blob.size()
-                                            ),
-                                            rule_id: veil_core::RULE_ID_MAX_FILE_SIZE.to_string(),
-                                            matched_content: "".to_string(),
-                                            masked_snippet: "".to_string(),
-                                            severity: veil_core::model::Severity::High,
-                                            score: 100,
-                                            grade: veil_core::rules::grade::Grade::Critical,
-                                            context_before: vec![],
-                                            context_after: vec![],
-                                        });
-                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        continue;
+                                    let mut is_skipped = false;
+                                    if let Some(first) = file_findings.first() {
+                                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                        {
+                                            is_skipped = true;
+                                        }
                                     }
 
-                                    if let Ok(content) = std::str::from_utf8(blob.content()) {
-                                        let findings =
-                                            scan_content(content, path_val, &rules, &config);
-                                        all_findings.extend(findings);
+                                    if is_skipped {
+                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                    } else {
+                                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                        all_findings.extend(file_findings);
                                     }
                                 }
                             }
@@ -228,16 +184,27 @@ pub fn scan(
                             if let Ok(entry) = tree.get_path(path) {
                                 if let Ok(object) = entry.to_object(&repo) {
                                     if let Some(blob) = object.as_blob() {
-                                        let max_size =
-                                            config.core.max_file_size.unwrap_or(1_000_000);
-                                        if blob.size() as u64 > max_size {
-                                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                            continue;
+                                        let file_findings = veil_core::scan_data(
+                                            path,
+                                            blob.content(),
+                                            &rules,
+                                            &config,
+                                        );
+
+                                        let mut is_skipped = false;
+                                        if let Some(first) = file_findings.first() {
+                                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                            {
+                                                is_skipped = true;
+                                            }
                                         }
-                                        if let Ok(content) = std::str::from_utf8(blob.content()) {
-                                            let findings =
-                                                scan_content(content, path, &rules, &config);
-                                            all_findings.extend(findings);
+
+                                        if is_skipped {
+                                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                        } else {
+                                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                            all_findings.extend(file_findings);
                                         }
                                     }
                                 }
@@ -274,31 +241,23 @@ pub fn scan(
                     }
                     if let Some(entry) = index.get_path(path_val, 0) {
                         if let Ok(blob) = repo.find_blob(entry.id) {
-                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                            let max_size = config.core.max_file_size.unwrap_or(1_000_000);
-                            if blob.size() as u64 > max_size {
-                                all_findings.push(veil_core::model::Finding {
-                                    path: path_val.to_path_buf(),
-                                    line_number: 0,
-                                    line_content: format!(
-                                        "File size ({} bytes) exceeds limit",
-                                        blob.size()
-                                    ),
-                                    rule_id: veil_core::RULE_ID_MAX_FILE_SIZE.to_string(),
-                                    matched_content: "".to_string(),
-                                    masked_snippet: "".to_string(),
-                                    severity: veil_core::model::Severity::High,
-                                    score: 100,
-                                    grade: veil_core::rules::grade::Grade::Critical,
-                                    context_before: vec![],
-                                    context_after: vec![],
-                                });
-                                continue;
+                            let file_findings =
+                                veil_core::scan_data(path_val, blob.content(), &rules, &config);
+
+                            let mut is_skipped = false;
+                            if let Some(first) = file_findings.first() {
+                                if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                    || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                {
+                                    is_skipped = true;
+                                }
                             }
 
-                            if let Ok(content) = std::str::from_utf8(blob.content()) {
-                                let findings = scan_content(content, path_val, &rules, &config);
-                                all_findings.extend(findings);
+                            if is_skipped {
+                                skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                            } else {
+                                scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                all_findings.extend(file_findings);
                             }
                         }
                     }

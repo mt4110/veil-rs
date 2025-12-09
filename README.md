@@ -17,9 +17,9 @@ English README is available [here](README_EN.md).
 
 ```bash
 # ソースコードからビルド
-git clone https://github.com/takem1-max64/veil-rs.git
+git clone https://github.com/mt4110/veil-rs.git
 cd veil-rs
-cargo install --path crates/veil-cli --bin veil
+cargo build --release
 ```
 
 ## 使い方
@@ -114,8 +114,8 @@ let test_token = "ghp_xxxxxxxx"; // veil:ignore=github_personal_access_token
 ```
 
 *   `// veil:ignore`: その行のすべての検知を無視します。
-*   `// veil:ignore`: その行のすべての検知を無視します。
 *   `// veil:ignore=rule_id`: 指定したルールIDの検知のみを無視します。
+
 
 ### 3. ポリシーの階層化 (Policy Layering)
 全社共通のブラックリストや許容設定を一括管理できます。
@@ -134,8 +134,6 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
 - name: Veil Security Scan
   run: |
     # HTMLレポートを生成（アーティファクト保存用）
-    veil scan . --format html > report.html
-    # スコア80以上の検出があれば失敗させる（CI用）
     veil scan . --format html > report.html
     # スコア80以上の検出があれば失敗させる（CI用）
     veil scan . --fail-score 80
