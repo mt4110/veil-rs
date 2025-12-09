@@ -31,7 +31,7 @@ pub fn scan(
 
     // Stats counters
     let scanned_files_atomic = AtomicUsize::new(0);
-    // let skipped_files_atomic = AtomicUsize::new(0); // Can track if we filter
+    let skipped_files_atomic = AtomicUsize::new(0);
 
     // Load configs
     let mut final_config = Config::default();
@@ -164,6 +164,7 @@ pub fn scan(
                                             context_before: vec![],
                                             context_after: vec![],
                                         });
+                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                                         continue;
                                     }
 
@@ -225,6 +226,7 @@ pub fn scan(
                                         let max_size =
                                             config.core.max_file_size.unwrap_or(1_000_000);
                                         if blob.size() as u64 > max_size {
+                                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                                             continue;
                                         }
                                         if let Ok(content) = std::str::from_utf8(blob.content()) {
@@ -329,8 +331,25 @@ pub fn scan(
                     if limit_tracker.check() {
                         return Vec::new();
                     }
-                    scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                    scan_file(entry.path(), &rules, &config, Some(&limit_tracker))
+
+                    let file_findings =
+                        scan_file(entry.path(), &rules, &config, Some(&limit_tracker));
+
+                    // Filter out BINARY_FILE / MAX_FILE_SIZE
+                    let mut is_skipped = false;
+                    if let Some(first) = file_findings.first() {
+                        if first.rule_id == "BINARY_FILE" || first.rule_id == "MAX_FILE_SIZE" {
+                            is_skipped = true;
+                        }
+                    }
+
+                    if is_skipped {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        Vec::new()
+                    } else {
+                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        file_findings
+                    }
                 })
                 .collect();
 
@@ -340,6 +359,12 @@ pub fn scan(
 
     // Formatting & Output
     let scanned_files = scanned_files_atomic.load(Ordering::Relaxed);
+    let skipped_files = skipped_files_atomic.load(Ordering::Relaxed);
+    // Total files is scanned + skipped (approximation for streaming walker)
+    // Actually, `scan_path` defines total_files as entries.len().
+    // Here we don't easily have entries.len() unless we collect first.
+    // For consistency with `scan_path`, let's sum them up.
+    let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
 
     // Build Summary
@@ -358,11 +383,11 @@ pub fn scan(
     }
 
     let summary = Summary::new(
-        scanned_files,      // total_files
-        scanned_files,      // scanned_files
-        0,                  // skipped_files
+        total_files,
+        scanned_files,
+        skipped_files,
         all_findings.len(), // findings_count (total found)
-        all_findings.len(), // shown_findings (in this model findings are strictly what we collected)
+        all_findings.len(), // shown_findings
         is_truncated,
         duration,
         severity_counts,

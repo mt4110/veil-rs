@@ -24,7 +24,8 @@ pub fn mask(
         // MVP: Read matching files, apply substitution line by line, write back.
         // For efficiency, we only rewrite if findings exist.
 
-        let mut findings = scan_path(path, &rules, &config);
+        let result = scan_path(path, &rules, &config);
+        let mut findings = result.findings;
 
         if findings.is_empty() {
             continue;

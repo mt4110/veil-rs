@@ -45,7 +45,10 @@ impl ScanLimit {
     }
 }
 
-pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
+pub mod result;
+use result::ScanResult;
+
+pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let ignore_patterns = &config.core.ignore;
     let limit = ScanLimit::new(config.output.max_findings);
 
@@ -68,16 +71,45 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> Vec<Finding> {
         })
         .collect();
 
+    let total_files = entries.len();
+    let scanned_counter = AtomicUsize::new(0);
+    let skipped_counter = AtomicUsize::new(0);
+
     // 2. Process files in parallel
-    entries
+    let findings: Vec<Finding> = entries
         .par_iter()
         .flat_map(|entry| {
             if limit.check() {
                 return Vec::new();
             }
-            scan_file(entry.path(), rules, config, Some(&limit))
+
+            let file_findings = scan_file(entry.path(), rules, config, Some(&limit));
+
+            // Check if file was skipped due to binary/size
+            let mut is_skipped = false;
+            if let Some(first) = file_findings.first() {
+                if first.rule_id == "BINARY_FILE" || first.rule_id == "MAX_FILE_SIZE" {
+                    is_skipped = true;
+                }
+            }
+
+            if is_skipped {
+                skipped_counter.fetch_add(1, Ordering::Relaxed);
+                Vec::new() // Do not return these as findings
+            } else {
+                scanned_counter.fetch_add(1, Ordering::Relaxed);
+                file_findings
+            }
         })
-        .collect()
+        .collect();
+
+    ScanResult {
+        findings,
+        total_files,
+        scanned_files: scanned_counter.load(Ordering::Relaxed),
+        skipped_files: skipped_counter.load(Ordering::Relaxed),
+        limit_reached: limit.check(),
+    }
 }
 
 pub fn scan_file(

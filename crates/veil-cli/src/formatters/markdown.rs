@@ -74,7 +74,7 @@ mod tests {
             skipped_files: 2,
             findings_count: 5,
             shown_findings: 5,
-            truncated: false,
+            limit_reached: false,
             duration_ms: 1234,
             severity_counts: HashMap::new(),
         };

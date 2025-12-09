@@ -17,7 +17,9 @@ pub struct Summary {
     pub skipped_files: usize,
     pub findings_count: usize,
     pub shown_findings: usize,
-    pub truncated: bool,
+    // truncated is effectively limit_reached, let's keep both for backward check or prefer limit_reached
+    // User requested limit_reached.
+    pub limit_reached: bool,
     pub duration_ms: u128,
     pub severity_counts: HashMap<Severity, usize>,
 }
@@ -30,7 +32,7 @@ impl Summary {
         skipped_files: usize,
         findings_count: usize,
         shown_findings: usize,
-        truncated: bool,
+        limit_reached: bool,
         duration: std::time::Duration,
         severity_counts: HashMap<Severity, usize>,
     ) -> Self {
@@ -40,7 +42,7 @@ impl Summary {
             skipped_files,
             findings_count,
             shown_findings,
-            truncated,
+            limit_reached,
             duration_ms: duration.as_millis(),
             severity_counts,
         }

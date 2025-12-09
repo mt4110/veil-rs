@@ -31,16 +31,16 @@ pub fn check_project() -> Result<bool> {
     println!("{} Scanning for secrets...", "INFO".blue());
     let rules = get_default_rules();
     let config = Config::default();
-    let findings = scan_path(&current_dir, &rules, &config);
+    let result = scan_path(&current_dir, &rules, &config);
 
-    if findings.is_empty() {
+    if result.findings.is_empty() {
         score += 40;
         println!("{} No obvious secrets found (+40)", "PASS".green().bold());
     } else {
         println!(
             "{} Found {} potentially unsafe secrets (0/40)",
             "FAIL".red().bold(),
-            findings.len()
+            result.findings.len()
         );
         details.push("Run `veil scan` to identify and remove secrets".to_string());
     }
