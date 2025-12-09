@@ -1,6 +1,13 @@
 use veil_config::MaskMode;
 
-pub fn apply_masks(content: &str, ranges: Vec<std::ops::Range<usize>>, mode: MaskMode) -> String {
+pub const DEFAULT_PLACEHOLDER: &str = "<REDACTED>";
+
+pub fn apply_masks(
+    content: &str,
+    ranges: Vec<std::ops::Range<usize>>,
+    mode: MaskMode,
+    placeholder: &str,
+) -> String {
     if mode == MaskMode::Plain {
         return content.to_string();
     }
@@ -35,7 +42,7 @@ pub fn apply_masks(content: &str, ranges: Vec<std::ops::Range<usize>>, mode: Mas
 
         let secret = &content[range.clone()];
         let replacement = match mode {
-            MaskMode::Redact => "<REDACTED>".to_string(),
+            MaskMode::Redact => placeholder.to_string(),
             MaskMode::Partial => {
                 // TODO: partial masking currently assumes byte offsets which works for ASCII secrets.
                 // For multibyte secrets, this might split characters.
@@ -48,7 +55,7 @@ pub fn apply_masks(content: &str, ranges: Vec<std::ops::Range<usize>>, mode: Mas
                     format!("{}...{}", start, end)
                 }
             }
-            MaskMode::Plain => secret.to_string(), // Should be unreachable with early check
+            MaskMode::Plain => secret.to_string(), // Unreachable due to early exit
         };
 
         result.push_str(&replacement);
@@ -77,7 +84,7 @@ mod tests {
         // Mask "World" (6..11)
         let ranges = vec![6..11; 1];
         assert_eq!(
-            apply_masks(text, ranges, MaskMode::Redact),
+            apply_masks(text, ranges, MaskMode::Redact, DEFAULT_PLACEHOLDER),
             "Hello <REDACTED>"
         );
     }
@@ -87,7 +94,10 @@ mod tests {
         let text = "AKIA1234567890ABCD";
         // Mask whole thing
         let ranges = vec![0..18];
-        assert_eq!(apply_masks(text, ranges, MaskMode::Partial), "AKIA...ABCD");
+        assert_eq!(
+            apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
+            "AKIA...ABCD"
+        );
     }
 
     #[test]
@@ -95,7 +105,10 @@ mod tests {
         let text = "PWD=1234";
         // Mask "1234" (4..8)
         let ranges = vec![4..8];
-        assert_eq!(apply_masks(text, ranges, MaskMode::Partial), "PWD=****");
+        assert_eq!(
+            apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
+            "PWD=****"
+        );
     }
 
     #[test]
@@ -108,7 +121,7 @@ mod tests {
         let text = "key=123 secret=456";
         let ranges = vec![4..7, 4..6, 15..18];
         assert_eq!(
-            apply_masks(text, ranges, MaskMode::Redact),
+            apply_masks(text, ranges, MaskMode::Redact, DEFAULT_PLACEHOLDER),
             "key=<REDACTED> secret=<REDACTED>"
         );
     }
@@ -118,7 +131,10 @@ mod tests {
         let text = "abcdefg";
         // "abcde" (0..5), "bcd" (1..4)
         let ranges = vec![0..5, 1..4];
-        assert_eq!(apply_masks(text, ranges, MaskMode::Redact), "<REDACTED>fg");
+        assert_eq!(
+            apply_masks(text, ranges, MaskMode::Redact, DEFAULT_PLACEHOLDER),
+            "<REDACTED>fg"
+        );
     }
 
     #[test]
@@ -130,8 +146,25 @@ mod tests {
         // Result: <REDACTED><REDACTED>
         let ranges = vec![0..3, 3..6];
         assert_eq!(
-            apply_masks(text, ranges, MaskMode::Redact),
+            apply_masks(text, ranges, MaskMode::Redact, DEFAULT_PLACEHOLDER),
             "<REDACTED><REDACTED>"
         );
+    }
+
+    #[test]
+    fn test_mask_custom_placeholder() {
+        let text = "abc123xyz";
+        let ranges = vec![3..6]; // "123"
+        let masked = apply_masks(text, ranges, MaskMode::Redact, "****");
+        assert_eq!(masked, "abc****xyz");
+    }
+
+    #[test]
+    fn test_plain_mode_returns_original() {
+        let text = "secret: 12345";
+        let ranges = vec![8..13];
+        // Even with a placeholder provided, Plain mode must return original
+        let masked = apply_masks(text, ranges, MaskMode::Plain, "****");
+        assert_eq!(masked, text);
     }
 }

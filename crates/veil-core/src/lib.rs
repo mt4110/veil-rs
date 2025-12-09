@@ -5,7 +5,7 @@ pub mod rules;
 pub mod scanner;
 pub mod scoring;
 
-pub use crate::masking::apply_masks;
+pub use crate::masking::{apply_masks, DEFAULT_PLACEHOLDER};
 pub use model::{Finding, Rule, Severity};
 pub use rules::builtin::{get_all_rules, get_default_rules};
 pub use rules::grade::{calculate_grade, Grade};

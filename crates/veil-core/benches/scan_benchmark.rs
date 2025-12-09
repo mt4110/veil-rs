@@ -127,6 +127,7 @@ fn apply_masks_stress(bencher: Bencher) {
             divan::black_box(&content),
             ranges.clone(),
             MaskMode::Partial,
+            veil_core::DEFAULT_PLACEHOLDER,
         )
     });
 }

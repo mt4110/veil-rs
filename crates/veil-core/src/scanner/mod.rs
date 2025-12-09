@@ -282,8 +282,13 @@ fn scan_line(
     // 2. Generate Masked Snippet (Safe Output: Mask ALL secrets on the line)
     // Collect all ranges from all matches
     let ranges: Vec<_> = all_matches.iter().map(|(_, m)| m.range()).collect();
-    let masked_snippet =
-        crate::masking::apply_masks(content, ranges, config.output.mask_mode.unwrap_or_default());
+    let placeholder = config.masking.placeholder.as_str();
+    let masked_snippet = crate::masking::apply_masks(
+        content,
+        ranges,
+        config.output.mask_mode.unwrap_or_default(),
+        placeholder,
+    );
 
     // 3. Create Findings
     for (rule, mat) in all_matches {
