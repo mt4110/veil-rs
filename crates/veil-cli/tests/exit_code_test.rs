@@ -10,14 +10,10 @@ fn test_exit_code_behavior() {
     // AKIA... is usually detected.
     fs::write(&file_path, "AKIA1234567890ABCDEF").unwrap();
 
-    // 1. Default behavior (should fail if threshold is 0/default)
-    // Since we didn't set threshold in config, default is 0, so any finding triggers failure.
+    // 1. Default behavior (should SUCCEED now, unless flag is passed)
+    // We changed policy to be "safe by default" unless --fail-on-findings is used.
     let mut cmd = Command::cargo_bin("veil").unwrap();
-    cmd.arg("scan")
-        .arg(temp_dir.path())
-        .assert()
-        .failure() // Expecting exit code 1
-        .code(1);
+    cmd.arg("scan").arg(temp_dir.path()).assert().success(); // Expecting exit code 0
 
     // 2. Explicit flag behavior
     let mut cmd = Command::cargo_bin("veil").unwrap();

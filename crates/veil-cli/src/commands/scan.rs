@@ -396,10 +396,10 @@ pub fn scan(
         false
     } else if fail_on_findings {
         true
-    } else if threshold == 0 {
-        true
-    } else {
+    } else if threshold > 0 {
         all_findings.iter().any(|f| f.score >= threshold)
+    } else {
+        false
     };
 
     Ok(should_fail)

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "total_files": 0,
+    "scanned_files": 0,
+    "skipped_files": 0,
+    "findings_count": 0,
+    "shown_findings": 0,
+    "limit_reached": false,
+    "duration_ms": 21,
+    "severity_counts": {}
+  },
+  "findings": []
+}

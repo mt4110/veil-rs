@@ -1,0 +1,550 @@
+{
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "total_files": 100,
+    "scanned_files": 99,
+    "skipped_files": 1,
+    "findings_count": 35,
+    "shown_findings": 35,
+    "limit_reached": false,
+    "duration_ms": 60,
+    "severity_counts": {
+      "Critical": 2,
+      "High": 28,
+      "Medium": 5
+    }
+  },
+  "findings": [
+    {
+      "path": "./crates/veil-cli/tests/contracts/simple-project/src/main.rs",
+      "line_number": 6,
+      "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "    let aws_key = \"<REDACTED>\";",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // A fake AWS Access Key ID for detection"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/contracts/simple-project.expected.json",
+      "line_number": 21,
+      "line_content": "            \"matched_content\": \"AKIA1234567890ABCDEF\",",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "            \"matched_content\": \"<REDACTED>\",",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "            \"line_number\": 6,"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/contracts/simple-project.expected.json",
+      "line_number": 23,
+      "line_content": "            \"line_content\": \"    let aws_key = \\\"AKIA1234567890ABCDEF\\\";\",",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "            \"line_content\": \"    let aws_key = \\\"<REDACTED>\\\";\",",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "            \"masked_snippet\": \"    let aws_key = \\\"<REDACTED>\\\";\","
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/policy_test.rs",
+      "line_number": 14,
+      "line_content": "    f.write_all(b\"aws_key = \\\"AKIA1234567890AVCDEF\\\"\")?;",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    f.write_all(b\"aws_key = \\\"<REDACTED>\\\"\")?;",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    let mut f = File::create(&secret_file)?;"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/policy_test.rs",
+      "line_number": 55,
+      "line_content": "    let secret = \"AKIA1234567890AVCDEF\";",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    let secret = \"<REDACTED>\";",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // Secret file"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/policy_test.rs",
+      "line_number": 91,
+      "line_content": "    writeln!(fa, \"AKIA1234567890AVCDEF\")?;",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    writeln!(fa, \"<REDACTED>\")?;",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    let mut fa = File::create(&file_a)?;"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/policy_test.rs",
+      "line_number": 96,
+      "line_content": "    writeln!(fb, \"AKIA1234567890AVCDEF\")?;",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    writeln!(fb, \"<REDACTED>\")?;",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    let mut fb = File::create(&file_b)?;"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/staged_test.rs",
+      "line_number": 31,
+      "line_content": "    let secret = \"AKIA1234567890AVCDEF\"; // 20 chars, all CAPS for rule match",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    let secret = \"<REDACTED>\"; // 20 chars, all CAPS for rule match",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // 2. Create a file with a secret (AWS Key)"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/staged_test.rs",
+      "line_number": 67,
+      "line_content": "    let secret = \"AKIA1234567890AVCDEF\";",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890AVCDEF",
+      "masked_snippet": "    let secret = \"<REDACTED>\";",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // Create a file with a High severity secret (Score 80-100)"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-cli/tests/exit_code_test.rs",
+      "line_number": 11,
+      "line_content": "    fs::write(&file_path, \"AKIA1234567890ABCDEF\").unwrap();",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "    fs::write(&file_path, \"<REDACTED>\").unwrap();",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // AKIA... is usually detected."
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-core/benches/scan_benchmark.rs",
+      "line_number": 62,
+      "line_content": "        aws_access_key_id = AKIA1234567890ABCDEF",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "        aws_access_key_id = <REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "        # This is a small config file"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-core/benches/scan_benchmark.rs",
+      "line_number": 82,
+      "line_content": "    content.push_str(\"aws_access_key_id = AKIA1234567890ABCDEF\\n\");",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "    content.push_str(\"aws_access_key_id = <REDACTED>\\n\");",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // Inject some secrets"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./crates/veil-core/benches/scan_benchmark.rs",
+      "line_number": 101,
+      "line_content": "    content.push_str(\"aws_access_key_id = AKIA1234567890ABCDEF\\n\");",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "    content.push_str(\"aws_access_key_id = <REDACTED>\\n\");",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    // Inject secrets"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/git_check/secrets.env",
+      "line_number": 1,
+      "line_content": "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIAIOSFODNN7EXAMPLE",
+      "masked_snippet": "AWS_ACCESS_KEY_ID=<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [],
+      "context_after": []
+    },
+    {
+      "path": "./tests/fixtures/mynumber.txt",
+      "line_number": 2,
+      "line_content": "Valid MyNumber: 123456789018",
+      "rule_id": "jp.mynumber",
+      "matched_content": "123456789018",
+      "masked_snippet": "Valid MyNumber: <REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/fixtures/mynumber.txt",
+      "line_number": 3,
+      "line_content": "Invalid MyNumber: 123456789019",
+      "rule_id": "jp.mynumber",
+      "matched_content": "123456789019",
+      "masked_snippet": "Invalid MyNumber: <REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "",
+        "Valid MyNumber: 123456789018"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/fixtures/mynumber.txt",
+      "line_number": 5,
+      "line_content": "111111111111",
+      "rule_id": "jp.mynumber",
+      "matched_content": "111111111111",
+      "masked_snippet": "<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "Invalid MyNumber: 123456789019",
+        "Another Valid (All 1s, check logic?):"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/fixtures/mynumber.txt",
+      "line_number": 8,
+      "line_content": "So 111111111118 should be valid.",
+      "rule_id": "jp.mynumber",
+      "matched_content": "111111111118",
+      "masked_snippet": "So <REDACTED> should be valid.",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "Sum: 1*(6+5+4+3+2+7+6+5+4+3+2) = 1*47 = 47.",
+        "47 % 11 = 3. 11-3=8."
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/fixtures/mynumber.txt",
+      "line_number": 9,
+      "line_content": "111111111111 should be invalid.",
+      "rule_id": "jp.mynumber",
+      "matched_content": "111111111111",
+      "masked_snippet": "<REDACTED> should be invalid.",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "47 % 11 = 3. 11-3=8.",
+        "So 111111111118 should be valid."
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/verify_output.txt",
+      "line_number": 6,
+      "line_content": "    \"line_content\": \"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\",",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIAIOSFODNN7EXAMPLE",
+      "masked_snippet": "    \"line_content\": \"AWS_ACCESS_KEY_ID=<REDACTED>\",",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    \"line_number\": 1,"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/verify_output.txt",
+      "line_number": 30,
+      "line_content": "    \"line_content\": \"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\",",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIAIOSFODNN7EXAMPLE",
+      "masked_snippet": "    \"line_content\": \"AWS_ACCESS_KEY_ID=<REDACTED>\",",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "    \"line_number\": 1,"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_github_pat_long.txt",
+      "line_number": 4,
+      "line_content": "github_pat_11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff1122334455667788",
+      "rule_id": "creds.github.pat.long",
+      "matched_content": "github_pat_11223344556677889900aabbccddeeff11223344556677889900aabbccddeeff1122334455667788",
+      "masked_snippet": "<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_aws_access_key_hit.txt",
+      "line_number": 4,
+      "line_content": "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF",
+      "rule_id": "creds.aws.access_key_id",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "masked_snippet": "AWS_ACCESS_KEY_ID=<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_pem_key.txt",
+      "line_number": 4,
+      "line_content": "-----BEGIN PRIVATE KEY-----",
+      "rule_id": "creds.key.private_pem",
+      "matched_content": "-----BEGIN PRIVATE KEY-----",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Critical",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "# MODE: hit",
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_pem_key.txt",
+      "line_number": 8,
+      "line_content": "-----BEGIN RSA PRIVATE KEY-----",
+      "rule_id": "creds.key.private_pem",
+      "matched_content": "-----BEGIN RSA PRIVATE KEY-----",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Critical",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "-----END PRIVATE KEY-----",
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_github_pat.txt",
+      "line_number": 4,
+      "line_content": "ghp_1234567890abcdef1234567890abcdef1234",
+      "rule_id": "creds.github.pat.ghp",
+      "matched_content": "ghp_1234567890abcdef1234567890abcdef1234",
+      "masked_snippet": "<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_mynumber_hit.txt",
+      "line_number": 4,
+      "line_content": "My Number: 1234-5678-9012",
+      "rule_id": "jp.mynumber",
+      "matched_content": "1234-5678-9012",
+      "masked_snippet": "My Number: <REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "# MODE: hit",
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_mynumber_hit.txt",
+      "line_number": 5,
+      "line_content": "Also: 123456789012",
+      "rule_id": "jp.mynumber",
+      "matched_content": "123456789012",
+      "masked_snippet": "Also: <REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "",
+        "My Number: 1234-5678-9012"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_phone_mobile.txt",
+      "line_number": 4,
+      "line_content": "090-1234-5678",
+      "rule_id": "jp.phone.mobile",
+      "matched_content": "090-1234-5678",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Medium",
+      "score": 60,
+      "grade": "Medium",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_phone_mobile.txt",
+      "line_number": 5,
+      "line_content": "080-1234-5678",
+      "rule_id": "jp.phone.mobile",
+      "matched_content": "080-1234-5678",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Medium",
+      "score": 60,
+      "grade": "Medium",
+      "context_before": [
+        "090-1234-5678"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_phone_mobile.txt",
+      "line_number": 6,
+      "line_content": "070-1234-5678",
+      "rule_id": "jp.phone.mobile",
+      "matched_content": "070-1234-5678",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Medium",
+      "score": 60,
+      "grade": "Medium",
+      "context_before": [
+        "080-1234-5678"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_phone_mobile.txt",
+      "line_number": 7,
+      "line_content": "090 1234 5678",
+      "rule_id": "jp.phone.mobile",
+      "matched_content": "090 1234 5678",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Medium",
+      "score": 60,
+      "grade": "Medium",
+      "context_before": [
+        "070-1234-5678"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/jp_phone_mobile.txt",
+      "line_number": 8,
+      "line_content": "09012345678",
+      "rule_id": "jp.phone.mobile",
+      "matched_content": "09012345678",
+      "masked_snippet": "<REDACTED>",
+      "severity": "Medium",
+      "score": 60,
+      "grade": "Medium",
+      "context_before": [
+        "090 1234 5678"
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_aws_secret_key.txt",
+      "line_number": 4,
+      "line_content": "aws_secret_access_key = \"1234567890abcdef1234567890abcdef12345678\"",
+      "rule_id": "creds.aws.secret_key_config",
+      "matched_content": "aws_secret_access_key = \"1234567890abcdef1234567890abcdef12345678\"",
+      "masked_snippet": "<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        ""
+      ],
+      "context_after": []
+    },
+    {
+      "path": "./tests/data/creds_aws_secret_key.txt",
+      "line_number": 5,
+      "line_content": "aws_secret_access_key='1234567890abcdef1234567890abcdef12345678'",
+      "rule_id": "creds.aws.secret_key_config",
+      "matched_content": "aws_secret_access_key='1234567890abcdef1234567890abcdef12345678'",
+      "masked_snippet": "<REDACTED>",
+      "severity": "High",
+      "score": 100,
+      "grade": "Critical",
+      "context_before": [
+        "aws_secret_access_key = \"1234567890abcdef1234567890abcdef12345678\""
+      ],
+      "context_after": []
+    }
+  ]
+}
