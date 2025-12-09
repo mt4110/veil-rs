@@ -1,0 +1,10 @@
+# RULE: creds.key.private_pem
+# MODE: hit
+
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQ...
+-----END PRIVATE KEY-----
+
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEA...
+-----END RSA PRIVATE KEY-----

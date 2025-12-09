@@ -52,12 +52,13 @@ impl Formatter for TableFormatter {
             };
 
             // Truncate match if too long
-            let match_content = if finding.masked_line.len() > 50 {
-                format!("{}...", &finding.masked_line[..50])
-            } else if !finding.masked_line.is_empty() {
-                finding.masked_line.clone()
+            let content_to_show = &finding.masked_snippet;
+            let match_content = if content_to_show.len() > 50 {
+                format!("{}...", &content_to_show[..50])
+            } else if !content_to_show.is_empty() {
+                content_to_show.clone()
             } else {
-                // Fallback if masked_line empty (shouldn't happen for matches)
+                // Fallback if masked_snippet empty
                 if finding.line_content.len() > 50 {
                     format!("{}...", &finding.line_content[..50])
                 } else {
@@ -99,18 +100,23 @@ mod tests {
             path: PathBuf::from("test.txt"),
             line_number: 1,
             line_content: "secret=123".to_string(),
-            masked_line: "secret=***".to_string(),
+            matched_content: "123".to_string(),
+            masked_snippet: "secret=***".to_string(),
             rule_id: "test_rule".to_string(),
             severity: Severity::High,
             score: 80,
             grade: veil_core::rules::grade::Grade::High,
+            context_before: vec![],
+            context_after: vec![],
         }];
         let summary = Summary {
-            total_files: 1,
-            scanned_files: 1,
-            skipped_files: 0,
-            findings_count: 1,
-            duration_ms: 100,
+            total_files: 10,
+            scanned_files: 8,
+            skipped_files: 2,
+            findings_count: 5,
+            shown_findings: 5,
+            truncated: false,
+            duration_ms: 1234,
             severity_counts: HashMap::new(),
         };
 

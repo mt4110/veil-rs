@@ -8,3 +8,4 @@ serde = { version = "1.0.203", features = ["derive"] }
 toml = "0.8.14"
 thiserror = "1.0.61"
 anyhow = "1.0.86"
+regex = "1.12.2"

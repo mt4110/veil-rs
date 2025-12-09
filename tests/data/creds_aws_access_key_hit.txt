@@ -1,0 +1,4 @@
+# RULE: creds.aws.access_key_id
+# MODE: hit
+
+AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF

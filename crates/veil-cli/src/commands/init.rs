@@ -71,6 +71,7 @@ pub fn build_config(answers: &InitAnswers) -> Config {
             remote_rules_url: answers.remote_rules_url.clone(),
         },
         masking: MaskingConfig::default(),
+        output: veil_config::OutputConfig::default(),
         rules,
     }
 }

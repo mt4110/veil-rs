@@ -58,7 +58,7 @@ impl HtmlFormatter {
                     f.score,
                     html_escape(&f.rule_id),
                     html_escape(&f.path.to_string_lossy()),
-                    html_escape(&f.line_content), // Note: In real app, might want to limit length
+                    html_escape(&f.masked_snippet),
                     f.line_number
                 )
             })
@@ -310,11 +310,14 @@ mod tests {
             path: PathBuf::from("test.txt"),
             line_number: 1,
             line_content: "secret=123".to_string(),
-            masked_line: "secret=***".to_string(),
+            matched_content: "password".to_string(),
+            masked_snippet: "********".to_string(),
             rule_id: "test_rule".to_string(),
             severity: Severity::High,
             score: 80,
-            grade: veil_core::rules::grade::Grade::High,
+            grade: veil_core::rules::grade::Grade::Critical,
+            context_before: vec![],
+            context_after: vec![],
         }];
 
         let report = formatter.generate_report(&findings);

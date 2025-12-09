@@ -17,6 +17,8 @@ Commands:
 
 Options:
   -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
+      --no-color         Disable colored output
+  -q, --quiet            Suppress non-essential output
   -h, --help             Print help
 """
 stderr = ""

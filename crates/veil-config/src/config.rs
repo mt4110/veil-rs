@@ -8,7 +8,42 @@ pub struct Config {
     #[serde(default)]
     pub masking: MaskingConfig,
     #[serde(default)]
+    pub output: OutputConfig,
+    #[serde(default)]
     pub rules: HashMap<String, RuleConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OutputConfig {
+    #[serde(default)]
+    pub mask_mode: MaskMode,
+    #[serde(default = "default_true")]
+    pub show_snippets: bool,
+    #[serde(default = "default_max_findings")]
+    pub max_findings: Option<usize>,
+}
+
+impl Default for OutputConfig {
+    fn default() -> Self {
+        Self {
+            mask_mode: MaskMode::default(),
+            show_snippets: true,
+            max_findings: Some(1000),
+        }
+    }
+}
+
+fn default_max_findings() -> Option<usize> {
+    Some(1000)
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")] // "redact", "partial", "plain"
+pub enum MaskMode {
+    #[default]
+    Redact,
+    Partial,
+    Plain,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -47,9 +82,19 @@ impl Config {
             self.rules.insert(id, rule);
         }
 
-        // Merge Masking (Override if set? MaskingConfig doesn't have Options yet, it uses defaults)
-        // Ideally MaskingConfig should also be Options, but let's leave it for now unless requested.
-        // Assuming Project config overrides Org config for placeholder if we implemented it.
+        // Merge Masking (Simple override for now as fields are not Option)
+        if other.masking.placeholder != default_placeholder() {
+            self.masking.placeholder = other.masking.placeholder;
+        }
+
+        // Merge Output (Simple override)
+        if other.output.mask_mode != MaskMode::Redact {
+            self.output.mask_mode = other.output.mask_mode;
+        }
+        // show_snippets default is true. If other is false, override.
+        if !other.output.show_snippets {
+            self.output.show_snippets = false;
+        }
     }
 }
 
@@ -97,6 +142,9 @@ pub struct RuleConfig {
     pub score: Option<u8>,
     pub category: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub base_score: Option<u32>,
+    pub context_lines_before: Option<u8>,
+    pub context_lines_after: Option<u8>,
     pub description: Option<String>,
 }
 

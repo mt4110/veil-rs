@@ -46,6 +46,15 @@ pub enum Commands {
         /// Show progress bar (if TTY)
         #[arg(long)]
         progress: bool,
+        /// Masking mode (redact, partial, plain)
+        #[arg(long, value_name = "MODE")]
+        mask_mode: Option<String>,
+        /// Force plain/unsafe output (alias for --mask-mode plain)
+        #[arg(long = "unsafe")]
+        unsafe_output: bool,
+        /// Limit the number of findings (0 = unlimited)
+        #[arg(long)]
+        limit: Option<usize>,
     },
     /// Filter STDIN and mask secrets (outputs to STDOUT)
     Filter,
