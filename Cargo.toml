@@ -6,10 +6,11 @@ members = [
     "crates/veil-server",
 ]
 
+resolver = "2"
+
 [profile.bench]
 opt-level = 3
 debug = 0
 lto = "thin"
 codegen-units = 1
-resolver = "2"
 
