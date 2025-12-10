@@ -318,6 +318,9 @@ mod tests {
             grade: veil_core::rules::grade::Grade::Critical,
             context_before: vec![],
             context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
         }];
 
         let report = formatter.generate_report(&findings);

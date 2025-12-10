@@ -46,6 +46,7 @@ impl ScanLimit {
 }
 
 pub mod result;
+pub mod utils;
 use result::ScanResult;
 
 pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
@@ -127,23 +128,16 @@ pub fn scan_file(
     if let Ok(metadata) = std::fs::metadata(path) {
         let max_size = config.core.max_file_size.unwrap_or(1_000_000);
         if metadata.len() > max_size {
-            local_findings.push(Finding {
-                path: path.to_path_buf(),
-                line_number: 0,
-                line_content: format!(
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_MAX_FILE_SIZE,
+                format!(
                     "File size ({} bytes) exceeds limit ({} bytes)",
                     metadata.len(),
                     max_size
                 ),
-                rule_id: RULE_ID_MAX_FILE_SIZE.to_string(),
-                matched_content: "".to_string(),
-                masked_snippet: "".to_string(),
-                severity: crate::model::Severity::High, // Treat as High/Critical
-                score: 100,                             // Force high score
-                grade: crate::rules::grade::Grade::Critical,
-                context_before: vec![],
-                context_after: vec![],
-            });
+                crate::model::Severity::High,
+            ));
             return local_findings;
         }
     }
@@ -155,19 +149,12 @@ pub fn scan_file(
         let mut buffer = [0; 1024];
         let n = file.read(&mut buffer).unwrap_or(0);
         if buffer[..n].contains(&0) {
-            local_findings.push(Finding {
-                path: path.to_path_buf(),
-                line_number: 0,
-                line_content: "Binary file detected (skipped)".to_string(),
-                rule_id: RULE_ID_BINARY_FILE.to_string(),
-                matched_content: "".to_string(),
-                masked_snippet: "".to_string(),
-                severity: crate::model::Severity::Medium,
-                score: 0,
-                grade: crate::rules::grade::Grade::Safe,
-                context_before: vec![],
-                context_after: vec![],
-            });
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_BINARY_FILE,
+                "Binary file detected (skipped)".to_string(),
+                crate::model::Severity::Medium,
+            ));
             return local_findings;
         }
 
@@ -286,14 +273,29 @@ fn scan_line(
         }
 
         // Inline Ignore Logic
-        // TODO: Support "//" style comments if needed, currently strict on "#"
-        if content.contains("# veil:ignore") {
-            // Specific ignore: "# veil:ignore=rule.id"
-            if content.contains(&format!("# veil:ignore={}", rule.id)) {
+        // Support "# veil:ignore" (Python/Shell/YAML) and "// veil:ignore" (Rust/JS/C family)
+        if content.contains("veil:ignore") {
+            // Check specific ignore first: "veil:ignore=rule.id"
+            // Both "# veil:ignore=X" and "// veil:ignore=X"
+            if content.contains(&format!("veil:ignore={}", rule.id)) {
                 continue;
             }
-            // Generic ignore: "# veil:ignore" NOT followed by "="
-            if !content.contains("# veil:ignore=") {
+            // Generic ignore: "veil:ignore" NOT immediately followed by "="
+            // e.g. "// veil:ignore" or "# veil:ignore"
+            // We need to be careful not to match "veil:ignore_something_else" if that existed,
+            // but for now "veil:ignore" is the keyword.
+            // Simplest check: if it contains "veil:ignore" and doesn't contain "veil:ignore=" it might be a generic ignore.
+            // But what if it contains "veil:ignore=OTHER_ID"?
+            // If the line has "veil:ignore=OTHER", we should NOT skip THIS rule unless it also has "veil:ignore" generic or "veil:ignore=THIS".
+            // Implementation Decision for v0.7.4:
+            // "If line contains `veil:ignore` and does NOT contain `=`, it is a generic ignore for ALL rules."
+            // This is a heuristic. Better: check if "veil:ignore" exists as a token?
+            // User requested: "Simple line ignore".
+            // Let's stick to the existing logic extended for `//`.
+
+            let is_comment_ignore =
+                content.contains("# veil:ignore") || content.contains("// veil:ignore");
+            if is_comment_ignore && !content.contains("veil:ignore=") {
                 continue;
             }
         }
@@ -349,6 +351,9 @@ fn scan_line(
             grade: crate::rules::grade::Grade::Safe,
             context_before,
             context_after,
+            commit_sha: None,
+            author: None,
+            date: None,
         };
 
         let final_score = calculate_score(rule, &finding, score_params);
@@ -427,5 +432,52 @@ mod tests {
         let f = &findings[0];
         assert_eq!(f.line_number, 1);
         assert_eq!(f.context_before.len(), 0);
+    }
+
+    #[test]
+    fn test_inline_ignore() {
+        let rule = Rule {
+            id: "test".to_string(),
+            pattern: Regex::new("SECRET").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 50,
+            category: "test".to_string(),
+            tags: vec![],
+            base_score: None,
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+
+        // 1. Python style #
+        let content = "SECRET # veil:ignore";
+        let findings = scan_content(content, Path::new("test.py"), &rules, &config);
+        assert!(findings.is_empty(), "Should ignore with #");
+
+        // 2. Rust/JS style //
+        let content = "SECRET // veil:ignore";
+        let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
+        assert!(findings.is_empty(), "Should ignore with //");
+
+        // 3. No ignore
+        let content = "SECRET";
+        let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
+        assert_eq!(findings.len(), 1, "Should find secret without ignore");
+
+        // 4. Specific ignore (match)
+        let content = "SECRET // veil:ignore=test";
+        let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
+        assert!(
+            findings.is_empty(),
+            "Should ignore with matches specific ID"
+        );
+
+        // 5. Specific ignore (mismatch)
+        let content = "SECRET // veil:ignore=other";
+        let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
+        assert_eq!(findings.len(), 1, "Should NOT ignore if ID mismatch");
     }
 }

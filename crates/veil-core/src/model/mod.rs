@@ -100,4 +100,12 @@ pub struct Finding {
     pub context_before: Vec<String>,
     #[serde(default)]
     pub context_after: Vec<String>,
+
+    // Git Metadata (Optional, for history scans)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit_sha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
 }

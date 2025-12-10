@@ -17,9 +17,9 @@ English README is available [here](README_EN.md).
 
 ```bash
 # ソースコードからビルド
-git clone https://github.com/takem1-max64/veil-rs.git
+git clone https://github.com/mt4110/veil-rs.git
 cd veil-rs
-cargo install --path crates/veil-cli --bin veil
+cargo build --release
 ```
 
 ## 使い方
@@ -29,6 +29,13 @@ cargo install --path crates/veil-cli --bin veil
 
 ```bash
 veil init --wizard
+```
+
+### 1. 安全性の確認 (推奨)
+新しいルールを追加したり設定を変更した場合は、必ず構成チェックを行ってください。
+
+```bash
+veil config check
 ```
 
 ### 1. 基本スキャン
@@ -57,6 +64,39 @@ as string literals. Instead, tests generate fake tokens at runtime via helper fu
 See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
 and guidelines on adding new secret tests.
 
+## Integration Guide (JSON Output)
+
+`veil-rs` produces a stable, machine-readable JSON output for integrations with CI/CD systems, dashboarding tools, and external verifiers (like `veri-rs`).
+
+### Execution Example
+
+```bash
+veil scan . --format json --limit 1000 > veil-report.json
+```
+
+### Output Structure
+
+The output is guaranteed to follow the [v1 Schema](docs/json-schema.md):
+
+```json
+{
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "findings_count": 5,
+    "severity_counts": { "High": 2, "Medium": 3 },
+    ...
+  },
+  "findings": [ ... ]
+}
+```
+
+*   **`schemaVersion`**: Always check this field first (`veil-v1`).
+    *   **Note**: We adhere to Semantic Versioning for the schema. `veil-v1` remains compatible for all v0.x releases. A structure-breaking change will increment this to `veil-v2`.
+*   **`summary`**: Use this for high-level pass/fail decisions (e.g. `severity_counts.Critical > 0`).
+*   **`findings`**: Full list of detected secrets.
+
+---
+
 ## 商用運用ガイド
 
 ### 1. カスタムルールの追加 (Pure TOML)
@@ -82,8 +122,8 @@ let test_token = "ghp_xxxxxxxx"; // veil:ignore=github_personal_access_token
 ```
 
 *   `// veil:ignore`: その行のすべての検知を無視します。
-*   `// veil:ignore`: その行のすべての検知を無視します。
 *   `// veil:ignore=rule_id`: 指定したルールIDの検知のみを無視します。
+
 
 ### 3. ポリシーの階層化 (Policy Layering)
 全社共通のブラックリストや許容設定を一括管理できます。
@@ -103,30 +143,24 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
   run: |
     # HTMLレポートを生成（アーティファクト保存用）
     veil scan . --format html > report.html
-    # スコア80以上の検出があれば失敗させる（CI用）
-    veil scan . --format html > report.html
-    # スコア80以上の検出があれば失敗させる（CI用）
+
+    # スコア80以上の検出があればCI失敗
     veil scan . --fail-score 80
+    
     # または、変更されたファイルだけをチェック (Pull Request時など)
     # veil scan --staged
 ```
 
 
-### 4. Git フック (pre-commit)
-`pre-commit` を使用して、コミット前に自動スキャンを行うことができます。
-`.pre-commit-config.yaml` に以下を追加してください：
+### 4. Integrations
 
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: veil-scan
-        name: veil-scan
-        entry: veil scan
-        language: system
-        types: [text]
-        exclude: '\.git/|\.png$|\.jpg$'
-```
+Detailed guides for integrating `veil-rs` into your workflow:
+
+*   **[pre-commit Framework](docs/integrations/pre-commit.md)**: Drop-in support for `.pre-commit-config.yaml`.
+*   **[Native Git Hooks](docs/integrations/git-hook.md)**: Simple shell script for `.git/hooks`.
+*   **[GitHub Actions](docs/integrations/github-actions.md)**: CI integration template.
+
+---
 
 ## ライセンス
 Apache 2.0 または MIT ライセンスのデュアルライセンスです。

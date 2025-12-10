@@ -11,6 +11,7 @@ A typical JSON output looks like this:
 
 ```json
 {
+  "schemaVersion": "veil-v1",
   "summary": { /* Summary */ },
   "findings": [ /* Finding[] */ ]
 }
@@ -146,7 +147,7 @@ Example (fields may be abbreviated here):
 
 ## 4. Schema Versioning
 
-To help external tools validate and evolve with the format, `veil-rs` may include a schema version:
+To help external tools validate and evolve with the format, `veil-rs` includes a schema version:
 
 ```json
 {
@@ -156,10 +157,10 @@ To help external tools validate and evolve with the format, `veil-rs` may includ
 }
 ```
 
-*   **`schemaVersion`** (string, optional in v0.5.x, recommended from v0.5.2 onward)
-    *   Example: `"veil-v1"`
+*   **`schemaVersion`** (string, required from v0.6.0 inward)
+    *   Current Version: `"veil-v1"`
     *   Consumers like `veri-rs` can use this to select the appropriate validation logic.
-    *   If `schemaVersion` is absent, consumers should assume the current default version (v0.5.x contract).
+    *   If `schemaVersion` is absent, consumers should assume legacy v0.5.x format.
 
 ## 5. Backward Compatibility Notes
 

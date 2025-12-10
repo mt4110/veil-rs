@@ -34,20 +34,32 @@ This document tracks the evolution of veil-rs from the first "safe core" release
 ---
 
 ## Phase 2 – Integration (v0.6.x)
-**Goal**: Make veil-rs easy to integrate into CI and rule-management workflows.
+**Goal**: Make veil-rs easy to consume by machines (CI/CD, external tools) and developers (Git integration).
 
-- **v0.6.0 – Remote Rules & CI Templates**
-    - Finalize `RemoteRule` API schema.
-    - Add GitHub Actions & Pre-commit templates.
-- **v0.6.x – Tuning**: Move grade thresholds (90/70/40/10) to configuration.
+### v0.6.0 – Integration & Schema (Session 7)
+- **Schema Versioning**: Add `schemaVersion` to JSON output.
+- **Contract**: Define stable API for integrations (veri-rs).
+- **Docs**: Add Integration Guide to README.
+
+### v0.6.1 – Git & CI Integration (Session 8)
+- **Pre-commit**: Add support and templates.
+- **GitHub Actions**: Official workflow snippets.
+- **Git Hooks**: Native hook examples.
+
+### v0.6.2 – Multi-Repo Dogfooding (Session 9)
+- **Validation**: Scan external OSS repos to tune rules.
+- **False Positives**: Refine rules based on broader data.
 
 ---
 
-## Phase 3 – Git & CI Practicality (v0.7.x)
-**Goal**: Practicality for everyday Git workflows.
+## Phase 3 – Security Hardening (v0.7.x)
+**Goal**: Transform veil-rs into a "security-first" hardened tool.
 
-- **Git-aware Scanning**: `veil scan --staged`, `--history`, `--pre-commit`.
-- **CI Snippets**: Official guides for GitHub/GitLab.
+### v0.7.0 – Hardening & Best Practices (Sessions 10-12)
+- **Threat Model**: Document security boundaries and guarantees.
+- **Config Safety**: Validate config and block dangerous regexes.
+- **DoS Resistance**: Protection against massive repositories/binaries.
+- **Best Practices**: Recommended configurations for different scales.
 
 ---
 

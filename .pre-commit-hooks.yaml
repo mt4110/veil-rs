@@ -1,0 +1,7 @@
+- id: veil-scan
+  name: Veil Security Scan
+  description: A high-performance secret detection tool for your pre-commit workflow.
+  entry: veil scan --staged
+  language: system
+  files: ""
+  pass_filenames: false
