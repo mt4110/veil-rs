@@ -126,7 +126,7 @@ pub fn triage(args: &TriageArgs) -> Result<()> {
 fn add_ignore_path(doc: &mut DocumentMut, path: &Path, root: &Path) -> Result<()> {
     // 1. Resolve relative path
     let rel_path = path.strip_prefix(root).unwrap_or(path);
-    // Force Unix style separators for config consistency
+    // Force Unix style separators for config consistency across platforms (e.g. shared veil.toml)
     let path_str = rel_path.to_string_lossy().replace("\\", "/");
 
     // 2. Ensure structure: [core] -> ignore = []

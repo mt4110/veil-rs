@@ -137,7 +137,7 @@ pub struct FixArgs {
     #[arg(default_value = ".")]
     pub paths: Vec<PathBuf>,
 
-    /// Apply shifts (write to files). If NOT specified, runs in dry-run mode.
+    /// Apply fixes (write to files). If NOT specified, runs in dry-run mode.
     #[arg(long)]
     pub apply: bool,
 }

@@ -34,6 +34,7 @@ rayon = "1.10"
 ignore = "0.4"
 regex = "1.12.2"
 toml_edit = "0.22"
+ctrlc = "3.5.1"
 
 [dev-dependencies]
 trycmd = "0.15"

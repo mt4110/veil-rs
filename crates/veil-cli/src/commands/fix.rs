@@ -100,7 +100,7 @@ fn process_file(path: &Path, target_lines: &[usize], apply: bool) -> Result<()> 
     let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
 
     // Ensure we handle files ending with newline correctly when splitting/joining?
-    // content.lines() strips regex newlines.
+    // content.lines() strips newlines.
     // We will reconstruct with newlines.
 
     let target_set: HashSet<usize> = target_lines.iter().cloned().collect();

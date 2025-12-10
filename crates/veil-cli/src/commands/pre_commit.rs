@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
@@ -12,9 +13,8 @@ const HOOK_SCRIPT: &str = r#"#!/bin/sh
 # If secrets are found, veil will exit with non-zero code
 veil scan --staged
 
-SIMPLE_EXIT_CODE=$?
-
-if [ $SIMPLE_EXIT_CODE -ne 0 ]; then
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
     echo ""
     echo "❌  Commit blocked by Veil Security Check."
     echo "    Secrets were detected in your staged files."

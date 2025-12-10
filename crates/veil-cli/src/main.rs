@@ -6,15 +6,31 @@ mod output;
 
 use clap::Parser;
 use cli::{Cli, Commands};
+use colored::Colorize;
+use ctrlc;
 use std::process::exit;
 
 use tracing_subscriber::EnvFilter;
 
 fn main() -> anyhow::Result<()> {
+    // Initialize logging
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
         .with_writer(std::io::stderr)
-        .with_env_filter(EnvFilter::from_default_env())
         .init();
+
+    // Anti-Zombie 🧟‍♂️: Handle Ctrl+C to ensure all threads die immediately
+    // Rayon threads can sometimes keep the process alive if not explicitly killed.
+    // We use a "forced exit" strategy here to guarantee cleanup.
+    ctrlc::set_handler(move || {
+        eprintln!(
+            "\n{} Received Ctrl+C. Force exiting to prevent zombie processes...",
+            "⚠️".yellow()
+        );
+        std::process::exit(130);
+    })
+    .expect("Error setting Ctrl-C handler");
 
     let cli = Cli::parse();
 
