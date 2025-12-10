@@ -160,7 +160,7 @@ To help external tools validate and evolve with the format, `veil-rs` includes a
 *   **`schemaVersion`** (string, required from v0.6.0 inward)
     *   Current Version: `"veil-v1"`
     *   Consumers like `veri-rs` can use this to select the appropriate validation logic.
-    *   If `schemaVersion` is absent, consumers should assume legaxy v0.5.x format.
+    *   If `schemaVersion` is absent, consumers should assume legacy v0.5.x format.
 
 ## 5. Backward Compatibility Notes
 

@@ -39,7 +39,8 @@ jobs:
         run: |
           # Fail if any secrets found (--fail-on-findings)
           # Limit output to 2000 findings to avoid log explosion
-          veil scan . --format json --limit 2000 --fail-on-findings
+          # Securely output JSON to a file (avoid printing secrets to stdout logs)
+          veil scan . --format json --limit 2000 --fail-on-findings > veil-report.json
 ```
 
 ## Advanced Usage

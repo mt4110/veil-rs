@@ -7,7 +7,7 @@ mod output;
 use clap::Parser;
 use cli::{Cli, Commands};
 use colored::Colorize;
-use ctrlc;
+
 use std::process::exit;
 
 use tracing_subscriber::EnvFilter;

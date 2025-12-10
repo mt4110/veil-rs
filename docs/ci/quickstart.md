@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install --git https://github.com/mt4110/veil-rs.git --tag v0.7.0
-      - run: veil scan . --format json --fail-on-severity High
+      - run: veil scan . --format json --fail-on-severity High > veil-report.json
 ```
 
 ## Failure Flags
