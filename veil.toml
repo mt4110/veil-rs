@@ -13,7 +13,8 @@ ignore = [
 ]
 
 # Exit code is controlled by CI flags (e.g. --fail-on-findings).
-# fail_on_score = 0 means we do NOT enforce score-based failure by default.
+# We default to 0 (safe mode) so local scans don't break flow.
+# Use explicitly strict flags in CI.
 fail_on_score = 0
 
 [output]

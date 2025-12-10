@@ -10,29 +10,30 @@ path = "src/main.rs"
 
 [features]
 default = ["wizard", "table"]
-wizard = ["dep:inquire"]
+wizard = []
 table = ["dep:prettytable-rs"]
 
 [dependencies]
 veil-core = { path = "../veil-core" }
 veil-config = { path = "../veil-config" }
-clap = { version = "4.5.4", features = ["derive", "env"] }
-colored = "2.1.0"
-anyhow = "1.0.86"
+clap = { version = "4.5", features = ["derive", "env"] }
+colored = "2.1"
+anyhow = "1.0"
 atty = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-git2 = "0.19.0"
-chrono = "0.4.38"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+git2 = "0.19"
+chrono = "0.4"
 indicatif = "0.17"
-inquire = { version = "0.7", optional = true }
+inquire = "0.7"
 prettytable-rs = { version = "0.10", optional = true }
 toml = "0.8"
 rayon = "1.10"
 ignore = "0.4"
 regex = "1.12.2"
+toml_edit = "0.22"
 
 [dev-dependencies]
 trycmd = "0.15"

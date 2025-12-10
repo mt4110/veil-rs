@@ -70,5 +70,8 @@ pub fn create_skipped_finding(
         },
         context_before: vec![],
         context_after: vec![],
+        commit_sha: None,
+        author: None,
+        date: None,
     }
 }

@@ -119,6 +119,9 @@ mod tests {
             grade: Grade::Low,
             context_before: vec![],
             context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
         };
 
         let score = calculate_score(&rule, &finding, &ScoreParams::default());
@@ -152,6 +155,9 @@ mod tests {
             grade: Grade::Low,
             context_before: vec![],
             context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
         };
 
         let params = ScoreParams::default();

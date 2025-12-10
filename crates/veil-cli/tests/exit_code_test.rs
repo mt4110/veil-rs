@@ -21,6 +21,7 @@ fn test_exit_code_behavior() {
     cmd.arg("scan")
         .arg(temp_dir.path())
         .arg("--fail-on-findings")
+        .arg("0")
         .assert()
         .failure()
         .code(1);

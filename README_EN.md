@@ -16,7 +16,7 @@
 
 ```bash
 # From source
-git clone https://github.com/takem1-max64/veil-rs.git
+git clone https://github.com/mt4110/veil-rs.git
 cd veil-rs
 cargo install --path crates/veil-cli --bin veil
 ```

@@ -31,6 +31,13 @@ cargo build --release
 veil init --wizard
 ```
 
+### 1. 安全性の確認 (推奨)
+新しいルールを追加したり設定を変更した場合は、必ず構成チェックを行ってください。
+
+```bash
+veil config check
+```
+
 ### 1. 基本スキャン
 ```bash
 veil scan .
@@ -83,7 +90,8 @@ The output is guaranteed to follow the [v1 Schema](docs/json-schema.md):
 }
 ```
 
-*   **`schemaVersion`**: Always check this field first (`veil-v1`). If it differs, the structure may have changed.
+*   **`schemaVersion`**: Always check this field first (`veil-v1`).
+    *   **Note**: We adhere to Semantic Versioning for the schema. `veil-v1` remains compatible for all v0.x releases. A structure-breaking change will increment this to `veil-v2`.
 *   **`summary`**: Use this for high-level pass/fail decisions (e.g. `severity_counts.Critical > 0`).
 *   **`findings`**: Full list of detected secrets.
 
@@ -135,8 +143,10 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
   run: |
     # HTMLレポートを生成（アーティファクト保存用）
     veil scan . --format html > report.html
-    # スコア80以上の検出があれば失敗させる（CI用）
+
+    # スコア80以上の検出があればCI失敗
     veil scan . --fail-score 80
+    
     # または、変更されたファイルだけをチェック (Pull Request時など)
     # veil scan --staged
 ```

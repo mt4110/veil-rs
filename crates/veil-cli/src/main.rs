@@ -10,7 +10,7 @@ use std::process::exit;
 
 use tracing_subscriber::EnvFilter;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_env_filter(EnvFilter::from_default_env())
@@ -35,6 +35,7 @@ fn main() {
             unsafe_output,
             limit,
             fail_on_findings,
+            fail_on_severity,
         } => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
@@ -51,6 +52,7 @@ fn main() {
                 *unsafe_output,
                 *limit,
                 *fail_on_findings,
+                fail_on_severity.clone(),
             )
         }
         Commands::Filter => commands::filter::filter().map(|_| false),
@@ -69,11 +71,18 @@ fn main() {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }
         Commands::Config(cmd) => match cmd {
-            cli::ConfigCommand::Check { config_path } => {
-                // Prefer subcommand arg, fallback to global arg
-                let path = config_path.as_ref().or(cli.config.as_ref());
-                commands::config::check(path)
+            crate::cli::ConfigCommand::Check { config_path } => {
+                let path = config_path.clone().or_else(|| cli.config.clone());
+                commands::config::check(path.as_ref())
             }
+        },
+        Commands::PreCommit(cmd) => match cmd {
+            crate::cli::PreCommitCommand::Init => commands::pre_commit::init().map(|_| false),
+        },
+        Commands::Triage(args) => commands::triage::triage(args).map(|_| false),
+        Commands::Fix(args) => commands::fix::fix(args).map(|_| false),
+        Commands::Git(cmd) => match cmd {
+            crate::cli::GitCommand::Scan(args) => commands::git::scan(args).map(|_| false),
         },
     };
 

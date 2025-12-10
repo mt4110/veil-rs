@@ -67,6 +67,9 @@ mod tests {
             grade: veil_core::rules::grade::Grade::High,
             context_before: vec![],
             context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
         }];
         let summary = Summary {
             total_files: 10,

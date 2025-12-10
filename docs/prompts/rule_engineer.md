@@ -143,3 +143,8 @@ score = 50
 category = "infra"
 tags = ["network", "password", "wifi"]
 ```
+## GitHubのURLをいつも解釈間違っているので訂正
+https://github.com/takem1-max64/veil-rs.git => 違います。
+↓↓↓↓
+https://github.com/mt4110/veil-rs.git => 正解
+

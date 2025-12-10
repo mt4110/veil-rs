@@ -1,61 +1,53 @@
+use crate::formatters::html::HtmlFormatter;
+use crate::formatters::json::JsonFormatter;
+use crate::formatters::markdown::MarkdownFormatter;
 use crate::formatters::{Formatter, Summary};
 use crate::output::formatter::print_finding;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use git2::{Delta, DiffOptions, Repository};
-// use ignore::WalkBuilder;
-// use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
-// use veil_config::{load_config, Config};
 use veil_core::get_all_rules;
 
+pub struct ScanResultForCli {
+    pub summary: Summary,
+    pub findings: Vec<veil_core::model::Finding>,
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn scan(
+pub fn collect_findings(
     paths: &[PathBuf],
-    config_path: Option<&PathBuf>,
-    format: &str,
-    fail_score: Option<u32>,
+    config_override: Option<&veil_config::Config>,
     commit: Option<&str>,
     since: Option<&str>,
     staged: bool,
-    _progress: bool,
     mask_mode_arg: Option<&str>,
     unsafe_output: bool,
     limit: Option<usize>,
-    fail_on_findings: bool,
-) -> Result<bool> {
+) -> Result<ScanResultForCli> {
     let start_time = Instant::now();
 
-    // ... (rest of function body remains strictly unchanged until exit logic) ...
+    // 1. Load Config (Merge with Defaults)
+    let mut config = if let Some(cfg) = config_override {
+        cfg.clone()
+    } else {
+        crate::config_loader::load_effective_config(None)?
+    };
 
-    // Careful with multi-replace here, the function body is huge.
-    // I will split this into two calls or use multi_replace if supported, but replace_file_content is better for contiguous.
-    // Wait, I need two changes: Signature AND Exit Logic at the end. They are far apart.
-    // I will use `multi_replace_file_content`.
-
-    // Stats counters
-    let scanned_files_atomic = AtomicUsize::new(0);
-    let skipped_files_atomic = AtomicUsize::new(0);
-
-    // Load configs
-    let mut final_config = crate::config_loader::load_effective_config(config_path)?;
-
-    // Apply CLI overrides for mask_mode
-    if unsafe_output {
-        final_config.output.mask_mode = Some(veil_config::MaskMode::Plain);
-    } else if let Some(mode) = mask_mode_arg {
-        match mode.to_lowercase().as_str() {
-            "plain" => final_config.output.mask_mode = Some(veil_config::MaskMode::Plain),
-            "partial" => final_config.output.mask_mode = Some(veil_config::MaskMode::Partial),
-            "redact" => final_config.output.mask_mode = Some(veil_config::MaskMode::Redact),
-            _ => eprintln!("Warning: Unknown mask mode '{}', using default.", mode),
-        }
+    // 2. Override Config with CLI args
+    if let Some(mode) = mask_mode_arg {
+        config.output.mask_mode = Some(match mode {
+            "partial" => veil_config::MaskMode::Partial,
+            "plain" => veil_config::MaskMode::Plain,
+            _ => veil_config::MaskMode::Redact,
+        });
     }
-
-    let config = final_config;
+    if unsafe_output {
+        config.output.mask_mode = Some(veil_config::MaskMode::Plain);
+    }
 
     // Remote Rules
     let mut remote_rules = Vec::new();
@@ -76,10 +68,13 @@ pub fn scan(
     }
 
     let rules = get_all_rules(&config, remote_rules);
+
+    // Stats counters
+    let scanned_files_atomic = AtomicUsize::new(0);
+    let skipped_files_atomic = AtomicUsize::new(0);
     let mut all_findings = Vec::new();
 
     // Limit Logic (Global)
-    // Explicit limit arg > Config > Default
     let limit_val = if let Some(l) = limit {
         if l == 0 {
             None
@@ -151,9 +146,7 @@ pub fn scan(
                 let s = format!("{}T00:00:00Z", since_str);
                 DateTime::parse_from_rfc3339(&s).map(|dt| dt.with_timezone(&Local))
             })
-            .context(
-                "Failed to parse time. Use RFC3339 (e.g. 2024-01-01T00:00:00Z) or YYYY-MM-DD",
-            )?;
+            .context("Failed to parse time. Use RFC3339 or YYYY-MM-DD")?;
 
         let repo = Repository::open(".")?;
         let mut revwalk = repo.revwalk()?;
@@ -190,7 +183,6 @@ pub fn scan(
                                             &rules,
                                             &config,
                                         );
-
                                         let mut is_skipped = false;
                                         if let Some(first) = file_findings.first() {
                                             if first.rule_id == veil_core::RULE_ID_BINARY_FILE
@@ -223,7 +215,19 @@ pub fn scan(
                 let mut diff_opts = DiffOptions::new();
                 repo.diff_tree_to_index(Some(&head_tree), Some(&index), Some(&mut diff_opts))?
             } else {
-                return Ok(false);
+                return Ok(ScanResultForCli {
+                    summary: Summary::new(
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        false,
+                        start_time.elapsed(),
+                        HashMap::new(),
+                    ),
+                    findings: vec![],
+                });
             }
         } else {
             let index = repo.index()?;
@@ -243,7 +247,6 @@ pub fn scan(
                         if let Ok(blob) = repo.find_blob(entry.id) {
                             let file_findings =
                                 veil_core::scan_data(path_val, blob.content(), &rules, &config);
-
                             let mut is_skipped = false;
                             if let Some(first) = file_findings.first() {
                                 if first.rule_id == veil_core::RULE_ID_BINARY_FILE
@@ -252,7 +255,6 @@ pub fn scan(
                                     is_skipped = true;
                                 }
                             }
-
                             if is_skipped {
                                 skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                             } else {
@@ -265,19 +267,16 @@ pub fn scan(
             }
         }
     } else {
-        // 4. Default FS scan (Delegated to veil-core::scan_path)
-        let targets = paths.iter().collect::<Vec<_>>();
+        // 4. Default FS scan
+        let targets = resolve_paths(paths)?;
         let mut current_total = all_findings.len();
 
         for path in targets {
-            // Check global limit
             if let Some(max) = limit_val {
                 if current_total >= max {
                     break;
                 }
             }
-
-            // Prepare config for this run (adjust limit)
             let mut run_config = config.clone();
             if let Some(max) = limit_val {
                 let remaining = max.saturating_sub(current_total);
@@ -286,32 +285,25 @@ pub fn scan(
                 run_config.output.max_findings = None;
             }
 
-            let result = veil_core::scan_path(path, &rules, &run_config);
-
-            // Accumulate stats
+            let result = veil_core::scan_path(&path, &rules, &run_config);
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
-
-            // Accumulate findings
             let count = result.findings.len();
             all_findings.extend(result.findings);
             current_total += count;
         }
     }
 
-    // Formatting & Output
     let scanned_files = scanned_files_atomic.load(Ordering::Relaxed);
     let skipped_files = skipped_files_atomic.load(Ordering::Relaxed);
     let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
 
-    // Build Summary
     let mut severity_counts = HashMap::new();
     for f in &all_findings {
         *severity_counts.entry(f.severity.clone()).or_insert(0) += 1;
     }
 
-    // Check truncation
     let is_truncated = if let Some(max) = limit_val {
         all_findings.len() >= max
     } else {
@@ -329,39 +321,158 @@ pub fn scan(
         total_files,
         scanned_files,
         skipped_files,
-        all_findings.len(), // findings_count (total found)
-        all_findings.len(), // shown_findings
+        all_findings.len(),
+        all_findings.len(),
         is_truncated,
         duration,
         severity_counts,
     );
 
-    // Select formatter
+    Ok(ScanResultForCli {
+        summary,
+        findings: all_findings,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn scan(
+    paths: &[PathBuf],
+    config_path: Option<&PathBuf>,
+    format: &str,
+    fail_score: Option<u32>,
+    commit: Option<&str>,
+    since: Option<&str>,
+    staged: bool,
+    show_progress: bool,
+    mask_mode_arg: Option<&str>,
+    unsafe_output: bool,
+    limit: Option<usize>,
+    fail_on_findings: Option<usize>,
+    fail_on_severity: Option<veil_core::Severity>,
+) -> Result<bool> {
+    if show_progress {
+        println!("Scanning...");
+    }
+
+    // Load config here for scan command to support --config arg
+    let config = if let Some(path) = config_path {
+        Some(crate::config_loader::load_effective_config(Some(path))?)
+    } else {
+        None
+    };
+
+    let result = collect_findings(
+        paths,
+        config.as_ref(), // Passed overridden config or None (defaults loaded inside)
+        commit,
+        since,
+        staged,
+        mask_mode_arg,
+        unsafe_output,
+        limit,
+    )?;
+
+    // Output Formatting
     let formatter: Box<dyn Formatter> = match format.to_lowercase().as_str() {
-        "json" => Box::new(crate::formatters::json::JsonFormatter),
-        "html" => Box::new(crate::formatters::html::HtmlFormatter::new()),
+        "json" => Box::new(JsonFormatter),
+        "html" => Box::new(HtmlFormatter::new()),
         #[cfg(feature = "table")]
         "table" => Box::new(crate::formatters::table::TableFormatter),
-        "md" | "markdown" => Box::new(crate::formatters::markdown::MarkdownFormatter),
+        "md" | "markdown" => Box::new(MarkdownFormatter),
         _ => Box::new(TextFormatterWrapper),
     };
 
-    formatter.print(&all_findings, &summary)?;
+    formatter.print(&result.findings, &result.summary)?;
 
-    // Determine exit code
-    let threshold = fail_score.or(config.core.fail_on_score).unwrap_or(0);
-
-    let should_fail = if all_findings.is_empty() {
-        false
-    } else if fail_on_findings {
-        true
-    } else if threshold > 0 {
-        all_findings.iter().any(|f| f.score >= threshold)
+    // Reload config for default fail_score if needed
+    let effective_fail_score = if let Some(fs) = fail_score {
+        Some(fs)
     } else {
-        false
+        config
+            .as_ref()
+            .and_then(|c| c.core.fail_on_score)
+            .or_else(|| {
+                crate::config_loader::load_effective_config(None)
+                    .ok()
+                    .and_then(|c| c.core.fail_on_score)
+            })
     };
 
+    let should_fail = determine_exit_code(
+        &result.summary,
+        &result.findings,
+        fail_on_findings,
+        fail_on_severity.as_ref(),
+        effective_fail_score,
+    );
+
     Ok(should_fail)
+}
+
+fn determine_exit_code(
+    summary: &Summary,
+    findings: &[veil_core::model::Finding],
+    fail_on_findings: Option<usize>,
+    fail_on_severity: Option<&veil_core::Severity>,
+    fail_on_score: Option<u32>,
+) -> bool {
+    // 1) fail-on-findings
+    if let Some(threshold) = fail_on_findings {
+        if summary.findings_count >= threshold {
+            eprintln!(
+                "CI failed: findings_count ({}) exceeded threshold {}",
+                summary.findings_count, threshold
+            );
+            return true;
+        }
+    }
+
+    // 2) fail-on-severity
+    if let Some(min_level) = fail_on_severity {
+        if findings.iter().any(|f| &f.severity >= min_level) {
+            let count = findings.iter().filter(|f| &f.severity >= min_level).count();
+            let max_sev = findings
+                .iter()
+                .map(|f| &f.severity)
+                .max()
+                .unwrap_or(min_level);
+            eprintln!(
+                "CI failed: found {} findings >= severity {} (max: {})",
+                count, min_level, max_sev
+            );
+            return true;
+        }
+    }
+
+    // 3) fail-on-score
+    if let Some(min_score) = fail_on_score {
+        if let Some(max_score) = findings.iter().map(|f| f.score).max() {
+            if max_score >= min_score {
+                let count = findings.iter().filter(|f| f.score >= min_score).count();
+                eprintln!(
+                    "CI failed: found {} finding(s) with score >= {} (max: {})",
+                    count, min_score, max_score
+                );
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn resolve_paths(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    let mut resolved = Vec::new();
+    if paths.is_empty() {
+        resolved.push(std::env::current_dir()?);
+        return Ok(resolved);
+    }
+    for p in paths {
+        // Simple existence check or just pass through.
+        // realpath/canonicalize might be good but let's just pass paths.
+        resolved.push(p.clone());
+    }
+    Ok(resolved)
 }
 
 struct TextFormatterWrapper;
