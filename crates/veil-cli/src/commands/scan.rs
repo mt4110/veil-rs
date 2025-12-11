@@ -349,6 +349,7 @@ pub fn scan(
     limit: Option<usize>,
     fail_on_findings: Option<usize>,
     fail_on_severity: Option<veil_core::Severity>,
+    write_baseline: Option<PathBuf>,
 ) -> Result<bool> {
     if show_progress {
         println!("Scanning...");
@@ -371,6 +372,27 @@ pub fn scan(
         unsafe_output,
         limit,
     )?;
+
+    // Handle Write Baseline (S26)
+    if let Some(path) = &write_baseline {
+        use veil_core::baseline::{from_findings, save_baseline};
+
+        // Convert findings to snapshot
+        let snapshot = from_findings(&result.findings, env!("CARGO_PKG_VERSION"));
+
+        // Save to file
+        save_baseline(path, &snapshot).context("Failed to save baseline file")?;
+
+        println!(
+            "Baseline written to {:?} ({} findings, schema={})",
+            path,
+            snapshot.entries.len(),
+            snapshot.schema
+        );
+
+        // Bootstrap is always success
+        return Ok(false);
+    }
 
     // Output Formatting
     let formatter: Box<dyn Formatter> = match format.to_lowercase().as_str() {

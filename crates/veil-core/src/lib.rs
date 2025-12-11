@@ -1,3 +1,4 @@
+pub mod baseline;
 pub mod masking;
 pub mod model;
 pub mod remote;

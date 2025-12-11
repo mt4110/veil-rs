@@ -67,8 +67,15 @@ pub enum Commands {
         #[arg(long = "unsafe")]
         unsafe_output: bool,
         /// Limit the number of findings (0 = unlimited)
+        /// Limit the number of findings (0 = unlimited)
         #[arg(long)]
         limit: Option<usize>,
+        /// Use a baseline file to suppress existing findings (S27)
+        #[arg(long, value_name = "PATH", conflicts_with = "write_baseline")]
+        baseline: Option<PathBuf>,
+        /// Write all current findings to a baseline file (exit 0)
+        #[arg(long, value_name = "PATH")]
+        write_baseline: Option<PathBuf>,
     },
     /// Filter STDIN and mask secrets (outputs to STDOUT)
     Filter,

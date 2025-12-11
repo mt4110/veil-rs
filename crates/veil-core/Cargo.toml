@@ -12,6 +12,9 @@ reqwest = { version = "0.12", features = ["blocking", "json"] }
 rayon = "1.10"
 ignore = "0.4"
 veil-config = { path = "../veil-config" }
+sha2 = "0.10"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
 
 [dev-dependencies]
 divan = "0.1"

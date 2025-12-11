@@ -52,6 +52,11 @@ fn main() -> anyhow::Result<()> {
             limit,
             fail_on_findings,
             fail_on_severity,
+            write_baseline,
+            // baseline (S27) - ignored for now as it's not used in scan() yet,
+            // or we might want to pass it if scan logic handles it in future?
+            // Actually, S26 is write-only, but let's bind it just to avoid unused warning if we added it to struct
+            baseline: _,
         }) => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
@@ -69,6 +74,7 @@ fn main() -> anyhow::Result<()> {
                 *limit,
                 *fail_on_findings,
                 fail_on_severity.clone(),
+                write_baseline.clone(),
             )
         }
         Some(Commands::Filter) => commands::filter::filter().map(|_| false),
