@@ -4,6 +4,7 @@ use veil_core::Severity;
 
 #[derive(Parser)]
 #[command(name = "veil")]
+#[command(version)]
 #[command(about = "A high-performance secret detection tool", long_about = None)]
 pub struct Cli {
     /// Path to config file (default: ./veil.toml)
@@ -19,7 +20,7 @@ pub struct Cli {
     pub quiet: bool,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -30,15 +31,21 @@ pub enum Commands {
         #[arg(default_value = ".")]
         paths: Vec<PathBuf>,
         /// Output format (text, json, html, markdown, table)
+        ///
+        /// - text:     Standard colorful terminal output (default)
+        /// - json:     Machine-readable JSON for integration
+        /// - html:     Self-contained HTML report
+        /// - table:    Simple key-value table
         #[arg(long, default_value = "text")]
         format: String,
-        /// Fail (exit 1) if finding score exceeds this value
+        /// Fail (exit 1) if the highest finding score exceeds this value (0-100)
         #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
-        /// Fail (exit 1) if any secrets found with severity at or above this level (Low, Medium, High, Critical)
+        /// Fail (exit 1) if any secrets found with severity at or above this level.
+        /// Values: Low, Medium, High, Critical
         #[arg(long, value_parser = parse_severity)]
         fail_on_severity: Option<Severity>,
-        /// Fail (exit 1) if findings count is at or above this threshold
+        /// Fail (exit 1) if the total number of findings is at or above this threshold
         #[arg(long)]
         fail_on_findings: Option<usize>,
         /// Scan a specific commit (SHA)
@@ -86,6 +93,9 @@ pub enum Commands {
         /// Fail if file exists (script mode)
         #[arg(long)]
         non_interactive: bool,
+        /// Generate CI configuration for a specific provider (e.g. "github")
+        #[arg(long)]
+        ci: Option<String>,
     },
     /// Add path to ignore list
     Ignore {
@@ -105,6 +115,26 @@ pub enum Commands {
     /// Git history and operations
     #[command(subcommand)]
     Git(GitCommand),
+    /// Show diagnostic definition and system info
+    Doctor,
+    /// Rules related commands
+    #[command(subcommand)]
+    Rules(RulesCommand),
+}
+
+#[derive(Subcommand)]
+pub enum RulesCommand {
+    /// List all effective rules (after config/remote merge)
+    List {
+        /// Filter by minimum severity (e.g. HIGH -> HIGH & CRITICAL)
+        #[arg(long, value_parser = parse_severity)]
+        severity: Option<Severity>,
+    },
+    /// Show detailed information for a specific rule
+    Explain {
+        /// Rule ID (e.g. creds.aws.access_key_id)
+        rule_id: String,
+    },
 }
 
 #[derive(Subcommand)]

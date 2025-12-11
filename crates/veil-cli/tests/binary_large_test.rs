@@ -26,15 +26,16 @@ fn test_binary_and_large_files() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Run veil scan
     #[allow(deprecated)]
-    let mut cmd = Command::cargo_bin("veil-cli")?;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(repo_path)
         .arg("scan")
         .assert()
-        // We expect it to FAIL (exit 1) because the legacy behavior (threshold 0) fails on any finding.
-        .failure()
+        // v0.8.0+ defaults to exit 0 (non-blocking) unless --fail-score is set
+        .success()
         // Check for findings in output
-        .stdout(predicate::str::contains("MAX_FILE_SIZE"))
-        .stdout(predicate::str::contains("BINARY_FILE"));
+        // Check for summary of skipped files
+        .stdout(predicate::str::contains("Skipped Files"))
+        .stdout(predicate::str::contains("binary/large"));
 
     Ok(())
 }

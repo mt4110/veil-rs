@@ -15,7 +15,7 @@ fn test_fail_on_severity() {
     fs::write(&file_path, secret).unwrap();
 
     // 1. Base case: Should find it but exit 0 (default behavior)
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
@@ -23,7 +23,7 @@ fn test_fail_on_severity() {
         .success(); // Exit 0
 
     // 2. Fail on findings count: Should exit 1 (threshold 1 <= 1 detected)
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
@@ -33,7 +33,7 @@ fn test_fail_on_severity() {
         .failure(); // Exit 1
 
     // Should exit 0 if threshold 2 > 1 detected
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
@@ -43,7 +43,7 @@ fn test_fail_on_severity() {
         .success(); // Exit 0
 
     // 3. Fail on Severity Low: Should exit 1 (since High > Low)
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
@@ -74,7 +74,7 @@ fn test_fail_on_score() {
     fs::write(&file_path, secret).unwrap();
 
     // 1. Fail on Score 1 (Anything detected essentially) -> Fail
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
@@ -84,7 +84,7 @@ fn test_fail_on_score() {
         .failure();
 
     // 2. Fail on Score 1000 (Impossible) -> Success
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")

@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v0.7.0] - 2025-12-10 "Security Hardening"
+
+## [v0.8.0] - 2025-12-10 "DX & Delivery"
+
+### 🚀 Highlights
+- **Delivery**: New installation methods via `install.sh` (curl | sh) and Nix Flake.
+- **CLI UX**: Improved `veil scan --help` and added `veil doctor`.
+- **Git History Scan**: Full support for scanning git history (`veil git scan`) and Pull Requests (`--pr`).
+
+### ⚡ Improvements
+- **Security**: Added DoS/ReDoS protection limits (line length, file size).
+- **UX**: Refactored `veil scan` help messages for clarity.
+- **Safety**: Added `config check` to validate `veil.toml` regex safety.
+
+### 🛡️ Security
+- **Threat Model**: Documented security boundaries in `docs/security/threat_model.md`.
+
 
 ### 🚀 New Features
 - **`veil config check` command**: Validates configuration for potential ReDoS patterns in regexes and ensures config correctness. Checks both local `veil.toml` and remote rules.

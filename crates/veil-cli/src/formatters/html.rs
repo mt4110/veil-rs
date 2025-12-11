@@ -1,4 +1,3 @@
-use chrono::Local;
 use std::collections::HashMap;
 use veil_core::model::Finding;
 
@@ -21,31 +20,57 @@ impl HtmlFormatter {
     }
 
     pub fn generate_report(&self, findings: &[Finding]) -> String {
-        let now = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let now_utc = chrono::Utc::now();
+        let generated_at = now_utc.to_rfc3339();
+
+        // Metadata
+        let command = std::env::args().collect::<Vec<_>>().join(" ");
+        let git_branch = Self::get_git_branch();
+        let git_commit = Self::get_git_commit();
+        let git_display = match (&git_branch, &git_commit) {
+            (Some(br), Some(co)) => format!("{} @ {}", br, co),
+            (Some(br), None) => br.clone(),
+            _ => "N/A".to_string(),
+        };
+
         let total_findings = findings.len();
 
-        let mut severity_counts = HashMap::new();
+        // Compute Summary
+        let mut by_severity = HashMap::new();
+        let mut by_rule = HashMap::new();
         for f in findings {
-            *severity_counts.entry(f.rule_id.clone()).or_insert(0) += 1;
+            // Better to use buckets consistent with severity_label
+            let label = Self::severity_label(f.score);
+            *by_severity.entry(label).or_insert(0) += 1;
+
+            *by_rule.entry(f.rule_id.clone()).or_insert(0) += 1;
         }
 
-        // Simple severity breakdown
-        let critical_count = findings.iter().filter(|f| f.score >= 90).count();
-        let high_count = findings
+        let mut top_rules: Vec<_> = by_rule.into_iter().collect();
+        top_rules.sort_by(|a, b| b.1.cmp(&a.1));
+        top_rules.truncate(3);
+
+        let severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+        let severity_summary = severity_order
             .iter()
-            .filter(|f| f.score >= 70 && f.score < 90)
-            .count();
-        let medium_count = findings
+            .map(|&label| {
+                let count = by_severity.get(label).unwrap_or(&0);
+                format!("{}: {}", label, count)
+            })
+            .collect::<Vec<_>>()
+            .join(" / ");
+
+        let top_rules_html = top_rules
             .iter()
-            .filter(|f| f.score >= 40 && f.score < 70)
-            .count();
-        let low_count = findings.iter().filter(|f| f.score < 40).count();
+            .map(|(id, count)| format!("<li>{} ({})</li>", html_escape(id), count))
+            .collect::<Vec<_>>()
+            .join("");
 
         let rows = findings
             .iter()
             .map(|f| {
                 format!(
-                    r#"<tr>
+                    r#"<tr class="finding-row" data-severity="{}" data-rule-id="{}" data-file-path="{}">
                     <td><span class="badge {}">{}</span></td>
                     <td>{}</td>
                     <td>{}</td>
@@ -53,6 +78,9 @@ impl HtmlFormatter {
                     <td>{}</td>
                     <td class="mono">{}</td>
                 </tr>"#,
+                    Self::severity_label(f.score),
+                    html_escape(&f.rule_id),
+                    html_escape(&f.path.to_string_lossy()),
                     Self::severity_class(f.score),
                     Self::severity_label(f.score),
                     f.score,
@@ -115,38 +143,87 @@ impl HtmlFormatter {
             margin: 0;
         }}
 
-        .meta {{
+        #report-meta {{
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
             color: var(--text-secondary);
-            font-size: 0.875rem;
         }}
 
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .meta-line {{ margin-bottom: 0.25rem; }}
+        .meta-label {{ font-weight: bold; margin-right: 0.25rem; color: var(--text-primary); }}
+        .meta-value code {{ 
+            background: #edf2f7; 
+            padding: 0.2rem 0.4rem; 
+            border-radius: 0.25rem; 
+            font-family: monospace;
+        }}
+
+        /* Summary Cards */
+        #summary-cards {{
+            display: flex;
+            flex-wrap: wrap;
             gap: 1rem;
             margin-bottom: 2rem;
         }}
 
-        .stat-card {{
+        .summary-card {{
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
             background: var(--bg-card);
-            padding: 1.5rem;
+            min-width: 200px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            flex: 1;
+        }}
+        .summary-label {{ font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }}
+        .summary-value {{ font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }}
+        
+        .summary-list {{
+            margin: 0;
+            padding-left: 1.2rem;
+            font-size: 0.9rem;
+        }}
+        .summary-list li {{ margin-bottom: 0.25rem; }}
+
+        /* Filters */
+        #filters {{
+            background: var(--bg-card);
+            padding: 1rem;
             border-radius: 0.5rem;
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            text-align: center;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
         }}
 
-        .stat-value {{
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 0.5rem;
+        .filter-group {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }}
 
-        .stat-label {{
-            color: var(--text-secondary);
+        .filter-group span {{
+            font-weight: 600;
             font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-right: 0.5rem;
+        }}
+
+        .filter-group label {{
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }}
+
+        #search-input {{
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            min-width: 300px;
         }}
 
         .finding-table {{
@@ -203,34 +280,58 @@ impl HtmlFormatter {
         <header>
             <div>
                 <h1>Veil Security Report</h1>
-                <div class="meta">Generated: {now}</div>
             </div>
-            <div class="meta">
-                Tool: veil-rs <br>
-                Status: Complete
+            <div>
+                <!-- Right side header content if needed -->
             </div>
         </header>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value" style="color: var(--text-primary)">{total}</div>
-                <div class="stat-label">Total Findings</div>
+        <div id="report-meta">
+            <div class="meta-line">
+                <span class="meta-label">Scanned at:</span>
+                <span class="meta-value">{generated_at}</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: var(--sev-critical)">{critical}</div>
-                <div class="stat-label">Critical</div>
+            <div class="meta-line">
+                <span class="meta-label">Command:</span>
+                <span class="meta-value"><code>{command}</code></span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: var(--sev-high)">{high}</div>
-                <div class="stat-label">High</div>
+            <div class="meta-line">
+                <span class="meta-label">Git:</span>
+                <span class="meta-value">{git_info}</span>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: var(--sev-medium)">{medium}</div>
-                <div class="stat-label">Medium</div>
+        </div>
+
+        <section id="summary-cards">
+            <div class="summary-card">
+                <div class="summary-label">Total Findings</div>
+                <div class="summary-value">{total}</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: var(--sev-low)">{low}</div>
-                <div class="stat-label">Low</div>
+            <div class="summary-card">
+                <div class="summary-label">By Severity</div>
+                <div class="summary-value" style="font-size: 1rem;">
+                    {severity_summary}
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Top Rules</div>
+                <ul class="summary-list">
+                    {top_rules}
+                </ul>
+            </div>
+        </section>
+
+        <div id="filters">
+            <div class="filter-group">
+                <span>Severity:</span>
+                <label><input type="checkbox" name="severity" value="LOW" checked> LOW</label>
+                <label><input type="checkbox" name="severity" value="MEDIUM" checked> MEDIUM</label>
+                <label><input type="checkbox" name="severity" value="HIGH" checked> HIGH</label>
+                <label><input type="checkbox" name="severity" value="CRITICAL" checked> CRITICAL</label>
+            </div>
+        
+            <div class="filter-group">
+                <span>Search:</span>
+                <input id="search-input" type="text" placeholder="Filter by rule ID or file path...">
             </div>
         </div>
 
@@ -250,15 +351,60 @@ impl HtmlFormatter {
             </tbody>
         </table>
     </div>
+
+    <script>
+      (function() {{
+        const rows = Array.from(document.querySelectorAll(".finding-row"));
+        const checkboxes = Array.from(document.querySelectorAll("input[name='severity']"));
+        const searchInput = document.getElementById("search-input");
+
+        function applyFilters() {{
+          const activeSeverities = new Set(
+            checkboxes.filter(cb => cb.checked).map(cb => cb.value.toUpperCase())
+          );
+          const query = (searchInput.value || "").toLowerCase().trim();
+
+          rows.forEach(row => {{
+            const sev = (row.dataset.severity || "").toUpperCase();
+            const ruleId = (row.dataset.ruleId || "").toLowerCase();
+            const filePath = (row.dataset.filePath || "").toLowerCase();
+
+            let visible = true;
+
+            if (activeSeverities.size > 0 && !activeSeverities.has(sev)) {{
+              visible = false;
+            }}
+
+            if (query) {{
+              const haystack = ruleId + " " + filePath;
+              if (!haystack.includes(query)) {{
+                visible = false;
+              }}
+            }}
+
+            row.style.display = visible ? "" : "none";
+          }});
+        }}
+
+        checkboxes.forEach(cb => cb.addEventListener("change", applyFilters));
+        if (searchInput) {{
+          searchInput.addEventListener("input", function() {{
+            applyFilters();
+          }});
+        }}
+
+        applyFilters(); 
+      }})();
+    </script>
 </body>
 </html>
 "#,
-            now = now,
+            generated_at = generated_at,
+            command = html_escape(&command),
+            git_info = html_escape(&git_display),
             total = total_findings,
-            critical = critical_count,
-            high = high_count,
-            medium = medium_count,
-            low = low_count,
+            severity_summary = severity_summary,
+            top_rules = top_rules_html,
             rows = rows
         )
     }
@@ -285,6 +431,34 @@ impl HtmlFormatter {
         } else {
             "LOW"
         }
+    }
+
+    fn get_git_branch() -> Option<String> {
+        std::process::Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+                } else {
+                    None
+                }
+            })
+    }
+
+    fn get_git_commit() -> Option<String> {
+        std::process::Command::new("git")
+            .args(["rev-parse", "--short", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+                } else {
+                    None
+                }
+            })
     }
 }
 

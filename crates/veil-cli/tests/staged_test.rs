@@ -46,10 +46,12 @@ fn test_staged_scan() -> Result<(), Box<dyn std::error::Error>> {
 
     // 5. Run veil scan --staged
     #[allow(deprecated)]
-    let mut cmd = Command::cargo_bin("veil-cli")?;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(repo_path)
         .arg("scan")
         .arg("--staged")
+        .arg("--fail-on-findings")
+        .arg("1")
         .assert()
         .failure() // Should fail because secret is found
         .stdout(predicate::str::contains("staged_secret.txt"))
@@ -71,7 +73,7 @@ fn test_fail_score_env() -> Result<(), Box<dyn std::error::Error>> {
 
     // Case 1: Fail score 200 (Should Pass, exit 0)
     #[allow(deprecated)]
-    let mut cmd_pass = Command::cargo_bin("veil-cli")?;
+    let mut cmd_pass = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd_pass
         .current_dir(repo_path)
         .arg("scan")
@@ -81,7 +83,7 @@ fn test_fail_score_env() -> Result<(), Box<dyn std::error::Error>> {
 
     // Case 2: Fail score 50 (Should Fail, exit 1)
     #[allow(deprecated)]
-    let mut cmd_fail = Command::cargo_bin("veil-cli")?;
+    let mut cmd_fail = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd_fail
         .current_dir(repo_path)
         .arg("scan")

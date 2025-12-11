@@ -4,7 +4,7 @@ use serde_json::Value;
 
 #[test]
 fn test_json_output_has_schema_version() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     let assert = cmd
         .arg("scan")
         .arg("crates/veil-core/tests") // Scan a small directory

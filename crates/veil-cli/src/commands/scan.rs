@@ -475,12 +475,47 @@ fn resolve_paths(paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
     Ok(resolved)
 }
 
+use colored::Colorize;
+
+// ... (existing imports, keep them)
+
+// (Inside scan function, remove debug print)
+
 struct TextFormatterWrapper;
 impl Formatter for TextFormatterWrapper {
-    fn print(&self, findings: &[veil_core::model::Finding], _summary: &Summary) -> Result<()> {
+    fn print(&self, findings: &[veil_core::model::Finding], summary: &Summary) -> Result<()> {
         for finding in findings {
             print_finding(finding);
         }
+
+        println!();
+        println!("{}", "Scan Summary".bold().underline());
+        println!(
+            "  Time Taken:    {:.2}s",
+            summary.duration_ms as f64 / 1000.0
+        );
+        println!("  Total Files:   {}", summary.total_files);
+        println!("  Scanned Files: {}", summary.scanned_files);
+        if summary.skipped_files > 0 {
+            println!(
+                "  Skipped Files: {} (binary/large)",
+                summary.skipped_files.to_string().yellow()
+            );
+        }
+
+        if summary.findings_count == 0 {
+            println!("{}", "  No secrets found.".green());
+        } else {
+            println!(
+                "  Findings:      {}",
+                summary.findings_count.to_string().red().bold()
+            );
+        }
+
+        if summary.limit_reached {
+            println!("{}", "  (Output truncated due to limit)".yellow());
+        }
+
         Ok(())
     }
 }

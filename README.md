@@ -13,12 +13,33 @@ English README is available [here](README_EN.md).
 - **📦 バイナリ/巨大ファイル対策**: バイナリファイルや1MB超の巨大ファイルは自動でスキップし、CIの詰まりや文字化けを防止。
 - **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
 
-## インストール
+
+### Quick Install (Rust 開発者向け)
 
 ```bash
-# ソースコードからビルド
+curl -fsSL https://raw.githubusercontent.com/mt4110/veil-rs/main/scripts/install.sh | sh
+veil --version
+```
+
+### Nix
+
+```bash
+# 一時的に試す
+nix run github:mt4110/veil-rs#veil -- --version
+
+# ローカルでビルドだけしたい場合
+nix build github:mt4110/veil-rs#veil
+ls result/bin/veil
+```
+
+### ソースコードからビルド
+```bash
 git clone https://github.com/mt4110/veil-rs.git
 cd veil-rs
+
+# 開発環境に入る (推奨: 必要なRustバージョンやライブラリが揃います)
+nix develop
+
 cargo build --release
 ```
 
@@ -64,6 +85,16 @@ as string literals. Instead, tests generate fake tokens at runtime via helper fu
 See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
 and guidelines on adding new secret tests.
 
+### HTML Report (Triage with Browser)
+
+Generate a rich, interactive HTML report with filtering and search capabilities. Perfect for manual review.
+
+```bash
+veil scan . --format html > report.html
+# Then open report.html in your browser
+```
+
+## Configuration
 ## Integration Guide (JSON Output)
 
 `veil-rs` produces a stable, machine-readable JSON output for integrations with CI/CD systems, dashboarding tools, and external verifiers (like `veri-rs`).

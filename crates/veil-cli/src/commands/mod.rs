@@ -1,5 +1,6 @@
 pub mod check_project;
 pub mod config;
+pub mod doctor;
 pub mod filter;
 pub mod fix;
 pub mod git;
@@ -7,5 +8,6 @@ pub mod ignore;
 pub mod init;
 pub mod mask;
 pub mod pre_commit;
+pub mod rules;
 pub mod scan;
 pub mod triage;

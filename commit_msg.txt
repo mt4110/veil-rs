@@ -1,0 +1,13 @@
+feat: implement HTML report DX and init wizard enhancements
+
+v0.8.2 HTML Report DX:
+- Make HTML report interactive with client-side JS (filtering, search)
+- Add metadata header (Scan Time, Command, Git Info)
+- Add summary cards (Total Findings, Severity Breakdown, Top Rules)
+- Update CI docs with HTML artifact upload example
+
+v0.8.3 Init Wizard & Templates:
+- Enhance 'veil init --wizard' with Test Data and CI Strategy questions
+- Implement 'veil init --ci <PROVIDER>' to generate CI workflows
+- Add .github/workflows/veil.yml template generation
+- Verify init logic with new unit and integration tests

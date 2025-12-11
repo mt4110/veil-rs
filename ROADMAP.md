@@ -63,15 +63,58 @@ This document tracks the evolution of veil-rs from the first "safe core" release
 
 ---
 
-## Phase 4 – Optional Runtime Extensions (v0.8.x)
-**Goal**: Explore runtime redaction (optional for v1.0).
+## Phase 4 – DX & Delivery (v0.8.x)
+**Goal**: Make the tool "installable and usable by anyone in 5 minutes".
+Target audience: Individual developers and small teams.
 
-- **veil-logger** (Experimental): Middleware for logging redaction.
+### v0.8.0 – Delivery & CLI UX (Session 13-15)
+- **Delivery**: `install.sh`, Nix Flake support, `README` quick start.
+- **CLI UX**: Refactored `veil scan --help`, added `veil doctor`.
+- **First Impression**: Ensure the tool feels "premium" and "easy" from the first run.
+
+### v0.8.x – Rule & Report DX (Planned)
+- **HTML Report**: Improve UX with filtering, search, and summary charts.
+- **Rules DX**: `veil rules list` / `explain`.
+- **Wizard**: Enhanced `veil init` wizard for CI/Test data configs.
 
 ---
 
-## Phase 5 – Freeze & Stabilize (v0.9.x → v1.0)
-**Goal**: Stability for long-term release.
+## Phase 5 – Teams & Policy (v0.9.x)
+**Goal**: Features for organizational scaling and policy enforcement.
+Target audience: Security teams, organizations, enterprise usage.
 
-- **v0.9.x**: Feature freeze, bug fixes, docs only.
-- **v1.0.0**: Stable release.
+### Epic P: Policy / Org Features
+- **Org Config**: Documentation and examples for `VEIL_ORG_RULES`.
+- **Policy Layering**: Explicit priority rules between Org vs Project config.
+
+### Epic CI: CI / Baseline Operations
+- **Baseline**: "New findings only" mode (`--baseline`).
+- **CI Patterns**: Advanced GitHub Actions / pre-commit patterns for teams.
+
+### Epic R: Reporting for Teams
+- **Actionable HTML**: "Fix this first" sections in reports.
+- **Metrics**: Aggregated metrics for team dashboards.
+
+### Epic S: Stability Declaration
+- **Versioning**: Explicit versioning policy for CLI, Config, and JSON.
+- **Breaking Changes**: Documentation on how breaking changes are handled.
+
+---
+
+## Phase 6 – Stable v1.0.0
+**Goal**: A stable, reliable, and finished OSS tool.
+
+### Definition of Done for v1.0.0
+1.  **Stable Specs**:
+    - JSON Schema (`veil-v1`) is frozen.
+    - CLI flags and behavior are stable.
+    - `veil.toml` structure is forward-compatible.
+2.  **Safety & Performance**:
+    - DoS / ReDoS protections are verified.
+    - Proven stability on large repositories.
+3.  **DX & Documentation**:
+    - Installation is trivial (Install script / Nix / Cargo).
+    - `doctor` provides useful troubleshooting.
+    - Complete documentation for Integrations (CI, Git).
+4.  **Team Readiness**:
+    - Ready for Org-wide deployment.
