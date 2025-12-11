@@ -9,7 +9,7 @@ fn test_init_ci_github() {
     let temp_path = temp_dir.path();
 
     // Run veil init --ci github inside temp dir
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(temp_path)
         .arg("init")
         .arg("--ci")
@@ -31,7 +31,7 @@ fn test_init_ci_github() {
 
 #[test]
 fn test_init_ci_unsupported() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("init").arg("--ci").arg("gitlab"); // Unsupported
 
     cmd.assert()

@@ -332,6 +332,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -3402,6 +3403,8 @@ dependencies = [
 name = "veil-core"
 version = "0.8.0"
 dependencies = [
+ "anyhow",
+ "chrono",
  "divan",
  "ignore",
  "rayon",
@@ -3409,6 +3412,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "veil-config",
 ]

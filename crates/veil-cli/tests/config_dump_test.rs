@@ -17,7 +17,7 @@ fail_on_score = 88
     writeln!(file, "{}", config_toml).unwrap();
 
     // repo layer (via default veil.toml)
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(dir.path())
         .arg("config")
         .arg("dump")
@@ -28,7 +28,7 @@ fail_on_score = 88
         .stdout(predicate::str::contains("\"fail_on_score\": 88"));
 
     // effective layer (should contain same value)
-    let mut cmd2 = Command::cargo_bin("veil").unwrap();
+    let mut cmd2 = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd2.current_dir(dir.path()).arg("config").arg("dump");
     cmd2.assert()
         .success()
@@ -37,7 +37,7 @@ fail_on_score = 88
 
 #[test]
 fn config_dump_org_is_empty_by_default() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("config").arg("dump").arg("--layer").arg("org");
     cmd.assert()
         .success()
@@ -56,7 +56,7 @@ fail_on_score = 77
     let mut file = File::create(&config_path).unwrap();
     writeln!(file, "{}", config_toml).unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(dir.path())
         .arg("config")
         .arg("dump")
@@ -81,7 +81,7 @@ fail_on_score = 10
     let mut file = File::create(&org_config_path).unwrap();
     writeln!(file, "{}", config_toml).unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.env("VEIL_ORG_CONFIG", &org_config_path)
         .arg("config")
         .arg("dump")
@@ -107,7 +107,7 @@ fail_on_score = 20
     let mut file = File::create(&user_config_path).unwrap();
     writeln!(file, "{}", config_toml).unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.env("XDG_CONFIG_HOME", dir.path())
         // Ensure explicit overrides are unset so fallbacks run
         .env_remove("VEIL_USER_CONFIG")
@@ -154,7 +154,7 @@ fn config_layer_precedence() {
     )
     .unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(&repo_dir)
         .env("XDG_CONFIG_HOME", dir.path().join("config_home"))
         .env("VEIL_ORG_CONFIG", &org_path)
@@ -169,7 +169,7 @@ fn config_layer_precedence() {
         .stdout(predicate::str::contains("\"fail_on_score\": 99"));
 
     // Test Org > User (without repo)
-    let mut cmd2 = Command::cargo_bin("veil").unwrap();
+    let mut cmd2 = Command::new(env!("CARGO_BIN_EXE_veil"));
     // Run in a dir without veil.toml
     let empty_dir = dir.path().join("empty");
     std::fs::create_dir_all(&empty_dir).unwrap();

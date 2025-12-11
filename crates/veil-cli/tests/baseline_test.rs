@@ -12,7 +12,7 @@ fn write_baseline_creates_file_with_schema() {
     let secret_file = dir.path().join("secret.txt");
     fs::write(&secret_file, "aws_key = AKIA1234567890123456").unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(dir.path())
         .arg("scan")
         .arg("--write-baseline")
@@ -32,7 +32,7 @@ fn write_baseline_creates_file_with_schema() {
 
 #[test]
 fn baseline_argument_conflicts_with_write_baseline() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan")
         .arg("--baseline")
         .arg("foo.json")

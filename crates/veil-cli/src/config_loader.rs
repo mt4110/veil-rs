@@ -4,11 +4,8 @@ use veil_config::{load_config, Config};
 
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
-    #[allow(dead_code)]
     pub org: Option<Config>,
-    #[allow(dead_code)]
     pub user: Option<Config>,
-    #[allow(dead_code)]
     pub repo: Option<Config>,
     pub effective: Config,
 }
@@ -19,7 +16,7 @@ pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayer
     let user = load_user_config()?;
     let repo = load_repo_config(explicit_path)?;
 
-    // Merge logic: Org -> User -> Repo
+    // Merge logic: User -> Org -> Repo (later overrides earlier)
     let effective = merge_configs(org.as_ref(), user.as_ref(), repo.as_ref());
 
     Ok(ConfigLayers {
