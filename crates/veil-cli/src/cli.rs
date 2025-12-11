@@ -186,6 +186,30 @@ pub enum ConfigCommand {
         #[arg(long)]
         config_path: Option<PathBuf>,
     },
+    /// Dump configuration (org/user/repo/effective)
+    Dump {
+        /// Which layer to dump (default: effective)
+        #[arg(long, value_enum)]
+        layer: Option<ConfigLayer>,
+
+        /// Output format (json/toml). Default: json
+        #[arg(long, value_enum)]
+        format: Option<ConfigFormat>,
+    },
+}
+
+#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+pub enum ConfigLayer {
+    Org,
+    User,
+    Repo,
+    Effective,
+}
+
+#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+pub enum ConfigFormat {
+    Json,
+    Toml,
 }
 
 fn parse_severity(s: &str) -> Result<Severity, String> {

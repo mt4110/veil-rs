@@ -81,19 +81,26 @@ Target audience: Individual developers and small teams.
 
 ## Phase 5 – Teams & Policy (v0.9.x)
 **Goal**: Features for organizational scaling and policy enforcement.
+**Philosophy**: "Rehearsal for v1.0 design freezing".
 Target audience: Security teams, organizations, enterprise usage.
 
-### Epic P: Policy / Org Features
-- **Org Config**: Documentation and examples for `VEIL_ORG_RULES`.
-- **Policy Layering**: Explicit priority rules between Org vs Project config.
+### v0.9.0 – Policy Layering (Epic P)
+- **Design Spec**: `docs/design/001-policy-layering.md`
+- **Feature**: Robust configuration precedence (CLI > Org > Repo > User).
+- **Core**: `min_fail_on_severity` support (Org safety floor).
+- **Tooling**: `veil config dump` command for debugging effective config.
 
-### Epic CI: CI / Baseline Operations
-- **Baseline**: "New findings only" mode (`--baseline`).
-- **CI Patterns**: Advanced GitHub Actions / pre-commit patterns for teams.
+### v0.9.1 – Baseline & Incremental Scan (Epic B)
+- **Design Spec**: `docs/design/002-baseline-scanning.md`
+- **Feature**: Snapshot-based exclusion (`veil.baseline.json`) for legacy projects.
+- **Workflow**: `veil scan --baseline <FILE>` and `--write-baseline`.
+- **Reporting**: Distinguish "New" vs "Baseline Suppressed" in HTML/JSON.
 
-### Epic R: Reporting for Teams
-- **Actionable HTML**: "Fix this first" sections in reports.
-- **Metrics**: Aggregated metrics for team dashboards.
+### v0.9.2 – Team Reporting (Epic R)
+- **Design Spec**: `docs/design/003-reporting-metrics.md`
+- **Feature**: Metrics-focused output format (`--format summary`).
+- **Integration**: Standardized JSON for ingestion by SRE dashboards.
+- **Goal**: Track "Health" trends over time.
 
 ### Epic S: Stability Declaration
 - **Versioning**: Explicit versioning policy for CLI, Config, and JSON.

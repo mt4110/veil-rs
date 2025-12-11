@@ -92,6 +92,9 @@ fn main() -> anyhow::Result<()> {
                 let path = config_path.clone().or_else(|| cli.config.clone());
                 commands::config::check(path.as_ref())
             }
+            crate::cli::ConfigCommand::Dump { layer, format } => {
+                commands::config::dump(cli.config.as_ref(), *layer, *format).map(|_| false)
+            }
         },
         Some(Commands::PreCommit(cmd)) => match cmd {
             crate::cli::PreCommitCommand::Init => commands::pre_commit::init().map(|_| false),

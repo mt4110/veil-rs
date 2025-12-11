@@ -98,3 +98,42 @@ fn check_rule_safety(rule: &Rule) -> Result<(), SafetyIssue> {
 
     Ok(())
 }
+
+pub fn dump(
+    explicit_path: Option<&PathBuf>,
+    layer: Option<crate::cli::ConfigLayer>,
+    format: Option<crate::cli::ConfigFormat>,
+) -> Result<()> {
+    use crate::cli::{ConfigFormat, ConfigLayer};
+    use crate::config_loader::load_config_layers;
+    use veil_config::Config;
+
+    let layers = load_config_layers(explicit_path)?;
+
+    let selected: Option<&Config> = match layer.unwrap_or(ConfigLayer::Effective) {
+        ConfigLayer::Org => layers.org.as_ref(),
+        ConfigLayer::User => layers.user.as_ref(),
+        ConfigLayer::Repo => layers.repo.as_ref(),
+        ConfigLayer::Effective => Some(&layers.effective),
+    };
+
+    let Some(config) = selected else {
+        println!("(no config for this layer)");
+        return Ok(());
+    };
+
+    let fmt = format.unwrap_or(ConfigFormat::Json);
+
+    match fmt {
+        ConfigFormat::Json => {
+            let s = serde_json::to_string_pretty(config)?;
+            println!("{s}");
+        }
+        ConfigFormat::Toml => {
+            let s = toml::to_string_pretty(config)?;
+            println!("{s}");
+        }
+    }
+
+    Ok(())
+}
