@@ -16,8 +16,7 @@ Veil v0.9.1 introduces **Baseline Scanning**, allowing legacy repositories to ad
 ### Changed
 - **CLI**: `veil scan` logic updated to support 3-state outcomes (No secrets, No new secrets, New secrets).
 - **Docs**: Comprehensive guide added at `docs/baseline/usage.md`.
-
-- **Configs**: JSON summary now includes: `total_findings`, `new_findings`, `baseline_suppressed` (stable keys).
+- **Output**: JSON summary now includes: `total_findings`, `new_findings`, `baseline_suppressed` (stable keys).
 
 ## [0.8.0] - 2025-12-10 "DX & Delivery"
 
