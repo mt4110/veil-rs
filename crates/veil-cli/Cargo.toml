@@ -16,6 +16,7 @@ table = ["dep:prettytable-rs"]
 [dependencies]
 veil-core = { path = "../veil-core" }
 veil-config = { path = "../veil-config" }
+veil-guardian = { path = "../veil-guardian" }
 clap = { version = "4.5", features = ["derive", "env"] }
 colored = "2.1"
 anyhow = "1.0"

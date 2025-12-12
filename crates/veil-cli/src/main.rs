@@ -118,6 +118,7 @@ fn main() -> anyhow::Result<()> {
                 commands::rules::explain(cli.config.as_ref(), rule_id).map(|_| false)
             }
         },
+        Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
         None => {
             // If no subcommand is provided, print help
             use clap::CommandFactory;

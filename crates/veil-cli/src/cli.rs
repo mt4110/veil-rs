@@ -124,9 +124,38 @@ pub enum Commands {
     Git(GitCommand),
     /// Show diagnostic definition and system info
     Doctor,
+
     /// Rules related commands
     #[command(subcommand)]
     Rules(RulesCommand),
+    /// Scan dependencies for vulnerabilities
+    Guardian(GuardianArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct GuardianArgs {
+    #[command(subcommand)]
+    pub command: GuardianCommands,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum GuardianCommands {
+    /// Check Cargo.lock for vulnerabilities
+    Check {
+        /// Path to Cargo.lock file
+        #[arg(default_value = "Cargo.lock")]
+        lockfile: std::path::PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value_t = OutputFormatCli::Human)]
+        format: OutputFormatCli,
+    },
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum OutputFormatCli {
+    Human,
+    Json,
 }
 
 #[derive(Subcommand)]
