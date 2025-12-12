@@ -1,0 +1,450 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/mt4110/veil-rs/blob/main/schemas/veil.summary.v1.schema.json",
+    "title": "Veil Summary Schema v1",
+    "description": "CI-friendly, non-sensitive summary output for Veil scans. Frozen as veil.summary.v1. Additive changes must go into `extensions` only.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema",
+        "generated_at",
+        "tool",
+        "target",
+        "scan",
+        "counts",
+        "breakdown",
+        "limits",
+        "extensions"
+    ],
+    "properties": {
+        "schema": {
+            "type": "string",
+            "const": "veil.summary.v1"
+        },
+        "generated_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "tool": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "name",
+                "version",
+                "ruleset_digest",
+                "config_digest"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "version": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "git_commit": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ruleset_digest": {
+                    "$ref": "#/$defs/sha256Digest"
+                },
+                "config_digest": {
+                    "$ref": "#/$defs/sha256Digest"
+                },
+                "fingerprint_key_digest": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/sha256Digest"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "description": "Digest of the fingerprint key (NOT the key itself), if used."
+                }
+            }
+        },
+        "run": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "additionalProperties": false,
+            "required": [
+                "id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "ci_provider": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "workflow": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "job": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "attempt": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 1
+                }
+            }
+        },
+        "target": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "kind"
+            ],
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "filesystem",
+                        "git"
+                    ]
+                },
+                "repo": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ref": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "commit": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "range": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "subpath": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            }
+        },
+        "scan": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "mode",
+                "duration_ms",
+                "files_scanned",
+                "bytes_scanned"
+            ],
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "standard",
+                        "baseline",
+                        "history"
+                    ]
+                },
+                "baseline": {
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                        "path",
+                        "digest",
+                        "new_findings",
+                        "baselined_findings",
+                        "resolved_findings"
+                    ],
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "digest": {
+                            "$ref": "#/$defs/sha256Digest"
+                        },
+                        "new_findings": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "baselined_findings": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "resolved_findings": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    }
+                },
+                "duration_ms": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "files_scanned": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "bytes_scanned": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "total",
+                "blocking",
+                "by_severity"
+            ],
+            "properties": {
+                "total": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "blocking": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "by_severity": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ],
+                    "properties": {
+                        "low": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "medium": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "high": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "critical": {
+                            "type": "integer",
+                            "minimum": 0
+                        }
+                    }
+                }
+            }
+        },
+        "breakdown": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "by_rule",
+                "by_path_prefix"
+            ],
+            "properties": {
+                "by_rule": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "rule_id",
+                            "severity",
+                            "total",
+                            "new"
+                        ],
+                        "properties": {
+                            "rule_id": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "severity": {
+                                "$ref": "#/$defs/severity"
+                            },
+                            "total": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "new": {
+                                "type": "integer",
+                                "minimum": 0
+                            }
+                        }
+                    }
+                },
+                "by_path_prefix": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "prefix",
+                            "total"
+                        ],
+                        "properties": {
+                            "prefix": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "total": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "new": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ],
+                                "minimum": 0
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "top_new_findings": {
+            "type": [
+                "array",
+                "null"
+            ],
+            "items": {
+                "$ref": "#/$defs/topFinding"
+            }
+        },
+        "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "top_new_findings_truncated",
+                "max_top_new_findings",
+                "top_new_findings_bytes",
+                "max_top_new_findings_bytes"
+            ],
+            "properties": {
+                "top_new_findings_truncated": {
+                    "type": "boolean"
+                },
+                "max_top_new_findings": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "top_new_findings_bytes": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "max_top_new_findings_bytes": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "extensions": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Forward-compatible extension bag. v1 additive changes go here."
+        }
+    },
+    "$defs": {
+        "severity": {
+            "type": "string",
+            "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+            ]
+        },
+        "sha256Digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "topFinding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "fingerprint",
+                "rule_id",
+                "severity",
+                "path",
+                "line_start"
+            ],
+            "properties": {
+                "fingerprint": {
+                    "$ref": "#/$defs/sha256Digest"
+                },
+                "rule_id": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "severity": {
+                    "$ref": "#/$defs/severity"
+                },
+                "path": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "line_start": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "origin": {
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "additionalProperties": false,
+                    "required": [
+                        "commit"
+                    ],
+                    "properties": {
+                        "commit": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "author": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

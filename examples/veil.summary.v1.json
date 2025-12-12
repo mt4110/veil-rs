@@ -1,0 +1,106 @@
+{
+    "schema": "veil.summary.v1",
+    "generated_at": "2023-10-27T10:00:00Z",
+    "tool": {
+        "name": "veil",
+        "version": "0.9.3",
+        "git_commit": "1234567890abcdef",
+        "ruleset_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "config_digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fingerprint_key_digest": "sha256:a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+    },
+    "run": {
+        "id": "123456789",
+        "ci_provider": "github-actions",
+        "workflow": "security-scan",
+        "job": "scan",
+        "attempt": 1
+    },
+    "target": {
+        "kind": "filesystem",
+        "repo": "https://github.com/mt4110/veil-rs",
+        "ref": "refs/heads/main",
+        "commit": "1234567890abcdef",
+        "range": null,
+        "subpath": null
+    },
+    "scan": {
+        "mode": "baseline",
+        "duration_ms": 150,
+        "files_scanned": 120,
+        "bytes_scanned": 1024000,
+        "baseline": {
+            "path": "veil.baseline.json",
+            "digest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "new_findings": 1,
+            "baselined_findings": 5,
+            "resolved_findings": 0
+        }
+    },
+    "counts": {
+        "total": 6,
+        "blocking": 1,
+        "by_severity": {
+            "low": 0,
+            "medium": 0,
+            "high": 1,
+            "critical": 0
+        }
+    },
+    "breakdown": {
+        "by_rule": [
+            {
+                "rule_id": "aws_access_key",
+                "severity": "high",
+                "total": 1,
+                "new": 1
+            },
+            {
+                "rule_id": "slack_token",
+                "severity": "medium",
+                "total": 5,
+                "new": 0
+            }
+        ],
+        "by_path_prefix": [
+            {
+                "prefix": "src/",
+                "total": 5,
+                "new": 1
+            },
+            {
+                "prefix": "tests/",
+                "total": 1,
+                "new": 0
+            }
+        ]
+    },
+    "top_new_findings": [
+        {
+            "fingerprint": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "rule_id": "aws_access_key",
+            "severity": "high",
+            "path": "src/main.rs",
+            "line_start": 42,
+            "origin": {
+                "commit": "1234567890abcdef",
+                "author": "dev@example.com"
+            }
+        }
+    ],
+    "limits": {
+        "top_new_findings_truncated": false,
+        "max_top_new_findings": 20,
+        "top_new_findings_bytes": 512,
+        "max_top_new_findings_bytes": 32768
+    },
+    "extensions": {
+        "security": {
+            "fingerprint": {
+                "mode": "keyed",
+                "key_present": true,
+                "key_digest": "sha256:a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
+            }
+        }
+    }
+}

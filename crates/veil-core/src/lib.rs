@@ -5,6 +5,7 @@ pub mod remote;
 pub mod rules;
 pub mod scanner;
 pub mod scoring;
+pub mod summary;
 
 pub use crate::masking::{apply_masks, DEFAULT_PLACEHOLDER};
 pub use model::{Finding, Rule, Severity};
