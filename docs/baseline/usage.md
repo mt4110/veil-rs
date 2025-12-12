@@ -46,16 +46,16 @@ When you run `veil scan --baseline <file>`:
 3.  **Matches** are marked as **Suppressed**.
 4.  **Non-matches** are marked as **New**.
 
-Veil v1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *will* reappear as "New" because the fingerprint changes. This is **safe-by-design** preventing you from accidentally exposing a secret you thought was suppressed.
+Veil v1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *may* reappear as "New" because the fingerprint changes. This is safe-by-design: it prevents you from accidentally re-exposing a secret you assumed was suppressed.
 
 ## Output Formats
 
 Veil adjusts its output based on the format to suit the audience:
 
-| Format          | Content              | Purpose                                                                                               |
-| :-------------- | :------------------- | :---------------------------------------------------------------------------------------------------- |
-| **Text / JSON** | **New Only**         | Actionable feedback for developers. "Fix this *now*." Suppressed findings are hidden to reduce noise. |
-| **HTML**        | **New + Suppressed** | Full context for audit and review. Visually distinguishes new vs. suppressed findings.                |
+| Format          | Content              | Purpose                                                                                             |
+| :-------------- | :------------------- | :-------------------------------------------------------------------------------------------------- |
+| **Text / JSON** | **New Only**         | Actionable feedback for developers: fix this *now*. Suppressed findings are hidden to reduce noise. |
+| **HTML**        | **New + Suppressed** | Full context for audit and review. Visually distinguishes new vs. suppressed findings.              |
 
 ## Exit Codes
 
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Veil
-        run: curl -sSfL https://install.veil.sh | sh
+        run: curl -fsSL https://raw.githubusercontent.com/mt4110/veil-rs/main/scripts/install.sh | sh
       
       - name: Veil Scan (Baseline)
         run: veil scan --baseline veil.baseline.json --format json
