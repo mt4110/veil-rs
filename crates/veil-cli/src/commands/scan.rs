@@ -382,6 +382,7 @@ pub fn collect_findings(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn scan(
     paths: &[PathBuf],
     config_path: Option<&PathBuf>,

@@ -46,7 +46,7 @@ When you run `veil scan --baseline <file>`:
 3.  **Matches** are marked as **Suppressed**.
 4.  **Non-matches** are marked as **New**.
 
-Veil v0.9.1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *may* reappear as "New" because the fingerprint changes. This is safe-by-design: it prevents you from accidentally re-exposing a secret you assumed was suppressed.
+Veil v0.9.1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *will* reappear as "New" because the fingerprint changes. This is safe-by-design: it prevents you from accidentally re-exposing a secret you assumed was suppressed.
 
 ## Output Formats
 
