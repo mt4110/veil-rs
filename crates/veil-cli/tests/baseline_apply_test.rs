@@ -47,7 +47,8 @@ fn test_baseline_application_flow() {
         .arg("--fail-on-findings")
         .arg("1");
 
-    cmd.assert()
+    let assert = cmd
+        .assert()
         .failure() // Exit 1 because of new finding
         .stdout(predicate::str::contains("(Baseline suppressed: 1)"))
         .stdout(predicate::str::contains("Found 1 new secrets.")); // 1 new finding
@@ -59,12 +60,46 @@ fn test_baseline_application_flow() {
     // Default is usually Redact.
 
     // Check stdout content
-    let output = cmd.output().unwrap();
-    let stdout = String::from_utf8(output.stdout).unwrap();
+    let output = assert.get_output();
+    let stdout = String::from_utf8(output.stdout.clone()).unwrap();
 
     assert!(stdout.contains("other.txt"), "Should show new finding file");
     assert!(
         !stdout.contains("secret.txt"),
         "Should NOT show suppressed finding file"
     );
+}
+
+#[test]
+fn test_baseline_error_conditions() {
+    let dir = tempdir().unwrap();
+    let non_existent = dir.path().join("does_not_exist.json");
+    let corrupt_path = dir.path().join("corrupt.json");
+
+    // Setup corrupt file
+    fs::write(&corrupt_path, "{ invalid json").unwrap();
+
+    // 1. Missing baseline -> Exit 2
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir.path())
+        .arg("scan")
+        .arg("--baseline")
+        .arg(&non_existent);
+
+    cmd.assert()
+        .failure()
+        .code(2) // Explicitly check for Exit 2
+        .stderr(predicate::str::contains("Error: Failed to load baseline"));
+
+    // 2. Corrupt baseline -> Exit 2
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir.path())
+        .arg("scan")
+        .arg("--baseline")
+        .arg(&corrupt_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains("Error: Failed to load baseline"));
 }

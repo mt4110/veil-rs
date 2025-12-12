@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 /// Veil Summary Schema v1
+// NOTE: Enums must use #[derive(Default)] + #[default] variant.
+// Do NOT write manual `impl Default for ...` (clippy::derivable-impls).
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SummaryV1 {
@@ -17,7 +19,7 @@ pub struct SummaryV1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_new_findings: Option<Vec<TopFinding>>,
     pub limits: Limits,
-    pub extensions: Value,
+    pub extensions: Map<String, Value>,
 }
 
 impl Default for SummaryV1 {
@@ -33,7 +35,7 @@ impl Default for SummaryV1 {
             breakdown: Breakdown::default(),
             top_new_findings: None,
             limits: Limits::default(),
-            extensions: Value::Object(serde_json::Map::new()),
+            extensions: Map::new(),
         }
     }
 }
@@ -81,17 +83,12 @@ pub struct TargetInfo {
     pub subpath: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TargetKind {
+    #[default]
     Filesystem,
     Git,
-}
-
-impl Default for TargetKind {
-    fn default() -> Self {
-        Self::Filesystem
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -105,18 +102,13 @@ pub struct ScanInfo {
     pub bytes_scanned: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ScanMode {
+    #[default]
     Standard,
     Baseline,
     History,
-}
-
-impl Default for ScanMode {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -171,19 +163,14 @@ pub struct PathBreakdown {
     pub new: Option<u64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SummarySeverity {
+    #[default]
     Low,
     Medium,
     High,
     Critical,
-}
-
-impl Default for SummarySeverity {
-    fn default() -> Self {
-        Self::Low
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -336,7 +323,7 @@ mod tests {
                         "key_digest": "sha256:a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
                     }
                 }
-            }),
+            }).as_object().unwrap().clone(),
         };
 
         // Serialize and check against something we know is valid

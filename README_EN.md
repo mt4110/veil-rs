@@ -21,6 +21,12 @@ cd veil-rs
 cargo install --path crates/veil-cli --bin veil
 ```
 
+> [!IMPORTANT]
+> **For Developers: Use Nix Environment**
+> This project is designed to be developed inside `nix develop`.
+> Using a system-level Rust toolchain (e.g., v1.82.0 or older) may cause build failures due to new dependency requirements (like Rust 2024 Edition).
+> Always use `nix develop` to ensure you are using the correct toolchain version.
+
 ## Usage
 
 ### Basic Scan

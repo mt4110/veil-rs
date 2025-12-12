@@ -1,7 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::io::Write;
-use tempfile;
 
 #[test]
 fn html_report_contains_metadata_and_interactive_elements() {

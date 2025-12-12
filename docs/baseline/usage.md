@@ -52,10 +52,10 @@ Veil v0.9.1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_sn
 
 Veil adjusts its output based on the format to suit the audience:
 
-| Format          | Content              | Purpose                                                                                             |
-| :-------------- | :------------------- | :-------------------------------------------------------------------------------------------------- |
-| **Text / JSON** | **New Only**         | Actionable developer output (new findings only). Suppressed findings are summarized but not listed. |
-| **HTML**        | **New + Suppressed** | Full context for audit and review. Visually distinguishes new vs. suppressed findings.              |
+| Format          | Content              | Purpose                                                                                                   |
+| :-------------- | :------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Text / JSON** | **New Only**         | Actionable developer output (new findings only). Suppressed findings are summarized but not listed.       |
+| **HTML**        | **New + Suppressed** | Full Context (without secrets; masked snippets only). Visually distinguishes new vs. suppressed findings. |
 
 ## Exit Codes
 
