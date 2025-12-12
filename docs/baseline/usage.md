@@ -15,7 +15,7 @@ Run a scan and instruct Veil to write all current findings to a baseline file.
 veil scan --write-baseline veil.baseline.json
 ```
 > [!NOTE]
-> This file contains fingerprints of your existing secrets. It classifies them as "Suppressed Debt" rather than "New Vulnerabilities."
+> This command exits with `0` even if findings are detected, as its purpose is to create a snapshot. The file categorizes existing findings as "Suppressed Debt".
 
 ### 2. Commit Baseline (Share it with CI)
 Commit the baseline file to your repository so your CI system (and teammates) can use it.
@@ -25,7 +25,7 @@ git add veil.baseline.json
 git commit -m "chore: add veil security baseline"
 ```
 > [!TIP]
-> **Security Note**: The baseline file contains hashed fingerprints and redacted snippets, not raw secrets. However, treat it with care as it reveals *where* your potential secrets are.
+> **Security Note**: The baseline file contains hashed fingerprints and metadata (rule_id/path/line/severity), not raw secrets. However, it can reveal *where* potential secrets exist, so treat it as sensitive project data.
 
 ### 3. Run Scan in CI (Fail only on new leaks)
 Update your CI pipeline to use the `--baseline` flag. Veil will now ignore the secrets listed in the baseline and report only fresh findings.
@@ -46,16 +46,16 @@ When you run `veil scan --baseline <file>`:
 3.  **Matches** are marked as **Suppressed**.
 4.  **Non-matches** are marked as **New**.
 
-Veil uses a strict fingerprinting method (SHA256 of line content + context). This ensures that if you move a secret or change the surrounding code, it *may* reappear as "New." This is a **safe-by-design** feature to prevent you from accidentally exposing a secret you thought was suppressed.
+Veil v1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *will* reappear as "New" because the fingerprint changes. This is **safe-by-design** preventing you from accidentally exposing a secret you thought was suppressed.
 
 ## Output Formats
 
 Veil adjusts its output based on the format to suit the audience:
 
-| Format          | Content              | Purpose                                                                                              |
-| :-------------- | :------------------- | :--------------------------------------------------------------------------------------------------- |
-| **Text / JSON** | **New Only**         | Actionable feedback for developers. "Fix this *now*." Supressed findings are hidden to reduce noise. |
-| **HTML**        | **New + Suppressed** | Full context for audit and review. Visually distinguishes new vs. suppressed findings.               |
+| Format          | Content              | Purpose                                                                                               |
+| :-------------- | :------------------- | :---------------------------------------------------------------------------------------------------- |
+| **Text / JSON** | **New Only**         | Actionable feedback for developers. "Fix this *now*." Suppressed findings are hidden to reduce noise. |
+| **HTML**        | **New + Suppressed** | Full context for audit and review. Visually distinguishes new vs. suppressed findings.                |
 
 ## Exit Codes
 
@@ -74,11 +74,11 @@ You should re-run `veil scan --write-baseline` when:
 3.  **Periodic Cleanup**: You fixed several historical secrets and want to update the baseline to reflect the cleaner state.
 
 > [!WARNING]
-> Baseline is strict. If you change the line number or content of a suppressed secret, it becomes "New" again. This is intentional. To fix, simply re-run `--write-baseline`.
+> Baseline is strict by design. If you change the line number or content of a suppressed secret, it becomes "New" again. To fix, simply re-run `--write-baseline`.
 
 ## CI Example (GitHub Actions)
 
-A minimal example for your `.github/workflows/security.yml`:
+A minimal example for your `.github/workflows/security.yml` using the install script:
 
 ```yaml
 jobs:
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Veil
-        run: curl -sSfL https://get.veil.sh | sh # (Replace with actual install method)
+        run: curl -sSfL https://install.veil.sh | sh
       
       - name: Veil Scan (Baseline)
         run: veil scan --baseline veil.baseline.json --format json

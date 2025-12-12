@@ -33,6 +33,9 @@ This document tracks the evolution of veil-rs from the first "safe core" release
 
 ---
 
+### Session 30: HTML Report Integration (Completed)
+**Goal**: Visualize baseline effects in the HTML report.
+
 ## Phase 2 – Integration (v0.6.x)
 **Goal**: Make veil-rs easy to consume by machines (CI/CD, external tools) and developers (Git integration).
 

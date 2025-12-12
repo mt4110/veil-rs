@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2025-12-13
+
+### "Stop the Bleeding"
+Veil v0.9.1 introduces **Baseline Scanning**, allowing legacy repositories to adopt secret scanning without being blocked by technical debt.
+
+### Added
+- **Baseline Scanning**: New `--baseline` and `--write-baseline` flags to snapshot and suppress existing secrets.
+- **Improved Reporting**: HTML report now visualizes "New" vs "Suppressed" findings.
+- **Smart Formatter**: JSON/Text outputs focus on actionable new findings, reducing noise.
+- **Baseline UX**: Standardized exit codes (`0`: Clean/Suppressed, `1`: New Leak, `2`: Error) and log messages.
+
+### Changed
+- **CLI**: `veil scan` logic updated to support 3-state outcomes (No secrets, No new secrets, New secrets).
+- **Docs**: Comprehensive guide added at `docs/baseline/usage.md`.
+
 
 ## [v0.8.0] - 2025-12-10 "DX & Delivery"
 
