@@ -53,17 +53,14 @@ fn main() -> anyhow::Result<()> {
             fail_on_findings,
             fail_on_severity,
             write_baseline,
-            // baseline (S27) - ignored for now as it's not used in scan() yet,
-            // or we might want to pass it if scan logic handles it in future?
-            // Actually, S26 is write-only, but let's bind it just to avoid unused warning if we added it to struct
-            baseline: _,
+            baseline,
         }) => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
             commands::scan::scan(
                 paths,
                 cli.config.as_ref(),
-                format,
+                format.clone(),
                 *fail_score,
                 commit.as_deref(),
                 since.as_deref(),
@@ -75,6 +72,8 @@ fn main() -> anyhow::Result<()> {
                 *fail_on_findings,
                 fail_on_severity.clone(),
                 write_baseline.clone(),
+                baseline.clone(),
+                cli.no_color,
             )
         }
         Some(Commands::Filter) => commands::filter::filter().map(|_| false),
@@ -137,6 +136,9 @@ fn main() -> anyhow::Result<()> {
         }
         Err(e) => {
             eprintln!("Error: {}", e);
+            for cause in e.chain().skip(1) {
+                eprintln!("  Caused by: {}", cause);
+            }
             exit(2);
         }
     }

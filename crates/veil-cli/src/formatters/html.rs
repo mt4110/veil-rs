@@ -1,14 +1,13 @@
 use std::collections::HashMap;
-use veil_core::model::Finding;
 
-use crate::formatters::{Formatter, Summary};
+use super::{DisplayFinding, FindingStatus, Formatter, Summary};
 use anyhow::Result;
 
 pub struct HtmlFormatter;
 
 impl Formatter for HtmlFormatter {
-    fn print(&self, findings: &[Finding], _summary: &Summary) -> Result<()> {
-        let report = self.generate_report(findings);
+    fn print(&self, findings: &[DisplayFinding], summary: &Summary) -> Result<()> {
+        let report = self.generate_report(findings, summary);
         println!("{}", report);
         Ok(())
     }
@@ -19,7 +18,7 @@ impl HtmlFormatter {
         Self
     }
 
-    pub fn generate_report(&self, findings: &[Finding]) -> String {
+    pub fn generate_report(&self, findings: &[DisplayFinding], summary: &Summary) -> String {
         let now_utc = chrono::Utc::now();
         let generated_at = now_utc.to_rfc3339();
 
@@ -33,17 +32,18 @@ impl HtmlFormatter {
             _ => "N/A".to_string(),
         };
 
-        let total_findings = findings.len();
+        let baseline_path = summary.baseline_path.as_deref().unwrap_or("None");
 
         // Compute Summary
         let mut by_severity = HashMap::new();
         let mut by_rule = HashMap::new();
         for f in findings {
+            let inner = &f.inner;
             // Better to use buckets consistent with severity_label
-            let label = Self::severity_label(f.score);
+            let label = Self::severity_label(inner.score);
             *by_severity.entry(label).or_insert(0) += 1;
 
-            *by_rule.entry(f.rule_id.clone()).or_insert(0) += 1;
+            *by_rule.entry(inner.rule_id.clone()).or_insert(0) += 1;
         }
 
         let mut top_rules: Vec<_> = by_rule.into_iter().collect();
@@ -69,8 +69,21 @@ impl HtmlFormatter {
         let rows = findings
             .iter()
             .map(|f| {
+                let inner = &f.inner;
+                let status_attr = match f.status {
+                    FindingStatus::New => "new",
+                    FindingStatus::Suppressed => "suppressed",
+                };
+
+                let opacity_style = if matches!(f.status, FindingStatus::Suppressed) {
+                    " style=\"opacity: 0.5;\""
+                } else {
+                    ""
+                };
+
+                // Add data-status attribute here
                 format!(
-                    r#"<tr class="finding-row" data-severity="{}" data-rule-id="{}" data-file-path="{}">
+                    r#"<tr class="finding-row" data-severity="{}" data-rule-id="{}" data-file-path="{}" data-status="{}" {}>
                     <td><span class="badge {}">{}</span></td>
                     <td>{}</td>
                     <td>{}</td>
@@ -78,16 +91,18 @@ impl HtmlFormatter {
                     <td>{}</td>
                     <td class="mono">{}</td>
                 </tr>"#,
-                    Self::severity_label(f.score),
-                    html_escape(&f.rule_id),
-                    html_escape(&f.path.to_string_lossy()),
-                    Self::severity_class(f.score),
-                    Self::severity_label(f.score),
-                    f.score,
-                    html_escape(&f.rule_id),
-                    html_escape(&f.path.to_string_lossy()),
-                    html_escape(&f.masked_snippet),
-                    f.line_number
+                    Self::severity_label(inner.score),
+                    html_escape(&inner.rule_id),
+                    html_escape(&inner.path.to_string_lossy()),
+                    status_attr, // data-status
+                    opacity_style, // style="opacity: 0.5;"
+                    Self::severity_class(inner.score),
+                    Self::severity_label(inner.score),
+                    inner.score,
+                    html_escape(&inner.rule_id),
+                    html_escape(&inner.path.to_string_lossy()),
+                    html_escape(&inner.masked_snippet),
+                    inner.line_number
                 )
             })
             .collect::<Vec<_>>()
@@ -272,6 +287,12 @@ impl HtmlFormatter {
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
             font-size: 0.875rem;
         }}
+        
+        /* Suppressed Row Styling */
+        tr[data-status="suppressed"] td {{
+           opacity: 0.6;
+           font-style: italic;
+        }}
 
     </style>
 </head>
@@ -299,12 +320,20 @@ impl HtmlFormatter {
                 <span class="meta-label">Git:</span>
                 <span class="meta-value">{git_info}</span>
             </div>
+            <div class="meta-line">
+                <span class="meta-label">Baseline:</span>
+                <span class="meta-value"><code>{baseline_path}</code></span>
+            </div>
         </div>
 
         <section id="summary-cards">
             <div class="summary-card">
-                <div class="summary-label">Total Findings</div>
-                <div class="summary-value">{total}</div>
+                <div class="summary-label">Findings Breakdown</div>
+                <div class="summary-list">
+                   <li><strong>Total:</strong> {total_findings}</li>
+                   <li><strong>New:</strong> {new_findings}</li>
+                   <li><strong>Suppressed:</strong> {baseline_suppressed}</li>
+                </div>
             </div>
             <div class="summary-card">
                 <div class="summary-label">By Severity</div>
@@ -402,7 +431,10 @@ impl HtmlFormatter {
             generated_at = generated_at,
             command = html_escape(&command),
             git_info = html_escape(&git_display),
-            total = total_findings,
+            baseline_path = html_escape(baseline_path),
+            total_findings = summary.total_findings,
+            new_findings = summary.new_findings,
+            baseline_suppressed = summary.baseline_suppressed,
             severity_summary = severity_summary,
             top_rules = top_rules_html,
             rows = rows
@@ -480,24 +512,40 @@ mod tests {
     #[test]
     fn test_html_generation() {
         let formatter = HtmlFormatter::new();
-        let findings = vec![Finding {
-            path: PathBuf::from("test.txt"),
-            line_number: 1,
-            line_content: "secret=123".to_string(),
-            matched_content: "password".to_string(),
-            masked_snippet: "********".to_string(),
-            rule_id: "test_rule".to_string(),
-            severity: Severity::High,
-            score: 80,
-            grade: veil_core::rules::grade::Grade::Critical,
-            context_before: vec![],
-            context_after: vec![],
-            commit_sha: None,
-            author: None,
-            date: None,
+        let display_findings = vec![DisplayFinding {
+            inner: Finding {
+                path: PathBuf::from("test.txt"),
+                line_number: 1,
+                line_content: "secret=123".to_string(),
+                matched_content: "password".to_string(),
+                masked_snippet: "********".to_string(),
+                rule_id: "test_rule".to_string(),
+                severity: Severity::High,
+                score: 80,
+                grade: veil_core::rules::grade::Grade::Critical,
+                context_before: vec![],
+                context_after: vec![],
+                commit_sha: None,
+                author: None,
+                date: None,
+            },
+            status: FindingStatus::New,
         }];
 
-        let report = formatter.generate_report(&findings);
+        let summary = Summary {
+            total_files: 1,
+            scanned_files: 1,
+            skipped_files: 0,
+            total_findings: 1,
+            new_findings: 1,
+            baseline_suppressed: 0,
+            limit_reached: false,
+            duration_ms: 100,
+            baseline_path: Some("baseline.json".to_string()),
+            severity_counts: HashMap::new(),
+        };
+
+        let report = formatter.generate_report(&display_findings, &summary);
         assert!(report.contains("<!DOCTYPE html>"));
         assert!(report.contains("test.txt"));
         assert!(report.contains("test_rule"));

@@ -83,11 +83,100 @@ pub fn save_baseline(path: &Path, snapshot: &BaselineSnapshot) -> Result<()> {
     Ok(())
 }
 
+/// Result of applying a baseline to a set of findings.
+#[derive(Debug, Clone)]
+pub struct BaselineResult {
+    /// Findings that match the baseline (suppressed)
+    pub suppressed: Vec<Finding>,
+    /// Findings that do NOT match the baseline (new)
+    pub new: Vec<Finding>,
+}
+
+impl BaselineSnapshot {
+    /// Returns a Set of fingerprints for efficient lookup
+    pub fn fingerprint_set(&self) -> std::collections::HashSet<String> {
+        self.entries.iter().map(|e| e.fingerprint.clone()).collect()
+    }
+}
+
+/// Partitions findings into new and suppressed based on the baseline.
+pub fn apply_baseline(
+    findings: Vec<Finding>,
+    baseline: Option<&BaselineSnapshot>,
+) -> BaselineResult {
+    if let Some(snapshot) = baseline {
+        let known_fingerprints = snapshot.fingerprint_set();
+        let (suppressed, new): (Vec<Finding>, Vec<Finding>) = findings
+            .into_iter()
+            .partition(|f| known_fingerprints.contains(&generate_fingerprint(f)));
+
+        BaselineResult { suppressed, new }
+    } else {
+        // No baseline provided, all findings are considered "new" (or rather, just findings)
+        // In the context of "New vs Legacy", everything is technically "New" to the report if no baseline exists.
+        BaselineResult {
+            suppressed: Vec::new(),
+            new: findings,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::{Finding, Severity};
     use crate::rules::grade::Grade;
+
+    fn create_test_finding(path: &str, line: usize, secret: &str) -> Finding {
+        Finding {
+            path: path.into(),
+            line_number: line,
+            line_content: format!("{} = {}", "key", secret),
+            rule_id: "test.rule".into(),
+            matched_content: secret.into(),
+            masked_snippet: format!("key = <REDACTED>"),
+            severity: Severity::High,
+            score: 80,
+            grade: Grade::High,
+            context_before: vec![],
+            context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
+        }
+    }
+
+    #[test]
+    fn test_apply_baseline_partitioning() {
+        let f1 = create_test_finding("src/main.rs", 10, "secret1");
+        let f2 = create_test_finding("src/lib.rs", 20, "secret2");
+        let _f3 = create_test_finding("src/main.rs", 10, "secret1"); // Same as f1
+
+        let findings = vec![f1.clone(), f2.clone()];
+
+        // Create baseline with ONLY f1
+        let baseline = from_findings(&[f1.clone()], "0.0.0");
+
+        let result = apply_baseline(findings, Some(&baseline));
+
+        assert_eq!(result.suppressed.len(), 1, "Should suppress f1");
+        assert_eq!(result.new.len(), 1, "Should mark f2 as new");
+
+        // Check contents
+        assert_eq!(result.suppressed[0].matched_content, "secret1");
+        assert_eq!(result.new[0].matched_content, "secret2");
+    }
+
+    #[test]
+    fn test_apply_baseline_none() {
+        let f1 = create_test_finding("src/main.rs", 10, "secret1");
+        let findings = vec![f1];
+
+        let result = apply_baseline(findings, None);
+
+        assert_eq!(result.new.len(), 1);
+        assert!(result.suppressed.is_empty());
+    }
 
     #[test]
     fn fingerprint_is_stable_for_same_input() {
@@ -141,5 +230,53 @@ mod tests {
         assert_eq!(decoded.schema, BASELINE_SCHEMA_V1);
         assert_eq!(decoded.entries.len(), 1);
         assert_eq!(decoded.tool, "veil-rs 0.9.1-test");
+    }
+
+    #[test]
+    fn test_apply_baseline_empty_findings() {
+        // Baseline exists, but we found nothing in scan
+        let f1 = create_test_finding("src/main.rs", 10, "secret1");
+        let baseline = from_findings(&[f1], "0.0.0");
+
+        let findings = vec![];
+        let result = apply_baseline(findings, Some(&baseline));
+
+        assert!(result.new.is_empty());
+        assert!(result.suppressed.is_empty());
+    }
+
+    #[test]
+    fn test_apply_baseline_empty_snapshot() {
+        // Did scan, found secrets, but baseline is empty (fresh init?)
+        let f1 = create_test_finding("src/main.rs", 10, "secret1");
+        let findings = vec![f1.clone()];
+
+        let baseline = from_findings(&[], "0.0.0"); // Empty baseline
+        let result = apply_baseline(findings, Some(&baseline));
+
+        assert_eq!(result.new.len(), 1);
+        assert!(result.suppressed.is_empty());
+    }
+
+    #[test]
+    fn test_apply_baseline_duplicates() {
+        // If we have duplicate findings (e.g. same secret reported twice or same line hit by multiple rules?
+        // Logic says fingerprint depends on rule_id, path, line, snippet. So diff rule = diff fingerprint).
+        // Let's testing identical findings appearing twice in input (maybe concurrency bug or just file duplication?)
+
+        // Use separate findings to avoid borrow checker issues with clones if any
+        let f1 = create_test_finding("src/main.rs", 10, "secret1");
+        let f1_copy = create_test_finding("src/main.rs", 10, "secret1");
+
+        let findings = vec![f1.clone(), f1_copy];
+
+        // Baseline has f1
+        let baseline = from_findings(&[f1], "0.0.0");
+
+        let result = apply_baseline(findings, Some(&baseline));
+
+        // Both should be suppressed because they match the known fingerprint set
+        assert_eq!(result.suppressed.len(), 2);
+        assert!(result.new.is_empty());
     }
 }

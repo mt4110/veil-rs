@@ -21,6 +21,7 @@ pub fn triage(args: &TriageArgs) -> Result<()> {
         None,  // default mask mode
         false, // not unsafe
         None,  // no limit (we want all to triage)
+        None,  // baseline
     )?;
 
     if result.findings.is_empty() {

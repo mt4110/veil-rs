@@ -1,7 +1,7 @@
-use crate::formatters::html::HtmlFormatter;
-use crate::formatters::json::JsonFormatter;
-use crate::formatters::markdown::MarkdownFormatter;
-use crate::formatters::{Formatter, Summary};
+use crate::formatters::{
+    DisplayFinding, FindingStatus, Formatter, HtmlFormatter, JsonFormatter, MarkdownFormatter,
+    Summary, TableFormatter,
+};
 use crate::output::formatter::print_finding;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
@@ -15,6 +15,28 @@ use veil_core::get_all_rules;
 pub struct ScanResultForCli {
     pub summary: Summary,
     pub findings: Vec<veil_core::model::Finding>,
+    pub suppressed_findings: Vec<veil_core::model::Finding>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)] // Local Format enum
+pub enum Format {
+    Text,
+    Json,
+    Html,
+    Table,
+    Markdown,
+}
+
+impl From<&str> for Format {
+    fn from(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "json" => Format::Json,
+            "html" => Format::Html,
+            "table" => Format::Table,
+            "md" | "markdown" => Format::Markdown,
+            _ => Format::Text,
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -27,6 +49,7 @@ pub fn collect_findings(
     mask_mode_arg: Option<&str>,
     unsafe_output: bool,
     limit: Option<usize>,
+    baseline_path: Option<&PathBuf>,
 ) -> Result<ScanResultForCli> {
     let start_time = Instant::now();
 
@@ -222,11 +245,14 @@ pub fn collect_findings(
                         0,
                         0,
                         0,
+                        0, // baseline_suppressed
                         false,
                         start_time.elapsed(),
+                        None, // baseline_path
                         HashMap::new(),
                     ),
                     findings: vec![],
+                    suppressed_findings: vec![],
                 });
             }
         } else {
@@ -299,13 +325,32 @@ pub fn collect_findings(
     let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
 
-    let mut severity_counts = HashMap::new();
-    for f in &all_findings {
+    // Baseline Application (S27)
+    let (final_findings, suppressed_findings, _new_count) = if let Some(path) = baseline_path {
+        let baseline = veil_core::baseline::load_baseline(path)
+            .with_context(|| format!("Failed to load baseline from {:?}", path))?;
+
+        // Apply baseline
+        let result = veil_core::baseline::apply_baseline(all_findings, Some(&baseline));
+
+        let new_findings = result.new;
+        let new_len = new_findings.len();
+        // Keep suppressed for HTML display
+        let suppressed = result.suppressed;
+
+        (new_findings, suppressed, new_len)
+    } else {
+        let count = all_findings.len();
+        (all_findings, Vec::new(), count)
+    };
+
+    let mut severity_counts: HashMap<veil_core::Severity, usize> = HashMap::new();
+    for f in &final_findings {
         *severity_counts.entry(f.severity.clone()).or_insert(0) += 1;
     }
 
     let is_truncated = if let Some(max) = limit_val {
-        all_findings.len() >= max
+        final_findings.len() >= max
     } else {
         false
     };
@@ -321,24 +366,26 @@ pub fn collect_findings(
         total_files,
         scanned_files,
         skipped_files,
-        all_findings.len(),
-        all_findings.len(),
+        final_findings.len() + suppressed_findings.len(), // total = new + suppressed
+        final_findings.len(),                             // new
+        suppressed_findings.len(),
         is_truncated,
         duration,
+        baseline_path.map(|p| p.to_string_lossy().to_string()),
         severity_counts,
     );
 
     Ok(ScanResultForCli {
         summary,
-        findings: all_findings,
+        findings: final_findings,
+        suppressed_findings,
     })
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn scan(
     paths: &[PathBuf],
     config_path: Option<&PathBuf>,
-    format: &str,
+    format_str: String, // Changed from Format to String
     fail_score: Option<u32>,
     commit: Option<&str>,
     since: Option<&str>,
@@ -350,7 +397,11 @@ pub fn scan(
     fail_on_findings: Option<usize>,
     fail_on_severity: Option<veil_core::Severity>,
     write_baseline: Option<PathBuf>,
+    baseline: Option<PathBuf>,
+    no_color: bool, // Passed from cli args
 ) -> Result<bool> {
+    let format: Format = format_str.as_str().into();
+
     if show_progress {
         println!("Scanning...");
     }
@@ -371,6 +422,7 @@ pub fn scan(
         mask_mode_arg,
         unsafe_output,
         limit,
+        baseline.as_ref(),
     )?;
 
     // Handle Write Baseline (S26)
@@ -395,16 +447,53 @@ pub fn scan(
     }
 
     // Output Formatting
-    let formatter: Box<dyn Formatter> = match format.to_lowercase().as_str() {
-        "json" => Box::new(JsonFormatter),
-        "html" => Box::new(HtmlFormatter::new()),
-        #[cfg(feature = "table")]
-        "table" => Box::new(crate::formatters::table::TableFormatter),
-        "md" | "markdown" => Box::new(MarkdownFormatter),
-        _ => Box::new(TextFormatterWrapper),
+    let displays: Vec<DisplayFinding> = if let Format::Html = format {
+        // Collect new findings
+        let mut listing =
+            Vec::with_capacity(result.findings.len() + result.suppressed_findings.len());
+        for f in result.findings.iter() {
+            listing.push(DisplayFinding {
+                inner: f.clone(),
+                status: FindingStatus::New,
+            });
+        }
+        for f in result.suppressed_findings.iter() {
+            listing.push(DisplayFinding {
+                inner: f.clone(),
+                status: FindingStatus::Suppressed,
+            });
+        }
+        listing
+    } else {
+        result
+            .findings
+            .iter()
+            .map(|f| DisplayFinding {
+                inner: f.clone(),
+                status: FindingStatus::New,
+            })
+            .collect()
     };
 
-    formatter.print(&result.findings, &result.summary)?;
+    let formatter: Box<dyn Formatter> = match format {
+        Format::Json => Box::new(JsonFormatter),
+        Format::Html => Box::new(HtmlFormatter::new()),
+        Format::Table => {
+            #[cfg(feature = "table")]
+            {
+                Box::new(TableFormatter)
+            }
+            #[cfg(not(feature = "table"))]
+            {
+                eprintln!("Table format not compiled in");
+                Box::new(TextFormatterWrapper { no_color })
+            }
+        }
+        Format::Markdown => Box::new(MarkdownFormatter),
+        Format::Text => Box::new(TextFormatterWrapper { no_color }),
+    };
+
+    formatter.print(&displays, &result.summary)?;
 
     // Reload config for default fail_score if needed
     let effective_fail_score = if let Some(fs) = fail_score {
@@ -440,10 +529,10 @@ fn determine_exit_code(
 ) -> bool {
     // 1) fail-on-findings
     if let Some(threshold) = fail_on_findings {
-        if summary.findings_count >= threshold {
+        if summary.new_findings >= threshold {
             eprintln!(
-                "CI failed: findings_count ({}) exceeded threshold {}",
-                summary.findings_count, threshold
+                "CI failed: new_findings ({}) exceeded threshold {}",
+                summary.new_findings, threshold
             );
             return true;
         }
@@ -503,11 +592,25 @@ use colored::Colorize;
 
 // (Inside scan function, remove debug print)
 
-struct TextFormatterWrapper;
+struct TextFormatterWrapper {
+    no_color: bool,
+}
 impl Formatter for TextFormatterWrapper {
-    fn print(&self, findings: &[veil_core::model::Finding], summary: &Summary) -> Result<()> {
+    fn print(&self, findings: &[DisplayFinding], summary: &Summary) -> Result<()> {
+        if self.no_color {
+            colored::control::set_override(false);
+        }
+
         for finding in findings {
-            print_finding(finding);
+            // Only print new findings (suppressed status are skipped in text output by contract?)
+            // Wait, DisplayFindings passed here might include Suppressed if logic in `scan` didn't filter them.
+            // But we conditionally prepare `displays` in `scan`.
+            // `scan` helper: `if let Format::Html = format { ... includes suppressed ... } else { ... only new ... }`
+            // So if we are here, we are using Text format, so `displays` should only contain New findings.
+            // But good to be safe.
+            if let FindingStatus::New = finding.status {
+                print_finding(&finding.inner);
+            }
         }
 
         println!();
@@ -525,12 +628,47 @@ impl Formatter for TextFormatterWrapper {
             );
         }
 
-        if summary.findings_count == 0 {
-            println!("{}", "  No secrets found.".green());
-        } else {
+        if summary.baseline_suppressed > 0 && summary.new_findings == 0 {
             println!(
-                "  Findings:      {}",
-                summary.findings_count.to_string().red().bold()
+                "{}",
+                format!(
+                    "  No new secrets found. (Baseline suppressed: {})",
+                    summary.baseline_suppressed
+                )
+                .green()
+            );
+        } else if summary.new_findings == 0 {
+            // total might be 0 or just all suppressed?
+            // Actually, if new_findings == 0 it covers both cases unless we strictly check total==0 for "No secrets"
+            // Case A: total=0 -> "No secrets found"
+            // Case B: total>0, new=0 -> "No new secrets found"
+
+            if summary.total_findings == 0 {
+                println!("{}", "  No secrets found.".green());
+            } else {
+                println!(
+                    "{}",
+                    format!(
+                        "  No new secrets found. (Baseline suppressed: {})",
+                        summary.baseline_suppressed
+                    )
+                    .green()
+                );
+            }
+        } else {
+            let suppressed_msg = if summary.baseline_suppressed > 0 {
+                format!(" (Baseline suppressed: {})", summary.baseline_suppressed)
+            } else {
+                "".to_string()
+            };
+
+            println!(
+                "{}",
+                format!(
+                    "  Found {} new secrets.{}",
+                    summary.new_findings, suppressed_msg
+                )
+                .red()
             );
         }
 

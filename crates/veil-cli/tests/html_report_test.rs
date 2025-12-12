@@ -29,9 +29,9 @@ fn html_report_contains_metadata_and_interactive_elements() {
         .stdout(predicate::str::contains("Scanned at:"))
         .stdout(predicate::str::contains("Command:"))
         // Summary Cards
-        .stdout(predicate::str::contains("Total Findings"))
-        .stdout(predicate::str::contains("By Severity"))
-        .stdout(predicate::str::contains("Top Rules"))
+        .stdout(predicate::str::contains("Findings Breakdown"))
+        .stdout(predicate::str::contains("New"))
+        .stdout(predicate::str::contains("Suppressed"))
         // Interactive Elements (Session 18)
         .stdout(predicate::str::contains("data-severity="))
         .stdout(predicate::str::contains(
