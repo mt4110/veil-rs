@@ -134,7 +134,7 @@ mod tests {
             line_content: format!("{} = {}", "key", secret),
             rule_id: "test.rule".into(),
             matched_content: secret.into(),
-            masked_snippet: format!("key = <REDACTED>"),
+            masked_snippet: "key = <REDACTED>".to_string(),
             severity: Severity::High,
             score: 80,
             grade: Grade::High,
@@ -155,7 +155,7 @@ mod tests {
         let findings = vec![f1.clone(), f2.clone()];
 
         // Create baseline with ONLY f1
-        let baseline = from_findings(&[f1.clone()], "0.0.0");
+        let baseline = from_findings(std::slice::from_ref(&f1), "0.0.0");
 
         let result = apply_baseline(findings, Some(&baseline));
 
