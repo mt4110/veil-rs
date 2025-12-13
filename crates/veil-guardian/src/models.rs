@@ -1,5 +1,28 @@
 use semver::VersionReq;
 use serde::{Deserialize, Serialize};
+use std::fmt;
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Ecosystem {
+    Rust,
+    Npm,
+}
+
+impl fmt::Display for Ecosystem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Ecosystem::Rust => write!(f, "crates.io"),
+            Ecosystem::Npm => write!(f, "npm"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct PackageRef {
+    pub ecosystem: Ecosystem,
+    pub name: String,
+    pub version: String,
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Advisory {

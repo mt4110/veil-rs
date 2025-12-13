@@ -140,15 +140,19 @@ pub struct GuardianArgs {
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum GuardianCommands {
-    /// Check Cargo.lock for vulnerabilities
+    /// Check lockfile for vulnerabilities
     Check {
-        /// Path to Cargo.lock file
+        /// Path to Cargo.lock or package-lock.json
         #[arg(default_value = "Cargo.lock")]
         lockfile: std::path::PathBuf,
 
         /// Output format
         #[arg(long, value_enum, default_value_t = OutputFormatCli::Human)]
         format: OutputFormatCli,
+
+        /// Offline mode (use cache only)
+        #[arg(long)]
+        offline: bool,
     },
 }
 

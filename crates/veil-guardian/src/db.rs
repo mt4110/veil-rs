@@ -13,6 +13,8 @@ pub enum GuardianError {
     UnsupportedSchemaVersion(u32),
     #[error("Failed to parse Cargo.lock: {0}")]
     LockfileParseError(String),
+    #[error("Network error: {0}")]
+    NetworkError(String),
 }
 
 pub struct GuardianDb {
