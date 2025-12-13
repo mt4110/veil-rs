@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2025-12-13
+
+### 🛡️ Guardian: NPM & OSV Support
+- **Package Scanning**: Added support for parsing `package-lock.json` (v1, v2, v3) in `veil guardian check`.
+- **OSV Integration**: Now queries the Open Source Vulnerabilities (OSV) API for specialized vulnerability data.
+- **Offline Mode**: Added `--offline` flag to scan using cached advisory data without network access.
+- **Secure Failures**: Offline cache misses now correctly error instead of silently passing.
+- **Improved UX**: Better error tips when lockfiles are missing or invalid.
+
 ## [0.9.1] - 2025-12-13
 
 ### "Stop the Bleeding"
