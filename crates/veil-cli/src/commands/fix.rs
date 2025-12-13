@@ -34,6 +34,7 @@ pub fn fix(args: &FixArgs) -> Result<()> {
         None,  // mask
         false, // unsafe
         None,  // limit
+        None,  // baseline
     )?;
 
     if result.findings.is_empty() {

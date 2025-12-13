@@ -4,6 +4,7 @@ use veil_core::Severity;
 
 #[derive(Parser)]
 #[command(name = "veil")]
+#[command(version)]
 #[command(about = "A high-performance secret detection tool", long_about = None)]
 pub struct Cli {
     /// Path to config file (default: ./veil.toml)
@@ -19,7 +20,7 @@ pub struct Cli {
     pub quiet: bool,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -30,15 +31,21 @@ pub enum Commands {
         #[arg(default_value = ".")]
         paths: Vec<PathBuf>,
         /// Output format (text, json, html, markdown, table)
+        ///
+        /// - text:     Standard colorful terminal output (default)
+        /// - json:     Machine-readable JSON for integration
+        /// - html:     Self-contained HTML report
+        /// - table:    Simple key-value table
         #[arg(long, default_value = "text")]
         format: String,
-        /// Fail (exit 1) if finding score exceeds this value
+        /// Fail (exit 1) if the highest finding score exceeds this value (0-100)
         #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
-        /// Fail (exit 1) if any secrets found with severity at or above this level (Low, Medium, High, Critical)
+        /// Fail (exit 1) if any secrets found with severity at or above this level.
+        /// Values: Low, Medium, High, Critical
         #[arg(long, value_parser = parse_severity)]
         fail_on_severity: Option<Severity>,
-        /// Fail (exit 1) if findings count is at or above this threshold
+        /// Fail (exit 1) if the total number of findings is at or above this threshold
         #[arg(long)]
         fail_on_findings: Option<usize>,
         /// Scan a specific commit (SHA)
@@ -60,8 +67,15 @@ pub enum Commands {
         #[arg(long = "unsafe")]
         unsafe_output: bool,
         /// Limit the number of findings (0 = unlimited)
+        /// Limit the number of findings (0 = unlimited)
         #[arg(long)]
         limit: Option<usize>,
+        /// Use a baseline file to suppress existing findings (S27)
+        #[arg(long, value_name = "PATH", conflicts_with = "write_baseline")]
+        baseline: Option<PathBuf>,
+        /// Write all current findings to a baseline file (exit 0)
+        #[arg(long, value_name = "PATH")]
+        write_baseline: Option<PathBuf>,
     },
     /// Filter STDIN and mask secrets (outputs to STDOUT)
     Filter,
@@ -86,6 +100,9 @@ pub enum Commands {
         /// Fail if file exists (script mode)
         #[arg(long)]
         non_interactive: bool,
+        /// Generate CI configuration for a specific provider (e.g. "github")
+        #[arg(long)]
+        ci: Option<String>,
     },
     /// Add path to ignore list
     Ignore {
@@ -105,6 +122,59 @@ pub enum Commands {
     /// Git history and operations
     #[command(subcommand)]
     Git(GitCommand),
+    /// Show diagnostic definition and system info
+    Doctor,
+
+    /// Rules related commands
+    #[command(subcommand)]
+    Rules(RulesCommand),
+    /// Scan dependencies for vulnerabilities
+    Guardian(GuardianArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct GuardianArgs {
+    #[command(subcommand)]
+    pub command: GuardianCommands,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum GuardianCommands {
+    /// Check lockfile for vulnerabilities
+    Check {
+        /// Path to Cargo.lock or package-lock.json
+        #[arg(default_value = "Cargo.lock")]
+        lockfile: std::path::PathBuf,
+
+        /// Output format
+        #[arg(long, value_enum, default_value_t = OutputFormatCli::Human)]
+        format: OutputFormatCli,
+
+        /// Offline mode (use cache only)
+        #[arg(long)]
+        offline: bool,
+    },
+}
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum OutputFormatCli {
+    Human,
+    Json,
+}
+
+#[derive(Subcommand)]
+pub enum RulesCommand {
+    /// List all effective rules (after config/remote merge)
+    List {
+        /// Filter by minimum severity (e.g. HIGH -> HIGH & CRITICAL)
+        #[arg(long, value_parser = parse_severity)]
+        severity: Option<Severity>,
+    },
+    /// Show detailed information for a specific rule
+    Explain {
+        /// Rule ID (e.g. creds.aws.access_key_id)
+        rule_id: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -156,6 +226,30 @@ pub enum ConfigCommand {
         #[arg(long)]
         config_path: Option<PathBuf>,
     },
+    /// Dump configuration (org/user/repo/effective)
+    Dump {
+        /// Which layer to dump (default: effective)
+        #[arg(long, value_enum)]
+        layer: Option<ConfigLayer>,
+
+        /// Output format (json/toml). Default: json
+        #[arg(long, value_enum)]
+        format: Option<ConfigFormat>,
+    },
+}
+
+#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+pub enum ConfigLayer {
+    Org,
+    User,
+    Repo,
+    Effective,
+}
+
+#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+pub enum ConfigFormat {
+    Json,
+    Toml,
 }
 
 fn parse_severity(s: &str) -> Result<Severity, String> {

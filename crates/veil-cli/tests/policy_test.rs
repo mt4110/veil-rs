@@ -21,7 +21,7 @@ fn test_policy_layering_fail_score() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Run with VEIL_ORG_RULES, no project config
     // Should FAIL (Score 80 > 50)
     #[allow(deprecated)]
-    let mut cmd = Command::cargo_bin("veil-cli")?;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_config_path.to_str().unwrap())
         .arg("scan")
@@ -36,7 +36,7 @@ fn test_policy_layering_fail_score() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Run with High Threshold
     // Should PASS (Score 80 < 100)
     #[allow(deprecated)]
-    let mut cmd2 = Command::cargo_bin("veil-cli")?;
+    let mut cmd2 = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd2.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_config_safe.to_str().unwrap())
         .arg("scan")
@@ -70,7 +70,7 @@ fn test_policy_layering_override() -> Result<(), Box<dyn std::error::Error>> {
     // Run
     // Should PASS because Project config (100) overrides Org (50), and 80 < 100.
     #[allow(deprecated)]
-    let mut cmd = Command::cargo_bin("veil-cli")?;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_config_path.to_str().unwrap())
         .arg("scan")
@@ -109,7 +109,7 @@ fn test_policy_layering_ignore_extend() -> Result<(), Box<dyn std::error::Error>
     // Should ignore BOTH files and succeed (no findings).
     // If it didn't merge properly, one would be detected.
     #[allow(deprecated)]
-    let mut cmd = Command::cargo_bin("veil-cli")?;
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(repo_path)
         .env("VEIL_ORG_RULES", org_path.to_str().unwrap())
         .arg("scan")

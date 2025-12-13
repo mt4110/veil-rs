@@ -11,16 +11,43 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs {
-          inherit system overlays;
+        pkgs = import nixpkgs { inherit system overlays; };
+
+        # devShell 用の Nightly
+        rustToolchain =
+          pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+            toolchain.default.override {
+              extensions = [ "rust-src" "rust-analyzer" "clippy" ];
+            });
+
+        # ★ ここが新規：veil バイナリパッケージ
+        veilPkg = pkgs.rustPlatform.buildRustPackage {
+          pname = "veil";
+          version = "0.8.0";
+          src = ./.;
+
+          cargoLock.lockFile = ./Cargo.lock;
+
+          # ワークスペースの中の CLI crate を明示
+          cargoBuildFlags = [ "--package" "veil-cli" "--bin" "veil" ];
+
+          # OpenSSL とか必要ならここで
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = [ pkgs.openssl ];
         };
 
-        # Switch to Nightly to support crates requiring edition2024
-        rustToolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
-          extensions = [ "rust-src" "rust-analyzer" "clippy" ];
-        });
+        veilApp = {
+          type = "app";
+          program = "${veilPkg}/bin/veil";
+        };
       in
       {
+        packages.veil = veilPkg;
+        packages.default = veilPkg;
+
+        apps.veil = veilApp;
+        apps.default = veilApp;
+
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             rustToolchain

@@ -1,0 +1,17 @@
+{
+    "schema_version": 1,
+    "advisories": [
+        {
+            "id": "GF-001",
+            "crate_name": "dummy-vulnerable-crate",
+            "vulnerable_versions": "< 1.0.0",
+            "description": "This is a dummy advisory for testing purposes."
+        },
+        {
+            "id": "GF-002",
+            "crate_name": "another-crate",
+            "vulnerable_versions": ">= 2.0.0, < 2.1.3",
+            "description": "Another dummy advisory."
+        }
+    ]
+}

@@ -3,7 +3,7 @@ use assert_cmd::Command;
 #[test]
 #[allow(deprecated)]
 fn scan_directory_terminates_ok() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan")
         .arg("crates/veil-core/tests")
         .arg("--format")

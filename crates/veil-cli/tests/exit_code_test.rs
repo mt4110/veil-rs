@@ -13,11 +13,11 @@ fn test_exit_code_behavior() {
 
     // 1. Default behavior (should SUCCEED now, unless flag is passed)
     // We changed policy to be "safe by default" unless --fail-on-findings is used.
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan").arg(temp_dir.path()).assert().success(); // Expecting exit code 0
 
     // 2. Explicit flag behavior
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan")
         .arg(temp_dir.path())
         .arg("--fail-on-findings")
@@ -28,6 +28,6 @@ fn test_exit_code_behavior() {
 
     // 3. Clean scan should succeed
     let clean_dir = tempdir().unwrap();
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan").arg(clean_dir.path()).assert().success();
 }

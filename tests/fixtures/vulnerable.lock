@@ -1,0 +1,10 @@
+# This file is manually created to test vulnerability scanning.
+# It contains 'dummy-vulnerable-crate' version '0.9.9' which should be flagged by the dummy advisory GF-001.
+
+version = 3
+
+[[package]]
+name = "dummy-vulnerable-crate"
+version = "0.9.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d432322312643a21f8a85e87d1211151631557a5f6e812543962635683226593"

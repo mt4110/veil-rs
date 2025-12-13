@@ -1,0 +1,23 @@
+[package]
+name = "veil-guardian"
+version = "0.1.0"
+edition = "2021"
+description = "Security advisory and policy enforcement module for Veil"
+categories = ["development-tools"]
+
+[dependencies]
+json5 = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+semver = "1.0"
+serde_json = "1.0"
+cargo-lock = "10.0"
+thiserror = "2.0"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+directories = "5.0"
+blake3 = "1.5"
+hex = "0.4"
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3.10"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }

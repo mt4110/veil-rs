@@ -39,3 +39,38 @@ For most projects, aim to block High severity secrets while monitoring overall t
 ```bash
 veil scan . --format json --fail-on-severity High --fail-on-score 90
 ```
+
+## Storing HTML Reports (GitHub Actions)
+
+You can save the HTML report as a build artifact to view scan results in detail.
+
+```yaml
+# .github/workflows/veil.yml
+name: Veil Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install veil
+        run: |
+          curl -sSfL https://get.veil.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Run veil scan (HTML)
+        run: |
+          veil scan . --format html > veil-report.html
+
+      - name: Upload veil report
+        uses: actions/upload-artifact@v4
+        with:
+          name: veil-report
+          path: veil-report.html
+```

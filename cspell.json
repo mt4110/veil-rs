@@ -20,6 +20,7 @@
         "AROA",
         "AVCDEF",
         "axum",
+        "baselined",
         "blocklists",
         "bpar",
         "chrono",
@@ -27,7 +28,10 @@
         "codegen",
         "Consolas",
         "creds",
+        "crossport",
+        "dashboarding",
         "direnv",
+        "Dogfooding",
         "dotenvy",
         "dtolnay",
         "indicatif",
@@ -56,6 +60,7 @@
         "trycmd",
         "uncategorized",
         "veil",
+        "veri",
         "walkdir"
     ]
 }

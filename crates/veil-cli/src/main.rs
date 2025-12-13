@@ -5,7 +5,7 @@ mod formatters;
 mod output;
 
 use clap::Parser;
-use cli::{Cli, Commands};
+use cli::{Cli, Commands, RulesCommand};
 use colored::Colorize;
 
 use std::process::exit;
@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let result = match &cli.command {
-        Commands::Scan {
+        Some(Commands::Scan {
             paths,
             format,
             fail_score,
@@ -52,13 +52,15 @@ fn main() -> anyhow::Result<()> {
             limit,
             fail_on_findings,
             fail_on_severity,
-        } => {
+            write_baseline,
+            baseline,
+        }) => {
             // Quiet overrides progress
             let show_progress = *progress && !cli.quiet;
             commands::scan::scan(
                 paths,
                 cli.config.as_ref(),
-                format,
+                format.clone(),
                 *fail_score,
                 commit.as_deref(),
                 since.as_deref(),
@@ -69,37 +71,60 @@ fn main() -> anyhow::Result<()> {
                 *limit,
                 *fail_on_findings,
                 fail_on_severity.clone(),
+                write_baseline.clone(),
+                baseline.clone(),
+                cli.no_color,
             )
         }
-        Commands::Filter => commands::filter::filter().map(|_| false),
-        Commands::Mask {
+        Some(Commands::Filter) => commands::filter::filter().map(|_| false),
+        Some(Commands::Mask {
             paths,
             dry_run,
             backup_suffix,
-        } => commands::mask::mask(paths, cli.config.as_ref(), *dry_run, backup_suffix.clone())
+        }) => commands::mask::mask(paths, cli.config.as_ref(), *dry_run, backup_suffix.clone())
             .map(|_| false),
-        Commands::CheckProject => commands::check_project::check_project().map(|res| !res),
-        Commands::Init {
+        Some(Commands::CheckProject) => commands::check_project::check_project().map(|res| !res),
+        Some(Commands::Init {
             wizard,
             non_interactive,
-        } => commands::init::init(*wizard, *non_interactive).map(|_| false),
-        Commands::Ignore { path } => {
+            ci,
+        }) => commands::init::init(*wizard, *non_interactive, ci.clone()).map(|_| false),
+        Some(Commands::Ignore { path }) => {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }
-        Commands::Config(cmd) => match cmd {
+        Some(Commands::Config(cmd)) => match cmd {
             crate::cli::ConfigCommand::Check { config_path } => {
                 let path = config_path.clone().or_else(|| cli.config.clone());
                 commands::config::check(path.as_ref())
             }
+            crate::cli::ConfigCommand::Dump { layer, format } => {
+                commands::config::dump(cli.config.as_ref(), *layer, *format).map(|_| false)
+            }
         },
-        Commands::PreCommit(cmd) => match cmd {
+        Some(Commands::PreCommit(cmd)) => match cmd {
             crate::cli::PreCommitCommand::Init => commands::pre_commit::init().map(|_| false),
         },
-        Commands::Triage(args) => commands::triage::triage(args).map(|_| false),
-        Commands::Fix(args) => commands::fix::fix(args).map(|_| false),
-        Commands::Git(cmd) => match cmd {
+        Some(Commands::Triage(args)) => commands::triage::triage(args).map(|_| false),
+        Some(Commands::Fix(args)) => commands::fix::fix(args).map(|_| false),
+        Some(Commands::Git(cmd)) => match cmd {
             crate::cli::GitCommand::Scan(args) => commands::git::scan(args).map(|_| false),
         },
+        Some(Commands::Doctor) => commands::doctor::doctor().map(|_| false),
+        Some(Commands::Rules(cmd)) => match cmd {
+            RulesCommand::List { severity } => {
+                commands::rules::list(cli.config.as_ref(), severity.clone()).map(|_| false)
+            }
+            RulesCommand::Explain { rule_id } => {
+                commands::rules::explain(cli.config.as_ref(), rule_id).map(|_| false)
+            }
+        },
+        Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
+        None => {
+            // If no subcommand is provided, print help
+            use clap::CommandFactory;
+            let _ = Cli::command().print_help();
+            exit(0);
+        }
     };
 
     match result {
@@ -112,6 +137,9 @@ fn main() -> anyhow::Result<()> {
         }
         Err(e) => {
             eprintln!("Error: {}", e);
+            for cause in e.chain().skip(1) {
+                eprintln!("  Caused by: {}", cause);
+            }
             exit(2);
         }
     }

@@ -33,6 +33,9 @@ This document tracks the evolution of veil-rs from the first "safe core" release
 
 ---
 
+### Session 30: HTML Report Integration (Completed)
+**Goal**: Visualize baseline effects in the HTML report.
+
 ## Phase 2 – Integration (v0.6.x)
 **Goal**: Make veil-rs easy to consume by machines (CI/CD, external tools) and developers (Git integration).
 
@@ -63,15 +66,65 @@ This document tracks the evolution of veil-rs from the first "safe core" release
 
 ---
 
-## Phase 4 – Optional Runtime Extensions (v0.8.x)
-**Goal**: Explore runtime redaction (optional for v1.0).
+## Phase 4 – DX & Delivery (v0.8.x)
+**Goal**: Make the tool "installable and usable by anyone in 5 minutes".
+Target audience: Individual developers and small teams.
 
-- **veil-logger** (Experimental): Middleware for logging redaction.
+### v0.8.0 – Delivery & CLI UX (Session 13-15)
+- **Delivery**: `install.sh`, Nix Flake support, `README` quick start.
+- **CLI UX**: Refactored `veil scan --help`, added `veil doctor`.
+- **First Impression**: Ensure the tool feels "premium" and "easy" from the first run.
+
+### v0.8.x – Rule & Report DX (Planned)
+- **HTML Report**: Improve UX with filtering, search, and summary charts.
+- **Rules DX**: `veil rules list` / `explain`.
+- **Wizard**: Enhanced `veil init` wizard for CI/Test data configs.
 
 ---
 
-## Phase 5 – Freeze & Stabilize (v0.9.x → v1.0)
-**Goal**: Stability for long-term release.
+## Phase 5 – Teams & Policy (v0.9.x)
+**Goal**: Features for organizational scaling and policy enforcement.
+**Philosophy**: "Rehearsal for v1.0 design freezing".
+Target audience: Security teams, organizations, enterprise usage.
 
-- **v0.9.x**: Feature freeze, bug fixes, docs only.
-- **v1.0.0**: Stable release.
+### v0.9.0 – Policy Layering (Epic P) - Completed
+- [x] **Design Spec**: `docs/design/config_layers.md`
+- [x] **Feature**: Robust configuration precedence (CLI > Org > Repo > User).
+- [x] **Core**: `min_fail_on_severity` support (Org safety floor) - *Defer to 0.9.x refinements if not strict blocking*. (Note: We implemented precedence, specific fields can follow).
+- [x] **Tooling**: `veil config dump` command for debugging effective config.
+
+### v0.9.1 – Baseline & Incremental Scan (Epic B)
+- **Design Spec**: `docs/design/002-baseline-scanning.md`
+- **Feature**: Snapshot-based exclusion (`veil.baseline.json`) for legacy projects.
+- **Workflow**: `veil scan --baseline <FILE>` and `--write-baseline`.
+- **Reporting**: Distinguish "New" vs "Baseline Suppressed" in HTML/JSON.
+
+### v0.9.2 – Team Reporting (Epic R)
+- **Design Spec**: `docs/design/003-reporting-metrics.md`
+- **Feature**: Metrics-focused output format (`--format summary`).
+- **Integration**: Standardized JSON for ingestion by SRE dashboards.
+- **Goal**: Track "Health" trends over time.
+
+### Epic S: Stability Declaration
+- **Versioning**: Explicit versioning policy for CLI, Config, and JSON.
+- **Breaking Changes**: Documentation on how breaking changes are handled.
+
+---
+
+## Phase 6 – Stable v1.0.0
+**Goal**: A stable, reliable, and finished OSS tool.
+
+### Definition of Done for v1.0.0
+1.  **Stable Specs**:
+    - JSON Schema (`veil-v1`) is frozen.
+    - CLI flags and behavior are stable.
+    - `veil.toml` structure is forward-compatible.
+2.  **Safety & Performance**:
+    - DoS / ReDoS protections are verified.
+    - Proven stability on large repositories.
+3.  **DX & Documentation**:
+    - Installation is trivial (Install script / Nix / Cargo).
+    - `doctor` provides useful troubleshooting.
+    - Complete documentation for Integrations (CI, Git).
+4.  **Team Readiness**:
+    - Ready for Org-wide deployment.

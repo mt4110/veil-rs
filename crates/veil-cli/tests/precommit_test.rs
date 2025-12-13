@@ -17,7 +17,7 @@ fn test_pre_commit_init() {
         .expect("Failed to git init");
 
     // 2. Run `veil pre-commit init`
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("pre-commit")
         .arg("init")
@@ -43,7 +43,7 @@ fn test_pre_commit_init() {
 
     // 6. Test Idempotency / Backup
     // Run it again
-    let mut cmd2 = Command::cargo_bin("veil").unwrap();
+    let mut cmd2 = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd2.current_dir(root)
         .arg("pre-commit")
         .arg("init")
