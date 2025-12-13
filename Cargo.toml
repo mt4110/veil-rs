@@ -1,3 +1,4 @@
+
 [workspace]
 members = [
     "crates/veil-core",
@@ -6,8 +7,15 @@ members = [
     "crates/veil-server",
     "crates/veil-guardian",
 ]
+version = "0.10.0" # Added workspace version
 
 resolver = "2"
+
+[workspace.dependencies] # Added workspace dependencies table
+veil-core = { path = "crates/veil-core", version = "0.10.0" }
+veil-guardian = { path = "crates/veil-guardian", version = "0.10.0" }
+veil-config = { path = "crates/veil-config", version = "0.10.0" }
+veil-server = { path = "crates/veil-server", version = "0.10.0" }
 
 [profile.bench]
 opt-level = 3
