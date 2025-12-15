@@ -13,12 +13,16 @@
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
 
-        # devShell 用の Nightly
-        rustToolchain =
-          pkgs.rust-bin.selectLatestNightlyWith (toolchain:
-            toolchain.default.override {
-              extensions = [ "rust-src" "rust-analyzer" "clippy" ];
-            });
+        # --- toolchains ---
+        rustStable =
+          pkgs.rust-bin.stable.latest.default.override {
+            extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
+          };
+
+        rustMsrv =
+          pkgs.rust-bin.stable."1.82.0".default.override {
+            extensions = [ "rust-src" "rust-analyzer" "clippy" ];
+          };
 
         # ★ ここが新規：veil バイナリパッケージ
         veilPkg = pkgs.rustPlatform.buildRustPackage {
@@ -50,7 +54,7 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            rustToolchain
+            rustStable
             pkg-config
             openssl
 
@@ -68,9 +72,36 @@
           ];
 
           shellHook = ''
-            export PATH="${rustToolchain}/libexec:$PATH"
+            export PATH="${rustStable}/libexec:$PATH"
             export RUST_BACKTRACE=1
-            echo "🔮 veil-rs development environment loaded (NIGHTLY)!" >&2
+            echo "veil-rs dev env loaded (stable)" >&2
+            echo "Rust version: $(rustc --version)" >&2
+          '';
+        };
+
+        devShells.msrv = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            rustMsrv
+            pkg-config
+            openssl
+
+            # Tools
+            cargo-edit
+            cargo-watch
+            cargo-audit
+            pre-commit
+            nixd
+            nixpkgs-fmt
+
+            # Database
+            postgresql
+            sqlx-cli
+          ];
+
+          shellHook = ''
+            export PATH="${rustMsrv}/libexec:$PATH"
+            export RUST_BACKTRACE=1
+            echo "veil-rs dev env loaded (MSRV 1.82.0)" >&2
             echo "Rust version: $(rustc --version)" >&2
           '';
         };

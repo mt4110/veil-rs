@@ -2,6 +2,7 @@
 name = "veil-config"
 version = "0.10.0"
 edition = "2021"
+rust-version.workspace = true
 
 [dependencies]
 serde = { version = "1.0.203", features = ["derive"] }

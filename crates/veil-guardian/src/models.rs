@@ -1,5 +1,6 @@
 use semver::VersionReq;
 use serde::{Deserialize, Serialize};
+
 use std::fmt;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash)]
@@ -31,6 +32,12 @@ pub struct Advisory {
     #[serde(with = "serde_version_req")]
     pub vulnerable_versions: VersionReq,
     pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_fetched_at: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
