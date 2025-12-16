@@ -34,7 +34,12 @@ fn test_querybatch_coalesces_in_flight() {
     let metrics = Arc::new(Metrics::new());
     // Create client (Arc specific to handle shared access in test? OsvClient is not Clone, but methods take &self)
     // We wrap OsvClient in Arc.
-    let client = Arc::new(OsvClient::new(false, Some(api_url), Some(metrics.clone())));
+    let client = Arc::new(OsvClient::new(
+        false,
+        Some(api_url),
+        Some(metrics.clone()),
+        None,
+    ));
 
     // 3. Spawn Threads
     let concurrency = 10;
@@ -129,7 +134,12 @@ fn test_details_coalesces_in_flight() {
     let api_url = mock_server.uri() + "/v1/querybatch";
 
     let metrics = Arc::new(Metrics::new());
-    let client = Arc::new(OsvClient::new(false, Some(api_url), Some(metrics.clone())));
+    let client = Arc::new(OsvClient::new(
+        false,
+        Some(api_url),
+        Some(metrics.clone()),
+        None,
+    ));
 
     let concurrency = 10;
     let barrier = Arc::new(Barrier::new(concurrency));

@@ -100,6 +100,7 @@ fn test_metrics_collection() {
             show_details: true,
             osv_api_url: Some(osv_url),
             metrics: Some(metrics.clone()),
+            cache_dir: None,
         },
     )
     .expect("Scan failed");

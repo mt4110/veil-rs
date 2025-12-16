@@ -109,6 +109,7 @@ fn test_report_output_deterministic() {
             show_details: true,
             osv_api_url: Some(osv_url),
             metrics: None,
+            cache_dir: Some(temp_dir.path().join("cache")),
         },
     )
     .expect("Scan failed");
@@ -186,6 +187,7 @@ fn test_report_output_duplicates() {
             show_details: true,
             osv_api_url: Some(osv_url),
             metrics: None,
+            cache_dir: Some(temp_dir.path().join("cache")),
         },
     )
     .expect("Scan failed");

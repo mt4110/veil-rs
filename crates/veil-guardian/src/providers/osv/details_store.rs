@@ -11,13 +11,26 @@ pub struct DetailsStore {
 
 impl DetailsStore {
     /// Production default: ~/.cache/veil/guardian/osv/vulns (OS dependent)
-    pub fn new() -> Option<Self> {
-        let proj_dirs = ProjectDirs::from("com", "veil-rs", "veil")?;
-        let dir = proj_dirs
-            .cache_dir()
-            .join("guardian")
-            .join("osv")
-            .join("vulns");
+    /// Production default: ~/.cache/veil/guardian/osv/vulns (OS dependent)
+    /// If custom_path is provided, uses that as the ROOT for details (not appending vulns?).
+    /// Wait, Cache uses `guardian/osv`. Details uses `guardian/osv/vulns`?
+    /// `Cache::new`: `proj_dirs.cache_dir().join("guardian").join("osv")`.
+    /// `DetailsStore::new`: `proj_dirs...join("guardian").join("osv").join("vulns")`.
+    ///
+    /// If I pass `temp/details`, I expect store to use `temp/details` directly?
+    /// Yes, `Cache::new` uses custom path directly.
+    /// So `DetailsStore::new` should too.
+    pub fn new(custom_path: Option<PathBuf>) -> Option<Self> {
+        let dir = if let Some(p) = custom_path {
+            p
+        } else {
+            let proj_dirs = ProjectDirs::from("com", "veil-rs", "veil")?;
+            proj_dirs
+                .cache_dir()
+                .join("guardian")
+                .join("osv")
+                .join("vulns")
+        };
         fs::create_dir_all(&dir).ok()?;
         Some(Self { dir })
     }

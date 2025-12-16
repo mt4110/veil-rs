@@ -68,14 +68,14 @@ fn test_yarn_integration() {
 
     // 3. Set environment variable to redirect OSV traffic
     // 3. Set environment variable to redirect OSV traffic
-    let osv_url = format!("{}/querybatch", mock_server.uri());
 
     // 4. Run the scanner
     let options = ScanOptions {
         offline: false,
         show_details: false,
-        osv_api_url: Some(osv_url),
+        osv_api_url: Some(mock_server.uri() + "/v1/querybatch"),
         metrics: None,
+        cache_dir: None,
     };
     let result = scan_lockfile(&lockfile_path, options).unwrap();
 

@@ -14,6 +14,7 @@ pub struct ScanOptions {
     pub show_details: bool,
     pub osv_api_url: Option<String>,
     pub metrics: Option<Arc<Metrics>>,
+    pub cache_dir: Option<std::path::PathBuf>,
 }
 
 pub fn scan_lockfile(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
@@ -84,6 +85,7 @@ fn scan_npm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianErr
         options.offline,
         options.osv_api_url,
         options.metrics.clone(),
+        options.cache_dir,
     );
     let mut vulns = client.check_packages(&packages, show_details)?;
     for vuln in &mut vulns {
@@ -113,6 +115,7 @@ fn scan_pnpm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianEr
         options.offline,
         options.osv_api_url,
         options.metrics.clone(),
+        options.cache_dir,
     );
     let mut vulns = client.check_packages(&packages, show_details)?;
     for vuln in &mut vulns {
@@ -142,6 +145,7 @@ fn scan_yarn(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianEr
         options.offline,
         options.osv_api_url,
         options.metrics.clone(),
+        options.cache_dir,
     );
     let mut vulns = client.check_packages(&packages, show_details)?;
     for vuln in &mut vulns {

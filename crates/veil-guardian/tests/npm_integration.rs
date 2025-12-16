@@ -58,6 +58,7 @@ fn test_npm_integration() {
             show_details: false,
             osv_api_url: Some(osv_url),
             metrics: None,
+            cache_dir: None,
         },
     )
     .expect("Scan failed");

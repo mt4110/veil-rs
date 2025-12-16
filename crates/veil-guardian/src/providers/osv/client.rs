@@ -79,7 +79,12 @@ pub struct OsvClient {
 }
 
 impl OsvClient {
-    pub fn new(offline: bool, api_url: Option<String>, metrics: Option<Arc<Metrics>>) -> Self {
+    pub fn new(
+        offline: bool,
+        api_url: Option<String>,
+        metrics: Option<Arc<Metrics>>,
+        cache_dir: Option<std::path::PathBuf>,
+    ) -> Self {
         // Priority: Argument -> Env Var -> Default
         let api_url = api_url
             .or_else(|| env::var("OSV_API_URL").ok())
@@ -90,10 +95,21 @@ impl OsvClient {
             .build()
             .expect("Failed to create tokio runtime for OsvClient");
 
+        // Split cache_dir into sub-caches if provided, or pass None to use defaults/env
+        let (query_cache, details_cache) = if let Some(base) = cache_dir {
+            (Some(base.join("osv")), Some(base.join("details")))
+        } else {
+            (None, None)
+        };
+
         Self {
             client: Client::new(),
-            cache: Cache::new(),
-            details_store: DetailsStore::new(),
+            cache: if !offline {
+                Cache::new(query_cache)
+            } else {
+                None
+            },
+            details_store: DetailsStore::new(details_cache),
             offline,
             api_url,
             metrics,
@@ -116,7 +132,7 @@ impl OsvClient {
 
         Self {
             client: Client::new(),
-            cache: Cache::new(),
+            cache: if !offline { Cache::new(None) } else { None },
             details_store: store,
             offline,
             api_url,

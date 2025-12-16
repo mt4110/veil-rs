@@ -22,6 +22,7 @@ pub fn run(args: GuardianArgs) -> anyhow::Result<()> {
                 show_details: osv_details,
                 osv_api_url: None,
                 metrics: metrics.clone(),
+                cache_dir: None,
             };
 
             let scan_result = scan_lockfile(
