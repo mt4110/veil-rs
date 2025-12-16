@@ -75,6 +75,7 @@ fn test_yarn_integration() {
         offline: false,
         show_details: false,
         osv_api_url: Some(osv_url),
+        metrics: None,
     };
     let result = scan_lockfile(&lockfile_path, options).unwrap();
 
@@ -86,7 +87,7 @@ fn test_yarn_integration() {
     let vuln = result
         .vulnerabilities
         .iter()
-        .find(|v| v.crate_name == "lodash")
+        .find(|v| v.package_name == "lodash")
         .expect("Should find vulnerability for lodash");
 
     assert_eq!(vuln.version, "4.17.21");

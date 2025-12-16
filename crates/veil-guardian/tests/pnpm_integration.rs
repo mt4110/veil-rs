@@ -59,6 +59,7 @@ fn test_pnpm_integration() {
             offline: false,
             show_details: false,
             osv_api_url: Some(osv_url),
+            metrics: None,
         },
     )
     .expect("Scan failed");
@@ -66,6 +67,6 @@ fn test_pnpm_integration() {
     // 4. Verify results
     assert_eq!(result.scanned_crates, 3);
     assert_eq!(result.vulnerabilities.len(), 1);
-    assert_eq!(result.vulnerabilities[0].crate_name, "lodash");
+    assert_eq!(result.vulnerabilities[0].package_name, "lodash");
     assert_eq!(result.vulnerabilities[0].version, "4.17.15");
 }

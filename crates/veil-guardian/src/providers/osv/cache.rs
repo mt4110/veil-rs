@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct Cache {
     cache_dir: PathBuf,
 }

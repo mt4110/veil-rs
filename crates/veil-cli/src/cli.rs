@@ -157,6 +157,10 @@ pub enum GuardianCommands {
         /// Fetch detailed vulnerability info from OSV (requires online or cache)
         #[arg(long)]
         osv_details: bool,
+
+        /// Show performance metrics to stderr
+        #[arg(long)]
+        debug_metrics: bool,
     },
 }
 
