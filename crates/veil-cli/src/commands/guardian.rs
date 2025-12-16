@@ -7,12 +7,12 @@ pub fn run(args: GuardianArgs) -> anyhow::Result<()> {
         GuardianCommands::Check {
             lockfile,
             format,
-            // offline, // These are now taken directly from `args`
-            // osv_details, // These are now taken directly from `args`
+            offline,
+            osv_details,
         } => {
             let options = ScanOptions {
-                offline: args.offline,
-                show_details: args.osv_details,
+                offline,
+                show_details: osv_details,
                 osv_api_url: None,
             };
 

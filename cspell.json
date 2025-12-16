@@ -34,6 +34,7 @@
         "Dogfooding",
         "dotenvy",
         "dtolnay",
+        "impls",
         "indicatif",
         "Luhn",
         "manualy",
@@ -55,6 +56,7 @@
         "Segoe",
         "sendgrid",
         "sqlx",
+        "Swatinem",
         "thiserror",
         "tokio",
         "truecolor",
@@ -62,6 +64,7 @@
         "uncategorized",
         "veil",
         "veri",
+        "vulns",
         "walkdir"
     ]
 }

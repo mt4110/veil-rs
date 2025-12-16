@@ -11,7 +11,10 @@ pub fn parse_yarn_lock(content: &str) -> Result<Vec<PackageRef>, GuardianError> 
     if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
         if let Some(mapping) = value.as_mapping() {
             // Berry lockfiles ALWAYS have a __metadata key at the root
-            if mapping.contains_key(&serde_yaml::Value::String("__metadata".to_string())) {
+            if mapping
+                .keys()
+                .any(|k| matches!(k, serde_yaml::Value::String(s) if s == "__metadata"))
+            {
                 return parse_yarn_berry(mapping);
             }
         }

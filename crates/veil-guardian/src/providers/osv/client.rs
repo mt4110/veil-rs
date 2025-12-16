@@ -89,6 +89,13 @@ impl OsvClient {
         }
     }
 
+    fn env_flag(name: &str) -> bool {
+        matches!(
+            std::env::var(name).as_deref(),
+            Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("on")
+        )
+    }
+
     /// Fetch vulnerability details with Smart Offline policy.
     /// Returns (Raw JSON, CacheStatus, FetchedAt).
     pub fn fetch_vuln_details(
@@ -97,7 +104,7 @@ impl OsvClient {
     ) -> Result<(Value, CacheStatus, SystemTime), GuardianError> {
         let policy = CachePolicy::default();
         let now = SystemTime::now();
-        let force_refresh = env::var("VEIL_OSV_FORCE_REFRESH").is_ok();
+        let force_refresh = Self::env_flag("VEIL_OSV_FORCE_REFRESH");
 
         // 1. Load from cache
         let cached = self.details_store.as_ref().and_then(|s| s.load(id));

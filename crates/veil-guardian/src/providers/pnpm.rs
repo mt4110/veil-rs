@@ -32,9 +32,9 @@ pub fn parse_pnpm_lock(content: &str) -> Result<Vec<PackageRef>, GuardianError> 
         };
 
         // v5/v6 Slash-style: /@scope/pkg/1.2.3 or /pkg/1.2.3
-        if clean_key.starts_with('/') {
+        if let Some(path) = clean_key.strip_prefix('/') {
             // Strip leading slash
-            let path = &clean_key[1..];
+
             // Strip peer/hash part (everything after first _, if any)
             let path = if let Some(idx) = path.find('_') {
                 &path[..idx]
@@ -64,14 +64,12 @@ pub fn parse_pnpm_lock(content: &str) -> Result<Vec<PackageRef>, GuardianError> 
             }
         }
         // v9 name@version style: lodash@4.17.15 or @scope/pkg@1.2.3
-        else {
-            if let Some(idx) = clean_key.rfind('@') {
-                // Determine if this @ is a separator or part of scope
-                if idx > 0 {
-                    let name = clean_key[..idx].to_string();
-                    let version = clean_key[idx + 1..].to_string();
-                    refs.insert((name, version));
-                }
+        else if let Some(idx) = clean_key.rfind('@') {
+            // Determine if this @ is a separator or part of scope
+            if idx > 0 {
+                let name = clean_key[..idx].to_string();
+                let version = clean_key[idx + 1..].to_string();
+                refs.insert((name, version));
             }
         }
     };
