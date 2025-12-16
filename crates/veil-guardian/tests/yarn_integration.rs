@@ -18,6 +18,7 @@ fn test_yarn_integration() {
     let response_body = json!({
         "results": [
             { "vulns": [] }, // @types/node
+
             { "vulns": [] }, // fsevents
             {
                 "vulns": [

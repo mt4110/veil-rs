@@ -21,7 +21,7 @@
 
         rustMsrv =
           pkgs.rust-bin.stable."1.82.0".default.override {
-            extensions = [ "rust-src" "rust-analyzer" "clippy" ];
+            extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
           };
 
         # ★ ここが新規：veil バイナリパッケージ

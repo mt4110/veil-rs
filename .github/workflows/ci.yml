@@ -27,6 +27,8 @@ jobs:
   stable:
     name: Stable (Latest)
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
     steps:
       - uses: actions/checkout@v4
       - name: Install Stable
