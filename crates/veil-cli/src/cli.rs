@@ -153,6 +153,10 @@ pub enum GuardianCommands {
         /// Offline mode (use cache only)
         #[arg(long)]
         offline: bool,
+
+        /// Fetch detailed vulnerability info from OSV (requires online or cache)
+        #[arg(long)]
+        osv_details: bool,
     },
 }
 

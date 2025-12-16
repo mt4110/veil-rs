@@ -52,8 +52,62 @@ impl ScanResult {
                     out.push_str(&format!("- {} v{}\n", vuln.crate_name, vuln.version));
                     for advisory in &vuln.advisories {
                         out.push_str(&format!("  [{}] {}\n", advisory.id, advisory.description));
+
+                        // Display status if available
+                        if let Some(status) = &advisory.cache_status {
+                            let fetched = advisory
+                                .last_fetched_at
+                                .map(|t| {
+                                    // Simple formatting or iso8601 if possible.
+                                    // Since we don't have chrono here easily, maybe just "(timestamp: ...)" or skip.
+                                    // Or just "last_fetched: <unix>"?
+                                    // Ideally human readable.
+                                    // Let's stick to status for now or simple "Status: Fresh"
+                                    // User requirement: "cache: fresh|stale + last_fetched"
+                                    format!(" (fetched: {})", t)
+                                })
+                                .unwrap_or_default();
+                            out.push_str(&format!("    Cache: {}{}\n", status, fetched));
+                        }
+
+                        // Extra Details Extraction (Best Effort)
+                        if let Some(details) = &advisory.details {
+                            // Summary
+                            if let Some(summary) = details.get("summary").and_then(|s| s.as_str()) {
+                                if summary != advisory.description {
+                                    // dedupe
+                                    out.push_str(&format!("    Summary: {}\n", summary));
+                                }
+                            }
+
+                            // Severity
+                            if let Some(severity) =
+                                details.get("severity").and_then(|v| v.as_array())
+                            {
+                                // Take first severity score
+                                if let Some(first) = severity.first() {
+                                    if let Some(score) = first.get("score").and_then(|s| s.as_str())
+                                    {
+                                        out.push_str(&format!("    Severity: {}\n", score));
+                                    }
+                                }
+                            }
+
+                            // References (Top 3)
+                            if let Some(refs) = details.get("references").and_then(|v| v.as_array())
+                            {
+                                if !refs.is_empty() {
+                                    out.push_str("    References:\n");
+                                    for r in refs.iter().take(3) {
+                                        if let Some(url) = r.get("url").and_then(|u| u.as_str()) {
+                                            out.push_str(&format!("      - {}\n", url));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        out.push('\n');
                     }
-                    out.push('\n');
                 }
                 out
             }

@@ -14,6 +14,10 @@ English README is available [here](README_EN.md).
 - **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
 - **💉 Stop the Bleeding (Baseline)**: 既存の技術的負債をスナップショット化し、"新規の漏洩" だけを確実に止める [Baseline Scanning](docs/baseline/usage.md) を標準搭載。
 
+## Minimum Supported Rust Version (MSRV)
+We support the latest stable Rust and **MSRV 1.82.0**.
+- **Patch Policy**: Patch releases never bump MSRV.
+- **Minor Policy**: Minor releases may bump MSRV (documented in release notes).
 
 ### Quick Install (Rust 開発者向け)
 
@@ -44,6 +48,13 @@ nix develop
 cargo build --release
 ```
 
+> [!TIP]
+> **Check MSRV (1.82.0)**
+> ```bash
+> nix develop .#msrv
+> ```
+
+
 > [!IMPORTANT]
 > **開発者向け: Nix環境の利用について**
 > 本プロジェクトは `nix develop` 環境での開発を前提としています。
@@ -66,10 +77,29 @@ veil init --wizard
 veil config check
 ```
 
-### 1. 基本スキャン
+### 2. 基本スキャン
 ```bash
 veil scan .
 ```
+
+### 3. 脆弱性スキャン (Guardian)
+ロックファイル (Cargo.lock, package-lock.json 等) を解析し、既知の脆弱性を検出します。
+
+```bash
+# 通常スキャン (高速)
+veil guardian check
+
+# 詳細表示 (OSVから詳細情報を取得・キャッシュ)
+veil guardian check --osv-details
+
+# オフラインモード (キャッシュのみ使用)
+veil guardian check --osv-details --offline
+```
+
+> [!TIP]
+> **キャッシュと更新**:
+> 詳細情報は `~/.cache/veil/guardian/osv/vulns` (OS依存) に保存されます。
+> CI等で強制的に最新情報を取得したい場合は `VEIL_OSV_FORCE_REFRESH=1` を設定してください。
 
 ### JSON 出力
 ```bash

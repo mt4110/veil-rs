@@ -1,0 +1,32 @@
+lockfileVersion: "9.0"
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+  .:
+    dependencies:
+      lodash:
+        specifier: ^4.17.15
+        version: 4.17.15
+    devDependencies:
+      "@types/node":
+        specifier: ^18.0.0
+        version: 18.0.0
+
+packages:
+  "@types/node@18.0.0":
+    resolution: { integrity: sha512-xxx }
+
+  lodash@4.17.15:
+    resolution: { integrity: sha512-xxx }
+
+snapshots:
+  "@types/node@18.0.0": {}
+
+  lodash@4.17.15: {}
+
+  jest-config@30.0.3(@types/node@18.0.0):
+    dependencies:
+      "@types/node": 18.0.0

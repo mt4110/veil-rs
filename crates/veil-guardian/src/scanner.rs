@@ -1,6 +1,6 @@
 use crate::db::GuardianDb;
 
-use crate::providers::{npm, osv};
+use crate::providers::{npm, osv, pnpm, yarn};
 use crate::report::{ScanResult, Vulnerability};
 use crate::GuardianError;
 use semver::Version;
@@ -8,6 +8,8 @@ use std::path::Path;
 
 pub struct ScanOptions {
     pub offline: bool,
+    pub show_details: bool,
+    pub osv_api_url: Option<String>,
 }
 
 pub fn scan_lockfile(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
@@ -18,6 +20,14 @@ pub fn scan_lockfile(path: &Path, options: ScanOptions) -> Result<ScanResult, Gu
 
     if filename == "package-lock.json" {
         return scan_npm(path, options);
+    }
+
+    if filename == "pnpm-lock.yaml" {
+        return scan_pnpm(path, options);
+    }
+
+    if filename == "yarn.lock" {
+        return scan_yarn(path, options);
     }
 
     // Default to Cargo.lock
@@ -57,8 +67,43 @@ fn scan_cargo(path: &Path) -> Result<ScanResult, GuardianError> {
 
 fn scan_npm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
     let packages = npm::parse_package_lock(path)?;
-    let client = osv::OsvClient::new(options.offline);
-    let vulns = client.check_packages(&packages)?;
+    let show_details = options.show_details;
+    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
+    let vulns = client.check_packages(&packages, show_details)?;
+
+    Ok(ScanResult {
+        scanned_crates: packages.len(),
+        vulnerabilities: vulns,
+    })
+}
+
+fn scan_pnpm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+
+    let packages = pnpm::parse_pnpm_lock(&content)
+        .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+
+    let show_details = options.show_details;
+    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
+    let vulns = client.check_packages(&packages, show_details)?;
+
+    Ok(ScanResult {
+        scanned_crates: packages.len(),
+        vulnerabilities: vulns,
+    })
+}
+
+fn scan_yarn(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+
+    let packages = yarn::parse_yarn_lock(&content)
+        .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+
+    let show_details = options.show_details;
+    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
+    let vulns = client.check_packages(&packages, show_details)?;
 
     Ok(ScanResult {
         scanned_crates: packages.len(),

@@ -8,10 +8,21 @@ pub fn run(args: GuardianArgs) -> anyhow::Result<()> {
             lockfile,
             format,
             offline,
+            osv_details,
         } => {
-            let scan_result = scan_lockfile(&lockfile, ScanOptions { offline }).map_err(|e| {
+            let options = ScanOptions {
+                offline,
+                show_details: osv_details,
+                osv_api_url: None,
+            };
+
+            let scan_result = scan_lockfile(
+                &lockfile,
+                options,
+            )
+            .map_err(|e| {
                 anyhow::anyhow!(
-                    "Failed to scan lockfile at {:?}: {}\n\nTip: Ensure the file exists and is a valid Cargo.lock or package-lock.json.",
+                    "Failed to scan lockfile at {:?}: {}\n\nTip: Ensure the file exists and is a valid Cargo.lock, package-lock.json, pnpm-lock.yaml, or yarn.lock.",
                     lockfile,
                     e
                 )

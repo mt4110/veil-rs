@@ -2,6 +2,7 @@
 name = "veil-core"
 version = "0.10.0"
 edition = "2021"
+rust-version.workspace = true
 
 [dependencies]
 regex = "1.10.4"
