@@ -1,0 +1,19 @@
+{
+    "results": [
+        {
+            "vulns": []
+        },
+        {
+            "vulns": []
+        },
+        {
+            "vulns": [
+                {
+                    "id": "GHSA-p6mc-m468-83gw",
+                    "summary": "Prototype Pollution in lodash",
+                    "details": "Vulnerable."
+                }
+            ]
+        }
+    ]
+}

@@ -3,15 +3,20 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct Cache {
     cache_dir: PathBuf,
 }
 
 impl Cache {
-    pub fn new() -> Option<Self> {
-        // Use standard XDG dirs: ~/.cache/veil-rs/guardian/osv or equivalent
-        let proj_dirs = ProjectDirs::from("com", "veil-rs", "veil")?;
-        let cache_dir = proj_dirs.cache_dir().join("guardian").join("osv");
+    pub fn new(custom_path: Option<PathBuf>) -> Option<Self> {
+        let cache_dir = if let Some(p) = custom_path {
+            p
+        } else {
+            // Use standard XDG dirs: ~/.cache/veil-rs/veil/guardian/osv or equivalent
+            let proj_dirs = ProjectDirs::from("com", "veil-rs", "veil")?;
+            proj_dirs.cache_dir().join("guardian").join("osv")
+        };
 
         fs::create_dir_all(&cache_dir).ok()?;
 

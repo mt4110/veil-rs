@@ -1,11 +1,7 @@
 use serde_json::json;
 use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
-use veil_guardian::providers::osv::{
-    details::{CacheStatus, CachedVuln},
-    details_store::DetailsStore,
-    OsvClient,
-};
+use veil_guardian::providers::osv::{details::CachedVuln, details_store::DetailsStore, OsvClient};
 use wiremock::{
     matchers::{method, path},
     Mock, MockServer, ResponseTemplate,
@@ -47,7 +43,8 @@ async fn test_osv_details_flow_fresh_skips_fetch() {
     .unwrap();
 
     let (val, status, _) = result;
-    assert_eq!(status, CacheStatus::Fresh);
+    // OsvClient now returns String status, "Hit (Fresh)" or "Network"
+    assert_eq!(status, "Hit (Fresh)");
     assert_eq!(val["summary"], "Cached Fresh");
 }
 
@@ -91,9 +88,9 @@ async fn test_osv_details_flow_expired_triggers_fetch() {
     .unwrap();
 
     let (val, status, _) = result;
-    // Note: status will be FRESH after update?
-    // fetch_vuln_details returns Fresh if newly fetched.
-    assert_eq!(status, CacheStatus::Fresh);
+    // Note: status will be NETWORK after update since it fetched?
+    // "Network".to_string()
+    assert_eq!(status, "Network");
     assert_eq!(val["summary"], "New Data");
 
     // Verify disk updated
@@ -130,6 +127,6 @@ async fn test_osv_details_offline_uses_stale() {
     .unwrap();
 
     let (val, status, _) = result;
-    assert_eq!(status, CacheStatus::Stale);
+    assert_eq!(status, "Hit (Stale)");
     assert_eq!(val["summary"], "Stale Data");
 }

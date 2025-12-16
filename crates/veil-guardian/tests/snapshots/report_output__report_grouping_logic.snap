@@ -1,0 +1,13 @@
+---
+source: crates/veil-guardian/tests/report_output.rs
+assertion_line: 272
+expression: output
+---
+Found 1 vulnerabilities in 10 packages scanned:
+Cache: 1 fresh, 0 stale, 0 network, 0 offline, 0 error
+
+- manual-lib v1.0.0 (npm)
+  Locations: path/to/lock_A, path/to/lock_B
+  [GHSA-dup-1] Dup 1
+    Fix: No fixed version available (mitigation required)
+    Status: Hit (Fresh)

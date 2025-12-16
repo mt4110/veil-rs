@@ -9,11 +9,20 @@ pub fn run(args: GuardianArgs) -> anyhow::Result<()> {
             format,
             offline,
             osv_details,
+            debug_metrics,
         } => {
+            let metrics = if debug_metrics {
+                Some(std::sync::Arc::new(veil_guardian::Metrics::new()))
+            } else {
+                None
+            };
+
             let options = ScanOptions {
                 offline,
                 show_details: osv_details,
                 osv_api_url: None,
+                metrics: metrics.clone(),
+                cache_dir: None,
             };
 
             let scan_result = scan_lockfile(
@@ -34,6 +43,10 @@ pub fn run(args: GuardianArgs) -> anyhow::Result<()> {
             };
 
             println!("{}", scan_result.display(output_format));
+
+            if let Some(m) = metrics {
+                eprintln!("\n{}", m);
+            }
 
             if !scan_result.is_clean() {
                 std::process::exit(1);

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.2] - 2025-12-16
+
+### 🛡️ Guardian: Performance Improvements (OSV)
+This release focuses on optimizing the OSV client performance and observability within Veil Guardian.
+
+- **Added**: `--debug-metrics` flag to output detailed performance metrics (request counts, cache hits, timings) to stderr.
+- **Improved**: Implemented request coalescing for OSV queries and vulnerability details. Concurrent requests for the same resource now result in a single network call, significantly reducing bandwidth and API load.
+- **Verified**: Concurrency tests confirm that N parallel requests result in 1 network call, with N-1 coalesced waiters.
+
 ## [0.10.0] - 2025-12-13
 
 ### 🛡️ Guardian: NPM & OSV Support

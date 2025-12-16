@@ -25,7 +25,7 @@ pub struct PackageRef {
     pub version: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub struct Advisory {
     pub id: String,
     pub crate_name: String,

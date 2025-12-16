@@ -57,6 +57,8 @@ fn test_npm_integration() {
             offline: false,
             show_details: false,
             osv_api_url: Some(osv_url),
+            metrics: None,
+            cache_dir: None,
         },
     )
     .expect("Scan failed");
@@ -64,7 +66,7 @@ fn test_npm_integration() {
     // 4. Verify results
     assert_eq!(result.scanned_crates, 1); // Only lodash (root skipped)
     assert_eq!(result.vulnerabilities.len(), 1);
-    assert_eq!(result.vulnerabilities[0].crate_name, "lodash");
+    assert_eq!(result.vulnerabilities[0].package_name, "lodash");
     assert_eq!(result.vulnerabilities[0].version, "4.17.15");
     assert_eq!(
         result.vulnerabilities[0].advisories[0].id,

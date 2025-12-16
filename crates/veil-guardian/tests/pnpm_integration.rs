@@ -16,21 +16,9 @@ fn test_pnpm_integration() {
     // 2. jest-config (clean)
     // 3. lodash (vulnerable)
 
-    let body = r#"{
-        "results": [
-            { "vulns": [] },
-            { "vulns": [] },
-            {
-                "vulns": [
-                    {
-                        "id": "GHSA-p6mc-m468-83gw",
-                        "summary": "Prototype Pollution in lodash",
-                        "details": "Vulnerable."
-                    }
-                ]
-            }
-        ]
-    }"#;
+    let fixture_json_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/osv/pnpm_mock_response.json");
+    let body = std::fs::read_to_string(fixture_json_path).expect("failed to read fixture");
 
     rt.block_on(async {
         Mock::given(method("POST"))
@@ -59,6 +47,8 @@ fn test_pnpm_integration() {
             offline: false,
             show_details: false,
             osv_api_url: Some(osv_url),
+            metrics: None,
+            cache_dir: None,
         },
     )
     .expect("Scan failed");
@@ -66,6 +56,6 @@ fn test_pnpm_integration() {
     // 4. Verify results
     assert_eq!(result.scanned_crates, 3);
     assert_eq!(result.vulnerabilities.len(), 1);
-    assert_eq!(result.vulnerabilities[0].crate_name, "lodash");
+    assert_eq!(result.vulnerabilities[0].package_name, "lodash");
     assert_eq!(result.vulnerabilities[0].version, "4.17.15");
 }

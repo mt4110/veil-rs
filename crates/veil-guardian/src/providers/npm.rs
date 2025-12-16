@@ -77,6 +77,10 @@ pub fn parse_package_lock(path: &Path) -> Result<Vec<PackageRef>, GuardianError>
         parse_deps_v1(&lock.dependencies, &mut refs);
     }
 
+    refs.sort_by(|a, b| {
+        (a.name.as_str(), a.version.as_str()).cmp(&(b.name.as_str(), b.version.as_str()))
+    });
+    refs.dedup_by(|a, b| a.name == b.name && a.version == b.version);
     Ok(refs)
 }
 

@@ -3,13 +3,18 @@ use crate::db::GuardianDb;
 use crate::providers::{npm, osv, pnpm, yarn};
 use crate::report::{ScanResult, Vulnerability};
 use crate::GuardianError;
+use crate::Metrics;
 use semver::Version;
 use std::path::Path;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 pub struct ScanOptions {
     pub offline: bool,
     pub show_details: bool,
     pub osv_api_url: Option<String>,
+    pub metrics: Option<Arc<Metrics>>,
+    pub cache_dir: Option<std::path::PathBuf>,
 }
 
 pub fn scan_lockfile(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
@@ -54,9 +59,11 @@ fn scan_cargo(path: &Path) -> Result<ScanResult, GuardianError> {
             if !advisories.is_empty() {
                 let owned_advisories: Vec<_> = advisories.into_iter().cloned().collect();
                 result.vulnerabilities.push(Vulnerability {
-                    crate_name: name.to_string(),
+                    ecosystem: crate::models::Ecosystem::Rust,
+                    package_name: name.to_string(),
                     version: version_str,
                     advisories: owned_advisories,
+                    locations: vec![path.to_string_lossy().to_string()],
                 });
             }
         }
@@ -66,10 +73,24 @@ fn scan_cargo(path: &Path) -> Result<ScanResult, GuardianError> {
 }
 
 fn scan_npm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianError> {
+    let start_parse = std::time::Instant::now();
     let packages = npm::parse_package_lock(path)?;
+    if let Some(m) = &options.metrics {
+        m.time_parse_ms
+            .fetch_add(start_parse.elapsed().as_millis() as u64, Ordering::Relaxed);
+    }
+
     let show_details = options.show_details;
-    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
-    let vulns = client.check_packages(&packages, show_details)?;
+    let client = osv::OsvClient::new(
+        options.offline,
+        options.osv_api_url,
+        options.metrics.clone(),
+        options.cache_dir,
+    );
+    let mut vulns = client.check_packages(&packages, show_details)?;
+    for vuln in &mut vulns {
+        vuln.locations.push(path.to_string_lossy().to_string());
+    }
 
     Ok(ScanResult {
         scanned_crates: packages.len(),
@@ -81,12 +102,25 @@ fn scan_pnpm(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianEr
     let content = std::fs::read_to_string(path)
         .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
 
+    let start_parse = std::time::Instant::now();
     let packages = pnpm::parse_pnpm_lock(&content)
         .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+    if let Some(m) = &options.metrics {
+        m.time_parse_ms
+            .fetch_add(start_parse.elapsed().as_millis() as u64, Ordering::Relaxed);
+    }
 
     let show_details = options.show_details;
-    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
-    let vulns = client.check_packages(&packages, show_details)?;
+    let client = osv::OsvClient::new(
+        options.offline,
+        options.osv_api_url,
+        options.metrics.clone(),
+        options.cache_dir,
+    );
+    let mut vulns = client.check_packages(&packages, show_details)?;
+    for vuln in &mut vulns {
+        vuln.locations.push(path.to_string_lossy().to_string());
+    }
 
     Ok(ScanResult {
         scanned_crates: packages.len(),
@@ -98,12 +132,25 @@ fn scan_yarn(path: &Path, options: ScanOptions) -> Result<ScanResult, GuardianEr
     let content = std::fs::read_to_string(path)
         .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
 
+    let start_parse = std::time::Instant::now();
     let packages = yarn::parse_yarn_lock(&content)
         .map_err(|e| GuardianError::LockfileParseError(e.to_string()))?;
+    if let Some(m) = &options.metrics {
+        m.time_parse_ms
+            .fetch_add(start_parse.elapsed().as_millis() as u64, Ordering::Relaxed);
+    }
 
     let show_details = options.show_details;
-    let client = osv::OsvClient::new(options.offline, options.osv_api_url);
-    let vulns = client.check_packages(&packages, show_details)?;
+    let client = osv::OsvClient::new(
+        options.offline,
+        options.osv_api_url,
+        options.metrics.clone(),
+        options.cache_dir,
+    );
+    let mut vulns = client.check_packages(&packages, show_details)?;
+    for vuln in &mut vulns {
+        vuln.locations.push(path.to_string_lossy().to_string());
+    }
 
     Ok(ScanResult {
         scanned_crates: packages.len(),
