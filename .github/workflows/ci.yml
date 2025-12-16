@@ -51,7 +51,7 @@ jobs:
       - name: Test Integration (Guardian)
         env:
           RUST_TEST_THREADS: "1"
-          VEIL_OSV_FORCE_REFRESH: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
+          VEIL_OSV_FORCE_REFRESH: "0"
         run: cargo test -p veil-guardian --tests --verbose
 
       - name: Test Integration (Other)
