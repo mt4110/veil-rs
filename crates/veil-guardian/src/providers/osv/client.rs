@@ -44,22 +44,22 @@ struct OsvPackage<'a> {
 }
 
 #[derive(Deserialize)]
-struct BatchResponse {
-    results: Vec<QueryResult>,
+pub struct BatchResponse {
+    pub results: Vec<QueryResult>,
 }
 
 #[derive(Deserialize)]
-struct QueryResult {
-    vulns: Option<Vec<OsvVuln>>,
+pub struct QueryResult {
+    pub vulns: Option<Vec<OsvVuln>>,
 }
 
 #[derive(Deserialize, Clone)]
-struct OsvVuln {
-    id: String,
+pub struct OsvVuln {
+    pub id: String,
     // OSV batch response doesn't always contain details/summary unless requested?
     // Actually standard OSV response includes 'summary' or 'details'.
-    summary: Option<String>,
-    details: Option<String>,
+    pub summary: Option<String>,
+    pub details: Option<String>,
 }
 
 pub struct OsvClient {

@@ -16,21 +16,9 @@ fn test_pnpm_integration() {
     // 2. jest-config (clean)
     // 3. lodash (vulnerable)
 
-    let body = r#"{
-        "results": [
-            { "vulns": [] },
-            { "vulns": [] },
-            {
-                "vulns": [
-                    {
-                        "id": "GHSA-p6mc-m468-83gw",
-                        "summary": "Prototype Pollution in lodash",
-                        "details": "Vulnerable."
-                    }
-                ]
-            }
-        ]
-    }"#;
+    let fixture_json_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/osv/pnpm_mock_response.json");
+    let body = std::fs::read_to_string(fixture_json_path).expect("failed to read fixture");
 
     rt.block_on(async {
         Mock::given(method("POST"))

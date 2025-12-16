@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use serde_json::json;
 use veil_guardian::{scan_lockfile, ScanOptions};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -15,44 +14,16 @@ fn test_yarn_integration() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
     // Mock OSV response for lodash
-    let response_body = json!({
-        "results": [
-            { "vulns": [] }, // @types/node
-
-            { "vulns": [] }, // fsevents
-            {
-                "vulns": [
-                    {
-                        "id": "GHSA-35jh-r3h4-6jhm",
-                        "summary": "Command Injection in lodash",
-                        "details": "The lodash package is vulnerable to Command Injection...",
-                        "affected": [
-                            {
-                                "package": {
-                                    "name": "lodash",
-                                    "ecosystem": "npm",
-                                    "purl": "pkg:npm/lodash"
-                                },
-                                "ranges": [
-                                    {
-                                        "type": "SEMVER",
-                                        "events": [
-                                            {"introduced": "0.0.0"},
-                                            {"fixed": "4.17.22"}
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
-    });
+    let fixture_json_path =
+        PathBuf::from(&manifest_dir).join("../../tests/fixtures/osv/yarn_mock_response.json");
+    let response_body: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(fixture_json_path).expect("failed to read fixture"),
+    )
+    .expect("failed to parse fixture");
 
     rt.block_on(async {
         Mock::given(method("POST"))
-            .and(path("/querybatch"))
+            .and(path("/v1/querybatch"))
             .respond_with(ResponseTemplate::new(200).set_body_json(response_body))
             .mount(&mock_server)
             .await;

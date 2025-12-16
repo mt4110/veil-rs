@@ -1,0 +1,41 @@
+{
+    "results": [
+        {
+            "vulns": []
+        },
+        {
+            "vulns": []
+        },
+        {
+            "vulns": [
+                {
+                    "id": "GHSA-35jh-r3h4-6jhm",
+                    "summary": "Command Injection in lodash",
+                    "details": "The lodash package is vulnerable to Command Injection...",
+                    "affected": [
+                        {
+                            "package": {
+                                "name": "lodash",
+                                "ecosystem": "npm",
+                                "purl": "pkg:npm/lodash"
+                            },
+                            "ranges": [
+                                {
+                                    "type": "SEMVER",
+                                    "events": [
+                                        {
+                                            "introduced": "0.0.0"
+                                        },
+                                        {
+                                            "fixed": "4.17.22"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
