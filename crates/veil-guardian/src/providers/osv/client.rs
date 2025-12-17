@@ -1,6 +1,10 @@
 use super::cache::Cache;
-use super::details::{CachePolicy, CacheStatus, CachedVuln};
+use super::details::{CachePolicy, CacheStatus, CachedVuln, FetchOutcome};
 use super::details_store::DetailsStore;
+use super::net::{
+    backoff_delay, clamp_timeout, classify_error, classify_response, ConcurrencyGate, NetConfig,
+    RetryClass, Sleeper, TimeBudget, TokioSleeper,
+};
 use crate::models::{Advisory, Ecosystem, PackageRef};
 use crate::report::Vulnerability;
 use crate::GuardianError;
@@ -12,13 +16,22 @@ use crate::Metrics;
 use futures::future::{BoxFuture, FutureExt, Shared};
 use std::collections::HashMap;
 use std::env;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 // Type aliases for Coalescing
 type DetailsResult = Result<(Value, String, SystemTime), Arc<GuardianError>>;
 type QueryBatchResult = Result<Vec<Option<Vec<OsvVuln>>>, Arc<GuardianError>>;
+
+// Internal Helpers
+// (CacheStatus is defined in details.rs)
+
+#[derive(Debug)]
+enum NetworkResult {
+    Fetched(Value, Option<String>),
+    NotModified,
+}
 
 // Key for Batch Query
 type BatchKey = String;
@@ -76,6 +89,14 @@ pub struct OsvClient {
     // Coalescing States
     in_flight_details: Arc<Mutex<HashMap<String, Shared<BoxFuture<'static, DetailsResult>>>>>,
     in_flight_query: Arc<Mutex<HashMap<BatchKey, Shared<BoxFuture<'static, QueryBatchResult>>>>>,
+
+    // Network & Sleeper (v0.11.4)
+    net: NetConfig,
+    sleeper: Arc<dyn Sleeper>,
+
+    // v0.11.5 Concurrency
+    gate: ConcurrencyGate,
+    net_in_flight: Arc<AtomicU64>,
 }
 
 impl OsvClient {
@@ -95,6 +116,13 @@ impl OsvClient {
             .build()
             .expect("Failed to create tokio runtime for OsvClient");
 
+        // Use NetConfig defaults for connect_timeout in prod
+        let net = NetConfig::default();
+        let client = Client::builder()
+            .connect_timeout(net.connect_timeout)
+            .build()
+            .expect("Failed to build reqwest client");
+
         // Split cache_dir into sub-caches if provided, or pass None to use defaults/env
         let (query_cache, details_cache) = if let Some(base) = cache_dir {
             (Some(base.join("osv")), Some(base.join("details")))
@@ -103,7 +131,7 @@ impl OsvClient {
         };
 
         Self {
-            client: Client::new(),
+            client,
             cache: if !offline {
                 Cache::new(query_cache)
             } else {
@@ -116,6 +144,10 @@ impl OsvClient {
             rt: Arc::new(rt),
             in_flight_details: Arc::new(Mutex::new(HashMap::new())),
             in_flight_query: Arc::new(Mutex::new(HashMap::new())),
+            net: net.clone(),
+            sleeper: Arc::new(TokioSleeper),
+            gate: ConcurrencyGate::new(net.concurrency.clone()),
+            net_in_flight: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -130,8 +162,14 @@ impl OsvClient {
             .build()
             .expect("Failed to create tokio runtime for OsvClient");
 
+        let net = NetConfig::default();
+        let client = Client::builder()
+            .connect_timeout(net.connect_timeout)
+            .build()
+            .expect("Failed to build reqwest client");
+
         Self {
-            client: Client::new(),
+            client,
             cache: if !offline { Cache::new(None) } else { None },
             details_store: store,
             offline,
@@ -140,7 +178,61 @@ impl OsvClient {
             rt: Arc::new(rt),
             in_flight_details: Arc::new(Mutex::new(HashMap::new())),
             in_flight_query: Arc::new(Mutex::new(HashMap::new())),
+            net: net.clone(),
+            sleeper: Arc::new(TokioSleeper),
+            gate: ConcurrencyGate::new(net.concurrency.clone()),
+            net_in_flight: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    // v0.11.5: test helper (keeps old signature intact)
+    pub fn new_custom_with_net_and_metrics(
+        offline: bool,
+        store: Option<DetailsStore>,
+        api_url: Option<String>,
+        net: NetConfig,
+        sleeper: Arc<dyn Sleeper>,
+        metrics: Option<Arc<Metrics>>,
+    ) -> Self {
+        let api_url = api_url
+            .or_else(|| env::var("OSV_API_URL").ok())
+            .unwrap_or_else(|| DEFAULT_OSV_URL.to_string());
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create tokio runtime for OsvClient");
+
+        let client = Client::builder()
+            .connect_timeout(net.connect_timeout)
+            .build()
+            .expect("Failed to build reqwest client");
+
+        Self {
+            client,
+            cache: if !offline { Cache::new(None) } else { None },
+            details_store: store,
+            offline,
+            api_url,
+            metrics,
+            rt: Arc::new(rt),
+            in_flight_details: Arc::new(Mutex::new(HashMap::new())),
+            in_flight_query: Arc::new(Mutex::new(HashMap::new())),
+            gate: ConcurrencyGate::new(net.concurrency.clone()),
+            net_in_flight: Arc::new(AtomicU64::new(0)),
+            net,
+            sleeper,
+        }
+    }
+
+    pub fn new_custom_with_net(
+        offline: bool,
+        store: Option<DetailsStore>,
+        api_url: Option<String>,
+        net: NetConfig,
+        sleeper: Arc<dyn Sleeper>,
+    ) -> Self {
+        Self::new_custom_with_net_and_metrics(offline, store, api_url, net, sleeper, None)
     }
 
     fn env_flag(name: &str) -> bool {
@@ -181,6 +273,10 @@ impl OsvClient {
             metrics: self.metrics.clone(),
             in_flight_details: self.in_flight_details.clone(),
             in_flight_query: self.in_flight_query.clone(),
+            net: self.net.clone(),
+            sleeper: self.sleeper.clone(),
+            gate: self.gate.clone(),
+            net_in_flight: self.net_in_flight.clone(),
         }
     }
 
@@ -202,6 +298,33 @@ impl OsvClient {
     }
 }
 
+// v0.11.5: keep permit + concurrency counter together, and guarantee drop-before-await
+struct NetConcurrencyGuard {
+    _permit: tokio::sync::OwnedSemaphorePermit,
+    in_flight: Arc<AtomicU64>,
+}
+impl NetConcurrencyGuard {
+    fn new(
+        permit: tokio::sync::OwnedSemaphorePermit,
+        in_flight: Arc<AtomicU64>,
+        metrics: &Option<Arc<Metrics>>,
+    ) -> Self {
+        let cur = in_flight.fetch_add(1, Ordering::Relaxed) + 1;
+        if let Some(m) = metrics {
+            m.observe_concurrency(cur);
+        }
+        Self {
+            _permit: permit,
+            in_flight,
+        }
+    }
+}
+impl Drop for NetConcurrencyGuard {
+    fn drop(&mut self) {
+        self.in_flight.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 #[derive(Clone)]
 struct OsvClientInternal {
     client: Client,
@@ -212,9 +335,177 @@ struct OsvClientInternal {
     metrics: Option<Arc<Metrics>>,
     in_flight_details: Arc<Mutex<HashMap<String, Shared<BoxFuture<'static, DetailsResult>>>>>,
     in_flight_query: Arc<Mutex<HashMap<BatchKey, Shared<BoxFuture<'static, QueryBatchResult>>>>>,
+    net: NetConfig,
+    sleeper: Arc<dyn Sleeper>,
+
+    // v0.11.5 Concurrency
+    gate: ConcurrencyGate,
+    net_in_flight: Arc<AtomicU64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum NetOp {
+    QueryBatch,
+    Details,
 }
 
 impl OsvClientInternal {
+    async fn send_with_retry<F>(
+        &self,
+        op: NetOp,
+        mut make_req: F,
+    ) -> Result<reqwest::Response, GuardianError>
+    where
+        F: FnMut(std::time::Duration) -> reqwest::RequestBuilder,
+    {
+        let budget = TimeBudget::new(self.net.total_budget);
+        let mut attempt = 1usize;
+        let mut retry_index = 0usize;
+
+        loop {
+            // v0.11.5: budget-aware acquire (avoid waiting forever)
+            let Some(rem_for_gate) = budget.remaining() else {
+                return Err(GuardianError::NetworkError(
+                    "OSV budget exceeded".to_string(),
+                ));
+            };
+
+            let permit = match tokio::time::timeout(rem_for_gate, self.gate.acquire()).await {
+                Ok(p) => p,
+                Err(_) => {
+                    return Err(GuardianError::NetworkError(
+                        "OSV budget exceeded".to_string(),
+                    ));
+                }
+            };
+            let net_guard =
+                NetConcurrencyGuard::new(permit, self.net_in_flight.clone(), &self.metrics);
+
+            // clamp per-request timeout AFTER waiting for permit
+            let Some(t) = clamp_timeout(&budget, self.net.per_request_timeout) else {
+                drop(net_guard);
+                return Err(GuardianError::NetworkError(
+                    "OSV budget exceeded".to_string(),
+                ));
+            };
+
+            let start = std::time::Instant::now();
+            let resp = make_req(t).send().await;
+
+            // metrics
+            if let Some(m) = &self.metrics {
+                match op {
+                    NetOp::Details => {
+                        m.req_details
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        m.time_osv_details_ms.fetch_add(
+                            start.elapsed().as_millis() as u64,
+                            std::sync::atomic::Ordering::Relaxed,
+                        );
+                    }
+                    NetOp::QueryBatch => {
+                        m.req_querybatch
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        m.time_osv_query_ms.fetch_add(
+                            start.elapsed().as_millis() as u64,
+                            std::sync::atomic::Ordering::Relaxed,
+                        );
+                    }
+                }
+            }
+
+            match resp {
+                Ok(r) => {
+                    let class = classify_response(r.status().as_u16(), r.headers());
+                    match class {
+                        RetryClass::Success => return Ok(r),
+                        RetryClass::Fatal => {
+                            return Err(GuardianError::NetworkError(format!(
+                                "OSV API error: {}",
+                                r.status()
+                            )));
+                        }
+                        RetryClass::RetryAfter(_) | RetryClass::Backoff => {
+                            let status = r.status();
+                            // Drop response to release connection/socket before sleeping
+                            drop(r);
+                            // v0.11.5: release permit BEFORE sleeping
+                            drop(net_guard);
+
+                            if attempt >= self.net.retry.max_attempts {
+                                return Err(GuardianError::NetworkError(format!(
+                                    "OSV API failed after {} attempts (last status: {})",
+                                    attempt, status
+                                )));
+                            }
+
+                            let delay = match class {
+                                RetryClass::RetryAfter(d) => d,
+                                _ => {
+                                    retry_index += 1;
+                                    backoff_delay(&self.net.retry, retry_index)
+                                }
+                            };
+
+                            let Some(rem) = budget.remaining() else {
+                                return Err(GuardianError::NetworkError(
+                                    "OSV budget exceeded".to_string(),
+                                ));
+                            };
+                            if delay >= rem {
+                                return Err(GuardianError::NetworkError(
+                                    "OSV budget exceeded".to_string(),
+                                ));
+                            }
+
+                            if let Some(m) = &self.metrics {
+                                m.retries.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            }
+                            self.sleeper.sleep(delay).await;
+                            attempt += 1;
+                            continue;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let class = classify_error(&e);
+                    if class == RetryClass::Fatal {
+                        return Err(GuardianError::NetworkError(e.to_string()));
+                    }
+
+                    if attempt >= self.net.retry.max_attempts {
+                        return Err(GuardianError::NetworkError(format!(
+                            "OSV request failed after {} attempts: {}",
+                            attempt, e
+                        )));
+                    }
+
+                    retry_index += 1;
+                    let delay = backoff_delay(&self.net.retry, retry_index);
+
+                    // release permit BEFORE sleeping
+                    drop(net_guard);
+
+                    let Some(rem) = budget.remaining() else {
+                        return Err(GuardianError::NetworkError(
+                            "OSV budget exceeded".to_string(),
+                        ));
+                    };
+                    if delay >= rem {
+                        return Err(GuardianError::NetworkError(
+                            "OSV budget exceeded".to_string(),
+                        ));
+                    }
+
+                    if let Some(m) = &self.metrics {
+                        m.retries.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    self.sleeper.sleep(delay).await;
+                    attempt += 1;
+                }
+            }
+        }
+    }
     async fn fetch_vuln_details_with_coalescing(&self, id: &str) -> DetailsResult {
         let future = {
             let mut map = self.in_flight_details.lock().unwrap();
@@ -252,100 +543,166 @@ impl OsvClientInternal {
     }
 
     async fn fetch_vuln_details_network_or_cache(&self, id: &str) -> DetailsResult {
-        let policy = CachePolicy::default();
         let now = SystemTime::now();
-        let force_refresh = OsvClient::env_flag("VEIL_OSV_FORCE_REFRESH"); // Use static method
+        let policy = CachePolicy::default();
+        let force_refresh = OsvClient::env_flag("VEIL_OSV_FORCE_REFRESH");
 
-        // 1. Load from cache (Sync FS op, assume fast enough or use spawn_blocking)
-        // Ideally fs ops should be blocking task.
-        let cached = self.details_store.as_ref().and_then(|s| s.load(id));
+        let entry_opt = self.details_store.as_ref().and_then(|s| s.load(id));
 
-        // 2. Determine status
-        let status = if let Some(entry) = &cached {
-            policy.classify(entry.fetched_at(), now)
-        } else {
-            CacheStatus::Expired
-        };
-
-        // Cache Metrics
-        if let Some(m) = &self.metrics {
-            match status {
-                CacheStatus::Fresh => m.cache_fresh.fetch_add(1, Ordering::Relaxed),
-                CacheStatus::Stale => m.cache_stale.fetch_add(1, Ordering::Relaxed),
-                CacheStatus::Expired => m.cache_miss.fetch_add(1, Ordering::Relaxed),
-            };
-        }
-
-        // 3. Logic: Should we fetch?
-        let should_fetch = if self.offline {
-            false
-        } else if force_refresh {
-            true
-        } else {
-            match status {
-                CacheStatus::Fresh => false,
-                CacheStatus::Stale | CacheStatus::Expired => true,
+        // 1. Check Cache
+        if let Some(entry) = &entry_opt {
+            let mut status = entry.status(&policy, now);
+            // Force refresh should NOT violate "Fresh never fetch".
+            // Also, offline stays strict: do not relax Expired -> usable.
+            if force_refresh && !self.offline && status != CacheStatus::Fresh {
+                status = CacheStatus::Expired;
             }
-        };
 
-        if should_fetch {
-            match self.perform_fetch_async(id).await {
-                Ok(json) => {
-                    // Save to cache
-                    if let Some(store) = &self.details_store {
-                        let entry = CachedVuln::new(id, now, json.clone());
-                        let _ = store.save(&entry);
+            match status {
+                CacheStatus::Fresh => {
+                    if let Some(m) = &self.metrics {
+                        m.cache_fresh.fetch_add(1, Ordering::Relaxed);
                     }
-                    return Ok((json, "Network".to_string(), now));
+                    let outcome = if self.offline {
+                        FetchOutcome::OfflineUsedFreshCache
+                    } else {
+                        FetchOutcome::CacheHitFresh
+                    };
+                    return Ok((
+                        entry.vuln.clone(),
+                        outcome.label().to_string(),
+                        entry.fetched_at(),
+                    ));
                 }
-                Err(e) => {
-                    // Fallback
-                    if let Some(entry) = cached {
-                        let status_str = match status {
-                            CacheStatus::Fresh => "Hit (Fresh)",
-                            CacheStatus::Stale => "Hit (Stale)",
-                            CacheStatus::Expired => "Hit (Expired)",
-                        };
+                CacheStatus::Stale => {
+                    if self.offline {
                         return Ok((
                             entry.vuln.clone(),
-                            format!("{} [Offline Fallback]", status_str),
+                            FetchOutcome::OfflineFallbackUsedStale.label().to_string(),
                             entry.fetched_at(),
                         ));
-                    } else {
-                        return Err(Arc::new(e));
+                    }
+                    // Online: try refresh, fallback to stale on error
+                    match self.fetch_details_network(id, entry.etag.as_deref()).await {
+                        Ok(NetworkResult::Fetched(details, etag)) => {
+                            if let Some(store) = &self.details_store {
+                                let _ =
+                                    store.save(&CachedVuln::new(id, now, details.clone(), etag));
+                            }
+                            return Ok((
+                                details,
+                                FetchOutcome::NetworkFetched.label().to_string(),
+                                now,
+                            ));
+                        }
+                        Ok(NetworkResult::NotModified) => {
+                            // Update timestamp (touch)
+                            if let Some(store) = &self.details_store {
+                                let mut new_entry = entry.clone();
+                                new_entry.fetched_at_unix = now
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or(Duration::ZERO)
+                                    .as_secs();
+                                let _ = store.save(&new_entry);
+                            }
+                            return Ok((
+                                entry.vuln.clone(),
+                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                now,
+                            ));
+                        }
+                        Err(_) => {
+                            // Fallback
+                            return Ok((
+                                entry.vuln.clone(),
+                                FetchOutcome::CacheHitStaleFallback.label().to_string(),
+                                entry.fetched_at(),
+                            ));
+                        }
+                    }
+                }
+                CacheStatus::Expired => {
+                    if let Some(m) = &self.metrics {
+                        m.cache_miss.fetch_add(1, Ordering::Relaxed);
+                    }
+                    if self.offline {
+                        return Err(Arc::new(GuardianError::NetworkError(
+                            "Offline and cache expired".to_string(),
+                        )));
+                    }
+                    // Must fetch
+                    match self.fetch_details_network(id, entry.etag.as_deref()).await {
+                        Ok(NetworkResult::Fetched(details, etag)) => {
+                            if let Some(store) = &self.details_store {
+                                let _ =
+                                    store.save(&CachedVuln::new(id, now, details.clone(), etag));
+                            }
+                            return Ok((
+                                details,
+                                FetchOutcome::NetworkFetched.label().to_string(),
+                                now,
+                            ));
+                        }
+                        Ok(NetworkResult::NotModified) => {
+                            if let Some(store) = &self.details_store {
+                                let mut new_entry = entry.clone();
+                                new_entry.fetched_at_unix = now
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or(Duration::ZERO)
+                                    .as_secs();
+                                let _ = store.save(&new_entry);
+                            }
+                            return Ok((
+                                entry.vuln.clone(),
+                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                now,
+                            ));
+                        }
+                        Err(e) => return Err(Arc::new(e)),
                     }
                 }
             }
         }
 
-        // Offline or Fresh case
-        if let Some(entry) = cached {
-            let status_str = match status {
-                CacheStatus::Fresh => "Hit (Fresh)",
-                CacheStatus::Stale => "Hit (Stale)",
-                CacheStatus::Expired => "Hit (Expired)",
-            };
-            Ok((
-                entry.vuln.clone(),
-                status_str.to_string(),
-                entry.fetched_at(),
-            ))
-        } else {
-            Err(Arc::new(GuardianError::NetworkError(format!(
+        // 2. No Cache
+        if let Some(m) = &self.metrics {
+            m.cache_miss.fetch_add(1, Ordering::Relaxed);
+        }
+        if self.offline {
+            return Err(Arc::new(GuardianError::NetworkError(format!(
                 "Offline: No details cached for {}",
                 id
-            ))))
+            ))));
+        }
+
+        match self.fetch_details_network(id, None).await {
+            Ok(NetworkResult::Fetched(details, etag)) => {
+                if let Some(store) = &self.details_store {
+                    let _ = store.save(&CachedVuln::new(id, now, details.clone(), etag));
+                }
+                Ok((
+                    details,
+                    FetchOutcome::NetworkFetched.label().to_string(),
+                    now,
+                ))
+            }
+            Ok(NetworkResult::NotModified) => Err(Arc::new(GuardianError::NetworkError(
+                "Unexpected 304 with no cache".to_string(),
+            ))),
+            Err(e) => Err(Arc::new(e)),
         }
     }
 
-    async fn perform_fetch_async(&self, id: &str) -> Result<Value, GuardianError> {
+    async fn fetch_details_network(
+        &self,
+        id: &str,
+        etag: Option<&str>,
+    ) -> Result<NetworkResult, GuardianError> {
         // Construct URL
         let base_url = &self.api_url;
         let url = if base_url.ends_with("/querybatch") {
             base_url.replace("/querybatch", &format!("/vulns/{}", id))
         } else {
-            // ... simplified fallback logic or copy verbatim ...
-            // Copying logic:
             let parts: Vec<&str> = base_url.split('/').collect();
             let parent = if parts.len() > 1 && parts.last() == Some(&"querybatch") {
                 &base_url[..base_url.len() - "/querybatch".len()]
@@ -355,21 +712,21 @@ impl OsvClientInternal {
             format!("{}/vulns/{}", parent, id)
         };
 
-        if let Some(m) = &self.metrics {
-            m.req_details.fetch_add(1, Ordering::Relaxed);
-        }
+        let etag_owned = etag.map(|s| s.to_string());
 
-        let start = std::time::Instant::now();
+        // send_with_retry handles metrics, timeout, and retries
         let resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| GuardianError::NetworkError(e.to_string()))?;
+            .send_with_retry(NetOp::Details, |timeout| {
+                let mut req = self.client.get(&url).timeout(timeout);
+                if let Some(val) = &etag_owned {
+                    req = req.header("If-None-Match", val);
+                }
+                req
+            })
+            .await?;
 
-        if let Some(m) = &self.metrics {
-            m.time_osv_details_ms
-                .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
+        if resp.status() == reqwest::StatusCode::NOT_MODIFIED {
+            return Ok(NetworkResult::NotModified);
         }
 
         if !resp.status().is_success() {
@@ -378,6 +735,12 @@ impl OsvClientInternal {
                 resp.status()
             )));
         }
+
+        let new_etag = resp
+            .headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
 
         let val: Value = resp
             .json()
@@ -391,7 +754,7 @@ impl OsvClientInternal {
             ));
         }
 
-        Ok(val)
+        Ok(NetworkResult::Fetched(val, new_etag))
     }
 
     async fn check_packages_async_inner(
@@ -530,25 +893,17 @@ impl OsvClientInternal {
             } else {
                 // Future captures ONLY owned data
                 let future = async move {
-                    if let Some(m) = &this.metrics {
-                        m.req_querybatch.fetch_add(1, Ordering::Relaxed);
-                    }
-                    let start = std::time::Instant::now();
-
                     // Use body string directly
                     let resp = this
-                        .client
-                        .post(&url)
-                        .body(json_body)
-                        .header("Content-Type", "application/json")
-                        .send()
+                        .send_with_retry(NetOp::QueryBatch, |timeout| {
+                            this.client
+                                .post(&url)
+                                .body(json_body.clone())
+                                .header("Content-Type", "application/json")
+                                .timeout(timeout)
+                        })
                         .await
-                        .map_err(|e| Arc::new(GuardianError::NetworkError(e.to_string())))?;
-
-                    if let Some(m) = &this.metrics {
-                        m.time_osv_query_ms
-                            .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
-                    }
+                        .map_err(Arc::new)?;
 
                     if !resp.status().is_success() {
                         return Err(Arc::new(GuardianError::NetworkError(format!(

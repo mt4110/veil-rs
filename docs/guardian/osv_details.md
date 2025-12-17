@@ -20,3 +20,14 @@ While the storage is raw, the `guardian` CLI performs a **best-effort extraction
 - `references`
 
 If a field is missing or malformed, it is simply omitted from the output rather than causing a crash or error.
+
+## Cache Resilience & Layout (v0.11.x)
+
+To ensure stability in high-concurrency environments (CI/CD) and against system crashes, the cache layer implements strict robustness guarantees:
+
+1.  **Atomic Writes**: JSON files are written to a temporary file, synced to disk, and atomically renamed. This prevents partial writes during power failures.
+2.  **File Locking**: Exclusive locks (`.lock` files) are used for all read/write operations, allowing safe parallel execution across multiple processes.
+3.  **Versioning**:
+    - **v1 Layout**: New cache entries are stored in a `v1` subdirectory with normalized filenames (e.g., `GHSA-foo-bar.json`).
+    - **Collision Avoidance**: Keys containing unsafe characters are hashed to prevent filename collisions.
+    - **Legacy Fallback**: The system transparently falls back to reading legacy cache paths if a v1 entry is missing, ensuring backward compatibility.

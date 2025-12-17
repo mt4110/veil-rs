@@ -1,6 +1,5 @@
 ---
 source: crates/veil-guardian/tests/report_output.rs
-assertion_line: 125
 expression: normalized
 ---
 Found 2 vulnerabilities in 2 packages scanned:
@@ -10,14 +9,14 @@ Cache: 0 fresh, 0 stale, 3 network, 0 offline, 0 error
   Locations: [TEMP]/package-lock.json
   [GHSA-1] Critical issue in A
     Fix: Upgrade to >= 1.0.1
-    Status: Network
+    Status: Fetched
 
   [GHSA-2] Medium issue in A
     Fix: No fixed version available (mitigation required)
-    Status: Network
+    Status: Fetched
 
 - b-lib v2.0.0 (npm)
   Locations: [TEMP]/package-lock.json
   [GHSA-3] Low issue in B
     Fix: No fixed version available (mitigation required)
-    Status: Network
+    Status: Fetched

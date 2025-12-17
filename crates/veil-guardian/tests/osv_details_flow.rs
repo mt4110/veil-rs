@@ -1,7 +1,11 @@
 use serde_json::json;
 use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
-use veil_guardian::providers::osv::{details::CachedVuln, details_store::DetailsStore, OsvClient};
+use veil_guardian::providers::osv::{
+    details::{CachePolicy, CachedVuln},
+    details_store::DetailsStore,
+    OsvClient,
+};
 use wiremock::{
     matchers::{method, path},
     Mock, MockServer, ResponseTemplate,
@@ -22,7 +26,7 @@ async fn test_osv_details_flow_fresh_skips_fetch() {
     let now = SystemTime::now();
     let cached_data = json!({"id": id, "summary": "Cached Fresh"});
     store
-        .save(&CachedVuln::new(&id, now, cached_data.clone()))
+        .save(&CachedVuln::new(&id, now, cached_data.clone(), None))
         .unwrap();
 
     // 2. Run blocking client in separate thread to avoid reqwest panic
@@ -57,11 +61,14 @@ async fn test_osv_details_flow_expired_triggers_fetch() {
     let dir_path = dir.path().to_path_buf();
     let store = DetailsStore::with_dir(&dir_path).unwrap();
 
+    let policy = CachePolicy::default();
     // 1. Pre-populate EXPIRED
     let id = "GHSA-expired-999".to_string();
-    let old = SystemTime::now() - Duration::from_secs(15 * 24 * 60 * 60);
+    let old = SystemTime::now() - (policy.stale_ttl + Duration::from_secs(1));
     let old_data = json!({"id": id, "summary": "Old Data"});
-    store.save(&CachedVuln::new(&id, old, old_data)).unwrap();
+    store
+        .save(&CachedVuln::new(&id, old, old_data, None))
+        .unwrap();
 
     // 2. Mock Expectation
     let new_data = json!({"id": id, "summary": "New Data"});
@@ -87,10 +94,10 @@ async fn test_osv_details_flow_expired_triggers_fetch() {
     .unwrap()
     .unwrap();
 
-    let (val, status, _) = result;
+    let (val, outcome, _) = result;
     // Note: status will be NETWORK after update since it fetched?
     // "Network".to_string()
-    assert_eq!(status, "Network");
+    assert_eq!(outcome, "Fetched");
     assert_eq!(val["summary"], "New Data");
 
     // Verify disk updated
@@ -104,11 +111,14 @@ async fn test_osv_details_offline_uses_stale() {
     let dir_path = dir.path().to_path_buf();
     let store = DetailsStore::with_dir(&dir_path).unwrap();
 
+    let policy = CachePolicy::default();
     // 1. Pre-populate STALE
     let id = "GHSA-stale-000".to_string();
-    let stale_time = SystemTime::now() - Duration::from_secs(48 * 60 * 60);
+    let stale_time = SystemTime::now() - (policy.fresh_ttl + Duration::from_secs(1));
     let data = json!({"id": id, "summary": "Stale Data"});
-    store.save(&CachedVuln::new(&id, stale_time, data)).unwrap();
+    store
+        .save(&CachedVuln::new(&id, stale_time, data, None))
+        .unwrap();
 
     // 2. Blocking Run
     let id_clone = id.clone();
@@ -127,6 +137,6 @@ async fn test_osv_details_offline_uses_stale() {
     .unwrap();
 
     let (val, status, _) = result;
-    assert_eq!(status, "Hit (Stale)");
+    assert_eq!(status, "Hit (Stale) [Offline Fallback]");
     assert_eq!(val["summary"], "Stale Data");
 }
