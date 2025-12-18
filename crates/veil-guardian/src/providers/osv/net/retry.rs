@@ -63,6 +63,7 @@ pub fn classify_error(e: &reqwest::Error) -> RetryClass {
     RetryClass::Backoff
 }
 
+// No changes needed for pure logic.
 pub fn backoff_delay(policy: &RetryPolicy, attempt: usize) -> Duration {
     let pow = 1u32
         .checked_shl((attempt.saturating_sub(1)) as u32)

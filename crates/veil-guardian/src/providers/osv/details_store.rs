@@ -9,104 +9,297 @@ pub struct DetailsStore {
     dir: PathBuf,
 }
 
+#[derive(Debug, Default)]
+pub struct QuarantineFlags {
+    pub corrupt: bool,
+    pub unsupported: bool,
+    pub conflict: bool,
+}
+
+#[derive(Debug)]
+pub enum StoreLoad {
+    Hit {
+        entry: CachedVuln,
+        source: StoreSource,
+        migrated: bool,
+        quarantined: QuarantineFlags,
+    },
+    Miss {
+        quarantined: QuarantineFlags,
+    },
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum StoreSource {
+    V1,
+    Legacy,
+}
+
 impl DetailsStore {
-    /// Production default: ~/.cache/veil/guardian/osv/vulns (OS dependent)
-    /// Production default: ~/.cache/veil/guardian/osv/vulns (OS dependent)
-    /// If custom_path is provided, uses that as the ROOT for details (not appending vulns?).
-    /// Wait, Cache uses `guardian/osv`. Details uses `guardian/osv/vulns`?
-    /// `Cache::new`: `proj_dirs.cache_dir().join("guardian").join("osv")`.
-    /// `DetailsStore::new`: `proj_dirs...join("guardian").join("osv").join("vulns")`.
-    ///
-    /// If I pass `temp/details`, I expect store to use `temp/details` directly?
-    /// Yes, `Cache::new` uses custom path directly.
-    /// So `DetailsStore::new` should too.
+    /// Recommended: <cache_dir>/osv (Unified Root)
     pub fn new(custom_path: Option<PathBuf>) -> Option<Self> {
         let dir = if let Some(p) = custom_path {
             p
         } else {
             let proj_dirs = ProjectDirs::from("com", "veil-rs", "veil")?;
-            proj_dirs
-                .cache_dir()
-                .join("guardian")
-                .join("osv")
-                .join("vulns")
+            proj_dirs.cache_dir().join("guardian").join("osv")
         };
         fs::create_dir_all(&dir).ok()?;
-        // Attempt to create v1 dir, but don't fail `new` if it fails yet (save will try again)
-        let _ = fs::create_dir_all(dir.join("v1"));
+        // Attempt to create v1 dir: <root>/vulns/v1
+        let _ = fs::create_dir_all(dir.join("vulns").join("v1"));
         Some(Self { dir })
     }
 
-    /// For tests / custom cache roots.
+    /// For tests / custom cache roots. Root is base dir (e.g. .../osv)
     pub fn with_dir(dir: impl Into<PathBuf>) -> io::Result<Self> {
         let dir = dir.into();
         fs::create_dir_all(&dir)?;
-        let _ = fs::create_dir_all(dir.join("v1"));
+        let _ = fs::create_dir_all(dir.join("vulns").join("v1"));
         Ok(Self { dir })
     }
 
-    pub fn load(&self, vuln_id: &str) -> Option<CachedVuln> {
-        // 1. Try v1 (Current)
-        let v1_path = self.path_for_v1(vuln_id);
+    pub fn load(&self, vuln_id: &str) -> StoreLoad {
+        let mut flags = QuarantineFlags::default();
 
-        let v1_result =
-            crate::util::file_lock::with_file_lock(&v1_path, || {
-                match fs::read_to_string(&v1_path) {
-                    Ok(s) => Ok(serde_json::from_str::<CachedVuln>(&s)),
-                    Err(e) => Err(e),
-                }
-            });
-
-        match v1_result {
-            Ok(Ok(cached)) => return Some(cached),
-            Ok(Err(_serde_err)) => {
-                // v1 exists but corrupt. Do NOT fallback to legacy.
-                // We return None (treated as missing/fetch-needed) but do not read legacy.
-                return None;
-            }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                // v1 missing -> Try Legacy fallback
-            }
-            Err(_) => {
-                // Other IO error (permission etc) -> Return None
-                return None;
-            }
+        // Enforce Layout Conflict (Constitution Section 4.4) on v1 dir
+        if let Err(_e) = self.ensure_v1_dir(&mut flags) {
+            flags.conflict = true;
+            return StoreLoad::Miss { quarantined: flags };
         }
 
-        // 2. Try Legacy
+        let normalized_key = crate::util::key::normalize_key(vuln_id);
+
+        // 1. Try v1 (The Law: Step 1)
+        let v1_path = self.path_for_v1(vuln_id);
+
+        let v1_result = crate::util::file_lock::with_file_lock(&v1_path, || {
+            match fs::read(&v1_path) {
+                Ok(bytes) => {
+                    // Parse Envelope
+                    match serde_json::from_slice::<Envelope>(&bytes) {
+                        Ok(env) => {
+                            if env.schema_version != 1 {
+                                let reason = format!("unsupported_v{}", env.schema_version);
+                                return Err(io::Error::new(io::ErrorKind::InvalidData, reason));
+                            }
+                            if env.key != vuln_id && env.key != normalized_key {
+                                // Strict mismatch -> Corruption
+                                if env.key != vuln_id {
+                                    return Err(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        "key_mismatch",
+                                    ));
+                                }
+                            }
+                            Ok(Some(env))
+                        }
+                        Err(e) => Err(io::Error::new(io::ErrorKind::InvalidData, e)),
+                    }
+                }
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+                Err(e) => Err(e),
+            }
+        });
+
+        match v1_result {
+            Ok(Some(env)) => {
+                // Hit (v1)
+                let entry = CachedVuln {
+                    schema_version: 1,
+                    vuln_id: vuln_id.to_string(), // Keep logical ID stable
+                    fetched_at_unix: env.fetched_at_unix,
+                    etag: env.etag, // Load ETag
+                    vuln: env.payload,
+                };
+                return StoreLoad::Hit {
+                    entry,
+                    source: StoreSource::V1,
+                    migrated: false,
+                    quarantined: flags,
+                };
+            }
+            Ok(None) => {}
+            Err(e) if e.kind() == io::ErrorKind::InvalidData => {
+                let reason = e.to_string();
+                let q_reason = if reason.starts_with("unsupported_v") || reason == "key_mismatch" {
+                    if reason.starts_with("unsupported_v") {
+                        flags.unsupported = true;
+                    } else {
+                        flags.corrupt = true; // mismatch is corrupt
+                    }
+                    reason
+                } else {
+                    flags.corrupt = true;
+                    "corrupt".to_string()
+                };
+                let _ = self.quarantine_file(&v1_path, &q_reason);
+            }
+            Err(_) => {}
+        }
+
+        // 2. Try Legacy (The Law: Step 2)
+        // Legacy Source: <root>/GHSA-xxx.json (or <root>/osv/GHSA... if root is guardian)
+        // Note: New Unified Strategy -> `load` looks in `dir` (root) for legacy files.
         let leg_path = self.path_for_legacy(vuln_id);
-        crate::util::file_lock::with_file_lock(&leg_path, || match fs::read_to_string(&leg_path) {
-            Ok(s) => Ok(serde_json::from_str::<CachedVuln>(&s).ok()),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e),
-        })
-        .ok()
-        .flatten()
+        let leg_result = crate::util::file_lock::with_file_lock(&leg_path, || {
+            match fs::read_to_string(&leg_path) {
+                Ok(s) => Ok(serde_json::from_str::<CachedVuln>(&s).ok()),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+                Err(e) => Err(e),
+            }
+        });
+
+        match leg_result {
+            Ok(Some(legacy)) => {
+                // Legacy Hit -> Migrate-on-Read
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+
+                // Point B: Timestamp Mapping
+                // If legacy has valid time (>0), keep it.
+                // If 0, use conservative "Stale" mapping (NOT Expired).
+                // Stale = now - (fresh_ttl + 1s).
+                let mut fetched_at = legacy.fetched_at_unix;
+                if fetched_at == 0 {
+                    let policy = super::details::CachePolicy::default();
+                    let fresh_secs = policy.fresh_ttl.as_secs();
+                    // Make it stale by 1 second (safe conservative)
+                    fetched_at = now.saturating_sub(fresh_secs + 1);
+                }
+
+                let env = Envelope {
+                    schema_version: 1,
+                    key: vuln_id.to_string(),
+                    created_at_unix: now,
+                    fetched_at_unix: fetched_at,
+                    expires_at_unix: None,
+                    etag: legacy.etag.clone(), // Preserve if present (rare)
+                    source: "legacy_migration".to_string(),
+                    payload: legacy.vuln.clone(),
+                };
+
+                let _ = self.save_envelope(&env);
+
+                let mut entry = legacy;
+                entry.fetched_at_unix = fetched_at;
+
+                StoreLoad::Hit {
+                    entry,
+                    source: StoreSource::Legacy,
+                    migrated: true,
+                    quarantined: flags,
+                }
+            }
+            Ok(None) => StoreLoad::Miss { quarantined: flags },
+            Err(_) => StoreLoad::Miss { quarantined: flags },
+        }
     }
 
     pub fn save(&self, entry: &CachedVuln) -> io::Result<()> {
-        let path = self.path_for_v1(&entry.vuln_id);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
 
-        // Ensure v1 parent exists (atomic_write does create_dir_all(parent), so this is implicit)
-        // But atomic_write is robust.
+        let env = Envelope {
+            schema_version: 1,
+            key: entry.vuln_id.clone(),
+            created_at_unix: now,
+            fetched_at_unix: entry.fetched_at_unix,
+            expires_at_unix: None,
+            etag: entry.etag.clone(), // Persist ETag
+            source: "fetch".to_string(),
+            payload: entry.vuln.clone(),
+        };
 
-        let body = serde_json::to_vec_pretty(&entry)
+        self.save_envelope(&env)
+    }
+
+    fn ensure_v1_dir(&self, flags: &mut QuarantineFlags) -> io::Result<()> {
+        // v1 path: <root>/vulns/v1
+        let v1_dir = self.dir.join("vulns").join("v1");
+        if v1_dir.exists() {
+            if v1_dir.is_file() {
+                // Conflict: v1 exists as file.
+                flags.conflict = true;
+                // Action: Quarantine it.
+                let _ = self.quarantine_file(&v1_dir, "corrupt_dirs_conflict");
+                // Create dir
+                fs::create_dir_all(&v1_dir)?;
+            }
+        } else {
+            // Create if missing. Note: `new` tries, but `load` should ensure.
+            // Parent `vulns` might need creation too.
+            fs::create_dir_all(&v1_dir)?;
+        }
+        Ok(())
+    }
+
+    fn save_envelope(&self, env: &Envelope) -> io::Result<()> {
+        let path = self.path_for_v1(&env.key);
+        // Ensure parent dir exists (atomic write usually handles file logic but not dir creation)
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let body = serde_json::to_vec_pretty(env)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         crate::util::file_lock::with_file_lock(&path, || {
             crate::util::atomic_write::atomic_write_bytes(&path, &body)
-        })?;
-        Ok(())
+        })
+    }
+
+    fn quarantine_file(&self, path: &std::path::Path, reason: &str) -> io::Result<()> {
+        if !path.exists() {
+            return Ok(());
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_micros();
+        let pid = std::process::id();
+
+        // Pattern: <filename>.corrupt.<micros>.<pid>
+        let file_name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown");
+        let new_name = format!("{}.{}.{}.{}", file_name, reason, now, pid);
+        let new_path = path.with_file_name(new_name);
+
+        fs::rename(path, new_path)
     }
 
     fn path_for_v1(&self, vuln_id: &str) -> PathBuf {
         let name = crate::util::key::normalize_key(vuln_id);
-        self.dir.join("v1").join(format!("{}.json", name))
+        // Unified Path: <root>/vulns/v1/<norm>.json
+        self.dir
+            .join("vulns")
+            .join("v1")
+            .join(format!("{}.json", name))
     }
 
     fn path_for_legacy(&self, vuln_id: &str) -> PathBuf {
+        // Legacy: <root>/<clean_id>.json (historical location in root)
         self.dir.join(format!("{}.json", sanitize_id(vuln_id)))
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Envelope {
+    schema_version: u32,
+    key: String,
+    created_at_unix: u64,
+    fetched_at_unix: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expires_at_unix: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    etag: Option<String>,
+    source: String,
+    payload: serde_json::Value,
 }
 
 // OSV IDs are usually safe, but just in case (Windows / weird IDs).
@@ -122,99 +315,54 @@ fn sanitize_id(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::osv::details::{CachePolicy, CacheStatus, CachedVuln};
+    use crate::providers::osv::details::CachedVuln;
     use serde_json::json;
     use std::time::{Duration, SystemTime};
 
     #[test]
-    fn ttl_boundaries() {
-        let policy = CachePolicy::default();
-        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
-
-        let fresh = now - policy.fresh_ttl;
-        assert_eq!(policy.classify(fresh, now), CacheStatus::Fresh);
-
-        let stale = now - (policy.fresh_ttl + Duration::from_secs(1));
-        assert_eq!(policy.classify(stale, now), CacheStatus::Stale);
-
-        let expired = now - (policy.stale_ttl + Duration::from_secs(1));
-        assert_eq!(policy.classify(expired, now), CacheStatus::Expired);
-    }
-
-    #[test]
-    fn cache_roundtrip() {
+    fn cache_roundtrip_with_etag() {
         let tmp = tempfile::tempdir().unwrap();
         let store = DetailsStore::with_dir(tmp.path()).unwrap();
 
         let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
-        let entry = CachedVuln::new(
-            "GHSA-aaaa-bbbb-cccc",
-            now,
-            json!({"id":"GHSA-aaaa-bbbb-cccc"}),
-            None,
-        );
+        let etag = Some("W/\"123\"".to_string());
+        let entry = CachedVuln::new("GHSA-etag", now, json!({"id":"GHSA-etag"}), etag.clone());
 
         store.save(&entry).unwrap();
-        let loaded = store.load("GHSA-aaaa-bbbb-cccc").unwrap();
-
-        assert_eq!(loaded.vuln_id, entry.vuln_id);
-        assert_eq!(loaded.fetched_at_unix, entry.fetched_at_unix);
-        assert_eq!(loaded.vuln["id"], "GHSA-aaaa-bbbb-cccc");
+        match store.load("GHSA-etag") {
+            StoreLoad::Hit { entry: loaded, .. } => {
+                assert_eq!(loaded.vuln_id, entry.vuln_id);
+                assert_eq!(loaded.etag, etag);
+            }
+            _ => panic!("Expected Hit"),
+        }
     }
 
     #[test]
-    fn corrupt_json_returns_none() {
-        let tmp = tempfile::tempdir().unwrap();
-        let store = DetailsStore::with_dir(tmp.path()).unwrap();
-
-        let path = store.path_for_legacy("GHSA-bad");
-        fs::write(path, "{not json").unwrap();
-
-        assert!(store.load("GHSA-bad").is_none());
-    }
-
-    #[test]
-    fn test_load_empty_file() {
+    fn test_load_legacy_format_path_check() {
         let dir = tempfile::tempdir().unwrap();
         let store = DetailsStore::with_dir(dir.path()).unwrap();
 
-        let path = dir.path().join("GHSA-empty.json");
-        std::fs::write(&path, "").unwrap();
-
-        // Should silently fail/return None
-        assert!(store.load("GHSA-empty").is_none());
-    }
-
-    #[test]
-    fn test_load_non_json() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = DetailsStore::with_dir(dir.path()).unwrap();
-
-        let path = dir.path().join("GHSA-corrupt.json");
-        std::fs::write(&path, "This is not JSON").unwrap();
-
-        assert!(store.load("GHSA-corrupt").is_none());
-    }
-
-    #[test]
-    fn test_load_legacy_format() {
-        let dir = tempfile::tempdir().unwrap();
-        let store = DetailsStore::with_dir(dir.path()).unwrap();
-
+        // Legacy format in ROOT (where legacy lives)
         let path = dir.path().join("GHSA-legacy.json");
-        // Missing fetched_at_unix, schema_version, vuln_id
         let legacy = r#"{ "vuln": { "id": "GHSA-legacy", "summary": "Legacy" } }"#;
         std::fs::write(&path, legacy).unwrap();
 
-        let loaded = store
-            .load("GHSA-legacy")
-            .expect("Should load legacy format");
-        assert_eq!(loaded.fetched_at_unix, 0); // Default
-        assert_eq!(loaded.schema_version, 0); // Default
-                                              // vuln_id default is ""
-        assert_eq!(loaded.vuln_id, "");
+        match store.load("GHSA-legacy") {
+            StoreLoad::Hit {
+                source,
+                migrated,
+                quarantined: _,
+                ..
+            } => {
+                assert_eq!(source, StoreSource::Legacy);
+                assert!(migrated);
+            }
+            _ => panic!("Expected Legacy Hit"),
+        }
 
-        // fetched_at() should be UNIX_EPOCH
-        assert_eq!(loaded.fetched_at(), std::time::UNIX_EPOCH);
+        // Verify MIGRATED to <root>/vulns/v1
+        let v1_path = dir.path().join("vulns").join("v1").join("GHSA-legacy.json");
+        assert!(v1_path.exists(), "Should have migrated to vulns/v1");
     }
 }

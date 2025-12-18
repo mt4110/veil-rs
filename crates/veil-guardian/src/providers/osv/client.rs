@@ -626,6 +626,27 @@ impl OsvClientInternal {
             }
         }
 
+        // Helper to formatting quarantine note
+        let q_note = match &cache_result {
+            StoreLoad::Hit { quarantined, .. } | StoreLoad::Miss { quarantined } => {
+                let mut parts = Vec::new();
+                if quarantined.corrupt {
+                    parts.push("corrupt");
+                }
+                if quarantined.unsupported {
+                    parts.push("unsupported");
+                }
+                if quarantined.conflict {
+                    parts.push("conflict");
+                }
+                if parts.is_empty() {
+                    String::new()
+                } else {
+                    format!(" (quarantined: {})", parts.join(","))
+                }
+            }
+        };
+
         if let StoreLoad::Hit {
             entry,
             source: _,
@@ -661,7 +682,7 @@ impl OsvClientInternal {
                     };
                     return Ok((
                         entry.vuln.clone(),
-                        outcome.label().to_string(),
+                        format!("{}{}", outcome.label(), q_note),
                         entry.fetched_at(),
                     ));
                 }
@@ -677,7 +698,7 @@ impl OsvClientInternal {
                         };
                         return Ok((
                             entry.vuln.clone(),
-                            outcome.label().to_string(),
+                            format!("{}{}", outcome.label(), q_note),
                             entry.fetched_at(),
                         ));
                     }
@@ -693,7 +714,7 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 details,
-                                FetchOutcome::NetworkFetched.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                                 now,
                             ));
                         }
@@ -712,7 +733,7 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 entry.vuln.clone(),
-                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkNotModified.label(), q_note),
                                 now,
                             ));
                         }
@@ -725,7 +746,7 @@ impl OsvClientInternal {
                             };
                             return Ok((
                                 entry.vuln.clone(),
-                                outcome.label().to_string(),
+                                format!("{}{}", outcome.label(), q_note),
                                 entry.fetched_at(),
                             ));
                         }
@@ -736,9 +757,10 @@ impl OsvClientInternal {
                         m.cache_miss.fetch_add(1, Ordering::Relaxed);
                     }
                     if self.offline {
-                        return Err(Arc::new(GuardianError::NetworkError(
-                            "Offline and cache expired".to_string(),
-                        )));
+                        return Err(Arc::new(GuardianError::NetworkError(format!(
+                            "Offline and cache expired{}",
+                            q_note
+                        ))));
                     }
                     // Must fetch
                     match self.fetch_details_network(id, entry.etag.as_deref()).await {
@@ -752,7 +774,7 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 details,
-                                FetchOutcome::NetworkFetched.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                                 now,
                             ));
                         }
@@ -770,7 +792,7 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 entry.vuln.clone(),
-                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkNotModified.label(), q_note),
                                 now,
                             ));
                         }
@@ -786,8 +808,8 @@ impl OsvClientInternal {
         }
         if self.offline {
             return Err(Arc::new(GuardianError::NetworkError(format!(
-                "Offline: No details cached for {}",
-                id
+                "Offline: No details cached for {}{}. Hint: Run online to self-heal or delete cache.",
+                id, q_note
             ))));
         }
 
@@ -801,7 +823,7 @@ impl OsvClientInternal {
                 }
                 Ok((
                     details,
-                    FetchOutcome::NetworkFetched.label().to_string(),
+                    format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                     now,
                 ))
             }

@@ -84,17 +84,17 @@ If `<cache_dir>/osv/vulns/v1` is a file, not a directory:
 * Allowed chars: `[A-Za-z0-9._-]`
 * All other chars MUST be sanitized deterministically (implementation: unsafe chars → `_`)
 * If sanitization OR truncation occurs, a collision-avoid suffix hash MUST be appended.
-* If the original key is already safe and length ≤ 100, the hash suffix MAY be omitted (NormKey == original).
+* If the original key is already safe and length ≤ 128, the hash suffix MAY be omitted (NormKey == original).
 
-<!-- FIXED: util::key::normalize_key uses conditional suffix + 16-hex hash -->
+
 
 **Concept (implementation-aligned):**
-- If unchanged and ≤100: `NormKey = <original>`
-- Otherwise: `NormKey = <sanitized_truncated>-<hash16>`
+- If unchanged and length ≤ 128: `NormKey = <original>`
+- Otherwise: `NormKey = <sanitized_prefix64>-<blake3_16hex>`
 
 Where:
-- `<sanitized_truncated>` is sanitized and truncated to 100 chars.
-- `<hash16>` is `format!("{:016x}", DefaultHasher(key).finish())` (16 hex chars).
+- `<sanitized_prefix64>` is sanitized and truncated to 64 chars.
+- `<blake3_16hex>` is the first 16 hex chars of `blake3(original_key)`.
 
 ### 5.2 v1 File Path
 
@@ -102,7 +102,7 @@ Where:
 
 **Example:**
 - `GHSA-1234` -> `< ... >/GHSA-1234.json`
-- `GHSA:Bad/Key` -> `< ... >/GHSA_Bad_Key-a1b2c3d4e5f60708.json` (Sanitized + Hash16)
+- `GHSA:Bad/Key` -> `< ... >/GHSA_Bad_Key-a1b2c3d4e5f60708.json` (Sanitized + blake3_16hex)
 
 Legacy paths follow historical behavior (see §8).
 
@@ -126,7 +126,7 @@ Optional fields (serialized only when present in v0.12):
 * `expires_at_unix`: Unix seconds (u64)
 * `etag`: HTTP ETag string
 
-<!-- FIXED: v0.12 serde omits Option fields instead of emitting null -->
+
 
 Example (typical v0.12 write with `expires_at_unix = None`):
 
@@ -190,8 +190,8 @@ Pattern: `.<reason>.<ts>.<uniq>`
 * `uniq`: pid / counter / random
 
 Examples:
-* `abc-deadbeef.json.corrupt.1730000000.12345` <!-- FIXED: replaced '--' with '-' to match NormKey sanity -->
-* `abc-deadbeef.json.unsupported_v2.1730000001.2` <!-- FIXED: replaced '--' with '-' to match NormKey sanity -->
+* `abc-deadbeef.json.corrupt.1730000000.12345`
+* `abc-deadbeef.json.unsupported_v2.1730000001.2`
 
 ### 7.3 Unsupported handling (normative)
 

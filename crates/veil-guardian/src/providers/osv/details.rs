@@ -13,6 +13,7 @@ pub enum FetchOutcome {
     NetworkNotModified,
     OfflineUsedFreshCache,
     OfflineFallbackUsedStale,
+    HitLegacyMigrated, // legacy satisfied request and migrated to v1
     FailedNoUsableCache,
 }
 
@@ -27,6 +28,7 @@ impl FetchOutcome {
             FetchOutcome::CacheHitStale => "Hit (Stale)",
             FetchOutcome::CacheHitStaleFallback => "Hit (Stale) [Fallback]",
             FetchOutcome::OfflineFallbackUsedStale => "Hit (Stale) [Offline Fallback]",
+            FetchOutcome::HitLegacyMigrated => "Hit (Migrated)",
 
             FetchOutcome::NetworkFetched => "Fetched",
             FetchOutcome::NetworkNotModified => "Hit (Fresh) [304]",
