@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0] - 2025-12-19
+
+### 🛡️ Guardian: Operator UX & Resilience
+This release completes the "Resilience & Observability" phase, ensuring Guardian is robust against corruption, conflicts, and network issues, while providing clear actionable feedback to operators.
+
+- **Resilience Policies**: Implemented deterministic "Quarantine & Fallback" policies for corrupt or conflicting cache entries.
+- **Operator UX**: Error messages now include explicit **remediation hints** (e.g., "Run online to self-heal") when offline recovery fails.
+- **Observability**: Fully instrumented `OsvClient` and `ConcurrencyGate` with unified metrics (cache hit/miss, network retries, gate waits, 429s).
+- **Cache Contract**: Strict alignment of NormKey hashing (16-char hex) and v1 envelope schema with documentation.
+- **AI Workflow**: Formalized AI contribution rules in `docs/ai/`.
+
 ## [0.11.3] - 2025-12-17 "Guardian Stability Track"
 
 **Guardian Next stability track completed**: This release solidifies the OSV integration with a focus on reliability, concurrency control, and crash safety.
