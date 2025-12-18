@@ -1,6 +1,6 @@
 use super::cache::Cache;
 use super::details::{CachePolicy, CacheStatus, CachedVuln, FetchOutcome};
-use super::details_store::DetailsStore;
+use super::details_store::{DetailsStore, StoreLoad};
 use super::net::{
     backoff_delay, clamp_timeout, classify_error, classify_response, ConcurrencyGate, NetConfig,
     RetryClass, Sleeper, TimeBudget, TokioSleeper,
@@ -124,8 +124,21 @@ impl OsvClient {
             .expect("Failed to build reqwest client");
 
         // Split cache_dir into sub-caches if provided, or pass None to use defaults/env
+        // Point D: Unified Path Strategy.
+        // Query Cache uses `<root>/osv` (which internally does /query?) No, Cache implementation uses root directly?
+        // Wait, Cache::new(path) takes a directory.
+        // User wants: <root>/osv/query and <root>/osv/vulns.
+        // DetailsStore now expects <root>/osv and manages `vulns` inside.
+        // So we pass `base.join("osv")` to DetailsStore.
+
         let (query_cache, details_cache) = if let Some(base) = cache_dir {
-            (Some(base.join("osv")), Some(base.join("details")))
+            // If base provided (e.g. /tmp/test), we want /tmp/test/osv as root.
+            let osv_root = base.join("osv");
+
+            // Query Cache: historically <root>/osv/query? or just <root>/osv?
+            // Existing Cache::new uses the path provided as the directory.
+            // Let's explicitly segregate: `osv_root.join("query")`.
+            (Some(osv_root.join("query")), Some(osv_root))
         } else {
             (None, None)
         };
@@ -365,14 +378,25 @@ impl OsvClientInternal {
         loop {
             // v0.11.5: budget-aware acquire (avoid waiting forever)
             let Some(rem_for_gate) = budget.remaining() else {
+                if let Some(m) = &self.metrics {
+                    m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                }
                 return Err(GuardianError::NetworkError(
                     "OSV budget exceeded".to_string(),
                 ));
             };
 
-            let permit = match tokio::time::timeout(rem_for_gate, self.gate.acquire()).await {
+            let permit = match tokio::time::timeout(
+                rem_for_gate,
+                self.gate.acquire_with_metrics(self.metrics.as_deref()),
+            )
+            .await
+            {
                 Ok(p) => p,
                 Err(_) => {
+                    if let Some(m) = &self.metrics {
+                        m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                    }
                     return Err(GuardianError::NetworkError(
                         "OSV budget exceeded".to_string(),
                     ));
@@ -384,6 +408,9 @@ impl OsvClientInternal {
             // clamp per-request timeout AFTER waiting for permit
             let Some(t) = clamp_timeout(&budget, self.net.per_request_timeout) else {
                 drop(net_guard);
+                if let Some(m) = &self.metrics {
+                    m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                }
                 return Err(GuardianError::NetworkError(
                     "OSV budget exceeded".to_string(),
                 ));
@@ -396,20 +423,14 @@ impl OsvClientInternal {
             if let Some(m) = &self.metrics {
                 match op {
                     NetOp::Details => {
-                        m.req_details
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        m.time_osv_details_ms.fetch_add(
-                            start.elapsed().as_millis() as u64,
-                            std::sync::atomic::Ordering::Relaxed,
-                        );
+                        m.req_details.fetch_add(1, Ordering::Relaxed);
+                        m.time_osv_details_ms
+                            .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
                     }
                     NetOp::QueryBatch => {
-                        m.req_querybatch
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        m.time_osv_query_ms.fetch_add(
-                            start.elapsed().as_millis() as u64,
-                            std::sync::atomic::Ordering::Relaxed,
-                        );
+                        m.req_querybatch.fetch_add(1, Ordering::Relaxed);
+                        m.time_osv_query_ms
+                            .fetch_add(start.elapsed().as_millis() as u64, Ordering::Relaxed);
                     }
                 }
             }
@@ -417,6 +438,13 @@ impl OsvClientInternal {
             match resp {
                 Ok(r) => {
                     let class = classify_response(r.status().as_u16(), r.headers());
+
+                    if r.status() == 429 {
+                        if let Some(m) = &self.metrics {
+                            m.net_limit_exceeded.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+
                     match class {
                         RetryClass::Success => return Ok(r),
                         RetryClass::Fatal => {
@@ -448,18 +476,26 @@ impl OsvClientInternal {
                             };
 
                             let Some(rem) = budget.remaining() else {
+                                if let Some(m) = &self.metrics {
+                                    m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                                }
                                 return Err(GuardianError::NetworkError(
                                     "OSV budget exceeded".to_string(),
                                 ));
                             };
                             if delay >= rem {
+                                if let Some(m) = &self.metrics {
+                                    m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                                }
                                 return Err(GuardianError::NetworkError(
                                     "OSV budget exceeded".to_string(),
                                 ));
                             }
 
                             if let Some(m) = &self.metrics {
-                                m.retries.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                m.net_retry_attempts.fetch_add(1, Ordering::Relaxed);
+                                m.net_retry_sleep_ms
+                                    .fetch_add(delay.as_millis() as u64, Ordering::Relaxed);
                             }
                             self.sleeper.sleep(delay).await;
                             attempt += 1;
@@ -487,18 +523,26 @@ impl OsvClientInternal {
                     drop(net_guard);
 
                     let Some(rem) = budget.remaining() else {
+                        if let Some(m) = &self.metrics {
+                            m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                        }
                         return Err(GuardianError::NetworkError(
                             "OSV budget exceeded".to_string(),
                         ));
                     };
                     if delay >= rem {
+                        if let Some(m) = &self.metrics {
+                            m.net_budget_exceeded.fetch_add(1, Ordering::Relaxed);
+                        }
                         return Err(GuardianError::NetworkError(
                             "OSV budget exceeded".to_string(),
                         ));
                     }
 
                     if let Some(m) = &self.metrics {
-                        m.retries.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        m.net_retry_attempts.fetch_add(1, Ordering::Relaxed);
+                        m.net_retry_sleep_ms
+                            .fetch_add(delay.as_millis() as u64, Ordering::Relaxed);
                     }
                     self.sleeper.sleep(delay).await;
                     attempt += 1;
@@ -547,10 +591,76 @@ impl OsvClientInternal {
         let policy = CachePolicy::default();
         let force_refresh = OsvClient::env_flag("VEIL_OSV_FORCE_REFRESH");
 
-        let entry_opt = self.details_store.as_ref().and_then(|s| s.load(id));
-
         // 1. Check Cache
-        if let Some(entry) = &entry_opt {
+        // Using StoreLoad to detect migrations
+        let cache_result = if let Some(store) = &self.details_store {
+            store.load(id)
+        } else {
+            StoreLoad::Miss {
+                quarantined: Default::default(),
+            }
+            // Note: If no store, we synthesize empty miss.
+            // Ideally should just be Miss. But StoreLoad requires fields.
+            // Wait, we defined StoreLoad in details_store.
+            // We can't construct it easily if we don't import QuarantineFlags or if they are private?
+            // They are pub.
+            // But actually simpler: make `store.load` handle the logic.
+            // If store is None, we just treat as simple miss without flags.
+        };
+
+        // Handle Metrics for Quarantine
+        if let Some(m) = &self.metrics {
+            let q_flags = match &cache_result {
+                StoreLoad::Hit { quarantined, .. } => quarantined,
+                StoreLoad::Miss { quarantined } => quarantined,
+            };
+            if q_flags.corrupt {
+                m.cache_quarantine_corrupt.fetch_add(1, Ordering::Relaxed);
+            }
+            if q_flags.unsupported {
+                m.cache_quarantine_unsupported
+                    .fetch_add(1, Ordering::Relaxed);
+            }
+            if q_flags.conflict {
+                m.cache_quarantine_conflict.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        // Helper to formatting quarantine note
+        let q_note = match &cache_result {
+            StoreLoad::Hit { quarantined, .. } | StoreLoad::Miss { quarantined } => {
+                let mut parts = Vec::new();
+                if quarantined.corrupt {
+                    parts.push("corrupt");
+                }
+                if quarantined.unsupported {
+                    parts.push("unsupported");
+                }
+                if quarantined.conflict {
+                    parts.push("conflict");
+                }
+                if parts.is_empty() {
+                    String::new()
+                } else {
+                    format!(" (quarantined: {})", parts.join(","))
+                }
+            }
+        };
+
+        if let StoreLoad::Hit {
+            entry,
+            source: _,
+            migrated,
+            quarantined: _,
+        } = cache_result
+        {
+            // Count Legacy Migration
+            if migrated {
+                if let Some(m) = &self.metrics {
+                    m.cache_hit_legacy_total.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+
             let mut status = entry.status(&policy, now);
             // Force refresh should NOT violate "Fresh never fetch".
             // Also, offline stays strict: do not relax Expired -> usable.
@@ -565,37 +675,53 @@ impl OsvClientInternal {
                     }
                     let outcome = if self.offline {
                         FetchOutcome::OfflineUsedFreshCache
+                    } else if migrated {
+                        FetchOutcome::HitLegacyMigrated
                     } else {
                         FetchOutcome::CacheHitFresh
                     };
                     return Ok((
                         entry.vuln.clone(),
-                        outcome.label().to_string(),
+                        format!("{}{}", outcome.label(), q_note),
                         entry.fetched_at(),
                     ));
                 }
                 CacheStatus::Stale => {
+                    if let Some(m) = &self.metrics {
+                        m.cache_stale.fetch_add(1, Ordering::Relaxed);
+                    }
                     if self.offline {
+                        let outcome = if migrated {
+                            FetchOutcome::HitLegacyMigrated
+                        } else {
+                            FetchOutcome::OfflineFallbackUsedStale
+                        };
                         return Ok((
                             entry.vuln.clone(),
-                            FetchOutcome::OfflineFallbackUsedStale.label().to_string(),
+                            format!("{}{}", outcome.label(), q_note),
                             entry.fetched_at(),
                         ));
                     }
                     // Online: try refresh, fallback to stale on error
                     match self.fetch_details_network(id, entry.etag.as_deref()).await {
                         Ok(NetworkResult::Fetched(details, etag)) => {
+                            if let Some(m) = &self.metrics {
+                                m.net_fetched.fetch_add(1, Ordering::Relaxed);
+                            }
                             if let Some(store) = &self.details_store {
                                 let _ =
                                     store.save(&CachedVuln::new(id, now, details.clone(), etag));
                             }
                             return Ok((
                                 details,
-                                FetchOutcome::NetworkFetched.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                                 now,
                             ));
                         }
                         Ok(NetworkResult::NotModified) => {
+                            if let Some(m) = &self.metrics {
+                                m.net_not_modified.fetch_add(1, Ordering::Relaxed);
+                            }
                             // Update timestamp (touch)
                             if let Some(store) = &self.details_store {
                                 let mut new_entry = entry.clone();
@@ -607,15 +733,20 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 entry.vuln.clone(),
-                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkNotModified.label(), q_note),
                                 now,
                             ));
                         }
                         Err(_) => {
                             // Fallback
+                            let outcome = if migrated {
+                                FetchOutcome::HitLegacyMigrated
+                            } else {
+                                FetchOutcome::CacheHitStaleFallback
+                            };
                             return Ok((
                                 entry.vuln.clone(),
-                                FetchOutcome::CacheHitStaleFallback.label().to_string(),
+                                format!("{}{}", outcome.label(), q_note),
                                 entry.fetched_at(),
                             ));
                         }
@@ -626,24 +757,31 @@ impl OsvClientInternal {
                         m.cache_miss.fetch_add(1, Ordering::Relaxed);
                     }
                     if self.offline {
-                        return Err(Arc::new(GuardianError::NetworkError(
-                            "Offline and cache expired".to_string(),
-                        )));
+                        return Err(Arc::new(GuardianError::NetworkError(format!(
+                            "Offline and cache expired{}",
+                            q_note
+                        ))));
                     }
                     // Must fetch
                     match self.fetch_details_network(id, entry.etag.as_deref()).await {
                         Ok(NetworkResult::Fetched(details, etag)) => {
+                            if let Some(m) = &self.metrics {
+                                m.net_fetched.fetch_add(1, Ordering::Relaxed);
+                            }
                             if let Some(store) = &self.details_store {
                                 let _ =
                                     store.save(&CachedVuln::new(id, now, details.clone(), etag));
                             }
                             return Ok((
                                 details,
-                                FetchOutcome::NetworkFetched.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                                 now,
                             ));
                         }
                         Ok(NetworkResult::NotModified) => {
+                            if let Some(m) = &self.metrics {
+                                m.net_not_modified.fetch_add(1, Ordering::Relaxed);
+                            }
                             if let Some(store) = &self.details_store {
                                 let mut new_entry = entry.clone();
                                 new_entry.fetched_at_unix = now
@@ -654,7 +792,7 @@ impl OsvClientInternal {
                             }
                             return Ok((
                                 entry.vuln.clone(),
-                                FetchOutcome::NetworkNotModified.label().to_string(),
+                                format!("{}{}", FetchOutcome::NetworkNotModified.label(), q_note),
                                 now,
                             ));
                         }
@@ -670,19 +808,22 @@ impl OsvClientInternal {
         }
         if self.offline {
             return Err(Arc::new(GuardianError::NetworkError(format!(
-                "Offline: No details cached for {}",
-                id
+                "Offline: No details cached for {}{}. Hint: Run online to self-heal or delete cache.",
+                id, q_note
             ))));
         }
 
         match self.fetch_details_network(id, None).await {
             Ok(NetworkResult::Fetched(details, etag)) => {
+                if let Some(m) = &self.metrics {
+                    m.net_fetched.fetch_add(1, Ordering::Relaxed);
+                }
                 if let Some(store) = &self.details_store {
                     let _ = store.save(&CachedVuln::new(id, now, details.clone(), etag));
                 }
                 Ok((
                     details,
-                    FetchOutcome::NetworkFetched.label().to_string(),
+                    format!("{}{}", FetchOutcome::NetworkFetched.label(), q_note),
                     now,
                 ))
             }

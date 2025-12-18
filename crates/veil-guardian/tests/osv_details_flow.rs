@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 use tempfile::tempdir;
 use veil_guardian::providers::osv::{
     details::{CachePolicy, CachedVuln},
-    details_store::DetailsStore,
+    details_store::{DetailsStore, StoreLoad},
     OsvClient,
 };
 use wiremock::{
@@ -19,6 +19,9 @@ async fn test_osv_details_flow_fresh_skips_fetch() {
 
     let dir = tempdir().unwrap();
     let dir_path = dir.path().to_path_buf();
+
+    // DetailsStore expects root ("osv"), so we pass `dir_path` which acts as root.
+    // It will write to `dir_path/vulns/v1`.
     let store = DetailsStore::with_dir(&dir_path).unwrap();
 
     // 1. Pre-populate FRESH
@@ -101,7 +104,10 @@ async fn test_osv_details_flow_expired_triggers_fetch() {
     assert_eq!(val["summary"], "New Data");
 
     // Verify disk updated
-    let loaded = store.load(&id).unwrap();
+    let loaded = match store.load(&id) {
+        StoreLoad::Hit { entry, .. } => entry,
+        _ => panic!("Expected hit after fetch"),
+    };
     assert_eq!(loaded.vuln["summary"], "New Data");
 }
 
