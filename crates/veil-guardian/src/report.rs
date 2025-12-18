@@ -122,7 +122,7 @@ impl ScanResult {
                             has_cache_info = true;
                         }
                         match advisory.cache_status.as_deref() {
-                            Some("Network") => stats_network += 1,
+                            Some("Network") | Some("Fetched") => stats_network += 1,
                             Some(s) if s.contains("Fresh") => stats_hit_fresh += 1, // "Hit (Fresh)"
                             Some(s) if s.contains("Stale") => stats_hit_stale += 1, // "Hit (Stale)"
                             Some(s) if s.starts_with("Error") => stats_error += 1,

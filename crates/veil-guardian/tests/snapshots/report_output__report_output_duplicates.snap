@@ -1,6 +1,5 @@
 ---
 source: crates/veil-guardian/tests/report_output.rs
-assertion_line: 200
 expression: normalized
 ---
 Found 1 vulnerabilities in 1 packages scanned:
@@ -10,4 +9,4 @@ Cache: 0 fresh, 0 stale, 1 network, 0 offline, 0 error
   Locations: [TEMP]/package-lock.json
   [GHSA-1] Critical issue in A
     Fix: No fixed version available (mitigation required)
-    Status: Network
+    Status: Fetched

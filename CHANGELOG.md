@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.3] - 2025-12-17 "Guardian Stability Track"
+
+**Guardian Next stability track completed**: This release solidifies the OSV integration with a focus on reliability, concurrency control, and crash safety.
+
+### 🛡️ Guardian: Robustness & Resilience
+- **Concurrency Control**: Implemented `ConcurrencyGate` (`max_in_flight: 8`) and budget-aware permits to prevent OSV API overload.
+- **Atomic Writes**: Cache files are now written atomically (tmp + sync + rename) to guarantee no partial JSON corruption on crashes.
+- **File Locking**: Added multi-process file locking (`fs2`) to safely handle parallel scans (e.g., CI jobs) sharing the same cache.
+- **Key Versioning**: Migrated cache storage to a `v1/` directory with strict filename normalization and collision avoidance, preserving legacy read compatibility.
+- **Retry Policy**: Enhanced retry logic with jittered backoff and strict `Retry-After` header respect.
+
 ## [0.11.2] - 2025-12-16
 
 ### 🛡️ Guardian: Performance Improvements (OSV)

@@ -32,6 +32,8 @@ impl DetailsStore {
                 .join("vulns")
         };
         fs::create_dir_all(&dir).ok()?;
+        // Attempt to create v1 dir, but don't fail `new` if it fails yet (save will try again)
+        let _ = fs::create_dir_all(dir.join("v1"));
         Some(Self { dir })
     }
 
@@ -39,31 +41,70 @@ impl DetailsStore {
     pub fn with_dir(dir: impl Into<PathBuf>) -> io::Result<Self> {
         let dir = dir.into();
         fs::create_dir_all(&dir)?;
+        let _ = fs::create_dir_all(dir.join("v1"));
         Ok(Self { dir })
     }
 
     pub fn load(&self, vuln_id: &str) -> Option<CachedVuln> {
-        let path = self.path_for(vuln_id);
-        let s = fs::read_to_string(path).ok()?;
-        serde_json::from_str::<CachedVuln>(&s).ok()
+        // 1. Try v1 (Current)
+        let v1_path = self.path_for_v1(vuln_id);
+
+        let v1_result =
+            crate::util::file_lock::with_file_lock(&v1_path, || {
+                match fs::read_to_string(&v1_path) {
+                    Ok(s) => Ok(serde_json::from_str::<CachedVuln>(&s)),
+                    Err(e) => Err(e),
+                }
+            });
+
+        match v1_result {
+            Ok(Ok(cached)) => return Some(cached),
+            Ok(Err(_serde_err)) => {
+                // v1 exists but corrupt. Do NOT fallback to legacy.
+                // We return None (treated as missing/fetch-needed) but do not read legacy.
+                return None;
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                // v1 missing -> Try Legacy fallback
+            }
+            Err(_) => {
+                // Other IO error (permission etc) -> Return None
+                return None;
+            }
+        }
+
+        // 2. Try Legacy
+        let leg_path = self.path_for_legacy(vuln_id);
+        crate::util::file_lock::with_file_lock(&leg_path, || match fs::read_to_string(&leg_path) {
+            Ok(s) => Ok(serde_json::from_str::<CachedVuln>(&s).ok()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        })
+        .ok()
+        .flatten()
     }
 
     pub fn save(&self, entry: &CachedVuln) -> io::Result<()> {
-        let path = self.path_for(&entry.vuln_id);
-        let tmp = path.with_extension("tmp");
+        let path = self.path_for_v1(&entry.vuln_id);
 
-        let body = serde_json::to_string(&entry)
+        // Ensure v1 parent exists (atomic_write does create_dir_all(parent), so this is implicit)
+        // But atomic_write is robust.
+
+        let body = serde_json::to_vec_pretty(&entry)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-        fs::write(&tmp, body)?;
-        if path.exists() {
-            fs::remove_file(&path)?;
-        }
-        fs::rename(tmp, path)?;
+        crate::util::file_lock::with_file_lock(&path, || {
+            crate::util::atomic_write::atomic_write_bytes(&path, &body)
+        })?;
         Ok(())
     }
 
-    fn path_for(&self, vuln_id: &str) -> PathBuf {
+    fn path_for_v1(&self, vuln_id: &str) -> PathBuf {
+        let name = crate::util::key::normalize_key(vuln_id);
+        self.dir.join("v1").join(format!("{}.json", name))
+    }
+
+    fn path_for_legacy(&self, vuln_id: &str) -> PathBuf {
         self.dir.join(format!("{}.json", sanitize_id(vuln_id)))
     }
 }
@@ -110,6 +151,7 @@ mod tests {
             "GHSA-aaaa-bbbb-cccc",
             now,
             json!({"id":"GHSA-aaaa-bbbb-cccc"}),
+            None,
         );
 
         store.save(&entry).unwrap();
@@ -125,7 +167,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let store = DetailsStore::with_dir(tmp.path()).unwrap();
 
-        let path = store.path_for("GHSA-bad");
+        let path = store.path_for_legacy("GHSA-bad");
         fs::write(path, "{not json").unwrap();
 
         assert!(store.load("GHSA-bad").is_none());
