@@ -8,8 +8,9 @@ set -euo pipefail
 #   - does NOT push, tag, or call GitHub APIs (安全に「生成だけ」)
 
 VERSION="${1:-}"
+BASE_REF="${2:-origin/main}"
 if [[ -z "${VERSION}" ]]; then
-  echo "Usage: scripts/publish_draft.sh vX.Y.Z" >&2
+  echo "Usage: scripts/publish_draft.sh vX.Y.Z [base_ref]" >&2
   exit 2
 fi
 
@@ -26,7 +27,7 @@ cp -f docs/ai/X_TEMPLATE.md "${out_dir}/X_${VERSION}.md"
 
 # 2) ai_pack artifact for review/LLM input
 pack_path="${out_dir}/AI_PACK_${VERSION}.txt"
-scripts/ai_pack.sh origin/main "${pack_path}"
+scripts/ai_pack.sh "${BASE_REF}" "${pack_path}"
 
 # 3) inject version placeholder (best-effort)
 # mac sed needs -i '' ; GNU sed accepts -i
@@ -48,3 +49,4 @@ echo "  ${out_dir}/PUBLISH_${VERSION}.md"
 echo "  ${out_dir}/RELEASE_BODY_${VERSION}.md"
 echo "  ${out_dir}/X_${VERSION}.md"
 echo "  ${pack_path}"
+echo "  (base_ref: ${BASE_REF})"

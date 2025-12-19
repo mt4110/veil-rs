@@ -181,3 +181,26 @@ AIは以下を必ず出す（詳細は docs/ai/OUTPUT_TEMPLATE.md）：
 ---
 
 必要なら、同じく **CONTEXT_MAP / OUTPUT_TEMPLATE も “Human表記に統一”**した版に揃えて貼り直す（表記ゆれは地味にAIの迷子要因になるので、やる価値ある）。
+
+---
+
+## 9. Automation Quick Commands
+
+These are "no-magic" helpers — they only generate files and run checks.
+
+- Run the same guardrails as CI:
+
+```bash
+scripts/ai_guardrails_check.sh all
+```
+
+- Generate release/PR/X drafts + AI_PACK artifact (no tagging, no pushing):
+
+```bash
+scripts/publish_draft.sh vX.Y.Z origin/main
+# outputs: dist/publish/vX.Y.Z/*
+```
+
+- GitHub Actions (manual): `release-drafts` workflow
+  - Inputs: `version`, `base_ref`
+  - Artifact: `dist/publish/<version>/`

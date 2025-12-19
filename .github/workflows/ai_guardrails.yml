@@ -13,46 +13,17 @@ jobs:
             - uses: actions/checkout@v4.1.7
             - name: Detect macOS ghosts (.DS_Store / AppleDouble)
               run: |
-                  set -euo pipefail
-                  bad="$(git ls-files | grep -E '(^|/)\.DS_Store$|(^|/)\._' || true)"
-                  if [ -n "$bad" ]; then
-                    echo "Found forbidden macOS files tracked in git:"
-                    echo "$bad"
-                    exit 1
-                  fi
+                  chmod +x scripts/ai_guardrails_check.sh
+                  scripts/ai_guardrails_check.sh mac-ghost
 
     version-sync:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4.1.7
-            - name: Check workspace crate versions are consistent
+            - name: Check workspace + crate versions are consistent
               run: |
-                  set -euo pipefail
-                  if [ ! -f Cargo.toml ]; then
-                    echo "No Cargo.toml; skipping."
-                    exit 0
-                  fi
-                  # Collect versions from crates/*/Cargo.toml (best-effort)
-                  versions="$(ls crates/*/Cargo.toml 2>/dev/null \
-                    | xargs -I{} sh -c "awk -F'\"' '/^version *=/ {print FILENAME \":\" \$2; exit}' {}" \
-                    | sed 's|crates/||' || true)"
-                  if [ -z "$versions" ]; then
-                    echo "No crates/*/Cargo.toml found; skipping."
-                    exit 0
-                  fi
-
-                  uniq_versions="$(echo "$versions" | awk -F: '{print $2}' | sort -u)"
-                  count="$(echo "$uniq_versions" | wc -l | tr -d ' ')"
-
-                  echo "Detected versions:"
-                  echo "$versions"
-                  echo "Unique versions:"
-                  echo "$uniq_versions"
-
-                  if [ "$count" -ne 1 ]; then
-                    echo "Version mismatch across crates. Align versions before merging."
-                    exit 1
-                  fi
+                  chmod +x scripts/ai_guardrails_check.sh
+                  scripts/ai_guardrails_check.sh version-sync
 
     docs-ai-min:
         runs-on: ubuntu-latest
@@ -60,33 +31,8 @@ jobs:
             - uses: actions/checkout@v4.1.7
             - name: Minimal docs/ai rules
               run: |
-                  set -euo pipefail
-                  # Check templates exist and are NOT empty (test -s)
-                  test -s docs/ai/WORKFLOW_RULES.md
-                  test -s docs/ai/PUBLISH_TEMPLATE.md
-                  test -s docs/ai/RELEASE_BODY_TEMPLATE.md
-                  test -s docs/ai/X_TEMPLATE.md
-
-                  # Reject accidental duplicate headings marker (ignoring code blocks)
-                  # awk logic: inside fenced block, don't count h1. outside, count h1.
-                  h1count="$(awk '
-                    BEGIN{in_fence=0; c=0} 
-                    /^```/ {in_fence=!in_fence; next} 
-                    in_fence==0 && /^# / {c++} 
-                    END{print c+0}
-                  ' docs/ai/WORKFLOW_RULES.md)"
-
-                  if [ "$h1count" -ne 1 ]; then
-                    echo "WORKFLOW_RULES.md must have exactly one H1 (# title). Found: $h1count"
-                    exit 1
-                  fi
-
-                  # Check for unclosed code fences (must be even number of ``` lines)
-                  fences="$(grep -c '^```' docs/ai/WORKFLOW_RULES.md || true)"
-                  if [ $((fences % 2)) -ne 0 ]; then
-                     echo "WORKFLOW_RULES.md has unclosed code fences (odd number of \`\`\`). Found: $fences"
-                     exit 1
-                  fi
+                  chmod +x scripts/ai_guardrails_check.sh
+                  scripts/ai_guardrails_check.sh docs-ai-min
 
     ai-pack-smoke:
         runs-on: ubuntu-latest
@@ -94,17 +40,16 @@ jobs:
             - uses: actions/checkout@v4.1.7
             - name: Ensure scripts/ai_pack.sh runs
               run: |
-                  set -euo pipefail
+                  chmod +x scripts/ai_guardrails_check.sh
+                  chmod +x scripts/ai_pack.sh
+                  chmod +x scripts/publish_draft.sh
+                  scripts/ai_guardrails_check.sh ai-pack-smoke
 
-                  # Check execution permission in git (test -x)
-                  if [ ! -x scripts/ai_pack.sh ]; then
-                    echo "scripts/ai_pack.sh matches no executable permission."
-                    exit 1
-                  fi
-                  if [ ! -x scripts/publish_draft.sh ]; then
-                    echo "scripts/publish_draft.sh matches no executable permission."
-                    exit 1
-                  fi
-
-                  scripts/ai_pack.sh origin/main /tmp/ai_pack.txt
-                  test -s /tmp/ai_pack.txt
+    json-syntax:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4.1.7
+            - name: Validate cspell.json syntax
+              run: |
+                  chmod +x scripts/ai_guardrails_check.sh
+                  scripts/ai_guardrails_check.sh json-syntax

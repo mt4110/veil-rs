@@ -12,3 +12,6 @@ report.html
 **/._*
 
 veil-rs-latest.tar.gz
+
+# generated artifacts
+/dist/
