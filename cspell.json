@@ -37,6 +37,7 @@
         "GHSA",
         "impls",
         "indicatif",
+        "inplace",
         "Luhn",
         "manualy",
         "masakitakemura",
@@ -46,6 +47,8 @@
         "msrv",
         "mynumber",
         "nixpkgs",
+        "oneline",
+        "pipefail",
         "prettytable",
         "printstd",
         "reqwest",
@@ -68,6 +71,10 @@
         "veri",
         "vulns",
         "walkdir",
-        "wiremock"
+        "wiremock",
+        "xattr",
+        "xattrs",
+        "AppleDouble",
+        "LIBARCHIVE"
     ]
 }
