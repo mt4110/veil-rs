@@ -1,55 +1,39 @@
 name: ai-guardrails
 
-"on":
-    pull_request:
-        branches: [main, develop]
-    push:
-        branches: [main, develop]
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
 
 jobs:
-    mac-ghost:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Detect macOS ghosts (.DS_Store / AppleDouble)
-              run: |
-                  chmod +x scripts/ai_guardrails_check.sh
-                  scripts/ai_guardrails_check.sh mac-ghost
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    version-sync:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Check workspace + crate versions are consistent
-              run: |
-                  chmod +x scripts/ai_guardrails_check.sh
-                  scripts/ai_guardrails_check.sh version-sync
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v15
 
-    docs-ai-min:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Minimal docs/ai rules
-              run: |
-                  chmod +x scripts/ai_guardrails_check.sh
-                  scripts/ai_guardrails_check.sh docs-ai-min
+      - name: Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
 
-    ai-pack-smoke:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Ensure scripts/ai_pack.sh runs
-              run: |
-                  chmod +x scripts/ai_guardrails_check.sh
-                  chmod +x scripts/ai_pack.sh
-                  chmod +x scripts/publish_draft.sh
-                  scripts/ai_guardrails_check.sh ai-pack-smoke
+      - name: Run Cockpit Guardrails (Parity)
+        run: |
+          nix run .#check
 
-    json-syntax:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Validate cspell.json syntax
-              run: |
-                  chmod +x scripts/ai_guardrails_check.sh
-                  scripts/ai_guardrails_check.sh json-syntax
+      # Optional: metrics summary (safe heredoc; no YAML indentation foot-guns)
+      - name: Metrics Summary (best effort)
+        if: always()
+        shell: bash
+        run: |
+          cat <<'EOF'
+          Metrics policy:
+          - Emitted by veil-aiux on failures to dist/metrics/...
+          - CI should not upload AI_PACK (*.txt). Only markdown artifacts if needed.
+          EOF
