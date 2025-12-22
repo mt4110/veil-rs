@@ -1,0 +1,43 @@
+name: release-drafts
+
+"on":
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to generate drafts for (e.g. v0.13.0)"
+        required: true
+        type: string
+      base_ref:
+        description: "Base ref for AI_PACK diff (default: origin/main)"
+        required: false
+        default: "origin/main"
+        type: string
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure scripts are executable
+        run: |
+          chmod +x scripts/ai_guardrails_check.sh
+          chmod +x scripts/ai_pack.sh
+          chmod +x scripts/publish_draft.sh
+
+      - name: Guardrails
+        run: scripts/ai_guardrails_check.sh all
+
+      - name: Generate publish drafts
+        run: |
+          set -euo pipefail
+          scripts/publish_draft.sh "${{ inputs.version }}" "${{ inputs.base_ref }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-draft-${{ inputs.version }}
+          # Security: Only upload templates, exclude AI_PACK (contains diffs/secrets)
+          path: dist/publish/${{ inputs.version }}/*.md

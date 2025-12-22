@@ -1,0 +1,39 @@
+name: ai-guardrails
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v15
+
+      - name: Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
+
+      - name: Run Cockpit Guardrails (Parity)
+        run: |
+          nix run .#check
+
+      # Optional: metrics summary (safe heredoc; no YAML indentation foot-guns)
+      - name: Metrics Summary (best effort)
+        if: always()
+        shell: bash
+        run: |
+          cat <<'EOF'
+          Metrics policy:
+          - Emitted by veil-aiux on failures to dist/metrics/...
+          - CI should not upload AI_PACK (*.txt). Only markdown artifacts if needed.
+          EOF
