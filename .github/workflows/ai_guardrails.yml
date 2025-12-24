@@ -1,39 +1,116 @@
 name: ai-guardrails
 
-on:
-  pull_request:
-  push:
-    branches: [develop, main]
+"on":
+    pull_request:
+        branches: [main, develop]
+    push:
+        branches: [main, develop]
 
 permissions:
   contents: read
 
 jobs:
-  guardrails:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    mac-ghost:
+        runs-on: ubuntu-22.04
+        steps:
+            # v4
+            - uses: actions/checkout@v4
+            - name: Detect macOS ghosts (.DS_Store / AppleDouble)
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  bad="$(git ls-files | grep -E '(^|/)\.DS_Store$|(^|/)\._' || true)"
+                  if [ -n "$bad" ]; then
+                    echo "Found forbidden macOS files tracked in git:"
+                    echo "$bad"
+                    exit 1
+                  fi
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v15
+    version-sync:
+        runs-on: ubuntu-22.04
+        steps:
+            # v4
+            - uses: actions/checkout@v4
+            - name: Check workspace crate versions are consistent
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  if [ ! -f Cargo.toml ]; then
+                    echo "No Cargo.toml; skipping."
+                    exit 0
+                  fi
+                  # Collect versions from crates/*/Cargo.toml (best-effort)
+                  versions="$(find crates -maxdepth 2 -name Cargo.toml 2>/dev/null \
+                    | xargs -I{} sh -c "awk -F'\"' '/^version *=/ {print FILENAME \":\" \$2; exit}' {}" \
+                    | sed 's|crates/||' || true)"
+                  if [ -z "$versions" ]; then
+                    echo "No crates/*/Cargo.toml found; skipping."
+                    exit 0
+                  fi
 
-      - name: Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v7
+                  uniq_versions="$(echo "$versions" | awk -F: '{print $2}' | sort -u)"
+                  count="$(echo "$uniq_versions" | wc -l | tr -d ' ')"
 
-      - name: Run Cockpit Guardrails (Parity)
-        run: |
-          nix run .#check
+                  echo "Detected versions:"
+                  echo "$versions"
+                  echo "Unique versions:"
+                  echo "$uniq_versions"
 
-      # Optional: metrics summary (safe heredoc; no YAML indentation foot-guns)
-      - name: Metrics Summary (best effort)
-        if: always()
-        shell: bash
-        run: |
-          cat <<'EOF'
-          Metrics policy:
-          - Emitted by veil-aiux on failures to dist/metrics/...
-          - CI should not upload AI_PACK (*.txt). Only markdown artifacts if needed.
-          EOF
+                  if [ "$count" -ne 1 ]; then
+                    echo "Version mismatch across crates. Align versions before merging."
+                    exit 1
+                  fi
+
+    docs-ai-min:
+        runs-on: ubuntu-22.04
+        steps:
+            # v4
+            - uses: actions/checkout@v4
+            - name: Minimal docs/ai rules
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  # Check templates exist and are NOT empty (test -s)
+                  test -s docs/ai/WORKFLOW_RULES.md
+                  test -s docs/ai/PUBLISH_TEMPLATE.md
+                  test -s docs/ai/RELEASE_BODY_TEMPLATE.md
+                  test -s docs/ai/X_TEMPLATE.md
+
+                  # Reject accidental duplicate headings marker (ignoring code blocks)
+                  # awk logic: inside fenced block, don't count h1. outside, count h1.
+                  h1count="$(awk '
+                    BEGIN{in_fence=0; c=0} 
+                    /^```/ {in_fence=!in_fence; next} 
+                    in_fence==0 && /^# / {c++} 
+                    END{print c+0}
+                  ' docs/ai/WORKFLOW_RULES.md)"
+
+                  if [ "$h1count" -ne 1 ]; then
+                    echo "WORKFLOW_RULES.md must have exactly one H1 (# title). Found: $h1count"
+                    exit 1
+                  fi
+
+                  # Check for unclosed code fences (must be even number of ``` lines)
+                  fences="$(grep -c '^```' docs/ai/WORKFLOW_RULES.md || true)"
+                  if [ $((fences % 2)) -ne 0 ]; then
+                     echo "WORKFLOW_RULES.md has unclosed code fences (odd number of \`\`\`). Found: $fences"
+                     exit 1
+                  fi
+
+    ai-pack-smoke:
+        runs-on: ubuntu-22.04
+        steps:
+            # v4
+            - uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+                fetch-tags: true
+                clean: true
+            # v27
+            - uses: cachix/install-nix-action@v27
+            - name: AI_PACK smoke (Cockpit)
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  nix run .#ai-pack -- origin/main /tmp/ai_pack.txt
+                  test -s /tmp/ai_pack.txt
