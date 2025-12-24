@@ -194,3 +194,58 @@ AIは以下を必ず出す（詳細は docs/ai/OUTPUT_TEMPLATE.md）：
 ---
 
 必要なら、同じく **CONTEXT_MAP / OUTPUT_TEMPLATE も “Human表記に統一”**した版に揃えて貼り直す（表記ゆれは地味にAIの迷子要因になるので、やる価値ある）。
+
+---
+
+## 9. Automation & Workflow Rules (Phase 8)
+
+### The Golden 3 Commands (Zero Hesitation)
+To release a version (e.g., `v0.14.0`), run these 3 commands in order.
+
+#### 1. Generate (Local)
+Create all draft assets. Single entry point.
+```bash
+# Golden Command (Canonical)
+./scripts/ai/gen.sh --version v0.14.0 --clean
+
+# Alternative (Nix Direct)
+nix run .#gen -- --version v0.14.0 --clean
+```
+
+#### 2. Verify Status
+Confirm all 4 artifacts are ready and valid.
+```bash
+# Golden Command (Canonical)
+./scripts/ai/status.sh --version v0.14.0
+
+# Alternative (Nix Direct)
+nix run .#status -- --version v0.14.0
+```
+
+#### 3. Review & Execute
+View the release body, then paste it into GitHub Releases.
+```bash
+cat dist/publish/v0.14.0/RELEASE_BODY_v0.14.0.md
+```
+
+---
+
+### Contract & Rules
+
+#### 1. Dist Contract
+- Output is ALWAYS `dist/publish/<VERSION>/`.
+- Must produce 4 artifacts:
+  - `PUBLISH_v*.md` (PR Body)
+  - `RELEASE_BODY_v*.md` (Release Note)
+  - `X_v*.md` (Social)
+  - `AI_PACK_v*.txt` (LLM Context)
+
+#### 2. CI/Local Parity
+- **Local**: Generates everything.
+- **CI Artifacts**: **Markdown Only (`**/*.md`)**.
+  - `AI_PACK` must be `.txt` to physically prevent it from being uploaded as a release artifact in CI.
+  - `scripts/ai/check.sh` enforces this extension rule.
+
+#### 3. Guardrails
+- `scripts/ai/check.sh` acts as the single source of truth for repository hygiene.
+- It runs on every `gen.sh` execution and in CI.

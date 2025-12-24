@@ -1,3 +1,5 @@
+# Release Notes {{VER}}
+
 ### What
 - <何をしたかを箇条書き>
 
