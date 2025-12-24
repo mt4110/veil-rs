@@ -60,13 +60,13 @@ func GenerateDrafts(version, baseRef string) (string, error) {
 }
 
 // copyAndReplace reads src, replaces all occurrences of old with new, and writes to dst.
-func copyAndReplace(src, dst, old, newStr string) error {
+func copyAndReplace(src, dst, old, replacement string) error {
 	contentBytes, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
 	content := string(contentBytes)
-	replaced := strings.ReplaceAll(content, old, newStr)
+	replaced := strings.ReplaceAll(content, old, replacement)
 
 	return os.WriteFile(dst, []byte(replaced), 0644)
 }

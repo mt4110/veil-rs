@@ -16,6 +16,10 @@ func (g GitX) Run(args ...string) (string, error) {
 		return "", fmt.Errorf("gitx: no args")
 	}
 
+	if _, err := exec.LookPath("git"); err != nil {
+		return "", fmt.Errorf("git executable not found in PATH: %w", err)
+	}
+
 	cmd := exec.Command("git", args...)
 	if g.Dir != "" {
 		cmd.Dir = g.Dir

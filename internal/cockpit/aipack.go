@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var hunkStartRe = regexp.MustCompile(`^@@ .* \+(\d+)(?:,\d+)? @@`)
+
 // GenerateAIPack generates the AI_PACK artifact.
 // It returns the final path written to, whether a temp file was used, and any error.
 func GenerateAIPack(baseRef, outPath string) (finalPath string, usedTemp bool, err error) {
@@ -259,13 +261,12 @@ func parseHunkStarts(diffOut string) []int {
 	// Limits to top 8 hunks as per shell script
 	const maxHunks = 8
 	var starts []int
-	re := regexp.MustCompile(`^@@ .* \+(\d+)(?:,\d+)? @@`)
 
 	scanner := bufio.NewScanner(strings.NewReader(diffOut))
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "@@") {
-			matches := re.FindStringSubmatch(line)
+			matches := hunkStartRe.FindStringSubmatch(line)
 			if len(matches) >= 2 {
 				if n, err := strconv.Atoi(matches[1]); err == nil {
 					starts = append(starts, n)

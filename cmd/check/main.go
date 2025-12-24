@@ -40,7 +40,7 @@ func main() {
 	// TODO: Run actual checks here
 	// For now, we simulate a PASS or conditional FAIL based on env for testing
 	if os.Getenv("FORCE_FAIL") == "1" {
-		out.Add("FORCE_FAIL", "Forced failure for testing", "Unset FORCE_FAIL", "docs/ai/testing.md")
+		out.Add("FORCE_FAIL", "Forced failure for testing", "Unset FORCE_FAIL", "docs/ai/SSOT.md#testing")
 	}
 
 	// 2. Print for Human/Machine (stdout)

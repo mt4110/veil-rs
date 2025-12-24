@@ -71,12 +71,20 @@ func main() {
 		}
 		// Print generated files for user info (parity with script)
 		fmt.Println("Generated drafts in:", outDir)
-		_ = filepath.WalkDir(outDir, func(path string, d os.DirEntry, err error) error {
-			if err == nil && !d.IsDir() {
+		walkErr := filepath.WalkDir(outDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				// Warn but continue
+				fmt.Fprintf(os.Stderr, "warning: failed to access path %q: %v\n", path, err)
+				return nil
+			}
+			if !d.IsDir() {
 				fmt.Println("  " + path)
 			}
 			return nil
 		})
+		if walkErr != nil {
+			fmt.Fprintln(os.Stderr, "warning: directory walk incomplete:", walkErr)
+		}
 	default:
 		usage()
 		os.Exit(1)
