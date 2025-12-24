@@ -12,3 +12,10 @@ report.html
 **/._*
 
 veil-rs-latest.tar.gz
+dist/
+
+# Local/Tooling
+.trunk/
+result/
+result/*
+result

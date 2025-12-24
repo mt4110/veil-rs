@@ -40,16 +40,86 @@
           buildInputs = [ pkgs.openssl ];
         };
 
+        # Cockpit Go Binary
+        cockpitPkg = pkgs.buildGoModule {
+          pname = "cockpit";
+          version = "0.0.1";
+          src = ./.;
+          subPackages = [ "cmd/cockpit" ];
+          vendorHash = null;
+          # Ensure git is available if tests run during build, or if needed at runtime (but runtime deps are separate)
+          # buildGoModule defaults to using `go` from pkgs
+        };
+
         veilApp = {
           type = "app";
           program = "${veilPkg}/bin/veil";
         };
+
+        checkScript = pkgs.writeShellApplication {
+          name = "check";
+          runtimeInputs = [ pkgs.go_1_24 pkgs.git ];
+          text = ''
+            unset GOROOT
+            unset GOPATH
+            GOCACHE=$(mktemp -d)
+            export GOCACHE
+            trap 'rm -rf "$GOCACHE"' EXIT
+            echo "Running check with $(go version)"
+            go run ./cmd/check
+          '';
+        };
+
+        goTestScript = pkgs.writeShellApplication {
+          name = "go-test";
+          runtimeInputs = [ pkgs.go_1_24 pkgs.git ];
+          text = ''
+            unset GOROOT
+            unset GOPATH
+            GOCACHE=$(mktemp -d)
+            export GOCACHE
+            trap 'rm -rf "$GOCACHE"' EXIT
+            echo "Running go-test with $(go version)"
+            go test ./...
+          '';
+        };
+
+        # Phase 10: Cockpit Single Entry apps (Nix-first)
+        aiPackScript = pkgs.writeShellApplication {
+          name = "ai-pack";
+          runtimeInputs = [ pkgs.git ];
+          text = ''
+            exec ${cockpitPkg}/bin/cockpit ai-pack "$@"
+          '';
+        };
+
+        genScript = pkgs.writeShellApplication {
+          name = "gen";
+          runtimeInputs = [ pkgs.git ];
+          text = ''
+            exec ${cockpitPkg}/bin/cockpit gen "$@"
+          '';
+        };
+
+        statusScript = pkgs.writeShellApplication {
+          name = "status";
+          runtimeInputs = [ pkgs.git ];
+          text = ''
+            exec ${cockpitPkg}/bin/cockpit status "$@"
+          '';
+        };
       in
       {
         packages.veil = veilPkg;
+        packages.cockpit = cockpitPkg;
         packages.default = veilPkg;
 
         apps.veil = veilApp;
+        apps.check = { type = "app"; program = "${checkScript}/bin/check"; };
+        apps."go-test" = { type = "app"; program = "${goTestScript}/bin/go-test"; };
+        apps."ai-pack" = { type = "app"; program = "${aiPackScript}/bin/ai-pack"; };
+        apps.gen = { type = "app"; program = "${genScript}/bin/gen"; };
+        apps.status = { type = "app"; program = "${statusScript}/bin/status"; };
         apps.default = veilApp;
 
         devShells.default = pkgs.mkShell {
@@ -57,6 +127,7 @@
             rustStable
             pkg-config
             openssl
+            go_1_24
 
             # Tools
             cargo-edit
@@ -72,6 +143,10 @@
           ];
 
           shellHook = ''
+            unset GOROOT
+            unset GOPATH
+            export GOTOOLCHAIN=local
+
             export PATH="${rustStable}/libexec:$PATH"
             export RUST_BACKTRACE=1
             echo "veil-rs dev env loaded (stable)" >&2
@@ -99,6 +174,10 @@
           ];
 
           shellHook = ''
+            unset GOROOT
+            unset GOPATH
+            export GOTOOLCHAIN=local
+
             export PATH="${rustMsrv}/libexec:$PATH"
             export RUST_BACKTRACE=1
             echo "veil-rs dev env loaded (MSRV 1.82.0)" >&2

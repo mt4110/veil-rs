@@ -1,0 +1,93 @@
+name: Release Drafts (Cockpit)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          clean: true
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Resolve Version & Base Ref
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 1. Resolve Version from Cargo.toml (workspace.package.version)
+          #    Assumes [workspace.package] -> version = "x.y.z"
+          cargo_ver=$(grep -A 10 "\[workspace.package\]" Cargo.toml | grep "^version =" | head -n1 | cut -d '"' -f 2)
+          if [[ -z "$cargo_ver" ]]; then
+            echo "::error::Could not parse version from Cargo.toml"
+            exit 1
+          fi
+          VERSION="v${cargo_ver}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "Resolved version: ${VERSION}"
+
+          # 2. Resolve Base Ref from latest tag
+          #    Fallback to origin/main if no tags found
+          if ! BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null); then
+            echo "No tags found, falling back to origin/main"
+            BASE_REF="origin/main"
+          fi
+          echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
+          echo "Resolved base_ref: ${BASE_REF}"
+
+      - name: Cockpit Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix run .#check
+
+      - name: Generate drafts
+        shell: bash
+        run: |
+          set -euo pipefail
+          nix run .#gen -- "${{ env.VERSION }}" "${{ env.BASE_REF }}"
+
+      - name: "Guard: AI_PACK denylist / allowlist"
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ env.VERSION }}"
+          dir="dist/publish/${v}"
+          test -d "$dir"
+
+          # Denylist: never allow AI_PACK*.md
+          if ls "$dir"/AI_PACK*.md >/dev/null 2>&1; then
+            echo "AI_PACK must never be .md (denylist hit)" >&2
+            ls -la "$dir"/AI_PACK*.md >&2 || true
+            exit 1
+          fi
+
+          # Allowlist: require the 4 expected files
+          must=(
+            "$dir/AI_PACK_${v}.txt"
+            "$dir/PUBLISH_${v}.md"
+            "$dir/RELEASE_BODY_${v}.md"
+            "$dir/X_${v}.md"
+          )
+          for f in "${must[@]}"; do
+            test -s "$f"
+          done
+
+      - name: Upload release drafts (md only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: "release_drafts_${{ env.VERSION }}"
+          if-no-files-found: error
+          path: |
+            dist/publish/${{ env.VERSION }}/PUBLISH_${{ env.VERSION }}.md
+            dist/publish/${{ env.VERSION }}/RELEASE_BODY_${{ env.VERSION }}.md
+            dist/publish/${{ env.VERSION }}/X_${{ env.VERSION }}.md

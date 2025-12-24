@@ -1,5 +1,0 @@
-[tools]
-# We rely on Nix for the rust toolchain, so we remove the explicit rust setting here 
-# to avoid conflicts or confusion, or we can explicit set it to "system" if mise supports it.
-# For now, let's just comment it out so direnv/flake takes precedence.
-# rust = "latest"

@@ -6,12 +6,17 @@ name: ai-guardrails
     push:
         branches: [main, develop]
 
+permissions:
+  contents: read
+
 jobs:
     mac-ghost:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v4.1.7
+            # v4
+            - uses: actions/checkout@v4
             - name: Detect macOS ghosts (.DS_Store / AppleDouble)
+              shell: bash
               run: |
                   set -euo pipefail
                   bad="$(git ls-files | grep -E '(^|/)\.DS_Store$|(^|/)\._' || true)"
@@ -22,10 +27,12 @@ jobs:
                   fi
 
     version-sync:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v4.1.7
+            # v4
+            - uses: actions/checkout@v4
             - name: Check workspace crate versions are consistent
+              shell: bash
               run: |
                   set -euo pipefail
                   if [ ! -f Cargo.toml ]; then
@@ -33,7 +40,7 @@ jobs:
                     exit 0
                   fi
                   # Collect versions from crates/*/Cargo.toml (best-effort)
-                  versions="$(ls crates/*/Cargo.toml 2>/dev/null \
+                  versions="$(find crates -maxdepth 2 -name Cargo.toml 2>/dev/null \
                     | xargs -I{} sh -c "awk -F'\"' '/^version *=/ {print FILENAME \":\" \$2; exit}' {}" \
                     | sed 's|crates/||' || true)"
                   if [ -z "$versions" ]; then
@@ -55,10 +62,12 @@ jobs:
                   fi
 
     docs-ai-min:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v4.1.7
+            # v4
+            - uses: actions/checkout@v4
             - name: Minimal docs/ai rules
+              shell: bash
               run: |
                   set -euo pipefail
                   # Check templates exist and are NOT empty (test -s)
@@ -89,22 +98,19 @@ jobs:
                   fi
 
     ai-pack-smoke:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-22.04
         steps:
-            - uses: actions/checkout@v4.1.7
-            - name: Ensure scripts/ai_pack.sh runs
+            # v4
+            - uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+                fetch-tags: true
+                clean: true
+            # v27
+            - uses: cachix/install-nix-action@v27
+            - name: AI_PACK smoke (Cockpit)
+              shell: bash
               run: |
                   set -euo pipefail
-
-                  # Check execution permission in git (test -x)
-                  if [ ! -x scripts/ai_pack.sh ]; then
-                    echo "scripts/ai_pack.sh matches no executable permission."
-                    exit 1
-                  fi
-                  if [ ! -x scripts/publish_draft.sh ]; then
-                    echo "scripts/publish_draft.sh matches no executable permission."
-                    exit 1
-                  fi
-
-                  scripts/ai_pack.sh origin/main /tmp/ai_pack.txt
+                  nix run .#ai-pack -- origin/main /tmp/ai_pack.txt
                   test -s /tmp/ai_pack.txt

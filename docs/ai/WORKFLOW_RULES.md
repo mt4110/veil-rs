@@ -13,6 +13,19 @@ AIは「推測」より「停止」を優先する。Humanは「認知と決定�
 
 ---
 
+## 0.5 Golden Commands（Cockpit）
+
+運用コマンドは **Nix apps（Cockpit）** を正とする。
+（scripts/* は Phase 10 で deprecated、1リリース後に撤去予定）
+
+```bash
+nix run .#check
+nix run .#go-test
+nix run .#gen -- vX.Y.Z [base_ref]    # release drafts 生成
+nix run .#ai-pack -- [base_ref] [out] # AI_PACK 生成（.txt固定）
+nix run .#status
+```
+
 ## 1. Roles（役割分担）
 
 ### 1.1 Human

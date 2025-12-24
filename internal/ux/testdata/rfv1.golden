@@ -1,0 +1,21 @@
+COCKPIT_RFv1: RESULT=FAIL STEP=check
+COCKPIT_RFv1: REASON code=DIRTY_TREE msg="uncommitted changes found"
+COCKPIT_RFv1: REASON code=GIT_MISSING msg="git is required but not found"
+COCKPIT_RFv1: FIX    code=DIRTY_TREE msg="Commit your changes or use a clean checkout"
+COCKPIT_RFv1: FIX    code=GIT_MISSING msg="Install git, or enter nix develop (git is runtimeInput)"
+COCKPIT_RFv1: DOCS   code=DIRTY_TREE ref="docs/ai/SSOT.md#clean-tree"
+COCKPIT_RFv1: DOCS   code=GIT_MISSING ref="docs/ai/SSOT.md#git-required"
+
+✗ cockpit check failed
+
+Reason:
+- [DIRTY_TREE] uncommitted changes found
+- [GIT_MISSING] git is required but not found
+
+Fix:
+- Commit your changes or use a clean checkout
+- Install git, or enter nix develop (git is runtimeInput)
+
+Docs:
+- docs/ai/SSOT.md#clean-tree
+- docs/ai/SSOT.md#git-required
