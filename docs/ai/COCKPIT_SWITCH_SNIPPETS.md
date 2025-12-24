@@ -45,7 +45,7 @@ name: ai-guardrails
 on:
   pull_request:
   push:
-    branches: [ develop, main ]
+    branches: [main]
 
 permissions:
   contents: read
