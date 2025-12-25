@@ -30,11 +30,13 @@
     "pipefail",
     "pname",
     "reasonfix",
+    "reqwest",
     "rhdirxwm",
     "rustc",
     "sqlx",
     "SSOT",
     "Takemura",
+    "thiserror",
     "unittests",
     "Vulns"
   ]

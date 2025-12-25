@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reason Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "ts",
+    "reason_code",
+    "op",
+    "outcome"
+  ],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "config_invalid",
+        "config_missing_required",
+        "schema_violation",
+        "io_read_failed",
+        "io_write_failed",
+        "cache_corrupt",
+        "cache_version_mismatch",
+        "lock_timeout",
+        "atomic_rename_failed",
+        "offline",
+        "dns_failed",
+        "tls_failed",
+        "timeout",
+        "rate_limited",
+        "http_4xx",
+        "http_5xx",
+        "json_parse_failed",
+        "decode_failed",
+        "not_supported",
+        "internal_invariant_broken",
+        "unexpected"
+      ]
+    },
+    "op": {
+      "type": "string"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "fail",
+        "skip"
+      ]
+    },
+    "taxon": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_]+\\.[a-zA-Z0-9_]+=[a-zA-Z0-9_\\-\\.]+$"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "hint_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "retry_later",
+          "check_network",
+          "check_dns",
+          "check_tls_clock",
+          "clear_cache",
+          "upgrade_tool",
+          "reduce_parallelism",
+          "check_token_permissions"
+        ]
+      },
+      "maxItems": 8
+    }
+  }
+}
