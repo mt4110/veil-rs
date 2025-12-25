@@ -25,7 +25,7 @@ func TestRFv1Output(t *testing.T) {
 
 	// 3. Compare with golden file
 	goldenPath := filepath.Join("testdata", "rfv1.golden")
-	
+
 	// If UPDATE_GOLDEN env var is set, update the file
 	if os.Getenv("UPDATE_GOLDEN") == "1" {
 		err := os.MkdirAll(filepath.Dir(goldenPath), 0755)

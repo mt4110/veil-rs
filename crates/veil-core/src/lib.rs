@@ -1,5 +1,6 @@
 pub mod baseline;
 pub mod masking;
+pub mod metrics;
 pub mod model;
 pub mod remote;
 pub mod rules;

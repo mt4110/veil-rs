@@ -1,0 +1,3 @@
+scorecard unavailable: scorecard cli failed: exec: "scorecard": executable file not found in $PATH
+Output:
+

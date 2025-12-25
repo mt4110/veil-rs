@@ -11,9 +11,9 @@ name: Veil Security Scan
 
 on:
   push:
-    branches: [ "main", "master", "develop" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master", "develop" ]
+    branches: [ "main", "master" ]
 
 env:
   CARGO_TERM_COLOR: always

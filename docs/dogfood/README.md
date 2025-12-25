@@ -1,13 +1,37 @@
-# docs/dogfood
+# Weekly Dogfood Reports
 
-このディレクトリは **dogfooding（自己適用テスト）** の出力物・証跡を置く場所です。
+This directory contains the weekly usage reports and audit trails for Veil-RS dogfooding.
 
-ここにある `*.json` / `*.md` は、過去に `veil-rs` / 関連リポジトリをスキャンして得た結果（解析ログやサンプル）です。
+## Rules & Configuration (Phase 12)
 
-ファイル名に含まれる `v0.6.2` などのバージョン表記は、**当時の対象リポジトリ／対象バージョン**を示すラベルです（最新バージョンを表すものではありません）。
+### 1. Exclusion Rules
+- **`dogfood.*` operations** are **excluded** from the Worklist / Top 3 suggestions.
+  - **Rationale**: Infrastructure failures or testing noise in the dogfood loop itself should not clutter the user's improvement list.
+  - **Implementation**: `internal/cockpit/dogfood.go` expressly filters these out during aggregation.
+- They are **included** in the "Total Failure Events" metrics (`counts_by_reason`) to maintain an accurate audit trail of system reliability.
 
-ランタイム（CLI 実行）や Cockpit の処理で、これらのファイルを読み込むことはありません。
-目的は「ルール調整の根拠」「回帰確認の材料」「監査用の記録」です。
+### 2. Output Contract
+The `cockpit dogfood weekly` command ensures the following files are generated for each week.
+Directory naming convention: `docs/dogfood/{YYYY-Www}-Tokyo/` (e.g., `2025-W52-Tokyo`).
 
-> [!NOTE]
-> `docs/dogfood` 自体は、自己参照による誤検知を避けるためにスキャン対象から除外（ignore）されている場合があります。
+Files:
+- `metrics_v1.json`: Audit log aggregation.
+- `worklist.json`: Top 3 improvement candidates.
+- `report.md`: Human-readable report summary.
+- `scorecard.txt`: OSSF Scorecard result (or "scorecard unavailable" placeholder on failure).
+
+### 3. Git Policy
+- `docs/dogfood/**` is tracked (Audit Trail).
+- `result/dogfood/**` is ignored (Raw Events).
+- This `README.md` is tracked.
+
+### 4. Scoring logic (Worklist)
+- **Score** = `(Count * 10) + (Delta * 25)`
+    - `Delta` = `Count - PrevCount`. If `Delta < 0`, `25 * 0` is used (no penalty for improvement, but no bonus).
+- **Tie-breaker**:
+    1. Score (DESC)
+    2. Count (DESC)
+    3. ActionID (ASC)
+    4. HintKey (ASC)
+
+Reference: [Phase 12 Spec](../ai/PHASE12_SPEC_WEEKLY_DOGFOOD.md)

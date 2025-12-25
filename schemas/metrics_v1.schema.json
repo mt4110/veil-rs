@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Metrics v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "metrics"
+  ],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "counts_by_reason"
+      ],
+      "properties": {
+        "counts_by_reason": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "config_invalid",
+              "config_missing_required",
+              "schema_violation",
+              "io_read_failed",
+              "io_write_failed",
+              "cache_corrupt",
+              "cache_version_mismatch",
+              "lock_timeout",
+              "atomic_rename_failed",
+              "offline",
+              "dns_failed",
+              "tls_failed",
+              "timeout",
+              "rate_limited",
+              "http_4xx",
+              "http_5xx",
+              "json_parse_failed",
+              "decode_failed",
+              "not_supported",
+              "internal_invariant_broken",
+              "unexpected"
+            ]
+          },
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "counts_by_hint": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object"
+    }
+  }
+}

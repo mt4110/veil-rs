@@ -10,7 +10,12 @@ import (
 	"veil-rs/internal/cockpit"
 )
 
-func TestGenerateAIPack_Golden(t *testing.T) {
+var (
+	reRef  = regexp.MustCompile(`generated_at_utc: .*`)
+	reHead = regexp.MustCompile(`head: [a-f0-9]+`)
+)
+
+func TestGenerateAIPackGolden(t *testing.T) {
 	// 1. Setup minimal git repo in temp dir
 	tmpDir, err := os.MkdirTemp("", "cockpit-test-*")
 	if err != nil {
@@ -117,9 +122,9 @@ func TestGenerateAIPack_Golden(t *testing.T) {
 // normalizeAIPack replaces volatile fields with fixed placeholders
 func normalizeAIPack(s string) string {
 	// generated_at_utc: ... -> generated_at_utc: <TIMESTAMP>
-	s = regexp.MustCompile(`generated_at_utc: .*`).ReplaceAllString(s, "generated_at_utc: <TIMESTAMP>")
+	s = reRef.ReplaceAllString(s, "generated_at_utc: <TIMESTAMP>")
 	// head: ... -> head: <HASH>
-	s = regexp.MustCompile(`head: [a-f0-9]+`).ReplaceAllString(s, "head: <HASH>")
+	s = reHead.ReplaceAllString(s, "head: <HASH>")
 	// commit hashes in log or status
 	// (Simple approach: look for known patterns or just trust the structure check above)
 

@@ -40,7 +40,7 @@ func main() {
 	// TODO: Run actual checks here
 	// For now, we simulate a PASS or conditional FAIL based on env for testing
 	if os.Getenv("FORCE_FAIL") == "1" {
-		out.Add("FORCE_FAIL", "Forced failure for testing", "Unset FORCE_FAIL", "docs/ai/testing.md")
+		out.Add("FORCE_FAIL", "Forced failure for testing", "Unset FORCE_FAIL", "docs/ai/SSOT.md#testing")
 	}
 
 	// 2. Print for Human/Machine (stdout)
@@ -64,7 +64,7 @@ func writeMetrics(out *ux.Output) {
 	if out.Status == "FAIL" {
 		metric.Result = "fail"
 	}
-	
+
 	// Get real Git info
 	metric.Git.SHA = getGitSHA()
 	metric.Git.Dirty = isGitDirty()
@@ -99,13 +99,13 @@ func writeMetrics(out *ux.Output) {
 		fmt.Fprintf(os.Stderr, "Error marshaling metrics: %v\n", err)
 		return
 	}
-	
+
 	dir := "dist/metrics/v1"
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating metrics dir: %v\n", err)
 		return
 	}
-	
+
 	file := filepath.Join(dir, "check.json")
 	if err := os.WriteFile(file, data, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing metrics: %v\n", err)

@@ -130,6 +130,7 @@
             go_1_24
 
             # Tools
+            git
             cargo-edit
             cargo-watch
             cargo-audit
@@ -140,6 +141,10 @@
             # Database
             postgresql
             sqlx-cli
+
+            # Automation
+            gh
+            scorecard
           ];
 
           shellHook = ''
@@ -161,6 +166,7 @@
             openssl
 
             # Tools
+            git
             cargo-edit
             cargo-watch
             cargo-audit
@@ -171,6 +177,10 @@
             # Database
             postgresql
             sqlx-cli
+
+            # Automation
+            gh
+            scorecard
           ];
 
           shellHook = ''
