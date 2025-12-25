@@ -84,7 +84,8 @@ fn test_golden_metrics_deterministic_output() {
     let output_json = serde_json::to_string(&metrics).unwrap();
     // BTreeMap serializes keys in order.
     // "config_missing_required" comes before "offline".
-    let expected_order = output_json.find("config_missing_required").unwrap() < output_json.find("offline").unwrap();
+    let expected_order =
+        output_json.find("config_missing_required").unwrap() < output_json.find("offline").unwrap();
     assert!(expected_order, "metrics output should be sorted by keys");
 
     println!("Golden Metrics Output: {}", output_json);

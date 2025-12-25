@@ -1,24 +1,28 @@
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use veil_core::metrics::reason::{MetricsV1, MetricsBody};
-use std::collections::BTreeMap;
 use valico::json_schema;
+use veil_core::metrics::reason::{MetricsBody, MetricsV1};
 
 fn validate_json(schema_path: &str, instance: &Value) {
     let schema_text = fs::read_to_string(schema_path)
         .expect(&format!("Failed to read schema file: {}", schema_path));
 
-    let schema_json: Value = serde_json::from_str(&schema_text)
-        .expect("Failed to parse schema JSON");
+    let schema_json: Value =
+        serde_json::from_str(&schema_text).expect("Failed to parse schema JSON");
 
     let mut scope = json_schema::Scope::new();
-    let schema = scope.compile_and_return(schema_json, false)
+    let schema = scope
+        .compile_and_return(schema_json, false)
         .expect("Failed to compile schema");
 
     let state = schema.validate(instance);
     if !state.is_valid() {
-        panic!("Schema validation failed for {}: {:?}", schema_path, state.errors);
+        panic!(
+            "Schema validation failed for {}: {:?}",
+            schema_path, state.errors
+        );
     }
 }
 
@@ -45,7 +49,12 @@ fn test_metrics_schema_validity() {
 
     // 2. Locate Schema
     let root = env!("CARGO_MANIFEST_DIR");
-    let schema_path = PathBuf::from(root).parent().unwrap().parent().unwrap().join("schemas/metrics_v1.schema.json");
+    let schema_path = PathBuf::from(root)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("schemas/metrics_v1.schema.json");
 
     // 3. Validate
     validate_json(schema_path.to_str().unwrap(), &metrics_json);
@@ -77,7 +86,12 @@ fn test_worklist_schema_validity() {
 
     // 2. Locate Schema
     let root = env!("CARGO_MANIFEST_DIR");
-    let schema_path = PathBuf::from(root).parent().unwrap().parent().unwrap().join("schemas/worklist_v1.schema.json");
+    let schema_path = PathBuf::from(root)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("schemas/worklist_v1.schema.json");
 
     // 3. Validate
     validate_json(schema_path.to_str().unwrap(), &worklist_json);
