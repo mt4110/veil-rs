@@ -19,3 +19,8 @@ dist/
 result/
 result/*
 result
+# Dogfood (weekly generation locally)
+docs/dogfood/2*-W*-Tokyo/
+/docs/dogfood/*/
+!docs/dogfood/README.md
+

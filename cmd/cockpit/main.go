@@ -15,6 +15,7 @@ Usage:
 	cockpit status
 	cockpit ai-pack [base_ref] [out]
 	cockpit gen vX.Y.Z [base_ref]
+	cockpit dogfood
 
 Exit codes:
 	0 success
@@ -85,6 +86,13 @@ func main() {
 		if walkErr != nil {
 			fmt.Fprintln(os.Stderr, "warning: directory walk incomplete:", walkErr)
 		}
+	case "dogfood":
+		outDir, err := cockpit.Dogfood()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		fmt.Printf("Dogfood generated in: %s\n", outDir)
 	default:
 		usage()
 		os.Exit(1)
