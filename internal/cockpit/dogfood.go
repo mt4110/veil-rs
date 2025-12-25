@@ -7,25 +7,32 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
+const (
+	TimezoneTokyo   = "Asia/Tokyo"
+	MetricsFilename = "metrics_v1.json"
+)
+
 // Dogfood executes the weekly dogfood process.
 func Dogfood() (string, error) {
-	// 1. Determine Week/Time
-	loc, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		loc = time.FixedZone("Asia/Tokyo", 9*60*60)
+	// 1. Determine Week/Time strict
+	dirName := GetWeekID() // e.g. 2025-W52-Tokyo
+
+	// Separate paths per Phase 12 requirement:
+	// result/dogfood/<week> -> ignored raw events
+	// docs/dogfood/<week>   -> tracked reports
+	resultDir := filepath.Join("result", "dogfood", dirName)
+	docsDir := filepath.Join("docs", "dogfood", dirName)
+
+	if err := os.MkdirAll(resultDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create result dir %s: %w", resultDir, err)
 	}
-	now := time.Now().In(loc)
-	y, w := now.ISOWeek()
-
-	dirName := fmt.Sprintf("%04d-W%02d-Tokyo", y, w)
-	outDir := filepath.Join("docs", "dogfood", dirName)
-
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create dir %s: %w", outDir, err)
+	if err := os.MkdirAll(docsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create docs dir %s: %w", docsDir, err)
 	}
 
 	// Session state for events
@@ -35,7 +42,7 @@ func Dogfood() (string, error) {
 	logEvent := func(code, op, outcome, taxon, detail string, hints []string) {
 		e := ReasonEventV1{
 			V:          1,
-			Ts:         now.Format(time.RFC3339),
+			Ts:         time.Now().Format(time.RFC3339),
 			ReasonCode: code,
 			Op:         op,
 			Outcome:    outcome,
@@ -46,38 +53,59 @@ func Dogfood() (string, error) {
 		events = append(events, e)
 	}
 
+	// 2. Resolve Previous Week
+	prevWeekID, prevMetrics, err := loadPreviousMetrics("docs/dogfood", dirName)
+	if err != nil {
+		// Log but don't fail, maybe first run
+		fmt.Fprintf(os.Stderr, "Warning: could not load previous metrics: %v\n", err)
+	}
+
 	// 2. Scorecard (Execution)
-	// We run this first or as a main activity. If it fails, log event.
-	scErr := generateScorecard(outDir)
+	// Output to Docs (it's a report)
+	scErr := generateScorecard(docsDir)
 	if scErr != nil {
-		// Log specific failure based on error content if possible
-		logEvent(ReasonUnexpected, "dogfood.scorecard", "fail", "", scErr.Error(), []string{HintRetryLater})
-		// We don't return immediately, we try to finish what we can?
-		// User requirement: "dogfood の各ステップ...でエラーを捕まえたら..."
-		// But if scorecard fails essential file missing?
-		// Scorecard generation might just fail to produce score, but we should proceed to metrics/weekly.
+		logEvent(ReasonUnexpected, "audit.scorecard", "fail", "", scErr.Error(), []string{HintRetryLater})
 		fmt.Fprintf(os.Stderr, "Scorecard failed: %v\n", scErr)
 	}
 
-	// 3. Write Events (reason_events_v1.jsonl)
-	// Even if empty? User says "eventsは基本 fail/skip だけ". If we have no failures, file might be empty.
-	// That's fine.
-	if err := writeEvents(outDir, events); err != nil {
+	// 3. Write Events (result/dogfood/...) - Ignored raw data
+	if err := writeEvents(resultDir, events); err != nil {
 		return "", fmt.Errorf("failed to write events: %w", err)
 	}
 
-	// 4. Aggregate Metrics (metrics_v1.json)
-	if err := generateMetricsV1(outDir, events, y, w); err != nil {
+	// 4. Aggregate Metrics (metrics_v1.json) -> Docs
+	// We read events from resultDir if available, or use local memory events
+	if err := generateMetricsV1(docsDir, events, dirName); err != nil {
 		return "", fmt.Errorf("metrics generation failed: %w", err)
 	}
 
-	// 5. Weekly Markdown
-	// Reads the generated files (or we pass data)
-	if err := generateWeekly(outDir, y, w); err != nil {
-		return "", fmt.Errorf("weekly.md generation failed: %w", err)
+	// 5. Weekly Report & Worklist -> Docs
+	if err := generateWeeklyArtifacts(docsDir, dirName, prevWeekID, prevMetrics); err != nil {
+		return "", fmt.Errorf("weekly artifacts generation failed: %w", err)
 	}
 
-	return outDir, nil
+	return docsDir, nil
+}
+
+// GetWeekID returns the strictly formatted current week ID
+func GetWeekID() string {
+	loc, _ := time.LoadLocation(TimezoneTokyo)
+	if loc == nil {
+		loc = time.FixedZone(TimezoneTokyo, 9*60*60)
+	}
+	now := time.Now().In(loc)
+	y, w := now.ISOWeek()
+	return fmt.Sprintf("%04d-W%02d-Tokyo", y, w)
+}
+
+func ensureMetrics(dir string, localEvents []ReasonEventV1) error {
+	path := filepath.Join(dir, MetricsFilename)
+	if _, err := os.Stat(path); err == nil {
+		return nil // Exists
+	}
+	// Fallback: generate from local events (Dogfooding the dogfooder)
+	return generateMetricsV1(dir, localEvents, GetWeekID())
+
 }
 
 func writeEvents(dir string, events []ReasonEventV1) error {
@@ -96,20 +124,34 @@ func writeEvents(dir string, events []ReasonEventV1) error {
 	return nil
 }
 
-func generateMetricsV1(dir string, events []ReasonEventV1, y, w int) error {
+func generateMetricsV1(dir string, events []ReasonEventV1, weekID string) error {
 	// Aggregate from events
 	counts := make(map[string]int)
+	hintCounts := make(map[string]int)
+
 	for _, e := range events {
 		counts[e.ReasonCode]++
+		// Exclude dogfood.* ops from hint aggregation (Top3/worklist input)
+		if strings.HasPrefix(e.Op, "dogfood.") { continue }
+		for _, h := range e.HintCodes {
+			hintCounts[h]++
+		}
 	}
+
+	// BTreeMap behavior in Go: manually sort keys when printing?
+	// Go maps are unordered. We need to rely on the struct definition or custom marshaling if we want strict output?
+	// The Rust side guarantees strictness. Go side for fallback:
+	// We just marshal; standard library sorts map keys by default when marshaling since Go 1.0??
+	// Yes, encoding/json sorts map keys.
 
 	m := MetricsV1{
 		V: 1,
 		Metrics: MetricsBody{
 			CountsByReason: counts,
+			CountsByHint:   hintCounts,
 		},
 		Meta: MetaBody{
-			Period:    fmt.Sprintf("%04d-W%02d", y, w),
+			Period:    weekID,
 			Toolchain: "nix",
 			Repo:      "github.com/mt4110/veil-rs", // Default
 		},
@@ -126,7 +168,8 @@ func generateMetricsV1(dir string, events []ReasonEventV1, y, w int) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "metrics_v1.json"), append(data, '\n'), 0644)
+	// Append newline
+	return os.WriteFile(filepath.Join(dir, MetricsFilename), append(data, '\n'), 0644)
 }
 
 func getGitSHA() (string, error) {
@@ -179,42 +222,77 @@ func parseScorecardScore(jsonOutput []byte) (float64, error) {
 	if err := json.Unmarshal(jsonOutput, &raw); err != nil {
 		return 0, fmt.Errorf("failed to parse scorecard json: %w", err)
 	}
+	val, found := findScoreInMap(raw)
+	if !found {
+		return 0, fmt.Errorf("could not find 'score' or 'aggregateScore.score' in scorecard output")
+	}
+	return val, nil
+}
 
-	var scoreVal float64
-	found := false
-
+func findScoreInMap(raw map[string]interface{}) (float64, bool) {
 	if v, ok := raw["score"]; ok {
 		if f, ok := v.(float64); ok {
-			scoreVal = f
-			found = true
+			return f, true
 		}
 	}
-
-	if !found {
-		if agg, ok := raw["aggregateScore"]; ok {
-			if f, ok := agg.(float64); ok {
-				scoreVal = f
-				found = true
-			} else if aggMap, ok := agg.(map[string]interface{}); ok {
-				if s, ok := aggMap["score"]; ok {
-					if f, ok := s.(float64); ok {
-						scoreVal = f
-						found = true
-					}
+	if agg, ok := raw["aggregateScore"]; ok {
+		if f, ok := agg.(float64); ok {
+			return f, true
+		} else if aggMap, ok := agg.(map[string]interface{}); ok {
+			if s, ok := aggMap["score"]; ok {
+				if f, ok := s.(float64); ok {
+					return f, true
 				}
 			}
 		}
 	}
-
-	if !found {
-		return 0, fmt.Errorf("could not find 'score' or 'aggregateScore.score' in scorecard output")
-	}
-	return scoreVal, nil
+	return 0, false
 }
 
-func generateWeekly(dir string, year, week int) error {
-	// Read Metrics
-	mPath := filepath.Join(dir, "metrics_v1.json")
+func loadPreviousMetrics(baseDir, currentWeekID string) (string, *MetricsV1, error) {
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return "", nil, err
+	}
+
+	var weeks []string
+	for _, e := range entries {
+		if e.IsDir() && strings.HasSuffix(e.Name(), "-Tokyo") {
+			weeks = append(weeks, e.Name())
+		}
+	}
+	sort.Strings(weeks)
+
+	// Find the one strictly before current
+	var prevID string
+	for i := len(weeks) - 1; i >= 0; i-- {
+		if weeks[i] < currentWeekID {
+			prevID = weeks[i]
+			break
+		}
+	}
+
+	if prevID == "" {
+		return "", nil, nil
+	}
+
+	path := filepath.Join(baseDir, prevID, MetricsFilename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return prevID, nil, err
+	}
+
+	var m MetricsV1
+	if err := json.Unmarshal(data, &m); err != nil {
+		return prevID, nil, err
+	}
+
+	return prevID, &m, nil
+}
+
+func generateWeeklyArtifacts(dir, weekID, prevWeekID string, prevMetrics *MetricsV1) error {
+	// Read Current Metrics
+	mPath := filepath.Join(dir, MetricsFilename)
 	mData, err := os.ReadFile(mPath)
 	if err != nil {
 		return err
@@ -224,48 +302,30 @@ func generateWeekly(dir string, year, week int) error {
 		return err
 	}
 
-	// Read Events (Aggregated Hints)
-	ePath := filepath.Join(dir, "reason_events_v1.jsonl")
-	eData, err := os.ReadFile(ePath)
-	hintCounts := make(map[string]int)
-	if err == nil {
-		lines := strings.Split(string(eData), "\n")
-		for _, line := range lines {
-			if strings.TrimSpace(line) == "" {
-				continue
-			}
-			var e ReasonEventV1
-			if json.Unmarshal([]byte(line), &e) == nil {
-				for _, h := range e.HintCodes {
-					hintCounts[h]++
-				}
-			}
-		}
+	// Calculate Top 3 (Worklist)
+	worklist, err := generateWorklist(weekID, &m, prevMetrics)
+	if err != nil {
+		return err
 	}
 
-	// Sort Top Reasons
-	type kv struct {
-		K string
-		V int
+	// Write Worklist V1
+	wlData, err := json.MarshalIndent(worklist, "", "  ")
+	if err != nil {
+		return err
 	}
-	var reasons []kv
-	for k, v := range m.Metrics.CountsByReason {
-		reasons = append(reasons, kv{k, v})
+	if err := os.WriteFile(filepath.Join(dir, "worklist_v1.json"), append(wlData, '\n'), 0644); err != nil {
+		return err
 	}
-	sort.Slice(reasons, func(i, j int) bool {
-		return reasons[i].V > reasons[j].V // Descending
-	})
 
-	// Sort Top Hints
-	var hints []kv
-	for k, v := range hintCounts {
-		hints = append(hints, kv{k, v})
-	}
-	sort.Slice(hints, func(i, j int) bool {
-		return hints[i].V > hints[j].V // Descending
-	})
+	// Read Scorecard (if available)
+	scScore := readScorecardFile(dir)
 
-	// Read Scorecard for Summary
+	// Generate and Write Report
+	reportMD := generateWeeklyReportMD(weekID, scScore, &m, prevMetrics, worklist, prevWeekID)
+	return os.WriteFile(filepath.Join(dir, "weekly.md"), []byte(reportMD), 0644)
+}
+
+func readScorecardFile(dir string) string {
 	scPath := filepath.Join(dir, "scorecard.txt")
 	scContent, _ := os.ReadFile(scPath)
 	scScore := "N/A"
@@ -275,51 +335,288 @@ func generateWeekly(dir string, year, week int) error {
 			break
 		}
 	}
+	return scScore
+}
 
-	// Build Markdown
+func generateWeeklyReportMD(weekID, scScore string, m, prevMetrics *MetricsV1, worklist *WorklistV1, prevWeekID string) string {
 	var sb strings.Builder
-	title := fmt.Sprintf("# Weekly dogfood %04d-W%02d (Tokyo)\n\n", year, week)
-	sb.WriteString(title)
+	sb.WriteString(fmt.Sprintf("# Weekly dogfood %s\n\n", weekID))
 
 	sb.WriteString("## Summary\n")
 	sb.WriteString(fmt.Sprintf("- Scorecard: **%s**\n", scScore))
-	sb.WriteString(fmt.Sprintf("- Total Incidents: %d\n\n", len(reasons))) // Roughly distinct reasons count? Or total count?
-	// Actually reasons is list of pair. Calculate total?
-	totalOps := 0
-	for _, r := range reasons {
-		totalOps += r.V
-	}
-	sb.WriteString(fmt.Sprintf("- Total Failure Events: %d\n\n", totalOps))
 
-	sb.WriteString("## Top Reasons\n")
-	if len(reasons) == 0 {
-		sb.WriteString("*(No failures reported)*\n")
-	} else {
-		for i, r := range reasons {
-			if i >= 5 {
-				break
-			}
-			sb.WriteString(fmt.Sprintf("1. `%s`: %d\n", r.K, r.V))
-		}
-	}
-	sb.WriteString("\n")
+	totalFailures, deltaMsg := calculateFailureDelta(m, prevMetrics, prevWeekID)
+	sb.WriteString(fmt.Sprintf("- Total Failure Events: %d%s\n\n", totalFailures, deltaMsg))
 
-	sb.WriteString("## Top Hints\n")
-	if len(hints) == 0 {
-		sb.WriteString("*(No hints)*\n")
-	} else {
-		for i, h := range hints {
-			if i >= 5 {
-				break
-			}
-			sb.WriteString(fmt.Sprintf("1. `%s`: %d\n", h.K, h.V))
-		}
-	}
-	sb.WriteString("\n")
+	sb.WriteString("## 改善対象 Top3 (Phase 13 Input)\n")
+	sb.WriteString("| Rank | Action ID | Title | Hint Key | Count | Delta | Score | Playbook |\n")
+	sb.WriteString("|---|---|---|---|---|---|---|---|\n")
 
-	sb.WriteString("## Improvement Memo\n")
-	sb.WriteString("- [ ] (Add actionable items here)\n")
+	sb.WriteString(formatWorklistTable(worklist))
 
-	return os.WriteFile(filepath.Join(dir, "weekly.md"), []byte(sb.String()), 0644)
+	sb.WriteString("\n## Improvement Memo\n- [ ] (Add actionable items here)\n")
+	return sb.String()
 }
 
+func calculateFailureDelta(m, prevMetrics *MetricsV1, prevWeekID string) (int, string) {
+	totalFailures := 0
+	for _, v := range m.Metrics.CountsByReason {
+		totalFailures += v
+	}
+
+	deltaMsg := ""
+	if prevMetrics != nil {
+		prevTotal := 0
+		for _, v := range prevMetrics.Metrics.CountsByReason {
+			prevTotal += v
+		}
+		diff := totalFailures - prevTotal
+		sign := "+"
+		if diff < 0 {
+			sign = ""
+		}
+		deltaMsg = fmt.Sprintf(" (vs %s: %s%d)", prevWeekID, sign, diff)
+	}
+	return totalFailures, deltaMsg
+}
+
+func formatWorklistTable(worklist *WorklistV1) string {
+	var sb strings.Builder
+	if len(worklist.Items) == 0 {
+		sb.WriteString("| - | - | *(No actions)* | - | - | - | - | - |\n")
+	} else {
+		for _, item := range worklist.Items {
+			if item.Rank > 3 {
+				break
+			}
+			deltaStr := fmt.Sprintf("%d", item.Signals.Delta)
+			if item.Signals.Delta > 0 {
+				deltaStr = "+" + deltaStr
+			}
+
+			pbRef := item.PlaybookRef
+			if pbRef == "" {
+				pbRef = "-"
+			}
+
+			sb.WriteString(fmt.Sprintf("| %d | `%s` | %s | `%s` | %d | %s | **%d** | %s |\n",
+				item.Rank, item.ActionId, item.Title, item.Signals.HintKey, item.Signals.CountNow, deltaStr, item.Score, pbRef))
+		}
+	}
+	return sb.String()
+}
+
+type WorklistV1 struct {
+	V           int            `json:"v"`
+	WeekID      string         `json:"week_id"`
+	GeneratedAt string         `json:"generated_at"`
+	GitSHA      string         `json:"git_sha,omitempty"`
+	Items       []WorklistItem `json:"items"`
+}
+
+type WorklistItem struct {
+	Rank        int         `json:"rank"`
+	ActionId    string      `json:"action_id"`
+	Title       string      `json:"title"`
+	Score       int         `json:"score"`
+	PlaybookRef string      `json:"playbook_ref,omitempty"`
+	Suggested   []string    `json:"suggested_paths,omitempty"`
+	Signals     SignalStats `json:"signals"`
+}
+
+type SignalStats struct {
+	CountNow int    `json:"count_now"`
+	Delta    int    `json:"delta"`
+	HintKey  string `json:"hint_key"`
+}
+
+func generateWorklist(weekID string, current, prev *MetricsV1) (*WorklistV1, error) {
+	// 1. Gather keys
+	hints := make(map[string]int)
+	for k, v := range current.Metrics.CountsByHint {
+		hints[k] = v
+	}
+
+	// 2. Score Items
+	var items []WorklistItem
+	for hintKey, count := range hints {
+		items = append(items, scoreWorklistItem(hintKey, count, prev))
+	}
+
+	// 3. Sort (Deterministic)
+	sortWorklistItems(items)
+
+	// 4. Assign Rank
+	for i := range items {
+		items[i].Rank = i + 1
+	}
+
+	// 5. Deterministic Timestamp
+	genTime, err := calculateStrictTimestamp(weekID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate strict timestamp for %s: %w", weekID, err)
+	}
+
+	return &WorklistV1{
+		V:           1,
+		WeekID:      weekID,
+		GeneratedAt: genTime,
+		Items:       items,
+	}, nil
+}
+
+func scoreWorklistItem(hintKey string, count int, prev *MetricsV1) WorklistItem {
+	// Calculate Delta
+	prevCount := 0
+	if prev != nil {
+		prevCount = prev.Metrics.CountsByHint[hintKey]
+	}
+	delta := count - prevCount
+
+	// Score Formula: Count * 10 + Max(Delta, 0) * 25
+	wCount := 10
+	wDelta := 25
+	deltaScore := delta
+	if deltaScore < 0 {
+		deltaScore = 0
+	}
+	score := (count * wCount) + (deltaScore * wDelta)
+
+	// Resolve Blueprint
+	bp := getActionBlueprint(hintKey)
+
+	// Create Action ID if missing for fallback
+	if bp.ActionId == "" {
+		bp.ActionId = "Z-UNMAPPED"
+		bp.Title = fmt.Sprintf("Unmapped hint: %s", hintKey)
+	}
+
+	return WorklistItem{
+		Rank:        0, // Fill later
+		ActionId:    bp.ActionId,
+		Title:       bp.Title,
+		Score:       score,
+		PlaybookRef: bp.PlaybookRef,
+		Suggested:   bp.Suggested,
+		Signals: SignalStats{
+			CountNow: count,
+			Delta:    delta,
+			HintKey:  hintKey,
+		},
+	}
+}
+
+func sortWorklistItems(items []WorklistItem) {
+	// Sort (Deterministic)
+	// Score DESC -> Count DESC -> ActionId ASC -> HintKey ASC
+	sort.Slice(items, func(i, j int) bool {
+		si, sj := items[i], items[j]
+		if si.Score != sj.Score {
+			return si.Score > sj.Score
+		}
+		if si.Signals.CountNow != sj.Signals.CountNow {
+			return si.Signals.CountNow > sj.Signals.CountNow
+		}
+		if si.ActionId != sj.ActionId {
+			return si.ActionId < sj.ActionId
+		}
+		return si.Signals.HintKey < sj.Signals.HintKey
+	})
+}
+
+func calculateStrictTimestamp(weekID string) (string, error) {
+	// Expected format: YYYY-Www-Tokyo
+	parts := strings.Split(weekID, "-")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid weekID format")
+	}
+
+	year, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return "", err
+	}
+
+	// parts[1] is "Www" e.g. "W52"
+	if len(parts[1]) < 2 || parts[1][0] != 'W' {
+		return "", fmt.Errorf("invalid week part")
+	}
+	week, err := strconv.Atoi(parts[1][1:])
+	if err != nil {
+		return "", err
+	}
+
+	// Calculate Monday of that ISO week
+	// Jan 4th is always in ISO Week 1
+	jan4 := time.Date(year, time.January, 4, 0, 0, 0, 0, time.UTC)
+	isoYear, _ := jan4.ISOWeek()
+
+	// Sanity check: if Jan 4 is in previous ISO year (can happen? no, by definition Jan 4 is Week 1 or greater of 'year')
+	// Wait, definition: "The first week of a year is the week that contains the first Thursday of the year (or, equivalently, 4 January)."
+	// So isoYear should be 'year'.
+	if isoYear != year {
+		// This theoretically shouldn't happen for Jan 4
+	}
+
+	// Find start of Week 1 (Monday)
+	// Go Weekday: 0(Sun), 1(Mon)...6(Sat)
+	wd := int(jan4.Weekday())
+	if wd == 0 {
+		wd = 7
+	} // Convert Sun=0 to 7
+	// Mon(1) -> offset 0
+	// ...
+	// Sun(7) -> offset 6
+	offset := wd - 1
+	week1Mon := jan4.AddDate(0, 0, -offset)
+
+	// Add (week-1) weeks
+	targetMon := week1Mon.AddDate(0, 0, (week-1)*7)
+
+	// Convert to JST (UTC+9) and set 00:00:00
+	// We want the string to represent 00:00 JST.
+	// If we just format targetMon (UTC) as RFC3339, it's UTC.
+	// We want to FORCE the timezone to be +09:00 for the output string "YYYY-MM-DDT00:00:00+09:00".
+	// So we should construct the time in JST.
+
+	loc := time.FixedZone(TimezoneTokyo, 9*60*60)
+	// The targetMon is 00:00 UTC (from jan4 UTC).
+	// But "Monday 00:00 JST" is effectively "Sunday 15:00 UTC".
+	// We want the resulting object to Print as 00:00+09:00.
+	// So we construct a date in loc.
+
+	y, m, d := targetMon.Date()
+	mondayJST := time.Date(y, m, d, 0, 0, 0, 0, loc)
+
+	return mondayJST.Format(time.RFC3339), nil
+}
+
+type Blueprint struct {
+	ActionId    string
+	Title       string
+	PlaybookRef string
+	Suggested   []string
+}
+
+func getActionBlueprint(hint string) Blueprint {
+	// In production, this might load from a file.
+	switch hint {
+	case "retry_later":
+		return Blueprint{ActionId: "A-WAIT-001", Title: "Retry operation later (Transient)", PlaybookRef: "docs/playbooks/transient.md"}
+	case "check_network":
+		return Blueprint{ActionId: "A-NET-001", Title: "Verify network connectivity", Suggested: []string{"/etc/hosts"}, PlaybookRef: "docs/playbooks/network.md"}
+	case "check_dns":
+		return Blueprint{ActionId: "A-NET-002", Title: "Check DNS resolution", Suggested: []string{"/etc/resolv.conf"}}
+	case "check_tls_clock":
+		return Blueprint{ActionId: "A-SEC-001", Title: "Verify system clock & TLS"}
+	case "clear_cache":
+		return Blueprint{ActionId: "A-DISK-001", Title: "Clear local cache"}
+	case "upgrade_tool":
+		return Blueprint{ActionId: "A-UPG-001", Title: "Upgrade veil-rs to latest"}
+	case "reduce_parallelism":
+		return Blueprint{ActionId: "A-PERF-001", Title: "Reduce concurrency/parallelism"}
+	case "check_token_permissions":
+		return Blueprint{ActionId: "A-IAM-001", Title: "Verify token permissions"}
+	default:
+		return Blueprint{ActionId: "", Title: ""} // Will result in Fallback
+	}
+}

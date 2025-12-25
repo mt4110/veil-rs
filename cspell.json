@@ -11,6 +11,9 @@
     "debuginfo",
     "direnv",
     "dogfood",
+    "dogfooder",
+    "Dogfooding",
+    "dtolnay",
     "gitx",
     "gnused",
     "GOCACHE",
@@ -33,11 +36,16 @@
     "reqwest",
     "rhdirxwm",
     "rustc",
+    "RUSTUP",
     "sqlx",
     "SSOT",
+    "Swatinem",
     "Takemura",
     "thiserror",
+    "toplevel",
     "unittests",
-    "Vulns"
+    "valico",
+    "Vulns",
+    "worklist"
   ]
 }

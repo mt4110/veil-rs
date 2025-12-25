@@ -64,7 +64,7 @@ func writeMetrics(out *ux.Output) {
 	if out.Status == "FAIL" {
 		metric.Result = "fail"
 	}
-	
+
 	// Get real Git info
 	metric.Git.SHA = getGitSHA()
 	metric.Git.Dirty = isGitDirty()
@@ -99,13 +99,13 @@ func writeMetrics(out *ux.Output) {
 		fmt.Fprintf(os.Stderr, "Error marshaling metrics: %v\n", err)
 		return
 	}
-	
+
 	dir := "dist/metrics/v1"
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating metrics dir: %v\n", err)
 		return
 	}
-	
+
 	file := filepath.Join(dir, "check.json")
 	if err := os.WriteFile(file, data, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing metrics: %v\n", err)

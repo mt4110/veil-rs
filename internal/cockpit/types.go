@@ -3,26 +3,27 @@ package cockpit
 // ReasonEventV1 represents a single log line in reason_events_v1.jsonl
 // strictly matching schemas/reason_event_v1.schema.json
 type ReasonEventV1 struct {
-	V          int      `json:"v"`                     // Const: 1
-	Ts         string   `json:"ts"`                    // ISO8601/RFC3339
-	ReasonCode string   `json:"reason_code"`           // "snake_case" enum
-	Op         string   `json:"op"`                    // e.g. "dogfood.scorecard"
-	Outcome    string   `json:"outcome"`               // "fail" | "skip"
-	Taxon      string   `json:"taxon,omitempty"`       // "domain.key=value"
-	Detail     string   `json:"detail,omitempty"`      // Free text
-	HintCodes  []string `json:"hint_codes,omitempty"`  // ["retry_later", ...]
+	V          int      `json:"v"`                    // Const: 1
+	Ts         string   `json:"ts"`                   // ISO8601/RFC3339
+	ReasonCode string   `json:"reason_code"`          // "snake_case" enum
+	Op         string   `json:"op"`                   // e.g. "audit.scorecard"
+	Outcome    string   `json:"outcome"`              // "fail" | "skip"
+	Taxon      string   `json:"taxon,omitempty"`      // "domain.key=value"
+	Detail     string   `json:"detail,omitempty"`     // Free text
+	HintCodes  []string `json:"hint_codes,omitempty"` // ["retry_later", ...]
 }
 
 // MetricsV1 represents the snapshot in metrics_v1.json
 // strictly matching schemas/metrics_v1.schema.json
 type MetricsV1 struct {
-	V       int         `json:"v"`       // Const: 1
+	V       int         `json:"v"` // Const: 1
 	Metrics MetricsBody `json:"metrics"`
 	Meta    MetaBody    `json:"meta,omitempty"`
 }
 
 type MetricsBody struct {
 	CountsByReason map[string]int `json:"counts_by_reason"` // Generated from events
+	CountsByHint   map[string]int `json:"counts_by_hint"`   // Generated from events
 }
 
 type MetaBody struct {

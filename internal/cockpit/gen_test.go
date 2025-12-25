@@ -10,13 +10,33 @@ import (
 	"veil-rs/internal/cockpit"
 )
 
-func TestGenerateDrafts_Integration(t *testing.T) {
+func TestGenerateDraftsIntegration(t *testing.T) {
 	// 1. Setup minimal repo
+	tmpDir := setupGitRepo(t)
+	defer os.RemoveAll(tmpDir)
+
+	// 2. Setup templates
+	setupTemplates(t, tmpDir)
+
+	// 3. Make some changes
+	setupChanges(t, tmpDir)
+
+	// 4. Run GenerateDrafts
+	version := "v1.2.3"
+	outDir, err := cockpit.GenerateDrafts(version, "HEAD~1")
+	if err != nil {
+		t.Fatalf("GenerateDrafts failed: %v", err)
+	}
+
+	// 5. Verify
+	verifyDraftsOutput(t, tmpDir, outDir, version)
+}
+
+func setupGitRepo(t *testing.T) string {
 	tmpDir, err := os.MkdirTemp("", "cockpit-gen-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
 
 	git := func(args ...string) {
 		cmd := exec.Command("git", args...)
@@ -34,7 +54,17 @@ func TestGenerateDrafts_Integration(t *testing.T) {
 	git("config", "user.name", "Test")
 	git("config", "user.email", "test@example.com")
 
-	// Setup docs/ai templates
+	// Switch CWD to temp repo (GenerateDrafts relies on rev-parse --show-toplevel)
+	// Note: changing CWD globally in tests is risky if parallel, but this test is sequential logic
+	// Ideally GenerateDrafts should accept a repo path, but assuming current behavior:
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	return tmpDir
+}
+
+func setupTemplates(t *testing.T, tmpDir string) {
 	docsDir := filepath.Join(tmpDir, "docs", "ai")
 	if err := os.MkdirAll(docsDir, 0755); err != nil {
 		t.Fatal(err)
@@ -51,31 +81,34 @@ func TestGenerateDrafts_Integration(t *testing.T) {
 		}
 	}
 
-	// Commit templates so git is happy (though not strictly required for template reading if local,
-	// but GenerateAIPack needs a commit to diff against)
-	git("add", ".")
-	git("commit", "-m", "Add templates")
+	gitCommit(t, tmpDir, "Add templates")
+}
 
+func setupChanges(t *testing.T, tmpDir string) {
 	// Add a change for ai-pack to pick up
-	os.WriteFile(filepath.Join(tmpDir, "foo.txt"), []byte("bar"), 0644)
-	git("add", "foo.txt")
-	git("commit", "-m", "Change")
-
-	// Switch CWD to temp repo (GenerateDrafts relies on rev-parse --show-toplevel)
-	wd, _ := os.Getwd()
-	defer os.Chdir(wd)
-	if err := os.Chdir(tmpDir); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "foo.txt"), []byte("bar"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	gitCommit(t, tmpDir, "Change")
+}
 
-	// 2. Run GenerateDrafts
-	version := "v1.2.3"
-	outDir, err := cockpit.GenerateDrafts(version, "HEAD~1")
-	if err != nil {
-		t.Fatalf("GenerateDrafts failed: %v", err)
+func gitCommit(t *testing.T, dir, msg string) {
+	git := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("git %v failed: %v", args, err)
+		}
 	}
+	git("add", ".")
+	git("commit", "-m", msg)
+}
 
-	// 3. Verify
+func verifyDraftsOutput(t *testing.T, tmpDir, outDir, version string) {
 	expectedDir := filepath.Join(tmpDir, "dist", "publish", version)
 
 	// Normalize paths for macOS /private/var symlink issues
@@ -102,17 +135,20 @@ func TestGenerateDrafts_Integration(t *testing.T) {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			t.Errorf("expected file %q created, but missing", f)
 		} else {
-			// Check replacement
-			if strings.HasSuffix(f, ".md") {
-				b, _ := os.ReadFile(path)
-				content := string(b)
-				if !strings.Contains(content, version) {
-					t.Errorf("file %q missing version %q: %q", f, version, content)
-				}
-				if strings.Contains(content, "vX.Y.Z") {
-					t.Errorf("file %q still has placeholder vX.Y.Z: %q", f, content)
-				}
-			}
+			verifyFileContent(t, path, f, version)
+		}
+	}
+}
+
+func verifyFileContent(t *testing.T, path, filename, version string) {
+	if strings.HasSuffix(filename, ".md") {
+		b, _ := os.ReadFile(path)
+		content := string(b)
+		if !strings.Contains(content, version) {
+			t.Errorf("file %q missing version %q: %q", filename, version, content)
+		}
+		if strings.Contains(content, "vX.Y.Z") {
+			t.Errorf("file %q still has placeholder vX.Y.Z: %q", filename, content)
 		}
 	}
 }

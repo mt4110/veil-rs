@@ -17,10 +17,6 @@ dist/
 # Local/Tooling
 .trunk/
 result/
-result/*
-result
-# Dogfood (weekly generation locally)
-docs/dogfood/2*-W*-Tokyo/
-/docs/dogfood/*/
-!docs/dogfood/README.md
-
+dist/
+# Dogfood (Phase 12)
+result/dogfood/

@@ -15,7 +15,7 @@ var (
 	reHead = regexp.MustCompile(`head: [a-f0-9]+`)
 )
 
-func TestGenerateAIPack_Golden(t *testing.T) {
+func TestGenerateAIPackGolden(t *testing.T) {
 	// 1. Setup minimal git repo in temp dir
 	tmpDir, err := os.MkdirTemp("", "cockpit-test-*")
 	if err != nil {

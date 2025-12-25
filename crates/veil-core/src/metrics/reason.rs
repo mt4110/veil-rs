@@ -1,3 +1,4 @@
+use crate::metrics::hint::HintCode;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -97,6 +98,47 @@ impl fmt::Display for ReasonCode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ReasonEventV1 {
+    pub v: u32,
+    pub ts: String, // ISO8601
+    pub reason_code: ReasonCode,
+    pub op: String,
+    pub outcome: String, // "fail" | "skip"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub taxon: Option<String>, // "domain.key=value"
+    #[serde(default)]
+    pub detail: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hint_codes: Vec<HintCode>,
+}
+
+pub trait ReasonEventSink {
+    fn emit(&mut self, event: ReasonEventV1) -> std::io::Result<()>;
+}
+
+pub struct JsonlSink<W: std::io::Write> {
+    writer: std::io::BufWriter<W>,
+}
+
+impl<W: std::io::Write> JsonlSink<W> {
+    pub fn new(writer: W) -> Self {
+        Self {
+            writer: std::io::BufWriter::new(writer),
+        }
+    }
+}
+
+impl<W: std::io::Write> ReasonEventSink for JsonlSink<W> {
+    fn emit(&mut self, event: ReasonEventV1) -> std::io::Result<()> {
+        serde_json::to_writer(&mut self.writer, &event)?;
+        use std::io::Write;
+        self.writer.write_all(b"\n")?;
+        self.writer.flush()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MetricsV1 {
     pub v: u32,
     pub metrics: MetricsBody,
@@ -109,6 +151,8 @@ pub struct MetricsV1 {
 pub struct MetricsBody {
     // Use String keys for human-readable alphabetical order in output
     pub counts_by_reason: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub counts_by_hint: BTreeMap<String, u64>,
 }
 
 impl MetricsV1 {
@@ -117,6 +161,7 @@ impl MetricsV1 {
             v: 1,
             metrics: MetricsBody {
                 counts_by_reason: BTreeMap::new(),
+                counts_by_hint: BTreeMap::new(),
             },
             meta: None,
         }

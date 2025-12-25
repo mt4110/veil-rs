@@ -15,7 +15,7 @@ Usage:
 	cockpit status
 	cockpit ai-pack [base_ref] [out]
 	cockpit gen vX.Y.Z [base_ref]
-	cockpit dogfood
+	cockpit dogfood weekly
 
 Exit codes:
 	0 success
@@ -107,6 +107,13 @@ func runGen() {
 }
 
 func runDogfood() {
+	// Require "weekly" subcommand
+	if len(os.Args) < 3 || os.Args[2] != "weekly" {
+		fmt.Fprintln(os.Stderr, "Error: missing required subcommand. Usage: cockpit dogfood weekly")
+		usage()
+		os.Exit(1)
+	}
+
 	outDir, err := cockpit.Dogfood()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
