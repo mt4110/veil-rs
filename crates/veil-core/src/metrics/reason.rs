@@ -155,6 +155,12 @@ pub struct MetricsBody {
     pub counts_by_hint: BTreeMap<String, u64>,
 }
 
+impl Default for MetricsV1 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsV1 {
     pub fn new() -> Self {
         Self {
