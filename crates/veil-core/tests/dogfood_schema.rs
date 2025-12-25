@@ -7,7 +7,7 @@ use veil_core::metrics::reason::{MetricsBody, MetricsV1};
 
 fn validate_json(schema_path: &str, instance: &Value) {
     let schema_text = fs::read_to_string(schema_path)
-        .expect(&format!("Failed to read schema file: {}", schema_path));
+        .unwrap_or_else(|e| panic!("Failed to read schema file: {schema_path}: {e}"));
 
     let schema_json: Value =
         serde_json::from_str(&schema_text).expect("Failed to parse schema JSON");
