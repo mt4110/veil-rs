@@ -20,3 +20,4 @@ result/
 dist/
 # Dogfood (Phase 12)
 result/dogfood/
+!docs/dogfood/README.md

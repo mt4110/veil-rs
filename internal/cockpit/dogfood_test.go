@@ -1,8 +1,92 @@
 package cockpit
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestWeekIDLogic(t *testing.T) {
+	// 1. GetWeekID Format
+	wid := GetWeekID()
+	if !isValidWeekID(wid) {
+		t.Errorf("GetWeekID() returned invalid format: %q", wid)
+	}
+
+	// 2. isValidWeekID
+	valid := []string{"2025-W01", "2024-W52"}
+	invalid := []string{"", "2025-W1", "2025-W01-Tokyo", "invalid", "2025-W00", "2025-W54", "20a5-W01"}
+
+	for _, v := range valid {
+		if !isValidWeekID(v) {
+			t.Errorf("expected valid: %q", v)
+		}
+	}
+	for _, v := range invalid {
+		if isValidWeekID(v) {
+			t.Errorf("expected invalid: %q", v)
+		}
+	}
+}
+
+func TestDogfoodValidation(t *testing.T) {
+	// Test exit code 3 on invalid input
+	_, code, err := Dogfood("invalid-week-id")
+	if code != 3 {
+		t.Errorf("expected exit code 3 for invalid week id, got %d", code)
+	}
+	if err == nil {
+		t.Error("expected error for invalid week id")
+	}
+}
+
+func TestDogfoodExclusion(t *testing.T) {
+	// Verify dogfood.* events are excluded from HintCounts (Top3 input)
+	// but included in CountsByReason (Audit)
+
+	events := []ReasonEventV1{
+		{ReasonCode: "r1", Op: "normal.op", HintCodes: []string{"h1"}},
+		{ReasonCode: "r2", Op: "dogfood.scorecard", HintCodes: []string{"h2"}},
+		{ReasonCode: "r1", Op: "dogfood.other", HintCodes: []string{"h1"}},
+	}
+
+	tmpDir := t.TempDir()
+	err := generateMetricsV1(tmpDir, events, "2025-W01")
+	if err != nil {
+		t.Fatalf("generateMetricsV1 failed: %v", err)
+	}
+
+	// Read back
+	b, err := os.ReadFile(filepath.Join(tmpDir, MetricsFilename))
+	if err != nil {
+		t.Fatalf("read metrics failed: %v", err)
+	}
+	var m MetricsV1
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatalf("unmarshal metrics failed: %v", err)
+	}
+
+	// Check CountsByReason (Audit) - should include ALL
+	// r1: 2 (1 normal + 1 dogfood)
+	// r2: 1 (1 dogfood)
+	if m.Metrics.CountsByReason["r1"] != 2 {
+		t.Errorf("expected r1 count 2, got %d", m.Metrics.CountsByReason["r1"])
+	}
+	if m.Metrics.CountsByReason["r2"] != 1 {
+		t.Errorf("expected r2 count 1, got %d", m.Metrics.CountsByReason["r2"])
+	}
+
+	// Check CountsByHint (Worklist Input) - should EXCLUDE dogfood.*
+	// h1: 1 (from normal.op only, NOT from dogfood.other)
+	// h2: 0 (from dogfood.scorecard, so excluded)
+	if m.Metrics.CountsByHint["h1"] != 1 {
+		t.Errorf("expected h1 count 1 (excluded dogfood), got %d", m.Metrics.CountsByHint["h1"])
+	}
+	if count, ok := m.Metrics.CountsByHint["h2"]; ok && count > 0 {
+		t.Errorf("expected h2 count 0 or missing, got %d", count)
+	}
+}
 
 func TestGenerateWorklistScoring(t *testing.T) {
 	// Setup
@@ -27,7 +111,7 @@ func TestGenerateWorklistScoring(t *testing.T) {
 	}
 
 	// Execute
-	wl, err := generateWorklist("2025-W01-Tokyo", curr, prev)
+	wl, err := generateWorklist("2025-W01", curr, prev)
 	if err != nil {
 		t.Fatalf("generateWorklist failed: %v", err)
 	}

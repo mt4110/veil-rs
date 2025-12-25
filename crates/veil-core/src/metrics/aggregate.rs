@@ -31,7 +31,10 @@ pub fn aggregate_events<R: BufRead>(reader: R) -> (MetricsV1, AggregationStats) 
                             .or_insert(0) += 1;
                         // Count by HintCode
                         for hint in event.hint_codes {
-                            let hint_str = serde_json::to_string(&hint).unwrap_or_default().trim_matches('"').to_string();
+                            let hint_str = serde_json::to_string(&hint)
+                                .unwrap_or_default()
+                                .trim_matches('"')
+                                .to_string();
                             *hint_counts.entry(hint_str).or_insert(0) += 1;
                         }
                     }

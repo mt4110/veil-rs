@@ -111,13 +111,20 @@ func runDogfood() {
 	if len(os.Args) < 3 || os.Args[2] != "weekly" {
 		fmt.Fprintln(os.Stderr, "Error: missing required subcommand. Usage: cockpit dogfood weekly")
 		usage()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
-	outDir, err := cockpit.Dogfood()
+	// Check for WEEK_ID in env (injected by CI or user)
+	weekID := os.Getenv("WEEK_ID")
+
+	outDir, exitCode, err := cockpit.Dogfood(weekID)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		if exitCode == 0 {
+			exitCode = 1 // Fallback
+		}
+		os.Exit(exitCode)
 	}
 	fmt.Printf("Dogfood generated in: %s\n", outDir)
+	os.Exit(0)
 }

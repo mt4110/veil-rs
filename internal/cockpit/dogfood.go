@@ -18,21 +18,29 @@ const (
 )
 
 // Dogfood executes the weekly dogfood process.
-func Dogfood() (string, error) {
+// Returns output directory, exit code, and error.
+func Dogfood(overrideWeekID string) (string, int, error) {
 	// 1. Determine Week/Time strict
-	dirName := GetWeekID() // e.g. 2025-W52-Tokyo
+	weekID := overrideWeekID
+	if weekID == "" {
+		weekID = GetWeekID() // e.g. 2025-W52
+	}
 
-	// Separate paths per Phase 12 requirement:
-	// result/dogfood/<week> -> ignored raw events
-	// docs/dogfood/<week>   -> tracked reports
+	// Validate WeekID format strictly (YYYY-Www)
+	if !isValidWeekID(weekID) {
+		return "", 3, fmt.Errorf("invalid WEEK_ID format: %q", weekID)
+	}
+
+	// Directory name is derived from WEEK_ID (Tokyo)
+	dirName := weekID + "-Tokyo"
 	resultDir := filepath.Join("result", "dogfood", dirName)
 	docsDir := filepath.Join("docs", "dogfood", dirName)
 
 	if err := os.MkdirAll(resultDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create result dir %s: %w", resultDir, err)
+		return "", 10, fmt.Errorf("failed to create result dir %s: %w", resultDir, err)
 	}
 	if err := os.MkdirAll(docsDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create docs dir %s: %w", docsDir, err)
+		return "", 10, fmt.Errorf("failed to create docs dir %s: %w", docsDir, err)
 	}
 
 	// Session state for events
@@ -54,11 +62,14 @@ func Dogfood() (string, error) {
 	}
 
 	// 2. Resolve Previous Week
-	prevWeekID, prevMetrics, err := loadPreviousMetrics("docs/dogfood", dirName)
+	prevWeekDir, prevMetrics, err := loadPreviousMetrics("docs/dogfood", dirName)
 	if err != nil {
 		// Log but don't fail, maybe first run
 		fmt.Fprintf(os.Stderr, "Warning: could not load previous metrics: %v\n", err)
 	}
+
+	// prevWeekDir is a directory name (YYYY-Www-Tokyo). Derive WEEK_ID (YYYY-Www) for display/contract.
+	prevWeekID := strings.TrimSuffix(prevWeekDir, "-Tokyo")
 
 	// 2. Scorecard (Execution)
 	// Output to Docs (it's a report)
@@ -70,24 +81,25 @@ func Dogfood() (string, error) {
 
 	// 3. Write Events (result/dogfood/...) - Ignored raw data
 	if err := writeEvents(resultDir, events); err != nil {
-		return "", fmt.Errorf("failed to write events: %w", err)
+		return "", 10, fmt.Errorf("failed to write events: %w", err)
 	}
 
 	// 4. Aggregate Metrics (metrics_v1.json) -> Docs
 	// We read events from resultDir if available, or use local memory events
-	if err := generateMetricsV1(docsDir, events, dirName); err != nil {
-		return "", fmt.Errorf("metrics generation failed: %w", err)
+	if err := generateMetricsV1(docsDir, events, weekID); err != nil {
+		return "", 10, fmt.Errorf("metrics generation failed: %w", err)
 	}
 
 	// 5. Weekly Report & Worklist -> Docs
-	if err := generateWeeklyArtifacts(docsDir, dirName, prevWeekID, prevMetrics); err != nil {
-		return "", fmt.Errorf("weekly artifacts generation failed: %w", err)
+	if err := generateWeeklyArtifacts(docsDir, weekID, prevWeekID, prevMetrics); err != nil {
+		return "", 10, fmt.Errorf("weekly artifacts generation failed: %w", err)
 	}
 
-	return docsDir, nil
+	return docsDir, 0, nil
 }
 
-// GetWeekID returns the strictly formatted current week ID
+// GetWeekID returns the strictly formatted current week ID (Tokyo, ISO week)
+// Format: YYYY-Www (e.g. 2025-W52)
 func GetWeekID() string {
 	loc, _ := time.LoadLocation(TimezoneTokyo)
 	if loc == nil {
@@ -95,7 +107,7 @@ func GetWeekID() string {
 	}
 	now := time.Now().In(loc)
 	y, w := now.ISOWeek()
-	return fmt.Sprintf("%04d-W%02d-Tokyo", y, w)
+	return fmt.Sprintf("%04d-W%02d", y, w)
 }
 
 func ensureMetrics(dir string, localEvents []ReasonEventV1) error {
@@ -313,7 +325,7 @@ func generateWeeklyArtifacts(dir, weekID, prevWeekID string, prevMetrics *Metric
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "worklist_v1.json"), append(wlData, '\n'), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "worklist.json"), append(wlData, '\n'), 0644); err != nil {
 		return err
 	}
 
@@ -322,7 +334,7 @@ func generateWeeklyArtifacts(dir, weekID, prevWeekID string, prevMetrics *Metric
 
 	// Generate and Write Report
 	reportMD := generateWeeklyReportMD(weekID, scScore, &m, prevMetrics, worklist, prevWeekID)
-	return os.WriteFile(filepath.Join(dir, "weekly.md"), []byte(reportMD), 0644)
+	return os.WriteFile(filepath.Join(dir, "report.md"), []byte(reportMD), 0644)
 }
 
 func readScorecardFile(dir string) string {
@@ -525,7 +537,7 @@ func sortWorklistItems(items []WorklistItem) {
 }
 
 func calculateStrictTimestamp(weekID string) (string, error) {
-	// Expected format: YYYY-Www-Tokyo
+	// Expected format: YYYY-Www
 	parts := strings.Split(weekID, "-")
 	if len(parts) < 2 {
 		return "", fmt.Errorf("invalid weekID format")
