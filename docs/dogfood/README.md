@@ -18,7 +18,7 @@ Files:
 - `metrics_v1.json`: Audit log aggregation.
 - `worklist.json`: Top 3 improvement candidates.
 - `report.md`: Human-readable report summary.
-- `scorecard.txt`: OSSF Scorecard result.
+- `scorecard.txt`: OSSF Scorecard result (or "scorecard unavailable" placeholder on failure).
 
 ### 3. Git Policy
 - `docs/dogfood/**` is tracked (Audit Trail).

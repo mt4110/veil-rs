@@ -74,9 +74,9 @@ docs/dogfood/**
 `cockpit dogfood weekly` 成功時、以下を **必ず生成する（MUST）**
 
 - `docs/dogfood/{WEEK_ID}-Tokyo/metrics_v1.json`
-- `docs/dogfood/{WEEK_ID}-Tokyo/worklist_v1.json`（or .md でもいいが固定する）
+- `docs/dogfood/{WEEK_ID}-Tokyo/worklist_v1.json`
 - `docs/dogfood/{WEEK_ID}-Tokyo/top3.json`（Top3 があるなら）
-- `docs/dogfood/{WEEK_ID}-Tokyo/scorecard.txt`（スコア出すなら）
+- `docs/dogfood/{WEEK_ID}-Tokyo/scorecard.txt`（実行不可時はエラー内容を記載したプレースホルダーを出力）
 - `docs/dogfood/{WEEK_ID}-Tokyo/weekly.md`（人間用まとめ。最低限でも）
 
 ※ファイル名は例。重要なのは「毎週同じセット」。増減させるなら schema と docs を同時更新（Aコミット側）に寄せる。
