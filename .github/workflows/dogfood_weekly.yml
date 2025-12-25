@@ -28,19 +28,8 @@ jobs:
       - name: Calculate WEEK_ID
         id: week
         run: |
-          # Calculate expected WEEK_ID (Tokyo time)
-          # Currently strictly utilizing the previous logic: find last one or generate new one?
-          # Spec says "WEEK_ID is calculated... fail-fast if empty".
-          # Since this is "Weekly Dogfood", we probably want to *generate* for the *current* week?
-          # Or are we processing the *last* week? "Weekly Dogfood" usually runs on Monday for the previous week?
-          # The current logic found the *last* directory: `ls docs/dogfood ... tail -n1`.
-          # If we are generating a *new* report, we need the Target Week.
-          # Let's align with "cockpit dogfood weekly" command which should handle this.
-          # For CI, we need to pass it or rely on CLI.
-          # User spec 5.2: "WEEK_ID is calculated... CI also injects it".
-          
-          # Let's assume we want to generate for the *current* week (ISO).
-          # date +%Y-W%V in Tokyo.
+          # Calculate WEEK_ID for current Tokyo time (YYYY-W##)
+          # Spec 5.2: WEEK_ID is calculated by CI and injected.
           export TZ=Asia/Tokyo
           WEEK_ID=$(date +%Y-W%V)
           echo "WEEK_ID=$WEEK_ID" >> $GITHUB_ENV
@@ -94,7 +83,9 @@ jobs:
           # git status --porcelain should show only docs/dogfood/
           CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
           
+
           for file in $CHANGED_FILES; do
+            # Check if file starts with docs/dogfood/{WEEK_ID}-Tokyo/ OR is docs/dogfood/README.md
             if [[ "$file" != docs/dogfood/${WEEK_ID}-Tokyo/* ]] && [[ "$file" != "docs/dogfood/README.md" ]]; then
               echo "Error: Unexpected change in file: $file"
               echo "Only docs/dogfood/${WEEK_ID}-Tokyo/ and docs/dogfood/README.md are allowed."
@@ -122,7 +113,13 @@ jobs:
           if [[ -z "$PR_URL" ]]; then
             gh pr create \
               --title "dogfood: ${WEEK_ID} (Tokyo)" \
-              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}." \
+              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}.
+            
+            - metrics_v1.json
+            - scorecard.txt
+            - weekly.md
+            
+            p.s. Next: review deltas / tune thresholds." \
               --head "$BRANCH_NAME" \
               --base ${{ github.event.repository.default_branch }}
           else

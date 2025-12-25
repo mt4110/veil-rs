@@ -15,6 +15,8 @@ import (
 const (
 	TimezoneTokyo   = "Asia/Tokyo"
 	MetricsFilename = "metrics_v1.json"
+	// DefaultRepoName is the fallback repository name if GITHUB_REPOSITORY is unset.
+	DefaultRepoName = "mt4110/veil-rs"
 )
 
 // Dogfood executes the weekly dogfood process.
@@ -110,7 +112,7 @@ func Dogfood(overrideWeekID string) (string, int, error) {
 }
 
 // GetWeekID returns the strictly formatted current week ID (Tokyo, ISO week)
-// Format: YYYY-Www (e.g. 2025-W52)
+// Format: YYYY-W## (e.g. 2025-W52)
 func GetWeekID() string {
 	loc, _ := time.LoadLocation(TimezoneTokyo)
 	if loc == nil {
@@ -176,7 +178,7 @@ func generateMetricsV1(dir string, events []ReasonEventV1, weekID string) error 
 		Meta: MetaBody{
 			Period:    weekID,
 			Toolchain: "nix",
-			Repo:      "github.com/mt4110/veil-rs", // Default
+			Repo:      "github.com/" + DefaultRepoName, // Default
 		},
 	}
 
@@ -196,6 +198,9 @@ func generateMetricsV1(dir string, events []ReasonEventV1, weekID string) error 
 }
 
 func getGitSHA() (string, error) {
+	if _, err := exec.LookPath("git"); err != nil {
+		return "", fmt.Errorf("git executable not found in PATH: %w", err)
+	}
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	out, err := cmd.Output()
 	if err != nil {
@@ -207,9 +212,17 @@ func getGitSHA() (string, error) {
 func generateScorecard(dir string) error {
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	if repo == "" {
-		repo = "mt4110/veil-rs"
+		repo = DefaultRepoName
 	}
 	repoURL := "github.com/" + repo
+
+	// Security: Validate repo format to prevent command injection
+	// Only allow alphanumeric, hyphen, underscore, and dot (owner/repo)
+	// Simple check: check for characters that are dangerous for shell or CLI arguments.
+	// But exec.Command passes args directly, so shell injection is less likely, but still good to validate.
+	if strings.ContainsAny(repo, " ;&|`$()<>") {
+		return fmt.Errorf("invalid repository name: %q", repo)
+	}
 
 	cmd := exec.Command("scorecard", "--repo="+repoURL, "--format=json")
 	if token := os.Getenv("GITHUB_AUTH_TOKEN"); token != "" {

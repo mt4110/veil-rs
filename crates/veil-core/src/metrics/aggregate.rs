@@ -30,12 +30,15 @@ pub fn aggregate_events<R: BufRead>(reader: R) -> (MetricsV1, AggregationStats) 
                             .entry(event.reason_code.as_str().to_string())
                             .or_insert(0) += 1;
                         // Count by HintCode
-                        for hint in event.hint_codes {
-                            let hint_str = serde_json::to_string(&hint)
-                                .unwrap_or_default()
-                                .trim_matches('"')
-                                .to_string();
-                            *hint_counts.entry(hint_str).or_insert(0) += 1;
+                        // Strict alignment with Go/Spec: Exclude dogfood.* operations from hint aggregation.
+                        if !event.op.starts_with("dogfood.") {
+                            for hint in event.hint_codes {
+                                let hint_str = serde_json::to_string(&hint)
+                                    .unwrap_or_default()
+                                    .trim_matches('"')
+                                    .to_string();
+                                *hint_counts.entry(hint_str).or_insert(0) += 1;
+                            }
                         }
                     }
                     Err(_) => {

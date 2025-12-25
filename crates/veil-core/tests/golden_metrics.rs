@@ -43,7 +43,7 @@ fn test_golden_metrics_deterministic_output() {
             v: 1,
             ts: "2025-12-25T10:03:00Z".to_string(),
             reason_code: ReasonCode::Unexpected,
-            op: "audit.scorecard".to_string(),
+            op: "dogfood.scorecard".to_string(),
             outcome: "fail".to_string(),
             taxon: None,
             detail: "infra fail".to_string(),
@@ -77,8 +77,9 @@ fn test_golden_metrics_deterministic_output() {
     let hint_counts = &metrics.metrics.counts_by_hint;
     assert_eq!(hint_counts.get("upgrade_tool"), Some(&1));
     assert_eq!(hint_counts.get("check_network"), Some(&1));
-    // Verify dogfood filter: REMOVED for Phase 12 stability. "retry_later" SHOULD be here.
-    assert_eq!(hint_counts.get("retry_later"), Some(&1));
+    // Verify dogfood filter: "dogfood.*" operations should be EXCLUDED from hint counts.
+    // The event with "dogfood.scorecard" contained RetryLater. It should NOT be counted.
+    assert_eq!(hint_counts.get("retry_later"), None);
 
     // 6. Verify Deterministic JSON Output (Keys must be sorted)
     let output_json = serde_json::to_string(&metrics).unwrap();

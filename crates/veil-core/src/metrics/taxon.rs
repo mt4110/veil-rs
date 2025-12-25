@@ -7,9 +7,14 @@ use std::fmt;
 pub struct Taxon(String);
 
 impl Taxon {
+    /// Constructs a new `Taxon` from the given components.
+    ///
+    /// This function does **not** perform format validation.
+    /// Callers (e.g., parsing logic) are responsible for ensuring the result matches the schema pattern:
+    /// `^[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+=[a-zA-Z0-9_\-\.]+$`.
     pub fn new(domain: &str, key: &str, value: &str) -> Self {
-        // Simple validation or just formatting
-        // User requested: "ASCII, domain.key=value"
+        // Simple formatting
+        // "ASCII, domain.key=value"
         Taxon(format!("{}.{}={}", domain, key, value))
     }
 

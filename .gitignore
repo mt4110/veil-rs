@@ -20,4 +20,6 @@ result/
 dist/
 # Dogfood (Phase 12)
 result/dogfood/
+# Allow docs/dogfood/{WEEK_ID}-Tokyo/ for audit trails
+!docs/dogfood/*-Tokyo/
 !docs/dogfood/README.md
