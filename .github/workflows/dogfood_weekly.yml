@@ -31,7 +31,7 @@ jobs:
           # Calculate WEEK_ID for current Tokyo time (YYYY-W##)
           # Spec 5.2: WEEK_ID is calculated by CI and injected.
           export TZ=Asia/Tokyo
-          WEEK_ID=$(date +%Y-W%V)
+          WEEK_ID=$(date +%G-W%V)
           echo "WEEK_ID=$WEEK_ID" >> $GITHUB_ENV
           
           if [[ -z "$WEEK_ID" ]]; then
@@ -44,6 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_AUTH_TOKEN: ${{ github.token }}
           WEEK_ID: ${{ env.WEEK_ID }}
+        shell: bash
         run: |
           # Clean previous build
           rm -rf dist/cockpit-build
@@ -51,80 +52,110 @@ jobs:
           # Build
           nix build .#cockpit --out-link dist/cockpit-build
           
-          # Run
-          # Ensure WEEK_ID is passed or handled.
-          # CLI spec says `cockpit dogfood weekly` (maybe with args?)
-          # Spec 5.1: `nix run .#cockpit -- dogfood weekly`
-          # We should pass WEEK_ID if the CLI supports it, or rely on internal calc.
-          # For safety, we will pass it if CLI accepts it, OR just let CLI calc it and we verify.
-          # But spec 5.2 says "CI side also calculates and injects".
-          # We'll pass it as env var `WEEK_ID` (CLI likely reads it or we add arg).
+          # Prepare directory
+          LOG_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
+          mkdir -p "$LOG_DIR"
           
-          ./dist/cockpit-build/bin/cockpit dogfood weekly
+          # Run with log capture
+          set -o pipefail
+          ./dist/cockpit-build/bin/cockpit dogfood weekly 2>&1 | tee "$LOG_DIR/run.log"
+
+      - name: Ensure Artifacts (Unbreakable Ritual)
+        if: always()
+        run: |
+          TARGET_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
+          mkdir -p "$TARGET_DIR"
+          
+          # Required files list
+          REQUIRED_FILES=("metrics_v1.json" "scorecard.txt" "summary.md" "run.log")
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            FILEPATH="$TARGET_DIR/$file"
+            if [[ ! -f "$FILEPATH" ]]; then
+              echo "Creating placeholder for missing artifact: $file"
+              printf "status: failed\nreason: Artifact generation failed or skipped\nremediation: Check workflow logs and run.log\ntimestamp: $(date)\n" > "$FILEPATH"
+            fi
+          done
 
       - name: Configure Git
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      - name: Stage & Validate Evidence
+        if: always()
+        run: |
+          TARGET_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
+          
+          # 1. Stage ONLY the week directory
+          git add "$TARGET_DIR"
+          
+          # 2. Guardrail: Check staged changes
+          echo "Verifying staged changes scope..."
+          # grep -v exit status 1 if all lines match "docs/dogfood...", which is GOOD (no invalid files).
+          # But we want to capture output. match or no-match is not failure of script.
+          # We add "|| true" so the script doesn't fail on grep exit code 1 (which means "no lines selected" -> "no invalid files found").
+          INVALID_FILES=$(git diff --name-only --cached | grep -v "^docs/dogfood/${WEEK_ID}-Tokyo/" || true)
+          
+          if [[ -n "$INVALID_FILES" ]]; then
+            echo "CRITICAL ERROR: The following files outside the week directory are staged:"
+            echo "$INVALID_FILES"
+            echo "Evidence Hygiene Rule Violation: Only $TARGET_DIR is allowed."
+            echo "Aborting commit."
+            exit 19
+          fi
+          
+          echo "Scope check passed. Only $TARGET_DIR is staged."
+
       - name: Create/Update Pull Request
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           WEEK_ID: ${{ env.WEEK_ID }}
         run: |
           BRANCH_NAME="automation/dogfood/${WEEK_ID}"
+          TARGET_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
           
-          echo "Processing Week: $WEEK_ID on Branch: $BRANCH_NAME"
-
-          # Safety: Check allowed modifications
-          # Allowed: docs/dogfood/{WEEK_ID}-Tokyo/**, docs/dogfood/README.md
-          # Ignored (should be handled by .gitignore but we double check): result/dogfood/**
-          
-          # git status --porcelain should show only docs/dogfood/
-          CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
-          
-
-          for file in $CHANGED_FILES; do
-            # Check if file starts with docs/dogfood/{WEEK_ID}-Tokyo/ OR is docs/dogfood/README.md
-            if [[ "$file" != docs/dogfood/${WEEK_ID}-Tokyo/* ]] && [[ "$file" != "docs/dogfood/README.md" ]]; then
-              echo "Error: Unexpected change in file: $file"
-              echo "Only docs/dogfood/${WEEK_ID}-Tokyo/ and docs/dogfood/README.md are allowed."
-              exit 10
-            fi
-          done
-
-          # Check if we have changes
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No changes generated."
+          if git diff --cached --quiet; then
+            echo "No changes detected in $TARGET_DIR. Nothing to commit."
             exit 0
           fi
-
-          # 1. Create/Checkout Branch
-          git checkout -B "$BRANCH_NAME"
-          git add docs/dogfood
-          git commit -m "dogfood: ${WEEK_ID} (Tokyo)" || echo "No changes to commit"
           
-          # Force push to update valid PR if exists
+          git checkout -B "$BRANCH_NAME"
+          git commit -m "dogfood: ${WEEK_ID} (Tokyo)"
           git push origin "$BRANCH_NAME" --force
+          
+          echo "Creating PR..."
+          PR_BODY="Self-generated weekly audit report and worklist for **${WEEK_ID}**.
+          
+          - \`metrics_v1.json\`
+          - \`scorecard.txt\`
+          - \`summary.md\`
+          - \`run.log\`
+          
+          _Automated by Cockpit Dogfood Loop (Phase 13)._"
 
-          # 2. Create PR if not exists
-          PR_URL=$(gh pr list --head "$BRANCH_NAME" --json url --jq 'if length>0 then .[0].url else "" end')
-
-          if [[ -z "$PR_URL" ]]; then
-            gh pr create \
-              --title "dogfood: ${WEEK_ID} (Tokyo)" \
-              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}.
-            
-            - metrics_v1.json
-            - scorecard.txt
-            - weekly.md
-            
-            p.s. Next: review deltas / tune thresholds." \
-              --head "$BRANCH_NAME" \
-              --base ${{ github.event.repository.default_branch }}
+          if output=$(gh pr create \
+            --title "dogfood: ${WEEK_ID} (Tokyo)" \
+            --body "$PR_BODY" \
+            --head "$BRANCH_NAME" \
+            --base ${{ github.event.repository.default_branch }} 2>&1); then
+            echo "PR Created successfully."
+            echo "$output"
           else
-            echo "PR already exists: $PR_URL"
-            gh pr edit "$PR_URL" \
-              --title "dogfood: ${WEEK_ID} (Tokyo)" \
-              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}."
+            echo "PR Creation Failed. Using Fallback."
+            echo "Error details: $output"
+            
+            # Use // empty to handle null case without error
+            EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json url --jq '.[0].url // empty')
+            
+            if [[ -n "$EXISTING_PR" ]]; then
+               echo "PR already exists at: $EXISTING_PR"
+            else
+               FALLBACK_URL="https://github.com/$GITHUB_REPOSITORY/pull/new/$BRANCH_NAME"
+               echo "::warning::PR Creation Failed. Manually open PR here:"
+               echo "$FALLBACK_URL"
+               echo "Evidence has been pushed to $BRANCH_NAME."
+            fi
           fi
