@@ -11,7 +11,7 @@
   "meta": {
     "period": "2025-W52",
     "repo": "github.com/mt4110/veil-rs",
-    "git_commit": "b0d12f1b302b694ec89c20dc00abea9e22fc5257",
+    "git_commit": "78ad6f90c7e13393af74b476fcc28aeab30d78e2",
     "toolchain": "nix"
   }
 }
