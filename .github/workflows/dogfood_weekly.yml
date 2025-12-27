@@ -1,60 +1,22 @@
-name: Weekly Dogfood
-
-on:
-  schedule:
-    - cron: 30 0 * * 1 # Every Monday at 00:30 UTC
-  workflow_dispatch:
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  dogfood:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: weekly-dogfood
-      cancel-in-progress: true
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: DeterminateSystems/nix-installer-action@v16
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
-
-      - name: Calculate WEEK_ID
-        id: week
-        run: |
-          # Calculate WEEK_ID for current Tokyo time (YYYY-W##)
-          # Spec 5.2: WEEK_ID is calculated by CI and injected.
-          export TZ=Asia/Tokyo
-          WEEK_ID=$(date +%Y-W%V)
-          echo "WEEK_ID=$WEEK_ID" >> $GITHUB_ENV
-          
-          if [[ -z "$WEEK_ID" ]]; then
-            echo "Error: WEEK_ID is empty"
-            exit 3
-          fi
-
       - name: Run Dogfood Loop
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_AUTH_TOKEN: ${{ github.token }}
           WEEK_ID: ${{ env.WEEK_ID }}
+        shell: bash
         run: |
           # Clean previous build
           rm -rf dist/cockpit-build
-          
+
           # Build
           nix build .#cockpit --out-link dist/cockpit-build
-          
-          # Run with log capture
-          set -euo pipefail
+
+          # Prepare directory
           OUTDIR="docs/dogfood/${WEEK_ID}-Tokyo"
           mkdir -p "$OUTDIR"
+
+          # Run with log capture (receipts always exist)
+          set -euo pipefail
           ./dist/cockpit-build/bin/cockpit dogfood weekly 2>&1 | tee "$OUTDIR/run.log"
 
       - name: Phase 14 Analysis
@@ -63,69 +25,34 @@ jobs:
           WEEK_ID: ${{ env.WEEK_ID }}
         run: ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
 
-      - name: Configure Git
+      - name: Ensure Artifacts (Unbreakable Ritual)
+        if: always()
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TARGET_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
+          mkdir -p "$TARGET_DIR"
 
-      - name: Create/Update Pull Request
-        env:
-          GH_TOKEN: ${{ github.token }}
-          WEEK_ID: ${{ env.WEEK_ID }}
-        run: |
-          BRANCH_NAME="automation/dogfood/${WEEK_ID}"
-          
-          echo "Processing Week: $WEEK_ID on Branch: $BRANCH_NAME"
+          # Required files list (Phase 13 + Phase 14, additive-only)
+          REQUIRED_FILES=(
+            "metrics_v1.json"
+            "scorecard.txt"
+            "run.log"
+            "signals_v1.json"
+            "INSIGHTS.md"
+            "ACTIONS.md"
+            "SUMMARY.md"
+          )
 
-          # Safety: Check allowed modifications
-          # Allowed: docs/dogfood/{WEEK_ID}-Tokyo/**, docs/dogfood/README.md
-          # Ignored (should be handled by .gitignore but we double check): result/dogfood/**
-          
-          # git status --porcelain should show only docs/dogfood/
-          CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
-          
-
-          for file in $CHANGED_FILES; do
-            # Check if file starts with docs/dogfood/{WEEK_ID}-Tokyo/ OR is docs/dogfood/README.md
-            if [[ "$file" != docs/dogfood/${WEEK_ID}-Tokyo/* ]] && [[ "$file" != "docs/dogfood/README.md" ]]; then
-              echo "Error: Unexpected change in file: $file"
-              echo "Only docs/dogfood/${WEEK_ID}-Tokyo/ and docs/dogfood/README.md are allowed."
-              exit 10
+          for file in "${REQUIRED_FILES[@]}"; do
+            FILEPATH="$TARGET_DIR/$file"
+            if [[ ! -f "$FILEPATH" ]]; then
+              echo "Creating placeholder for missing artifact: $file"
+              case "$file" in
+                *.json)
+                  printf "[]\n" > "$FILEPATH"
+                  ;;
+                *)
+                  printf "status: failed\nreason: Artifact generation failed or skipped\nremediation: Check workflow logs and run.log\ntimestamp: %s\n" "$(date)" > "$FILEPATH"
+                  ;;
+              esac
             fi
           done
-
-          # Check if we have changes
-          if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No changes generated."
-            exit 0
-          fi
-
-          # 1. Create/Checkout Branch
-          git checkout -B "$BRANCH_NAME"
-          git add docs/dogfood
-          git commit -m "dogfood: ${WEEK_ID} (Tokyo)" || echo "No changes to commit"
-          
-          # Force push to update valid PR if exists
-          git push origin "$BRANCH_NAME" --force
-
-          # 2. Create PR if not exists
-          PR_URL=$(gh pr list --head "$BRANCH_NAME" --json url --jq 'if length>0 then .[0].url else "" end')
-
-          if [[ -z "$PR_URL" ]]; then
-            gh pr create \
-              --title "dogfood: ${WEEK_ID} (Tokyo)" \
-              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}.
-            
-            - metrics_v1.json
-            - scorecard.txt
-            - weekly.md
-            
-            p.s. Next: review deltas / tune thresholds." \
-              --head "$BRANCH_NAME" \
-              --base ${{ github.event.repository.default_branch }}
-          else
-            echo "PR already exists: $PR_URL"
-            gh pr edit "$PR_URL" \
-              --title "dogfood: ${WEEK_ID} (Tokyo)" \
-              --body "Self-generated weekly audit report and worklist for ${WEEK_ID}."
-          fi
