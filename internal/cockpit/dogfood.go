@@ -1,6 +1,7 @@
 package cockpit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -228,8 +229,8 @@ func generateScorecard(dir string) error {
 	if repo == "" {
 		repo = DefaultRepoName
 	}
-	repoURL := "github.com/" + repo
-
+	repoURL := "https://github.com/" + repo
+	
 	// Security: Validate repo format to prevent command injection
 	// Only allow alphanumeric, hyphen, underscore, and dot (owner/repo)
 	// Simple check: check for characters that are dangerous for shell or CLI arguments.
@@ -238,14 +239,38 @@ func generateScorecard(dir string) error {
 		return fmt.Errorf("invalid repository name: %q", repo)
 	}
 
-	cmd := exec.Command("scorecard", "--repo="+repoURL, "--format=json")
-	if token := os.Getenv("GITHUB_AUTH_TOKEN"); token != "" {
-		cmd.Env = append(os.Environ(), "GITHUB_AUTH_TOKEN="+token)
-	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		cmd.Env = append(os.Environ(), "GITHUB_AUTH_TOKEN="+token)
+	// Timeout: ensure scorecard never hangs forever
+	timeout := 10 * time.Minute
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		timeout = 4 * time.Minute
 	}
+	if v := os.Getenv("VEIL_SCORECARD_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			timeout = d
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "scorecard", "--repo="+repoURL, "--format=json")
+
+	// Prevent “waiting for credential prompt” hangs
+	env := append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_ASKPASS=/usr/bin/false",
+		"SSH_ASKPASS=/usr/bin/false",
+	)
+	if token := os.Getenv("GITHUB_AUTH_TOKEN"); token != "" {
+		env = append(env, "GITHUB_AUTH_TOKEN="+token)
+	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		env = append(env, "GITHUB_AUTH_TOKEN="+token)
+	}
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("scorecard timed out after %s (repo=%s)", timeout, repoURL)
+	}
 	if err != nil {
 		return fmt.Errorf("scorecard cli failed: %v\nOutput:\n%s", err, string(out))
 	}
