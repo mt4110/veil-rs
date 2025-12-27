@@ -51,16 +51,17 @@ jobs:
           # Build
           nix build .#cockpit --out-link dist/cockpit-build
           
-          # Run
-          # Ensure WEEK_ID is passed or handled.
-          # CLI spec says `cockpit dogfood weekly` (maybe with args?)
-          # Spec 5.1: `nix run .#cockpit -- dogfood weekly`
-          # We should pass WEEK_ID if the CLI supports it, or rely on internal calc.
-          # For safety, we will pass it if CLI accepts it, OR just let CLI calc it and we verify.
-          # But spec 5.2 says "CI side also calculates and injects".
-          # We'll pass it as env var `WEEK_ID` (CLI likely reads it or we add arg).
-          
-          ./dist/cockpit-build/bin/cockpit dogfood weekly
+          # Run with log capture
+          set -euo pipefail
+          OUTDIR="docs/dogfood/${WEEK_ID}-Tokyo"
+          mkdir -p "$OUTDIR"
+          ./dist/cockpit-build/bin/cockpit dogfood weekly 2>&1 | tee "$OUTDIR/run.log"
+
+      - name: Phase 14 Analysis
+        if: always()
+        env:
+          WEEK_ID: ${{ env.WEEK_ID }}
+        run: ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
 
       - name: Configure Git
         run: |
