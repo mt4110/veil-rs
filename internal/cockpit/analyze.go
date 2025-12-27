@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"veil-rs/internal/types"
 )
 
 // Signal Spec v1
@@ -146,7 +148,7 @@ func checkMetrics(docsDir string) *SignalV1 {
 	metricsPath := filepath.Join(docsDir, "metrics_v1.json")
 	mContent, mErr := os.ReadFile(metricsPath)
 	if mErr == nil {
-		var m MetricsV1
+		var m types.MetricsV1
 		if err := json.Unmarshal(mContent, &m); err == nil {
 			if count, ok := m.Metrics.CountsByReason["unexpected"]; ok && count > 0 {
 				return &SignalV1{

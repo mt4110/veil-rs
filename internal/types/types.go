@@ -1,7 +1,6 @@
-package cockpit
+package types
 
 // ReasonEventV1 represents a single log line in reason_events_v1.jsonl
-// strictly matching schemas/reason_event_v1.schema.json
 type ReasonEventV1 struct {
 	V          int      `json:"v"`                    // Const: 1
 	Ts         string   `json:"ts"`                   // ISO8601/RFC3339
@@ -14,7 +13,6 @@ type ReasonEventV1 struct {
 }
 
 // MetricsV1 represents the snapshot in metrics_v1.json
-// strictly matching schemas/metrics_v1.schema.json
 type MetricsV1 struct {
 	V       int         `json:"v"` // Const: 1
 	Metrics MetricsBody `json:"metrics"`
@@ -33,7 +31,7 @@ type MetaBody struct {
 	Toolchain string `json:"toolchain"`
 }
 
-// Known ReasonCodes (matching Rust/Schema)
+// Known ReasonCodes
 const (
 	ReasonConfigInvalid        = "config_invalid"
 	ReasonConfigMissing        = "config_missing_required"
