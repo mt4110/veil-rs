@@ -1,6 +1,7 @@
 package cockpit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"veil-rs/internal/cockpit/ui"
 )
 
 const (
@@ -75,17 +77,24 @@ func Dogfood(overrideWeekID string) (string, int, error) {
 
 	// 2. Scorecard (Execution)
 	// Output to Docs (it's a report)
+	spSc := ui.NewSpinner("running scorecard audit")
+	spSc.Start()
+
 	scorecardPath := filepath.Join(docsDir, "scorecard.txt")
 	scErr := generateScorecard(docsDir)
 	if scErr != nil {
+		spSc.StopWarn(fmt.Sprintf("scorecard failed: %v", scErr))
+
 		logEvent(ReasonUnexpected, "audit.scorecard", "fail", "", scErr.Error(), []string{HintRetryLater})
 		
 		// Fallback: write error to file (User Request)
 		msg := fmt.Sprintf("scorecard unavailable: %v\n", scErr)
 		_ = os.WriteFile(scorecardPath, []byte(msg), 0644)
 		
-		fmt.Fprintf(os.Stderr, "Scorecard failed: %v\n", scErr)
+		// Removed persistent stderr log to keep UI clean, StopWarn handled it.
 	} else {
+		spSc.StopOK("scorecard done")
+
 		// Validation: ensure file exists
 		if _, statErr := os.Stat(scorecardPath); statErr != nil {
 			_ = os.WriteFile(scorecardPath, []byte("scorecard: ok (no output captured)\n"), 0644)
@@ -98,15 +107,21 @@ func Dogfood(overrideWeekID string) (string, int, error) {
 	}
 
 	// 4. Aggregate Metrics (metrics_v1.json) -> Docs
+	spAn := ui.NewSpinner("aggregating metrics & generating worklist")
+	spAn.Start()
+
 	// We read events from resultDir if available, or use local memory events
 	if err := generateMetricsV1(docsDir, events, weekID); err != nil {
+		spAn.StopWarn("metrics gen failed")
 		return "", 10, fmt.Errorf("metrics generation failed: %w", err)
 	}
 
 	// 5. Weekly Report & Worklist -> Docs
 	if err := generateWeeklyArtifacts(docsDir, weekID, prevWeekID, prevMetrics); err != nil {
+		spAn.StopWarn("artifact gen failed")
 		return "", 10, fmt.Errorf("weekly artifacts generation failed: %w", err)
 	}
+	spAn.StopOK("dogfood loop complete")
 
 	return docsDir, 0, nil
 }
@@ -214,8 +229,8 @@ func generateScorecard(dir string) error {
 	if repo == "" {
 		repo = DefaultRepoName
 	}
-	repoURL := "github.com/" + repo
-
+	repoURL := "https://github.com/" + repo
+	
 	// Security: Validate repo format to prevent command injection
 	// Only allow alphanumeric, hyphen, underscore, and dot (owner/repo)
 	// Simple check: check for characters that are dangerous for shell or CLI arguments.
@@ -224,14 +239,38 @@ func generateScorecard(dir string) error {
 		return fmt.Errorf("invalid repository name: %q", repo)
 	}
 
-	cmd := exec.Command("scorecard", "--repo="+repoURL, "--format=json")
-	if token := os.Getenv("GITHUB_AUTH_TOKEN"); token != "" {
-		cmd.Env = append(os.Environ(), "GITHUB_AUTH_TOKEN="+token)
-	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		cmd.Env = append(os.Environ(), "GITHUB_AUTH_TOKEN="+token)
+	// Timeout: ensure scorecard never hangs forever
+	timeout := 10 * time.Minute
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		timeout = 4 * time.Minute
 	}
+	if v := os.Getenv("VEIL_SCORECARD_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			timeout = d
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "scorecard", "--repo="+repoURL, "--format=json")
+
+	// Prevent “waiting for credential prompt” hangs
+	env := append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_ASKPASS=/usr/bin/false",
+		"SSH_ASKPASS=/usr/bin/false",
+	)
+	if token := os.Getenv("GITHUB_AUTH_TOKEN"); token != "" {
+		env = append(env, "GITHUB_AUTH_TOKEN="+token)
+	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		env = append(env, "GITHUB_AUTH_TOKEN="+token)
+	}
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("scorecard timed out after %s (repo=%s)", timeout, repoURL)
+	}
 	if err != nil {
 		return fmt.Errorf("scorecard cli failed: %v\nOutput:\n%s", err, string(out))
 	}

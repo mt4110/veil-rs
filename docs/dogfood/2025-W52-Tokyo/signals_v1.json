@@ -1,0 +1,50 @@
+[
+  {
+    "id": "SCORECARD_MISSING",
+    "severity": "high",
+    "confidence": "high",
+    "evidence": [
+      {
+        "path": "docs/dogfood/2025-W52-Tokyo/scorecard.txt",
+        "pointer": "content",
+        "value": "executable file not found"
+      }
+    ],
+    "summary": "Scorecard CLI is missing from the execution environment.",
+    "recommended_action": "Add `scorecard` to `flake.nix` runtimeInputs or workflow.",
+    "estimated_effort": "xs",
+    "fix_target": "nix"
+  },
+  {
+    "id": "MISSING_ARTIFACT_LOG",
+    "severity": "info",
+    "confidence": "high",
+    "evidence": [
+      {
+        "path": "docs/dogfood/2025-W52-Tokyo",
+        "pointer": "file_list",
+        "value": "run.log missing"
+      }
+    ],
+    "summary": "Execution log `run.log` is missing.",
+    "recommended_action": "Verify CI capture configuration in `dogfood_weekly.yml`.",
+    "estimated_effort": "s",
+    "fix_target": "workflow"
+  },
+  {
+    "id": "UNEXPECTED_FAILURE_COUNT",
+    "severity": "warn",
+    "confidence": "med",
+    "evidence": [
+      {
+        "path": "docs/dogfood/2025-W52-Tokyo/metrics_v1.json",
+        "pointer": "$.metrics.counts_by_reason.unexpected",
+        "value": "1"
+      }
+    ],
+    "summary": "1 unexpected failure events recorded.",
+    "recommended_action": "Investigate root cause in logs.",
+    "estimated_effort": "m",
+    "fix_target": "code:unknown"
+  }
+]

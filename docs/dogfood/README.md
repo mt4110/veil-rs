@@ -2,7 +2,15 @@
 
 This directory contains the weekly usage reports and audit trails for Veil-RS dogfooding.
 
-## Rules & Configuration (Phase 13)
+## Phase 15 Operations (Tiny Fix Loop)
+
+- Rulebook: `docs/dogfood/OPS.md`
+- FIXLOG template: `docs/dogfood/templates/FIXLOG.md`
+
+Every week, write a short log at:
+`docs/dogfood/<WEEK>/FIXLOG.md` (NOOP is allowed, silence is not).
+
+## Rules & Configuration (Legacy: Phase 12–14)
 
 ### 1. The "Unbreakable Ritual" (Immutability)
 *   **Silence is Forbidden**: Every week MUST produce an evidence commit, even if the system is completely broken.
@@ -25,26 +33,3 @@ status: failed
 reason: Artifact generation failed or skipped
 remediation: Check workflow logs and run.log
 timestamp: ...
-```
-This ensures the directory structure is preserved for audit purposes.
-
-### 4. Local Reproduction
-To simulate the CI run locally (ensuring your environment matches `Asia/Tokyo` for ID calculation):
-
-```bash
-# Run the dogfood loop (generates artifacts in docs/dogfood/)
-nix run .#cockpit -- dogfood weekly
-
-# Note: This will calculate WEEK_ID based on your local time (converted to Tokyo rules internally).
-# If you are testing a specific week logic, ensure your system clock or logic aligns.
-```
-
-### 5. Git Policy
-*   `docs/dogfood/**`: **Tracked** (Audit Trail).
-*   `result/dogfood/**`: **Ignored** (Raw Events/Logs).
-*   `README.md`: **Tracked** (This file).
-
-### 6. Scoring Logic (Worklist)
-*   **Score** = `(Count * 10) + (Delta * 25)`
-    *   `Delta` = `Count - PrevCount`. (No penalty for improvement).
-*   **Tie-breaker**: Score (DESC) > Count (DESC) > ActionID (ASC) > HintKey (ASC).

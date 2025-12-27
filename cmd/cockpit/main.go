@@ -16,6 +16,7 @@ Usage:
 	cockpit ai-pack [base_ref] [out]
 	cockpit gen vX.Y.Z [base_ref]
 	cockpit dogfood weekly
+	cockpit dogfood analyze [--week-id YYYY-Www]
 
 Exit codes:
 	0 success
@@ -107,24 +108,50 @@ func runGen() {
 }
 
 func runDogfood() {
-	// Require "weekly" subcommand
-	if len(os.Args) < 3 || os.Args[2] != "weekly" {
-		fmt.Fprintln(os.Stderr, "Error: missing required subcommand. Usage: cockpit dogfood weekly")
+	// Require subcommand
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "Error: missing subcommand. Usage: cockpit dogfood [weekly|analyze]")
 		usage()
 		os.Exit(2)
 	}
 
-	// Check for WEEK_ID in env (injected by CI or user)
-	weekID := os.Getenv("WEEK_ID")
-
-	outDir, exitCode, err := cockpit.Dogfood(weekID)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		if exitCode == 0 {
-			exitCode = 1 // Fallback
+	mode := os.Args[2]
+	
+	// Optional flags
+	var weekID string
+	// Simple arg parsing for week-id if present
+	// expected: cockpit dogfood analyze --week-id 2025-W52
+	for i, arg := range os.Args {
+		if arg == "--week-id" && i+1 < len(os.Args) {
+			weekID = os.Args[i+1]
+			break
 		}
-		os.Exit(exitCode)
 	}
-	fmt.Printf("Dogfood generated in: %s\n", outDir)
-	os.Exit(0)
+	if weekID == "" {
+		weekID = os.Getenv("WEEK_ID")
+	}
+
+	switch mode {
+	case "weekly":
+		outDir, exitCode, err := cockpit.Dogfood(weekID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			if exitCode == 0 {
+				exitCode = 1 // Fallback
+			}
+			os.Exit(exitCode)
+		}
+		fmt.Printf("Dogfood generated in: %s\n", outDir)
+		os.Exit(0)
+	case "analyze":
+		if err := cockpit.Analyze(weekID); err != nil {
+			fmt.Fprintf(os.Stderr, "Analysis failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Analysis complete.")
+		os.Exit(0)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: unknown dogfood subcommand %q\n", mode)
+		os.Exit(2)
+	}
 }

@@ -47,8 +47,13 @@
           src = ./.;
           subPackages = [ "cmd/cockpit" ];
           vendorHash = null;
-          # Ensure git is available if tests run during build, or if needed at runtime (but runtime deps are separate)
-          # buildGoModule defaults to using `go` from pkgs
+          
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          
+          postFixup = ''
+            wrapProgram $out/bin/cockpit \
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.git pkgs.scorecard ]}
+          '';
         };
 
         veilApp = {
