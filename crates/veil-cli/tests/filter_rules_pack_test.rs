@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 #[test]
 fn test_filter_load_rules_pack() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     
     // We assume the test runs from the workspace root or crate root.
     // We point to examples/veil-log.toml
@@ -31,7 +31,7 @@ fn test_filter_load_rules_pack() {
 
 #[test]
 fn test_filter_load_rules_pack_jp() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     let root = env!("CARGO_MANIFEST_DIR");
     let config_path = PathBuf::from(root).parent().unwrap().parent().unwrap().join("examples/veil-log.toml");
     

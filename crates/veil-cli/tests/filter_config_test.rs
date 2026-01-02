@@ -6,7 +6,7 @@ use tempfile::NamedTempFile;
 fn test_filter_config_default_placeholder() {
     // case: default placeholder from config is applied (<REDACTED>)
     // Config not provided -> should use default, but we can provide an empty one to check loading
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter");
     
     let input = "aws_key=AKIA1234567890123456";
@@ -26,7 +26,7 @@ fn test_filter_config_custom_placeholder() {
 placeholder = "[SECRET]"
 "#).unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter")
        .arg("--config")
        .arg(config_file.path());
@@ -51,7 +51,7 @@ pattern = "foo"
 enabled = true
 "#).unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter")
        .arg("--config")
        .arg(config_file.path());
@@ -67,7 +67,7 @@ enabled = true
 #[test]
 fn test_filter_exit_code_zero() {
     // case: exit code is 0 even when masked output occurs
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter");
     
     let input = "aws_key=AKIA1234567890123456";

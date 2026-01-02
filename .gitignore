@@ -27,3 +27,6 @@ result/dogfood/
 
 # Test debugging artifacts
 cli_test_out*.txt
+
+# Generated local rule packs (veil init)
+/rules/
