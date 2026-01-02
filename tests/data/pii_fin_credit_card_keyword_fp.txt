@@ -1,0 +1,10 @@
+# RULE: pii.fin.credit_card.keyword
+# MODE: fp
+
+# Too short
+VISA: 411122223333
+# Invalid prefix for brand (though regex handles this, good to test)
+# 9 is not a valid start for these specs usually, but check regex constraints
+VISA: 9111222233334444
+# No keyword
+4111222233334444

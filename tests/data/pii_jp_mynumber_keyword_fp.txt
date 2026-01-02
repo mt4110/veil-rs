@@ -1,0 +1,7 @@
+# RULE: pii.jp.mynumber.keyword
+# MODE: fp
+
+# Contains keyword but invalid format
+マイナンバー: 1234-5678 (too short)
+個人番号: 12345678901 (11 digits)
+No keyword: 1234-5678-9012

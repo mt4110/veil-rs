@@ -1,0 +1,7 @@
+# RULE: pii.jp.postal_code
+# MODE: fp
+
+# Invalid length
+12-34567
+1234-567
+123-456 (too short)

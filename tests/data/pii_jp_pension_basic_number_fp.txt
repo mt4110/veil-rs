@@ -1,0 +1,7 @@
+# RULE: pii.jp.pension.basic_number
+# MODE: fp
+
+# Keyword present but invalid format
+基礎年金番号: 1234-567 (too short)
+年金手帳: 123-456-7890 (wrong separators)
+No keyword: 1234-567890

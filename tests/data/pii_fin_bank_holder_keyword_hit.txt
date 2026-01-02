@@ -1,0 +1,7 @@
+# RULE: pii.fin.bank_holder.keyword
+# MODE: hit
+
+口座名義: 山田 太郎
+名義人: 鈴木一郎
+account holder: John Doe
+holder: 田中

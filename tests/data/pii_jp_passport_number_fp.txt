@@ -1,0 +1,7 @@
+# RULE: pii.jp.passport.number
+# MODE: fp
+
+# Keyword present but invalid format
+パスポート: 123456789 (no letters)
+Passport: ABC123456 (3 letters)
+No keyword: AB1234567

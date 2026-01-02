@@ -1,0 +1,6 @@
+# RULE: pii.net.email
+# MODE: hit
+
+test@example.com
+user.name@domain.co.jp
+first+last@sub.domain.org

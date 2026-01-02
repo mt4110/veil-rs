@@ -1,0 +1,6 @@
+# RULE: pii.jp.pension.basic_number
+# MODE: hit
+
+基礎年金番号: 1234-567890
+年金手帳: 1234 567890
+基礎年金番号 1111222222

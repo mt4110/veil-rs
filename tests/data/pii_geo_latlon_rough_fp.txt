@@ -1,0 +1,7 @@
+# RULE: pii.geo.latlon.rough
+# MODE: fp
+
+# Too precise or short decimals
+35.68, 139.76
+# Out of range
+91.000000, 139.000000

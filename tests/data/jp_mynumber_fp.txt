@@ -1,5 +1,5 @@
-# RULE: jp.mynumber
+# RULE: pii.jp.mynumber.keyword
 # MODE: fp
 
-# Short
+
 12345678901 (11 digits)

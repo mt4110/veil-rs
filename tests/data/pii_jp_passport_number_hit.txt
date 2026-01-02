@@ -1,0 +1,6 @@
+# RULE: pii.jp.passport.number
+# MODE: hit
+
+パスポート: AB1234567
+Passport No: TZ1234567
+passport: MT9876543

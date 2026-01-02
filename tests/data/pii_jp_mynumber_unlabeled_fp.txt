@@ -1,0 +1,7 @@
+# RULE: pii.jp.mynumber.unlabeled
+# MODE: fp
+
+# Wrong groupings
+123-4567-8901
+12-3456-7890-12
+1234-5678-901 (too short)

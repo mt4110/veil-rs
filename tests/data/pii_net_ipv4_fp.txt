@@ -1,0 +1,7 @@
+# RULE: pii.net.ipv4
+# MODE: fp
+
+# Out of range
+256.0.0.1
+# (Removed test case due to boundary matching ambiguity)
+1.2.3 (too few octets)
