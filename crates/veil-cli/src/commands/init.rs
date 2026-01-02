@@ -213,6 +213,17 @@ pub fn init(
             "{}",
             "Tip: Run `veil init --wizard` for an interactive setup.".dimmed()
         );
+        println!("{}", "Note: ext rules are generated but disabled by default.".dimmed());
+        println!(
+            "{}",
+            "      Uncomment the ext line in rules/log/00_manifest.toml to enable aggressive rules."
+                .dimmed()
+        );
+
+        println!(
+            "\n{}",
+            "Log RulePack initialized. Enable 'core.rules_dir' in veil.toml to use it.".green()
+        );
         InitAnswers {
             profile: if let Some(p_str) = profile_override {
                 match p_str.to_lowercase().as_str() {
