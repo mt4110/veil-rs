@@ -76,7 +76,7 @@ fn load_rules_auto(dir: &Path, rules: &mut Vec<Rule>, ids: &mut HashSet<String>)
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| {
-            p.extension().map_or(false, |ext| ext == "toml")
+            p.extension().is_some_and(|ext| ext == "toml")
                 && p.file_name().unwrap() != "00_manifest.toml"
         })
         .collect();
