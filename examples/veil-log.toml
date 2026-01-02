@@ -6,9 +6,10 @@
 [core]
 # Add any specific ignore/include if using 'veil scan', but for 'veil filter' this is less relevant
 # unless we support filtering by file path in future log ingestion.
+rules_dir = "../crates/veil/rules/log"
 
 [masking]
-placeholder = "<REDACTED>"
+placeholder = "<REDACTED:PII>"
 
 # Custom rules for logs
 [rules.session_id]

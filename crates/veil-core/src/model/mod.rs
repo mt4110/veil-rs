@@ -55,6 +55,8 @@ pub struct Rule {
 
     // Optional additional validation function (e.g. check digits)
     pub validator: Option<fn(&str) -> bool>,
+
+    pub placeholder: Option<String>,
 }
 
 impl fmt::Debug for Rule {
@@ -78,6 +80,7 @@ impl fmt::Debug for Rule {
                     "None"
                 },
             )
+            .field("placeholder", &self.placeholder)
             .finish()
     }
 }

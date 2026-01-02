@@ -54,6 +54,7 @@ pub fn fetch_remote_rules(url: &str, timeout_secs: u64) -> Result<Vec<Rule>, Rem
             tags: rr.tags.unwrap_or_default(),
             validator: None, // Remote rules cannot have code validators
             base_score: None,
+            placeholder: None,
             context_lines_before: 2,
             context_lines_after: 0,
         });

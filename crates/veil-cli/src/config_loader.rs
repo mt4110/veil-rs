@@ -17,7 +17,32 @@ pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayer
     let repo = load_repo_config(explicit_path)?;
 
     // Merge logic: User -> Org -> Repo (later overrides earlier)
-    let effective = merge_configs(org.as_ref(), user.as_ref(), repo.as_ref());
+    let mut effective = merge_configs(org.as_ref(), user.as_ref(), repo.as_ref());
+
+    // Process rules_dir: Resolve to absolute path but do NOT load here.
+    // Core will load the rule pack.
+    if let Some(dir_str) = &effective.core.rules_dir {
+        let base_dir = if let Some(p) = explicit_path {
+            if p.is_file() {
+                p.parent().unwrap_or(Path::new("."))
+            } else {
+                p
+            }
+        } else {
+            Path::new(".")
+        };
+
+        let rules_dir = base_dir.join(dir_str);
+        if rules_dir.exists() && rules_dir.is_dir() {
+            // Update config with absolute path so Core can find it
+            effective.core.rules_dir = Some(rules_dir.to_string_lossy().to_string());
+        } else {
+            eprintln!(
+                "Warning: rules_dir {:?} not found or not a directory",
+                rules_dir
+            );
+        }
+    }
 
     Ok(ConfigLayers {
         org,

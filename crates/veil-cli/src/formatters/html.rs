@@ -290,8 +290,8 @@ impl HtmlFormatter {
         
         /* Suppressed Row Styling */
         tr[data-status="suppressed"] td {{
-           opacity: 0.6;
-           font-style: italic;
+            opacity: 0.6;
+            font-style: italic;
         }}
 
     </style>
@@ -330,9 +330,9 @@ impl HtmlFormatter {
             <div class="summary-card">
                 <div class="summary-label">Findings Breakdown</div>
                 <div class="summary-list">
-                   <li><strong>Total:</strong> {total_findings}</li>
-                   <li><strong>New:</strong> {new_findings}</li>
-                   <li><strong>Suppressed:</strong> {baseline_suppressed}</li>
+                    <li><strong>Total:</strong> {total_findings}</li>
+                    <li><strong>New:</strong> {new_findings}</li>
+                    <li><strong>Suppressed:</strong> {baseline_suppressed}</li>
                 </div>
             </div>
             <div class="summary-card">
@@ -382,18 +382,19 @@ impl HtmlFormatter {
     </div>
 
     <script>
-      (function() {{
+    (function() {{
         const rows = Array.from(document.querySelectorAll(".finding-row"));
         const checkboxes = Array.from(document.querySelectorAll("input[name='severity']"));
         const searchInput = document.getElementById("search-input");
 
         function applyFilters() {{
-          const activeSeverities = new Set(
+            const activeSeverities = new Set(
             checkboxes.filter(cb => cb.checked).map(cb => cb.value.toUpperCase())
-          );
-          const query = (searchInput.value || "").toLowerCase().trim();
+        );
 
-          rows.forEach(row => {{
+        const query = (searchInput.value || "").toLowerCase().trim();
+
+        rows.forEach(row => {{
             const sev = (row.dataset.severity || "").toUpperCase();
             const ruleId = (row.dataset.ruleId || "").toLowerCase();
             const filePath = (row.dataset.filePath || "").toLowerCase();
@@ -401,29 +402,29 @@ impl HtmlFormatter {
             let visible = true;
 
             if (activeSeverities.size > 0 && !activeSeverities.has(sev)) {{
-              visible = false;
+                visible = false;
             }}
 
             if (query) {{
-              const haystack = ruleId + " " + filePath;
-              if (!haystack.includes(query)) {{
-                visible = false;
-              }}
+                const haystack = ruleId + " " + filePath;
+                if (!haystack.includes(query)) {{
+                    visible = false;
+                }}
             }}
 
             row.style.display = visible ? "" : "none";
-          }});
+            }});
         }}
 
         checkboxes.forEach(cb => cb.addEventListener("change", applyFilters));
         if (searchInput) {{
-          searchInput.addEventListener("input", function() {{
+            searchInput.addEventListener("input", function() {{
             applyFilters();
-          }});
+            }});
         }}
 
         applyFilters(); 
-      }})();
+    }})();
     </script>
 </body>
 </html>

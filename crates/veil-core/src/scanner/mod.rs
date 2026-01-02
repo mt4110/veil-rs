@@ -388,6 +388,7 @@ mod tests {
             context_lines_before: 2,
             context_lines_after: 0,
             validator: None,
+            placeholder: None,
         };
         let rules = vec![rule];
         let config = Config::default();
@@ -421,6 +422,7 @@ mod tests {
             context_lines_before: 2,
             context_lines_after: 0,
             validator: None,
+            placeholder: None,
         };
         let rules = vec![rule];
         let config = Config::default();
@@ -448,6 +450,7 @@ mod tests {
             context_lines_before: 0,
             context_lines_after: 0,
             validator: None,
+            placeholder: None,
         };
         let rules = vec![rule];
         let config = Config::default();

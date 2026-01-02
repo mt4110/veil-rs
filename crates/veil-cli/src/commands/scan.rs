@@ -479,16 +479,12 @@ pub fn scan(
     let formatter: Box<dyn Formatter> = match format {
         Format::Json => Box::new(JsonFormatter),
         Format::Html => Box::new(HtmlFormatter::new()),
+        #[cfg(feature = "table")]
+        Format::Table => Box::new(TableFormatter),
+        #[cfg(not(feature = "table"))]
         Format::Table => {
-            #[cfg(feature = "table")]
-            {
-                Box::new(TableFormatter)
-            }
-            #[cfg(not(feature = "table"))]
-            {
-                eprintln!("Table format not compiled in");
-                Box::new(TextFormatterWrapper { no_color })
-            }
+            eprintln!("Table format not compiled in");
+            Box::new(TextFormatterWrapper { no_color })
         }
         Format::Markdown => Box::new(MarkdownFormatter),
         Format::Text => Box::new(TextFormatterWrapper { no_color }),

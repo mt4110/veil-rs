@@ -106,6 +106,7 @@ mod tests {
             context_lines_before: 0,
             context_lines_after: 0,
             validator: None,
+            placeholder: None,
         };
         let finding = Finding {
             path: std::path::PathBuf::from("."),
@@ -142,6 +143,7 @@ mod tests {
             context_lines_before: 0,
             context_lines_after: 0,
             validator: None,
+            placeholder: None,
         };
         let mut finding = Finding {
             path: std::path::PathBuf::from("."),
