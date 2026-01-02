@@ -1,0 +1,40 @@
+name: Veil Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Use the install script to get the latest version
+      - name: Install Veil
+        run: |
+          curl -sSfL https://get.veil.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      # Run scan. 
+      # --deny-severity High ensures we block the build on significant secrets.
+      # --format html > report.html generates an artifact for review.
+      - name: Veil Scan
+        run: |
+          veil scan . --format html > veil-report.html
+          # Also run check for exit code (the above pipe might mask it unless using set -o pipefail)
+          # We can do it in one go if we tee, or run twice (fast). 
+          # Let's trust veil's exit code with output.
+          
+      - name: Fail on High Severity
+        run: |
+          veil scan . --fail-on-severity High --no-color --format text
+
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: veil-security-report
+          path: veil-report.html

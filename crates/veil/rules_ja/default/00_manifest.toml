@@ -1,0 +1,179 @@
+# veil/rules/default/00_manifest.toml
+
+# ==============================================================================
+
+# デフォルトルールパックマニフェスト
+
+# ------------------------------------------------------------------------------
+
+# 目的:
+
+# - デフォルトパックの決定論的なロード順序を定義する。
+
+# - パックのメタデータ (schema_version, pack_version) を定義する。
+
+# - リモート署名 / 信頼ポリシーのための将来を見据えたフィールドを提供する。
+
+#
+
+# 注意:
+
+# - このマニフェストは順序付けに関して権威を持つ。
+
+# - 必要に応じて、エンジンは未知の schema_version で即座に失敗する必要がある。
+
+# - 現時点では、このマニフェストは default_files のためにローカルで使用される。
+
+#   [signature] 配下のフィールドは将来向け (リモート配布) である。
+
+# ==============================================================================
+
+[manifest]
+
+# このマニフェストの人間が読める名前
+
+name = "veil default rules"
+
+# マニフェストスキーマバージョン (このマニフェストファイルをどうパースするか)
+
+manifest_schema_version = 1
+
+# このマニフェストが作成/更新された日時 (オプション)
+
+# updated_at = "2025-12-29"
+
+[pack]
+
+# 正準パックID
+
+id = "default"
+
+# パックスキーマバージョン (このパック内のルールTOMLをどうパースするか)
+
+schema_version = 1
+
+# パックコンテンツバージョン (単調増加)。ルールコンテンツの変更ごとにインクリメントする。
+
+version = 1
+
+# オプションの説明メタデータ
+
+description = "Built-in default rules as data files"
+license = "MIT"
+maintainer = "veil-rs"
+
+[load]
+
+# 決定論的な適用順序 (ID競合時は後者が前者を上書き可能)
+
+# 各項目はこのディレクトリからの相対パス。
+
+files = [
+"cloud_keys.toml",
+"pii_jp.toml",
+"formats.toml",
+"entropy.toml",
+]
+
+# 厳格性制御 (安全のための推奨デフォルト)
+
+# trueの場合、リストされたファイルが見つからないとエンジンはエラーにする必要がある。
+
+require_all_files = true
+
+# trueの場合、エンジンは *パック内* の重複ルールIDをエラーにする必要がある。
+
+# (ソース間の競合はマージ優先度で処理される; 1つのパック内での競合は
+
+# 通常、作成ミスを示す。)
+
+deny_duplicate_rule_ids = true
+
+# trueの場合、ファイルが宣言する pack.schema_version が
+
+# [pack].schema_version と異なる場合にエンジンはエラーにする必要がある (混合スキーマの予期せぬ動作を防ぐ)。
+
+deny_mixed_schema_versions = true
+
+# オプション: すべてのルールIDが正準スタイルに一致することを強制する (エンジン側の検証)。
+
+# canonical_id_style = "dotted"  # 例: namespace.category.name
+
+[merge]
+
+# ソース間の競合に対するマージセマンティクス:
+
+# - エンジン全体での優先度は他で設定される (builtin/default_files/remote/local)。
+
+# - 単一パック内 (このディレクトリ) では、[load].files の順序で適用する。
+
+# ここでのポリシーは情報提供のみ; 強制はエンジンが定義する。
+
+conflict_resolution = "later_wins"
+
+# オプション: 衝突を減らすためにこのパックの "予約済み名前空間" を宣言することを許可する。
+
+# reserved_namespaces = ["creds", "pii", "formats", "entropy"]
+
+[validators]
+
+# バリデータはルール内で名前で参照される (例: validator = "luhn")。
+
+# このリストはパック作成者のための *助言的メタデータ* である。
+
+# 安全性のため、エンジンは依然として内部の許可リストを強制する必要がある。
+
+declared = [
+"luhn",
+"uuid",
+"base64ish",
+"hex",
+]
+
+[signature]
+
+# 将来対応: 署名ポリシーの意図。
+
+# ローカルの default_files の場合、これらのフィールドは無視される。
+
+enabled = false
+
+# trueの場合 (リモートコンテキスト)、エンジンは有効な署名のないパックを拒否する必要がある。
+
+required = false
+
+# 以下のいずれか:
+
+# - "pinned_keys" (トラストストア内のキーのみ)
+
+# - "pinned_digests" (リストされたハッシュのみ)
+
+# - "tofu" (初回利用時に信頼; 初回受け入れ後に固定)
+
+trust_model = "pinned_keys"
+
+# 署名/検証時に使用する正準ダイジェストアルゴリズム。
+
+digest_algorithm = "sha256"
+
+# 被署名データは、ファイルダイジェストの正準リストとパックメタデータであるべき (SHOULD)。
+
+# リモート配布では、別の署名ファイル (例: default.sig) が存在するだろう。
+
+# signature_file = "default.sig"
+
+[compat]
+
+# レガシーIDエイリアス (オプション)。これは snake_case ID からの移行を助ける。
+
+# エンジンはこのマッピングをロードしてユーザー設定の参照を正規化してもよい。
+
+# エンジンはこれらを「エイリアスのみ」として扱い、追加のルールとして扱ってはならない。
+
+#
+
+# 例:
+
+# aliases = { "aws_access_key_id" = "creds.aws.access_key_id" }
+
+aliases = {}

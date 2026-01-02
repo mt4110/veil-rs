@@ -14,6 +14,43 @@ English README is available [here](README_EN.md).
 - **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
 - **💉 Stop the Bleeding (Baseline)**: 既存の技術的負債をスナップショット化し、"新規の漏洩" だけを確実に止める [Baseline Scanning](docs/baseline/usage.md) を標準搭載。
 
+## Canonical Rules: RulePack (Source of Truth)
+
+Veil’s rules are canonically defined as **RulePacks**.
+
+A **RulePack** is a directory containing:
+
+* `00_manifest.toml` (deterministic load order)
+* one or more `.toml` files with `[[rules]]`
+
+### Built-in (embedded) packs
+
+Veil ships with embedded packs under:
+
+* `crates/veil/rules/default/` (default rules)
+* `crates/veil/rules/log/` (log scrubbing pack: OBS/SECRET/PII)
+
+### Using a pack in your repo (`rules_dir`)
+
+Point `core.rules_dir` to a RulePack directory:
+
+```toml
+[core]
+rules_dir = "rules/log"
+```
+
+### Batteries-included log scrubbing
+
+Generate a repo-local Log RulePack template:
+
+```bash
+veil init --profile Logs
+```
+
+This creates `rules/log/` and wires `veil.toml` to use it.
+
+➡ See `walkthrough.md` for the canonical architecture and workflow.
+
 ## Minimum Supported Rust Version (MSRV)
 We support the latest stable Rust and **MSRV 1.82.0**.
 - **Patch Policy**: Patch releases never bump MSRV.

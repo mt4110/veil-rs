@@ -1,0 +1,28 @@
+# ==============================================================================
+# formats.toml — veil default rules (schema v1)
+# Generated seed (builtin migration baseline) — 2025-12-29
+#
+# Notes:
+# - This file is part of the "default" rule pack. Ordering is controlled by
+#   00_manifest.toml in this directory.
+# - Patterns are regex strings interpreted by the engine (Rust regex).
+# - This seed aims to be behavior-identical to the current builtin rules.
+# ==============================================================================
+
+[pack]
+id = "default.formats"
+schema_version = 1
+version = 1
+description = "formats rules for veil default pack"
+
+[[rules]]
+id = "creds.key.private_pem"
+description = "Private Key PEM (BEGIN ... PRIVATE KEY)"
+pattern = '''-----BEGIN (RSA |EC )?PRIVATE KEY-----'''
+severity = "HIGH"
+score = 95
+category = "secret"
+tags = ["credential", "key", "pem", "critical"]
+base_score = 95
+context_lines_before = 2
+context_lines_after = 2

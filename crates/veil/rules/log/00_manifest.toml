@@ -1,0 +1,15 @@
+files = [
+  "observability_services.toml",
+  # "observability_services_ext.toml", # Uncomment to enable extended/aggressive rules
+  "observability_env_keys.toml",
+  "observability_paths.toml",
+  "observability_domains.toml",
+  "secrets.toml",
+  "pii.toml",
+]
+
+[pack]
+id = "veil.log"
+version = 1
+schema_version = 1
+description = "Veil Log Pack: OBS/SECRET/PII scrubbing for log streams (placeholders fixed to 3 kinds)"

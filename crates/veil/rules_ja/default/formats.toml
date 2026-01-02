@@ -1,0 +1,28 @@
+# ==============================================================================
+# formats.toml — veil デフォルトルール (スキーマ v1)
+# 生成されたシード (組み込み移行ベースライン) — 2025-12-29
+#
+# 注意:
+# - このファイルは "default" ルールパックの一部です。順序は
+#   このディレクトリの 00_manifest.toml によって制御されます。
+# - パターンはエンジンによって解釈される正規表現文字列です (Rust regex)。
+# - このシードは、現在の組み込みルールと動作が同一であることを目指しています。
+# ==============================================================================
+
+[pack]
+id = "default.formats"
+schema_version = 1
+version = 1
+description = "veilデフォルトパックのフォーマットルール"
+
+[[rules]]
+id = "creds.key.private_pem"
+description = "秘密鍵 PEM (BEGIN ... PRIVATE KEY)"
+pattern = '''-----BEGIN (RSA |EC )?PRIVATE KEY-----'''
+severity = "HIGH"
+score = 95
+category = "secret"
+tags = ["credential", "key", "pem", "critical"]
+base_score = 95
+context_lines_before = 2
+context_lines_after = 2

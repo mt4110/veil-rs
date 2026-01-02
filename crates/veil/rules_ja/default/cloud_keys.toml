@@ -1,0 +1,76 @@
+# ==============================================================================
+# cloud_keys.toml — veil デフォルトルール (スキーマ v1)
+# 生成されたシード (組み込み移行ベースライン) — 2025-12-29
+#
+# 注意:
+# - このファイルは "default" ルールパックの一部です。順序は
+#   このディレクトリの 00_manifest.toml によって制御されます。
+# - パターンはエンジンによって解釈される正規表現文字列です (Rust regex)。
+# - このシードは、現在の組み込みルールと動作が同一であることを目指しています。
+# ==============================================================================
+
+[pack]
+id = "default.cloud_keys"
+schema_version = 1
+version = 1
+description = "veilデフォルトパックのcloud_keysルール"
+
+[[rules]]
+id = "creds.aws.access_key_id"
+description = "AWS アクセスキー ID"
+pattern = '''\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b'''
+severity = "HIGH"
+score = 85
+category = "secret"
+tags = ["credential", "cloud", "aws", "critical"]
+base_score = 85
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.aws.secret_key_config"
+description = "AWS シークレットアクセスキー (Configスタイル)"
+pattern = '''aws_secret_access_key\s*=\s*["']?([0-9A-Za-z/+]{40})["']?'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "cloud", "aws", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.github.pat.ghp"
+description = "GitHub パーソナルアクセストークン (ghp_)"
+pattern = '''\bghp_[0-9A-Za-z]{36}\b'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "github", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.github.pat.long"
+description = "GitHub パーソナルアクセストークン (github_pat_)"
+pattern = '''\bgithub_pat_[0-9A-Za-z_]{80,100}\b'''
+severity = "HIGH"
+score = 95
+category = "secret"
+tags = ["credential", "github", "critical"]
+base_score = 95
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.slack.token.legacy"
+description = "Slack トークン (レガシー xox*)"
+pattern = '''\bxox[baps]-\d{10,}-\d{10,}-[0-9A-Za-z]{24,}\b'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "slack", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1
