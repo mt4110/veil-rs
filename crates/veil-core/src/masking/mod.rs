@@ -344,8 +344,18 @@ mod tests {
 
         let text = "SECRET PII";
         let spans = vec![
-            MaskSpan { start: 0, end: 6, placeholder: "<SECRET>".to_string(), priority: 300 },
-            MaskSpan { start: 7, end: 10, placeholder: "<PII>".to_string(), priority: 200 },
+            MaskSpan {
+                start: 0,
+                end: 6,
+                placeholder: "<SECRET>".to_string(),
+                priority: 300,
+            },
+            MaskSpan {
+                start: 7,
+                end: 10,
+                placeholder: "<PII>".to_string(),
+                priority: 200,
+            },
         ];
 
         let result = apply_masks_spans(text, spans, MaskMode::Redact);
@@ -369,8 +379,18 @@ mod tests {
 
         let text = "SentryDSN: 12345";
         let spans = vec![
-            MaskSpan { start: 0, end: 9, placeholder: "<OBS>".to_string(), priority: 30 },
-            MaskSpan { start: 7, end: 12, placeholder: "<PII>".to_string(), priority: 20 },
+            MaskSpan {
+                start: 0,
+                end: 9,
+                placeholder: "<OBS>".to_string(),
+                priority: 30,
+            },
+            MaskSpan {
+                start: 7,
+                end: 12,
+                placeholder: "<PII>".to_string(),
+                priority: 20,
+            },
         ];
 
         let result = apply_masks_spans(text, spans, MaskMode::Redact);

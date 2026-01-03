@@ -34,7 +34,12 @@ fn test_rules_from_fixtures() {
         if path.extension().and_then(|s| s.to_str()) != Some("txt") {
             continue;
         }
-        if path.file_name().and_then(|s| s.to_str()).map(|s| s.starts_with('_')).unwrap_or(false) {
+        if path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.starts_with('_'))
+            .unwrap_or(false)
+        {
             continue;
         }
 
@@ -67,7 +72,8 @@ fn test_rules_from_fixtures() {
                     path
                 );
             } else if mode == "fp" {
-                let match_text: Vec<_> = target_findings.iter().map(|f| &f.matched_content).collect();
+                let match_text: Vec<_> =
+                    target_findings.iter().map(|f| &f.matched_content).collect();
                 assert!(
                     target_findings.is_empty(),
                     "Expected 0 findings for rule '{}' in {:?} (FP test), but found {}: {:?}",
@@ -142,7 +148,10 @@ fn rule_creds_slack_token_legacy_detects_dynamic_tokens() {
             .any(|f| f.rule_id == "creds.slack.token.legacy"),
         "Slack legacy rule did not detect fake tokens"
     );
-    
-    let target_matches = findings.iter().filter(|f| f.rule_id == "creds.slack.token.legacy").count();
+
+    let target_matches = findings
+        .iter()
+        .filter(|f| f.rule_id == "creds.slack.token.legacy")
+        .count();
     assert_eq!(target_matches, 2, "Should detect both bot and user tokens");
 }

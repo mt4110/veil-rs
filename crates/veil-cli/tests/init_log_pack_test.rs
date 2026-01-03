@@ -37,7 +37,10 @@ fn test_init_logs_profile_generates_pack() {
     // Debug: Check if generated secrets.toml has the placeholder
     let secrets_content = fs::read_to_string(rules_dir.join("secrets.toml")).unwrap();
     if !secrets_content.contains("placeholder = \"<REDACTED:SECRET>\"") {
-        panic!("Generated secrets.toml MISSING placeholder! Content snippet:\n{}", &secrets_content[0..300]);
+        panic!(
+            "Generated secrets.toml MISSING placeholder! Content snippet:\n{}",
+            &secrets_content[0..300]
+        );
     } else {
         println!("Generated secrets.toml HAS placeholder.");
     }
@@ -46,7 +49,8 @@ fn test_init_logs_profile_generates_pack() {
     // Secrets
     let input_secret = "GH Token: ghp_123456789012345678901234567890123456";
     let mut cmd_filter = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd_filter.current_dir(dir_path)
+    cmd_filter
+        .current_dir(dir_path)
         .arg("filter")
         .write_stdin(input_secret);
     let output = cmd_filter.output().unwrap();
@@ -60,12 +64,13 @@ fn test_init_logs_profile_generates_pack() {
     let input_obs = "OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317";
     let mut cmd_filter_obs = Command::new(env!("CARGO_BIN_EXE_veil"));
     // Use output() instead of assert() to debug
-    let output_obs = cmd_filter_obs.current_dir(dir_path)
+    let output_obs = cmd_filter_obs
+        .current_dir(dir_path)
         .arg("filter")
         .write_stdin(input_obs)
         .output()
         .unwrap();
-        
+
     let stdout_obs = String::from_utf8_lossy(&output_obs.stdout);
     if !stdout_obs.contains("<REDACTED:OBSERVABILITY>=http://localhost:4317") {
         panic!("Obs masking failed. Output: '{}'", stdout_obs);
@@ -78,10 +83,7 @@ fn test_init_app_profile_defaults() {
     let dir_path = dir.path();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd.current_dir(dir_path)
-        .arg("init")
-        .assert()
-        .success();
+    cmd.current_dir(dir_path).arg("init").assert().success();
 
     let veil_toml = dir_path.join("veil.toml");
     let config_content = fs::read_to_string(&veil_toml).unwrap();

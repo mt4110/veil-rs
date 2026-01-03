@@ -24,12 +24,7 @@ pub fn filter(config_path: Option<&PathBuf>) -> Result<()> {
 
         for rule in &rules {
             // Determine priority
-            let base_priority = match rule.category.as_str() {
-                "secret" => 100,
-                "pii" => 50,
-                "observability" => 20,
-                _ => 10,
-            };
+            let base_priority = rule.score;
             // Operational tie-breaker: Slight boost for Log Pack rules to prefer them over generic rules
             // in case of equivalent scores (Same Category/Severity).
             let priority = if rule.id.starts_with("log.") {

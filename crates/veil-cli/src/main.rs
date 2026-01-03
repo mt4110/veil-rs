@@ -89,7 +89,8 @@ fn main() -> anyhow::Result<()> {
             non_interactive,
             ci,
             profile,
-        }) => commands::init::init(*wizard, *non_interactive, ci.clone(), profile.clone()).map(|_| false),
+        }) => commands::init::init(*wizard, *non_interactive, ci.clone(), profile.clone())
+            .map(|_| false),
         Some(Commands::Ignore { path }) => {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }

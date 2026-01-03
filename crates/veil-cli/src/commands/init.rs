@@ -213,7 +213,10 @@ pub fn init(
             "{}",
             "Tip: Run `veil init --wizard` for an interactive setup.".dimmed()
         );
-        println!("{}", "Note: ext rules are generated but disabled by default.".dimmed());
+        println!(
+            "{}",
+            "Note: ext rules are generated but disabled by default.".dimmed()
+        );
         println!(
             "{}",
             "      Uncomment the ext line in rules/log/00_manifest.toml to enable aggressive rules."

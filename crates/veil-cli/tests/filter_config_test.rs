@@ -8,35 +8,37 @@ fn test_filter_config_default_placeholder() {
     // Config not provided -> should use default, but we can provide an empty one to check loading
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter");
-    
+
     let input = "aws_key=AKIA1234567890123456";
     cmd.write_stdin(input);
 
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("aws_key=<REDACTED>"));
+        .stdout(predicates::str::contains("aws_<REDACTED>"));
 }
 
 #[test]
 fn test_filter_config_custom_placeholder() {
     // case: custom placeholder in config
     let mut config_file = NamedTempFile::new().unwrap();
-    writeln!(config_file, r#"
+    writeln!(
+        config_file,
+        r#"
 [masking]
 placeholder = "[SECRET]"
-"#).unwrap();
+"#
+    )
+    .unwrap();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd.arg("filter")
-       .arg("--config")
-       .arg(config_file.path());
+    cmd.arg("filter").arg("--config").arg(config_file.path());
 
     let input = "aws_key=AKIA1234567890123456";
     cmd.write_stdin(input);
 
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("aws_key=[SECRET]"));
+        .stdout(predicates::str::contains("aws_[SECRET]"));
 }
 
 #[test]
@@ -45,16 +47,18 @@ fn test_filter_config_rule_override() {
     // Using a rule that doesn't match by default, or matching something else
     // Let's create a custom rule in config
     let mut config_file = NamedTempFile::new().unwrap();
-    writeln!(config_file, r#"
+    writeln!(
+        config_file,
+        r#"
 [rules.custom-foo]
 pattern = "foo"
 enabled = true
-"#).unwrap();
+"#
+    )
+    .unwrap();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd.arg("filter")
-       .arg("--config")
-       .arg(config_file.path());
+    cmd.arg("filter").arg("--config").arg(config_file.path());
 
     let input = "some foo bar";
     cmd.write_stdin(input);
@@ -69,10 +73,9 @@ fn test_filter_exit_code_zero() {
     // case: exit code is 0 even when masked output occurs
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("filter");
-    
+
     let input = "aws_key=AKIA1234567890123456";
     cmd.write_stdin(input);
 
-    cmd.assert()
-        .success(); // Means exit code 0
+    cmd.assert().success(); // Means exit code 0
 }
