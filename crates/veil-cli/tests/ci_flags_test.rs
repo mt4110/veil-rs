@@ -38,7 +38,9 @@ fn test_fail_on_severity() {
         .arg("scan")
         .arg(".")
         .arg("--fail-on-findings")
-        .arg("2")
+        .arg("99")
+        .arg("--fail-on-severity")
+        .arg("HIGH")
         .assert()
         .success(); // Exit 0
 

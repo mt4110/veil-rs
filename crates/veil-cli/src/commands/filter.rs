@@ -59,7 +59,7 @@ pub fn filter(config_path: Option<&PathBuf>) -> Result<()> {
         }
 
         // Masking
-        let masked_line = apply_masks_spans(&line, spans, mask_mode.clone());
+        let masked_line = apply_masks_spans(&line, spans, mask_mode);
         println!("{}", masked_line);
     }
     Ok(())
