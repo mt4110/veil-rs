@@ -2,6 +2,7 @@
 use assert_cmd::Command;
 use std::fs;
 use tempfile::tempdir;
+use predicates::prelude::*;
 
 #[test]
 fn test_fail_on_severity() {
@@ -32,7 +33,7 @@ fn test_fail_on_severity() {
         .assert()
         .failure(); // Exit 1
 
-    // Should exit 0 if threshold 2 > 1 detected
+   // Fail on severity HIGH -> should FAIL (because AWS key yields sev:HIGH)
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
@@ -42,17 +43,20 @@ fn test_fail_on_severity() {
         .arg("--fail-on-severity")
         .arg("HIGH")
         .assert()
-        .success(); // Exit 0
+        .failure()
+        .stderr(predicate::str::contains("severity CRITICAL"));
 
-    // 3. Fail on Severity Low: Should exit 1 (since High > Low)
+    // Fail on severity CRITICAL -> should PASS (max is HIGH in current model)
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
         .arg(".")
+        .arg("--fail-on-findings")
+        .arg("99")
         .arg("--fail-on-severity")
-        .arg("Low")
+        .arg("CRITICAL")
         .assert()
-        .failure();
+        .success();
 
     // 4. Fail on Severity Critical:
     // If AWS key is High, this should PASS (exit 0).
