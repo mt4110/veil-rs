@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+      - run: cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
       - run: veil scan . --format json --fail-on-severity High > veil-report.json
 ```
 
@@ -63,7 +63,7 @@ jobs:
 
       - name: Install veil
         run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
 
       - name: Run veil scan (HTML)
         run: |

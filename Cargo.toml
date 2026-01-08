@@ -9,15 +9,15 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.17.0-rc.2"
+version = "0.17.0"
 rust-version = "1.82.0"
 edition = "2021"
 
 [workspace.dependencies]
-veil-core = { path = "crates/veil-core", version = "0.17.0-rc.2" }
-veil-guardian = { path = "crates/veil-guardian", version = "0.17.0-rc.2" }
-veil-config = { path = "crates/veil-config", version = "0.17.0-rc.2" }
-veil-server = { path = "crates/veil-server", version = "0.17.0-rc.2" }
+veil-core = { path = "crates/veil-core", version = "0.17.0" }
+veil-guardian = { path = "crates/veil-guardian", version = "0.17.0" }
+veil-config = { path = "crates/veil-config", version = "0.17.0" }
+veil-server = { path = "crates/veil-server", version = "0.17.0" }
 
 [profile.bench]
 opt-level = 3

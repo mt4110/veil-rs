@@ -1,8 +1,8 @@
 # Dogfooding Check List (v0.17.0)
-Version: `v0.17.0-rc.2`
+Version: `v0.17.0`
 
 - [ ] Cmd: `veil --version`
-  - Expect: `0.17.0-rc.2`
+  - Expect: `0.17.0`
   - Actual: ____________________
 - [ ] Cmd: `veil init --wizard`
   - Expect: Interactive success

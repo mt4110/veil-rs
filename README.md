@@ -45,7 +45,7 @@ Generate a repo-local Log RulePack template:
 
 ```bash
 # 推奨: リリースタグ固定でインストール
-cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
 
 # 開発者向け (Nix): このリポジトリからビルド
 nix develop
