@@ -6,6 +6,8 @@ Automate secret detection in your pipeline to catch secrets before they are merg
 
 Copy to `.github/workflows/veil-scan.yml`:
 
+Use the latest **stable** release tag (no `-rc`), e.g. `v0.17.0`.
+
 ```yaml
 name: Veil Scan
 
@@ -20,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install --git https://github.com/mt4110/veil-rs.git --tag v0.7.0
+      - run: cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
       - run: veil scan . --format json --fail-on-severity High > veil-report.json
 ```
 
@@ -61,8 +63,7 @@ jobs:
 
       - name: Install veil
         run: |
-          curl -sSfL https://get.veil.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
 
       - name: Run veil scan (HTML)
         run: |

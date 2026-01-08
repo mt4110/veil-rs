@@ -1,0 +1,6 @@
+# RULE: pii.jp.postal_code
+# MODE: hit
+
+123-4567
+100-0001
+9990000

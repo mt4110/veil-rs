@@ -29,7 +29,7 @@ If your team uses the `pre-commit` framework (Python), add the following to your
 ```yaml
 repos:
   - repo: https://github.com/mt4110/veil-rs
-    rev: v0.7.0  # Use the latest version
+    rev: vX.Y.Z  # use the latest stable release tag (no -rc)  # Use the latest version
     hooks:
       - id: veil-scan
 ```
@@ -47,4 +47,4 @@ This means Veil detected potential secrets in your staged files.
 2.  **Fix key**: Remove the secret or replace it with an environment variable.
 3.  **False Positive?**:
     *   Add `// veil:ignore` to the line.
-    *   Or add the file/pattern to `veil.toml` under `[ignore.paths]`.
+    *   Or add the file/pattern to `veil.toml` under `core.ignore`.

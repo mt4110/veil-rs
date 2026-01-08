@@ -22,4 +22,12 @@ dist/
 result/dogfood/
 # Allow docs/dogfood/{WEEK_ID}-Tokyo/ for audit trails
 !docs/dogfood/*-Tokyo/
+!docs/dogfood/*-Tokyo/
 !docs/dogfood/README.md
+
+# Test debugging artifacts
+cli_test_out*.txt
+
+# Generated local rule packs (veil init)
+/rules/
+veil.toml

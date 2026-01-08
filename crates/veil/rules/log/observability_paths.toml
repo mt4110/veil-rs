@@ -1,0 +1,14 @@
+# Observability surface: well-known config/log paths and agent config files.
+
+[[rules]]
+id = "log.obs.paths"
+pattern = '''(?i)\b(?:/etc/(?:prometheus|alertmanager|grafana|grafana-agent|alloy|loki|promtail|tempo|mimir|opentelemetry|otel|otelcol|jaeger|zipkin|fluent|fluent-bit|td-agent|vector|logstash|filebeat|metricbeat|heartbeat|rsyslog|syslog-ng|opensearch|elasticsearch|kibana)(?:/[^ \t\r\n"''<>]*)?|/var/log/(?:containers|pods|journald?|syslog|messages|nginx|apache2|httpd|kube-apiserver|kube-controller-manager|kube-scheduler)(?:/[^ \t\r\n"''<>]*)?|(?:prometheus\.ya?ml|alertmanager\.ya?ml|grafana\.ini|loki\.ya?ml|promtail\.ya?ml|tempo\.ya?ml|mimir\.ya?ml|otel-collector-config\.ya?ml|collector-config\.ya?ml|vector\.toml|fluent\.conf|fluent-bit\.conf|logstash\.ya?ml|filebeat\.ya?ml|metricbeat\.ya?ml|heartbeat\.ya?ml))\b'''
+description = "Observability-related config/log paths (mask the map)"
+severity = "low"
+score = 28
+base_score = 28
+category = "observability"
+tags = ["log", "observability", "path"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0

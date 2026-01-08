@@ -14,19 +14,48 @@ English README is available [here](README_EN.md).
 - **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
 - **💉 Stop the Bleeding (Baseline)**: 既存の技術的負債をスナップショット化し、"新規の漏洩" だけを確実に止める [Baseline Scanning](docs/baseline/usage.md) を標準搭載。
 
-## Minimum Supported Rust Version (MSRV)
-We support the latest stable Rust and **MSRV 1.82.0**.
-- **Patch Policy**: Patch releases never bump MSRV.
-- **Minor Policy**: Minor releases may bump MSRV (documented in release notes).
+## Canonical Rules: RulePack (Source of Truth)
 
-### Quick Install (Rust 開発者向け)
+Veil’s rules are canonically defined as **RulePacks**.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/mt4110/veil-rs/main/scripts/install.sh | sh
-veil --version
+A **RulePack** is a directory containing:
+
+* `00_manifest.toml` (deterministic load order)
+* one or more `.toml` files with `[[rules]]`
+
+### Built-in (embedded) packs
+
+Veil ships with embedded packs under:
+
+* `crates/veil/rules/default/` (default rules)
+* `crates/veil/rules/log/` (log scrubbing pack: OBS/SECRET/PII)
+
+### Using a pack in your repo (`rules_dir`)
+
+Point `core.rules_dir` to a RulePack directory:
+
+```toml
+[core]
+rules_dir = "rules/log"
 ```
 
-### Nix
+### Batteries-included log scrubbing
+
+Generate a repo-local Log RulePack template:
+
+```bash
+# 推奨: リリースタグ固定でインストール
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+
+# 開発者向け (Nix): このリポジトリからビルド
+nix develop
+cargo install --path crates/veil-cli
+```
+> **Note (Windows users):** Nix環境は不要ですが、**Rust (Cargo) のインストールは必須**です。通常通り `cargo install --path crates/veil-cli` でインストールしてください。
+
+### 2. あなたのプロジェクトへ移動 (Go to YOUR project)
+
+Veilのリポジトリから離れて、**あなたがスキャンしたいプロジェクト**のフォルダへ移動してください。
 
 ```bash
 # 一時的に試す

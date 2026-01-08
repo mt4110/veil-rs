@@ -24,6 +24,7 @@ fn test_large_input_performance() {
         context_lines_before: 2,
         context_lines_after: 0,
         validator: None,
+        placeholder: None,
     };
     let rules = vec![rule];
     let config = Config::default();
@@ -62,6 +63,7 @@ fn test_many_matches_dos() {
         context_lines_before: 0,
         context_lines_after: 0,
         validator: None,
+        placeholder: None,
     };
     let rules = vec![rule];
     let config = Config::default();

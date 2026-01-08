@@ -1,0 +1,7 @@
+# RULE: pii.jp.address.prefecture_heuristic
+# MODE: hit
+
+東京都渋谷区神南1-2-3
+大阪府大阪市北区梅田1丁目
+北海道札幌市中央区北1条西2丁目
+神奈川県横浜市中区1-1

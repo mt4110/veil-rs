@@ -1,0 +1,55 @@
+# Extended observability surface: vendor/service names (aggressive).
+# Purpose: hide the wiring map in leaked logs.
+# Risk: higher false positives than core list.
+
+[[rules]]
+id = "log.obs.services.ext.01"
+pattern = '''(?i)\b(?:ServiceNow|PagerDuty\s*Event\s*Orchestration|Statuspage|Freshservice|Freshdesk|Zenduty|Derdack|Everbridge|xMatters|VictorOps|Opslevel|Backstage|Port|Cortex|Rundeck|StackStorm|FleetDM|osquery|Tanium|Jamf\s*Pro|Kandji|Okta\s*Workflows|Workato|Tray\.io|Zapier|n8n|Prefect|Dagster|Apache\s*Airflow|Argo\s*Workflows|Flyte|Temporal|Conductor|Step\s*Functions|Cloud\s*Composer|Azure\s*Data\s*Factory|Dataflow|Dataproc|EMR|Glue|dbt\s*Cloud|Fivetran|Stitch|Airbyte|Matillion|Meltano|Kafka\s*Connect|Debezium)\b'''
+description = "Observability adjacent services (automation/orchestration) — aggressive"
+severity = "low"
+score = 12
+base_score = 12
+category = "observability"
+tags = ["log", "observability", "service", "extended", "aggressive"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.ext.02"
+pattern = '''(?i)\b(?:OpenShift|Rancher|K3s|kOps|EKS|AKS|GKE|Anthos|RKE2|Karpenter|Cluster\s*Autoscaler|HPA|VPA|CNI|Calico|Cilium|Hubble|Weave\s*Net|Flannel|Multus|MetalLB|Istio|Linkerd|Consul\s*Connect|Envoy|Traefik|HAProxy|NGINX\s*Ingress|Kong\s*Gateway|Ambassador\s*Edge\s*Stack|Contour|Gloo\s*Edge|Gloo\s*Mesh|Kiali|Argo\s*CD|FluxCD|Spinnaker|Tekton|Jenkins|GitHub\s*Actions|GitLab\s*CI|CircleCI|Buildkite|TeamCity|Bamboo|Azure\s*DevOps|CodePipeline|CodeBuild|Drone)\b'''
+description = "Platform/toolchain names that often appear in observability wiring — aggressive"
+severity = "low"
+score = 12
+base_score = 12
+category = "observability"
+tags = ["log", "observability", "service", "extended", "aggressive"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.ext.03"
+pattern = '''(?i)\b(?:Cloud\s*Run|Cloud\s*Functions|App\s*Engine|Compute\s*Engine|GCE|GCS|BigQuery|Pub/Sub|Cloud\s*SQL|Spanner|Cloud\s*Armor|Cloud\s*CDN|Cloud\s*Load\s*Balancing|Cloud\s*DNS|VPC\s*Service\s*Controls|AWS\s*Lambda|API\s*Gateway|EventBridge|SNS|SQS|Step\s*Functions|ECS|EKS|Fargate|CloudFront|Route\s*53|WAF|Shield|VPC|Transit\s*Gateway|ALB|NLB|ELB|Azure\s*Functions|App\s*Service|AKS|Front\s*Door|Application\s*Gateway|Key\s*Vault|Cosmos\s*DB|Event\s*Hubs|Service\s*Bus|Private\s*Link)\b'''
+description = "Cloud platform nouns that leak architecture (mask the map) — aggressive"
+severity = "low"
+score = 10
+base_score = 10
+category = "observability"
+tags = ["log", "observability", "service", "extended", "aggressive"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.ext.04"
+pattern = '''(?i)\b(?:Snowflake|Databricks|Redshift|BigQuery|Synapse\s*Analytics|Azure\s*Data\s*Explorer|Kusto|ClickHouse|Druid|Pinot|Trino|Presto|Hive|Spark|Flink|Beam|Kafka|Pulsar|NATS|RabbitMQ|ActiveMQ|Redis|Memcached|MongoDB|PostgreSQL|MySQL|MariaDB|CockroachDB|Cassandra|ScyllaDB|Elasticsearch|OpenSearch|Solr|Meilisearch|Typesense|Milvus|Pinecone|Weaviate|Qdrant|Chroma|LanceDB)\b'''
+description = "Data plane systems that often show up in logs as wiring — aggressive"
+severity = "low"
+score = 10
+base_score = 10
+category = "observability"
+tags = ["log", "observability", "service", "extended", "aggressive"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0

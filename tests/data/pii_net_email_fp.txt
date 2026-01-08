@@ -1,0 +1,7 @@
+# RULE: pii.net.email
+# MODE: fp
+
+# No TLD or invalid
+test@example
+test@.com
+@example.com

@@ -1,0 +1,7 @@
+# RULE: pii.fin.bank_holder.keyword
+# MODE: fp
+
+# Empty name
+口座名義: 
+# Numbers only
+名義人: 123456

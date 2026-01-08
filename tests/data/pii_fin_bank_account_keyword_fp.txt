@@ -1,0 +1,9 @@
+# RULE: pii.fin.bank_account.keyword
+# MODE: fp
+
+# Too short
+口座番号 12345
+# Too long
+口座番号 123456789
+# No keyword
+1234567

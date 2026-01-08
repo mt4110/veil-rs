@@ -12,7 +12,25 @@
 - **📦 Binary Safe**: Automatically skips binary files and files >1MB to prevent CI bottlenecks.
 - **🔧 Configurable & Layered**: Supports `veil.toml` and organization-wide policy layers (`VEIL_ORG_RULES`).
 
-## Installation
+## Canonical Rules: RulePack (Source of Truth)
+
+Veil’s rules are canonically defined as **RulePacks** (a directory with `00_manifest.toml` + one or more TOMLs containing `[[rules]]`).
+
+For log scrubbing, generate a repo-local Log RulePack:
+
+```bash
+# Recommended: install from a pinned release tag
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+
+# Dev (Nix): build from this repo
+nix develop
+cargo install --path crates/veil-cli
+```
+> **Note (Windows users):** You don't need Nix, but **Rust (Cargo) is required**. Just run `cargo install --path crates/veil-cli`.
+
+### 2. Go to YOUR project
+
+Leave the Veil repository and go to the project you want to scan.
 
 ```bash
 # From source
@@ -66,7 +84,10 @@ Suppress findings directly in code using comments.
 
 ```rust
 let fake_key = "AKIA1234567890"; // veil:ignore
-let test_token = "ghp_xxxxxxxx"; *   `// veil:ignore`: Ignore all findings on this line.
+let test_token = "ghp_xxxxxxxx"; // veil:ignore=rule_id
+```
+
+*   `// veil:ignore`: Ignore all findings on this line.
 *   `// veil:ignore=rule_id`: Ignore only the specified rule ID.
 
 ## Testing
@@ -78,6 +99,7 @@ as string literals. Instead, tests generate fake tokens at runtime via helper fu
 
 See [docs/TESTING_SECRETS.md](docs/TESTING_SECRETS.md) for the full “Safety Contract”
 and guidelines on adding new secret tests.
+
 ### 3. Policy Layering (Organization Rules)
 Manage organization-wide blocklists or allowance settings centrally.
 Set the `VEIL_ORG_RULES` environment variable to point to a shared config file. It merges with project-level `veil.toml` (project overrides org).
@@ -94,7 +116,6 @@ Drop-in templates are available in `examples/ci/`.
 ```yaml
 - name: Run Veil Scan
   run: |
-    veil scan . --format html > report.html
     veil scan . --format html > report.html
     # Fail CI if score >= 80
     veil scan . --fail-score 80

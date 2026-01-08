@@ -1,0 +1,36 @@
+name: Veil Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Install Veil pinned to the tag used for generation (no mutable refs)
+      - name: Install Veil
+        run: |
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+      # Monitoring report (HTML)
+      - name: Veil Scan (report)
+        run: |
+          veil scan . --format html > veil-report.html
+
+      # Fail the build on High severity findings
+      - name: Veil Scan (enforce)
+        run: |
+          veil --no-color scan . --fail-on-severity High --format text
+
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: veil-security-report
+          path: veil-report.html

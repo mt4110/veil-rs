@@ -1,0 +1,9 @@
+# RULE: pii.jp.address.prefecture_heuristic
+# MODE: fp
+
+# Prefecture only (no city/block)
+東京都
+# Prefecture + City only (no block number)
+東京都渋谷区
+# Wrong format
+東京都市谷区 (missing "区" or invalid char flow)

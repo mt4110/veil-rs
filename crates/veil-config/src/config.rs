@@ -55,6 +55,7 @@ pub struct CoreConfig {
     pub max_file_size: Option<u64>,
     pub fail_on_score: Option<u32>,
     pub remote_rules_url: Option<String>,
+    pub rules_dir: Option<String>,
 }
 
 impl Config {
@@ -75,6 +76,9 @@ impl Config {
         }
         if let Some(val) = other.core.remote_rules_url {
             self.core.remote_rules_url = Some(val);
+        }
+        if let Some(val) = other.core.rules_dir {
+            self.core.rules_dir = Some(val);
         }
 
         // Merge Rules (Override/Insert)
@@ -106,6 +110,7 @@ impl Default for CoreConfig {
             max_file_size: None, // Default handled at usage site
             fail_on_score: None,
             remote_rules_url: None,
+            rules_dir: None,
         }
     }
 }
@@ -146,6 +151,7 @@ pub struct RuleConfig {
     pub context_lines_before: Option<u8>,
     pub context_lines_after: Option<u8>,
     pub description: Option<String>,
+    pub placeholder: Option<String>,
 }
 
 fn default_true() -> bool {

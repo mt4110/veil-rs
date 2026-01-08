@@ -1,0 +1,9 @@
+# RULE: pii.jp.phone.mobile
+# MODE: fp
+
+# Invalid prefix
+060-1234-5678
+050-1234-5678 (IP phone, not mobile in this rule scope)
+# Invalid length
+090-123-4567
+090-1234-567 (too short)

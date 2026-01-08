@@ -1,0 +1,7 @@
+# RULE: pii.jp.birthdate.keyword
+# MODE: hit
+
+生年月日: 1999-01-23
+DOB: 2001/12/03
+Date of Birth: 1980年07月09日
+誕生日：2005-6-7

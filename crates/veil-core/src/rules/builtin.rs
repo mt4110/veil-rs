@@ -1,182 +1,109 @@
-use crate::model::{Rule, Severity};
+use crate::model::Rule;
+use crate::rules::pack::{load_rules_from_content, parse_manifest};
 use regex::Regex;
-use std::collections::HashMap;
+use rust_embed::RustEmbed;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use veil_config::Config;
+
+#[derive(RustEmbed)]
+#[folder = "../veil/rules/default/"]
+struct DefaultRulesAssets;
+
+// Sanity check path (Correct relative path)
+const _CHECK: &str = include_str!("../../../veil/rules/default/00_manifest.toml");
 
 static DEFAULT_RULES: OnceLock<Vec<Rule>> = OnceLock::new();
 
 pub fn get_default_rules() -> Vec<Rule> {
     DEFAULT_RULES
         .get_or_init(|| {
-            vec![
-                // ==========================
-                // Credential Pack v1 (RED)
-                // ==========================
-                Rule {
-                    id: "creds.aws.access_key_id".to_string(),
-                    pattern: Regex::new(
-                        r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b",
-                    )
-                    .expect("Valid Regex"),
-                    description: "AWS Access Key ID".to_string(),
-                    severity: Severity::High,
-                    score: 85,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "cloud".to_string(),
-                        "aws".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(85),
-                    context_lines_before: 1,
-                    context_lines_after: 1,
-                    validator: None,
-                },
-                Rule {
-                    id: "creds.aws.secret_key_config".to_string(),
-                    pattern: Regex::new(
-                        r#"aws_secret_access_key\s*=\s*["']?([0-9A-Za-z/+]{40})["']?"#,
-                    )
-                    .expect("Valid Regex"),
-                    description: "AWS Secret Access Key (Config style)".to_string(),
-                    severity: Severity::High,
-                    score: 90,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "cloud".to_string(),
-                        "aws".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(90),
-                    context_lines_before: 1,
-                    context_lines_after: 1,
-                    validator: None,
-                },
-                Rule {
-                    id: "creds.github.pat.ghp".to_string(),
-                    pattern: Regex::new(r"\bghp_[0-9A-Za-z]{36}\b").expect("Valid Regex"),
-                    description: "GitHub Personal Access Token (ghp_)".to_string(),
-                    severity: Severity::High,
-                    score: 90,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "github".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(90),
-                    context_lines_before: 1,
-                    context_lines_after: 1,
-                    validator: None,
-                },
-                Rule {
-                    id: "creds.github.pat.long".to_string(),
-                    pattern: Regex::new(r"\bgithub_pat_[0-9A-Za-z_]{80,100}\b")
-                        .expect("Valid Regex"),
-                    description: "GitHub Personal Access Token (Fine-grained)".to_string(),
-                    severity: Severity::High,
-                    score: 90,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "github".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(90),
-                    context_lines_before: 1,
-                    context_lines_after: 1,
-                    validator: None,
-                },
-                Rule {
-                    id: "creds.slack.token.legacy".to_string(),
-                    pattern: Regex::new(r"\bxox[baps]-\d{10,}-\d{10,}-[0-9A-Za-z]{24,}\b")
-                        .expect("Valid Regex"),
-                    description: "Slack Token (Legacy)".to_string(),
-                    severity: Severity::High,
-                    score: 85,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "slack".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(85),
-                    context_lines_before: 1,
-                    context_lines_after: 1,
-                    validator: None,
-                },
-                Rule {
-                    id: "creds.key.private_pem".to_string(),
-                    pattern: Regex::new(r"-----BEGIN (RSA |EC )?PRIVATE KEY-----")
-                        .expect("Valid Regex"),
-                    description: "Private Key (PEM)".to_string(),
-                    severity: Severity::Critical,
-                    score: 95,
-                    category: "secret".to_string(),
-                    tags: vec![
-                        "credential".to_string(),
-                        "key".to_string(),
-                        "pem".to_string(),
-                        "critical".to_string(),
-                    ],
-                    base_score: Some(95),
-                    context_lines_before: 2,
-                    context_lines_after: 2,
-                    validator: None,
-                },
-                // ==========================
-                // JP PII v1 (RED)
-                // ==========================
-                Rule {
-                    id: "jp.mynumber".to_string(),
-                    pattern: Regex::new(r"(\b\d{12}\b|\b\d{4}-\d{4}-\d{4}\b)")
-                        .expect("Valid Regex"),
-                    description: "Japanese My Number".to_string(),
-                    severity: Severity::High,
-                    score: 90,
-                    category: "pii".to_string(),
-                    tags: vec![
-                        "pii".to_string(),
-                        "jp".to_string(),
-                        "id".to_string(),
-                        "high_risk".to_string(),
-                    ],
-                    base_score: Some(90),
-                    context_lines_before: 2,
-                    context_lines_after: 0,
-                    validator: None,
-                },
-                Rule {
-                    id: "jp.phone.mobile".to_string(),
-                    pattern: Regex::new(r"\b0[789]0[- ]?\d{4}[- ]?\d{4}\b").expect("Valid Regex"),
-                    description: "Japanese Mobile Phone".to_string(),
-                    severity: Severity::Medium,
-                    score: 60,
-                    category: "pii".to_string(),
-                    tags: vec![
-                        "pii".to_string(),
-                        "jp".to_string(),
-                        "phone".to_string(),
-                        "low_risk".to_string(),
-                    ],
-                    base_score: Some(60),
-                    context_lines_before: 1,
-                    context_lines_after: 0,
-                    validator: None,
-                },
-            ]
+            load_embedded_rules().unwrap_or_else(|e| {
+                eprintln!("Failed to load default rules: {}", e);
+                vec![]
+            })
         })
         .clone()
 }
 
+fn load_embedded_rules() -> anyhow::Result<Vec<Rule>> {
+    let mut rules = Vec::new();
+    let mut loaded_ids = HashSet::new();
+
+    // Try to load manifest
+    if let Some(f) = DefaultRulesAssets::get("00_manifest.toml") {
+        let content = std::str::from_utf8(f.data.as_ref())?;
+        if let Ok(manifest) = parse_manifest(content) {
+            if !manifest.files.is_empty() {
+                for file_name in &manifest.files {
+                    if let Some(rule_file) = DefaultRulesAssets::get(file_name) {
+                        let rule_content = std::str::from_utf8(rule_file.data.as_ref())?;
+                        if let Err(e) = load_rules_from_content(
+                            rule_content,
+                            &mut rules,
+                            &mut loaded_ids,
+                            Some(std::path::Path::new(file_name)),
+                        ) {
+                            eprintln!("Failed to load rule file {}: {}", file_name, e);
+                        }
+                    } else {
+                        eprintln!("Warning: Manifest referenced file '{}' but it was not found in assets.", file_name);
+                    }
+                }
+            } else {
+                load_auto(&mut rules, &mut loaded_ids)?;
+            }
+        } else {
+            eprintln!("Failed to parse manifest");
+            load_auto(&mut rules, &mut loaded_ids)?;
+        }
+    } else {
+        load_auto(&mut rules, &mut loaded_ids)?;
+    }
+
+    // println!("DEBUG: Loaded {} rules: {:?}", rules.len(), rules.iter().map(|r| &r.id).collect::<Vec<_>>());
+    Ok(rules)
+}
+
+fn load_auto(rules: &mut Vec<Rule>, ids: &mut HashSet<String>) -> anyhow::Result<()> {
+    // RustEmbed iter() returns filenames.
+    // We filter for .toml and sort.
+    let mut files: Vec<String> = DefaultRulesAssets::iter()
+        .map(|f| f.to_string())
+        .filter(|name| name.ends_with(".toml") && name != "00_manifest.toml")
+        .collect();
+    files.sort();
+
+    for name in files {
+        if let Some(f) = DefaultRulesAssets::get(&name) {
+            let rule_content = std::str::from_utf8(f.data.as_ref())?;
+            load_rules_from_content(rule_content, rules, ids, Some(std::path::Path::new(&name)))?;
+        }
+    }
+    Ok(())
+}
+
 pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
-    // defaults is Vec<Rule> (cloned from static)
+    // defaults is Vec<Rule> (cloned from static, loaded from assets)
     let defaults = get_default_rules();
     let mut rule_map: HashMap<String, Rule> =
         defaults.into_iter().map(|r| (r.id.clone(), r)).collect();
+
+    // Load from rules_dir if configured
+    if let Some(rules_dir) = &config.core.rules_dir {
+        let path = std::path::Path::new(rules_dir);
+        if path.exists() {
+            match crate::rules::pack::load_rule_pack(path) {
+                Ok(rules) => {
+                    // Merge pack rules (override defaults by ID)
+                    for r in rules {
+                        rule_map.insert(r.id.clone(), r);
+                    }
+                }
+                Err(e) => eprintln!("Error loading rule pack from {:?}: {}", path, e),
+            }
+        }
+    }
 
     // Merge extra/remote rules
     // If ID exists (matches builtin), we overwrite it (Remote updates/fixes builtin)
@@ -185,6 +112,7 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
         rule_map.insert(rule.id.clone(), rule);
     }
 
+    // Merge overrides from Config
     for (id, rule_conf) in &config.rules {
         if let Some(pattern_str) = &rule_conf.pattern {
             // New rule or Overwrite pattern (Pure TOML Rule)
@@ -204,6 +132,7 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
                     context_lines_before: rule_conf.context_lines_before.unwrap_or(2),
                     context_lines_after: rule_conf.context_lines_after.unwrap_or(0),
                     validator: None,
+                    placeholder: rule_conf.placeholder.clone(),
                 };
                 rule_map.insert(id.clone(), rule);
             } else {
@@ -226,6 +155,9 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
                 }
                 if let Some(tags) = &rule_conf.tags {
                     rule.tags = tags.clone();
+                }
+                if let Some(ph) = &rule_conf.placeholder {
+                    rule.placeholder = Some(ph.clone());
                 }
             }
         }

@@ -1,0 +1,82 @@
+# Observability surface: product/service names (expanded).
+# Strategy: split into multiple rules to avoid a single mega-regex.
+
+[[rules]]
+id = "log.obs.services.01"
+pattern = '''(?i)\b(?:Sentry|Datadog|New\s*Relic|Dynatrace|AppDynamics|Instana|Elastic\s*APM|Elastic\s*Observability|Splunk|Splunk\s*Enterprise|Splunk\s*Cloud|Splunk\s*Observability\s*Cloud|SignalFx|Sumo\s*Logic|Graylog|Loggly|Papertrail|Logentries|Logz\.io|Coralogix|Sematext|Mezmo|LogDNA|Axiom|Better\s*Stack|Better\s*Uptime|Observe\s*Inc|Humio|CrowdStrike\s*Falcon\s*LogScale|Scalyr|Rapid7\s*InsightOps|Rapid7\s*InsightIDR|Devo|Chronicle|IBM\s*QRadar|Microsoft\s*Sentinel|Azure\s*Sentinel|ArcSight|Exabeam|Securonix|Elastic\s*SIEM|OpenSearch\s*Security\s*Analytics|Grafana|Grafana\s*Cloud|Grafana\s*Agent|Grafana\s*Alloy|Grafana\s*Faro|Grafana\s*OnCall|Grafana\s*Pyroscope|Pyroscope|Prometheus|Alertmanager|Loki|Promtail|Mimir|Cortex|Thanos|VictoriaMetrics|OpenMetrics|OpenTelemetry|OpenTelemetry\s*Collector|otelcol|OTLP|OpenTracing|OpenCensus|Jaeger|Zipkin|Honeycomb|Lightstep|Lightstep\s*Observability|AWS\s*X-Ray|Google\s*Cloud\s*Trace|Cloud\s*Trace)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 30
+base_score = 30
+category = "observability"
+tags = ["log", "observability", "service"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.02"
+pattern = '''(?i)\b(?:Azure\s*Application\s*Insights|Application\s*Insights|Kibana|Elasticsearch|Logstash|Beats|Filebeat|Metricbeat|Heartbeat|Winlogbeat|Auditbeat|Packetbeat|OpenSearch|OpenSearch\s*Dashboards|Fluentd|Fluent\s*Bit|td-agent|rsyslog|syslog-ng|journald|NXLog|Telegraf|InfluxDB|Kapacitor|Chronograf|OpenTSDB|KairosDB|TimescaleDB|M3|M3DB|Nagios|Zabbix|Icinga|Sensu|Checkmk|Centreon|PRTG|SolarWinds|LogicMonitor|ScienceLogic|UptimeRobot|Pingdom|StatusCake|Uptrends|Site24x7|Catchpoint|ThousandEyes|k6|Grafana\s*k6|Datadog\s*Synthetics|New\s*Relic\s*Synthetics|CloudWatch|CloudWatch\s*Logs|CloudWatch\s*Agent|CloudTrail|Kinesis\s*Firehose|Amazon\s*Managed\s*Service\s*for\s*Prometheus|Amazon\s*Managed\s*Grafana|Amazon\s*OpenSearch\s*Service|AWS\s*Distro\s*for\s*OpenTelemetry|ADOT|Azure\s*Monitor|Azure\s*Log\s*Analytics|Log\s*Analytics|Google\s*Cloud\s*Logging|Cloud\s*Logging|Google\s*Cloud\s*Monitoring|Cloud\s*Monitoring|Stackdriver|cAdvisor|kube-state-metrics|node-exporter|Prometheus\s*Operator)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 30
+base_score = 30
+category = "observability"
+tags = ["log", "observability", "service"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.03"
+pattern = '''(?i)\b(?:Kiali|Istio\s*Telemetry|Linkerd\s*Viz|Cilium\s*Hubble|Pixie|New\s*Relic\s*Infrastructure|Datadog\s*Agent|Dynatrace\s*OneAgent|Elastic\s*Agent|OpenTelemetry\s*Java\s*Agent|OpenTelemetry\s*Operator|Falco|Sysdig|Sysdig\s*Monitor|Sysdig\s*Secure|Datadog\s*Security\s*Monitoring|AWS\s*GuardDuty|AWS\s*Security\s*Hub|Bugsnag|Rollbar|Airbrake|Raygun|Honeybadger|AppSignal|Scout\s*APM|Crashlytics|Firebase\s*Crashlytics|OpenObserve|SigNoz|Uptrace|HyperDX|Sentry\s*Relay|Sentry\s*DSN|Sentry\s*SDK|Datadog\s*APM|New\s*Relic\s*APM|AppOptics|Stackify\s*Retrace|Stackify|ManageEngine\s*Applications\s*Manager|ManageEngine\s*OpManager|BMC\s*TrueSight|CA\s*APM|Micro\s*Focus\s*APM|Datadog\s*RUM|New\s*Relic\s*Browser|Elastic\s*RUM|Sentry\s*Performance|SpeedCurve|Calibre|Pingdom\s*RUM|Dynatrace\s*RUM|OpenSearch\s*Observability|Elastic\s*Cloud|cloud\.elastic\.co|Grafana\s*Enterprise|OpenTelemetry\s*Collector\s*Contrib|OTel\s*Collector)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 30
+base_score = 30
+category = "observability"
+tags = ["log", "observability", "service"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.04"
+pattern = '''(?i)\b(?:Cribl|Cribl\s*Stream|Cribl\s*Edge|Cribl\s*Search|Chronosphere|Chronosphere\s*Telemetry\s*Pipeline|Calyptia|Calyptia\s*Fluentd|Calyptia\s*Core|Nobl9|Sloth|Pyrra|OpenSLO|Jira\s*Service\s*Management|Jira\s*Ops|incident\.io|Rootly|FireHydrant|Blameless|Squadcast|BigPanda|Moogsoft|Statuspage|Atlassian\s*Statuspage|PagerDuty|Opsgenie|VictorOps|Splunk\s*On-Call|xMatters|Datadog\s*NPM|Datadog\s*Log\s*Management|Datadog\s*Infrastructure\s*Monitoring|New\s*Relic\s*Infinite\s*Tracing|New\s*Relic\s*Distributed\s*Tracing|Dynatrace\s*Davis|Dynatrace\s*Grail|Elastic\s*Fleet|Elastic\s*Beats|Elastic\s*APM\s*Server|APM\s*Server|OpenSearch\s*Alerting|OpenSearch\s*Anomaly\s*Detection|Splunk\s*HEC|Splunk\s*Forwarder|Splunk\s*ITSI)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 30
+base_score = 30
+category = "observability"
+tags = ["log", "observability", "service"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+[[rules]]
+id = "log.obs.services.05"
+pattern = '''(?i)\b(?:Cloudflare|Cloudflare\s*Analytics|Cloudflare\s*Logs|Cloudflare\s*Logpush|Cloudflare\s*Workers\s*Analytics|Fastly|Fastly\s*Log\s*Streaming|Akamai|Akamai\s*mPulse|Akamai\s*Datastream|AWS\s*VPC\s*Flow\s*Logs|ALB\s*Access\s*Logs|ELB\s*Access\s*Logs|CloudFront\s*Logs|S3\s*Access\s*Logs|AWS\s*Config|AWS\s*Inspector|Azure\s*Network\s*Watcher|NSG\s*Flow\s*Logs|Azure\s*Diagnostics|Azure\s*Activity\s*Log|GCP\s*Error\s*Reporting|Cloud\s*Error\s*Reporting|Cloud\s*Profiler|Cloud\s*Audit\s*Logs|GCP\s*Audit\s*Logs|CloudWatch\s*Logs\s*Insights|CloudWatch\s*Insights|CloudWatch\s*Synthetics|CloudWatch\s*RUM|GCP\s*Cloud\s*Run\s*Logs|GCP\s*GKE\s*Logs|GKE\s*Monitoring|Jaeger\s*Operator|Jaeger\s*Collector|Jaeger\s*Query|Zipkin\s*Server|Prometheus\s*Pushgateway|Blackbox\s*Exporter|SNMP\s*Exporter|JMX\s*Exporter|MySQL\s*Exporter|Postgres\s*Exporter|Redis\s*Exporter|MongoDB\s*Exporter)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 30
+base_score = 30
+category = "observability"
+tags = ["log", "observability", "service"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0
+
+
+# --- Optional: aggressive misc terms (higher false-positive risk) ---
+[[rules]]
+id = "log.obs.services.aggressive"
+pattern = '''(?i)\b(?:Tempo|Vector|Graphite|StatsD|Kafka|Envoy|Istio|Linkerd|Consul|Traefik|NGINX|collectd|Monit|ClickHouse|Helm|Kustomize|Service\s*Mesh|Kong|Webhook|Slack|Discord|Telegram|Zapier|IFTTT)\b'''
+description = "Observability services/products (mask the map)"
+severity = "low"
+score = 10
+base_score = 10
+category = "observability"
+tags = ["log", "observability", "service", "aggressive"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0

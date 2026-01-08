@@ -1,0 +1,76 @@
+# ==============================================================================
+# cloud_keys.toml — veil default rules (schema v1)
+# Generated seed (builtin migration baseline) — 2025-12-29
+#
+# Notes:
+# - This file is part of the "default" rule pack. Ordering is controlled by
+#   00_manifest.toml in this directory.
+# - Patterns are regex strings interpreted by the engine (Rust regex).
+# - This seed aims to be behavior-identical to the current builtin rules.
+# ==============================================================================
+
+[pack]
+id = "default.cloud_keys"
+schema_version = 1
+version = 1
+description = "cloud_keys rules for veil default pack"
+
+[[rules]]
+id = "creds.aws.access_key_id"
+description = "AWS Access Key ID"
+pattern = '''\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b'''
+severity = "HIGH"
+score = 85
+category = "secret"
+tags = ["credential", "cloud", "aws", "critical"]
+base_score = 85
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.aws.secret_key_config"
+description = "AWS Secret Access Key (Config style)"
+pattern = '''aws_secret_access_key\s*=\s*["']?([0-9A-Za-z/+]{40})["']?'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "cloud", "aws", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.github.pat.ghp"
+description = "GitHub Personal Access Token (ghp_)"
+pattern = '''\bghp_[0-9A-Za-z]{36}\b'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "github", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.github.pat.long"
+description = "GitHub Personal Access Token (github_pat_)"
+pattern = '''\bgithub_pat_[0-9A-Za-z_]{80,100}\b'''
+severity = "HIGH"
+score = 95
+category = "secret"
+tags = ["credential", "github", "critical"]
+base_score = 95
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "creds.slack.token.legacy"
+description = "Slack Token (legacy xox*)"
+pattern = '''\bxox[baps]-\d{10,}-\d{10,}-[0-9A-Za-z]{24,}\b'''
+severity = "HIGH"
+score = 90
+category = "secret"
+tags = ["credential", "slack", "critical"]
+base_score = 90
+context_lines_before = 1
+context_lines_after = 1

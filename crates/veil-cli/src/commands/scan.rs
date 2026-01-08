@@ -60,6 +60,19 @@ pub fn collect_findings(
         crate::config_loader::load_effective_config(None)?
     };
 
+    // If baseline is provided, do not scan the baseline file itself.
+    if let Some(bp) = baseline_path {
+        if let Some(name) = bp.file_name().and_then(|s| s.to_str()) {
+            if !config.core.ignore.iter().any(|p| p == name) {
+                config.core.ignore.push(name.to_string());
+            }
+        }
+        let raw = bp.to_string_lossy().to_string();
+        if !raw.is_empty() && !config.core.ignore.iter().any(|p| p == &raw) {
+            config.core.ignore.push(raw);
+        }
+    }
+
     // 2. Override Config with CLI args
     if let Some(mode) = mask_mode_arg {
         config.output.mask_mode = Some(match mode {
@@ -479,16 +492,12 @@ pub fn scan(
     let formatter: Box<dyn Formatter> = match format {
         Format::Json => Box::new(JsonFormatter),
         Format::Html => Box::new(HtmlFormatter::new()),
+        #[cfg(feature = "table")]
+        Format::Table => Box::new(TableFormatter),
+        #[cfg(not(feature = "table"))]
         Format::Table => {
-            #[cfg(feature = "table")]
-            {
-                Box::new(TableFormatter)
-            }
-            #[cfg(not(feature = "table"))]
-            {
-                eprintln!("Table format not compiled in");
-                Box::new(TextFormatterWrapper { no_color })
-            }
+            eprintln!("Table format not compiled in");
+            Box::new(TextFormatterWrapper { no_color })
         }
         Format::Markdown => Box::new(MarkdownFormatter),
         Format::Text => Box::new(TextFormatterWrapper { no_color }),

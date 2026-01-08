@@ -1,0 +1,7 @@
+# RULE: pii.jp.driver_license.number
+# MODE: hit
+
+運転免許証番号 123456789012
+免許証: 111122223333
+driver license: 987654321098
+driver_license 123412341234

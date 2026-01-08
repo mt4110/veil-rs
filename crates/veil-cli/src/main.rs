@@ -76,7 +76,7 @@ fn main() -> anyhow::Result<()> {
                 cli.no_color,
             )
         }
-        Some(Commands::Filter) => commands::filter::filter().map(|_| false),
+        Some(Commands::Filter) => commands::filter::filter(cli.config.as_ref()).map(|_| false),
         Some(Commands::Mask {
             paths,
             dry_run,
@@ -88,7 +88,9 @@ fn main() -> anyhow::Result<()> {
             wizard,
             non_interactive,
             ci,
-        }) => commands::init::init(*wizard, *non_interactive, ci.clone()).map(|_| false),
+            profile,
+        }) => commands::init::init(*wizard, *non_interactive, ci.clone(), profile.clone())
+            .map(|_| false),
         Some(Commands::Ignore { path }) => {
             commands::ignore::ignore(path, cli.config.as_ref()).map(|_| false)
         }
@@ -119,6 +121,7 @@ fn main() -> anyhow::Result<()> {
             }
         },
         Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
+        Some(Commands::Update) => commands::update::update().map(|_| false),
         None => {
             // If no subcommand is provided, print help
             use clap::CommandFactory;

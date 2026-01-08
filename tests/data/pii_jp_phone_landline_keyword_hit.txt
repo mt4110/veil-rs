@@ -1,0 +1,7 @@
+# RULE: pii.jp.phone.landline.keyword
+# MODE: hit
+
+電話: 03-1234-5678
+TEL 045-123-4567
+Phone: 06-1234-5678
+Tel: 011-123-4567

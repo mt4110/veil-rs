@@ -1,0 +1,7 @@
+files = ["secrets.toml", "pii.toml"]
+
+[pack]
+id = "veil.default"
+version = 1
+schema_version = 1
+description = "Veil Default Rules Pack"

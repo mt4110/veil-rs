@@ -27,6 +27,7 @@ fn get_rules() -> Vec<Rule> {
             validator: None, // No validator for bench to isolate regex perf
             context_lines_before: 2,
             context_lines_after: 0,
+            placeholder: None,
         },
         Rule {
             id: "Generic_API_Key".to_string(),
@@ -43,6 +44,7 @@ fn get_rules() -> Vec<Rule> {
             validator: None,
             context_lines_before: 2,
             context_lines_after: 0,
+            placeholder: None,
         },
     ]
 }

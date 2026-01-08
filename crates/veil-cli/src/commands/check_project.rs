@@ -19,9 +19,12 @@ pub fn check_project() -> Result<bool> {
     // 1. .gitignore (20pts)
     if Path::new(".gitignore").exists() {
         score += 20;
-        println!("{} .gitignore found (+20)", "PASS".green().bold());
+        println!("{} .gitignore found (+20 points)", "PASS".green().bold());
     } else {
-        println!("{} Missing .gitignore file (0/20)", "FAIL".red().bold());
+        println!(
+            "{} Missing .gitignore file (0/20 points)",
+            "FAIL".red().bold()
+        );
         details.push("Create a .gitignore file to exclude sensitive files".to_string());
     }
 
@@ -35,10 +38,13 @@ pub fn check_project() -> Result<bool> {
 
     if result.findings.is_empty() {
         score += 40;
-        println!("{} No obvious secrets found (+40)", "PASS".green().bold());
+        println!(
+            "{} No obvious secrets found (+40 points)",
+            "PASS".green().bold()
+        );
     } else {
         println!(
-            "{} Found {} potentially unsafe secrets (0/40)",
+            "{} Found {} potentially unsafe secrets (0/40 points)",
             "FAIL".red().bold(),
             result.findings.len()
         );
@@ -50,10 +56,13 @@ pub fn check_project() -> Result<bool> {
     let gitlab_ci = Path::new(".gitlab-ci.yml");
     if (ci_path.exists() && ci_path.read_dir()?.count() > 0) || gitlab_ci.exists() {
         score += 20;
-        println!("{} CI Configuration found (+20)", "PASS".green().bold());
+        println!(
+            "{} CI Configuration found (+20 points)",
+            "PASS".green().bold()
+        );
     } else {
         println!(
-            "{} No CI configuration found (0/20)",
+            "{} No CI configuration found (0/20 points)",
             "WARN".yellow().bold()
         );
         details.push("Setup GitHub Actions or GitLab CI".to_string());
@@ -62,10 +71,13 @@ pub fn check_project() -> Result<bool> {
     // 4. Pre-commit (10pts)
     if Path::new(".pre-commit-config.yaml").exists() {
         score += 10;
-        println!("{} Pre-commit config found (+10)", "PASS".green().bold());
+        println!(
+            "{} Pre-commit config found (+10 points)",
+            "PASS".green().bold()
+        );
     } else {
         println!(
-            "{} No pre-commit config found (0/10)",
+            "{} No pre-commit config found (0/10 points)",
             "WARN".yellow().bold()
         );
         details.push("Use pre-commit hooks to prevent secrets from being committed".to_string());
@@ -84,17 +96,20 @@ pub fn check_project() -> Result<bool> {
 
     if has_readme && has_license {
         score += 10;
-        println!("{} README & License found (+10)", "PASS".green().bold());
+        println!(
+            "{} README & License found (+10 points)",
+            "PASS".green().bold()
+        );
     } else if has_readme || has_license {
         score += 5;
         println!(
-            "{} Partial documentation found (+5)",
+            "{} Partial documentation found (+5 points)",
             "WARN".yellow().bold()
         );
         details.push("Ensure both README.md and LICENSE exist for open source health".to_string());
     } else {
         println!(
-            "{} Missing README and LICENSE (0/10)",
+            "{} Missing README and LICENSE (0/10 points)",
             "WARN".yellow().bold()
         );
         details.push("Add README.md and LICENSE".to_string());
@@ -124,7 +139,7 @@ pub fn check_project() -> Result<bool> {
         "Project Health Score: {}/100",
         score.to_string().color(color).bold()
     );
-    println!("Grade: {}", grade.color(color).bold());
+    println!("Grade: {} (Pass: B or higher)", grade.color(color).bold());
 
     if !details.is_empty() {
         println!("\nRecommendations:");

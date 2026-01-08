@@ -1,0 +1,7 @@
+# RULE: pii.jp.driver_license.number
+# MODE: fp
+
+# Keyword present but invalid length
+運転免許証: 12345678901 (11 digits)
+免許番号: 1234567890123 (13 digits)
+No keyword: 123456789012

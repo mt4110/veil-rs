@@ -1,0 +1,6 @@
+# RULE: pii.jp.mynumber.unlabeled
+# MODE: hit
+
+1234-5678-9012
+1111 2222 3333
+987654321098

@@ -1,0 +1,7 @@
+# RULE: pii.fin.bank_account.keyword
+# MODE: hit
+
+口座番号 1234567
+口座: 12345678
+account number: 87654321
+acct_no 1234567

@@ -12,6 +12,8 @@ Veil combines rules from three sources into a single "Effective Rule Set". The m
 2.  **Remote Rules**: Fetched from `VEIL_REMOTE_RULES_URL` (if configured).
 3.  **Local Overrides**: Custom rules defined in `veil.toml`.
 
+> Note: Remote rules are **disabled by default**. If `core.remote_rules_url` (or env `VEIL_REMOTE_RULES_URL`) is not set, Veil skips the Remote layer entirely.
+
 Local rules in `veil.toml` can override both built-in and remote rules.
 
 ## Listing Rules

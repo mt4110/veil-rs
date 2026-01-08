@@ -1,0 +1,94 @@
+# Log PII scrubbing rules.
+# Placeholder is fixed to <REDACTED:PII>. Details go to tags.
+# NOTE: keyword-bound patterns are preferred to reduce false positives in log streams.
+
+[[rules]]
+id = "log.pii.email"
+pattern = '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b'
+description = "Email address"
+severity = "medium"
+score = 70
+base_score = 70
+category = "pii"
+tags = ["log", "pii", "email"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.ipv4"
+pattern = '\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b'
+description = "IPv4 address"
+severity = "low"
+score = 55
+base_score = 55
+category = "pii"
+tags = ["log", "pii", "ip", "ipv4"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.ipv6"
+pattern = '\b(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4}\b'
+description = "IPv6 address (heuristic)"
+severity = "low"
+score = 55
+base_score = 55
+category = "pii"
+tags = ["log", "pii", "ip", "ipv6"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.jp.postal.keyword"
+pattern = '(?i)(?:〒|郵便番号|postal\s*code)[^0-9]{0,10}\b[0-9]{3}[- ]?[0-9]{4}\b'
+description = "JP postal code (keyword-bound)"
+severity = "medium"
+score = 75
+base_score = 75
+category = "pii"
+tags = ["log", "pii", "jp", "postal"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.jp.phone.keyword"
+pattern = '(?i)(?:tel|電話|phone|mobile)[^0-9]{0,12}\b0[0-9]{1,4}[- ]?[0-9]{1,4}[- ]?[0-9]{3,4}\b'
+description = "JP phone number (keyword-bound)"
+severity = "medium"
+score = 70
+base_score = 70
+category = "pii"
+tags = ["log", "pii", "jp", "phone"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.jp.mynumber.keyword"
+pattern = '(?i)(?:基礎)?(?:マイナンバー|個人番号|my\s*number)[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}\b'
+description = "My Number (keyword-bound, 12 digits)"
+severity = "high"
+score = 90
+base_score = 90
+category = "pii"
+tags = ["log", "pii", "jp", "mynumber", "government"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
+
+[[rules]]
+id = "log.pii.credit_card"
+pattern = '\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b'
+description = "Credit card number (major schemes heuristic)"
+severity = "high"
+score = 88
+base_score = 88
+category = "pii"
+tags = ["log", "pii", "payment", "card"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

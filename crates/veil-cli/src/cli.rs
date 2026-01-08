@@ -39,6 +39,7 @@ pub enum Commands {
         #[arg(long, default_value = "text")]
         format: String,
         /// Fail (exit 1) if the highest finding score exceeds this value (0-100)
+        /// This compares against the single highest score among all findings.
         #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
         /// Fail (exit 1) if any secrets found with severity at or above this level.
@@ -51,7 +52,8 @@ pub enum Commands {
         /// Scan a specific commit (SHA)
         #[arg(long)]
         commit: Option<String>,
-        /// Scan commits since this time (e.g. "1 week ago", "2024-01-01")
+        /// Scan commits since this time (e.g. "1 week ago", "2024-01-01").
+        /// This scans the Git history, not valid for file system scans.
         #[arg(long)]
         since: Option<String>,
         /// Scan staged files only
@@ -90,7 +92,8 @@ pub enum Commands {
         #[arg(long)]
         backup_suffix: Option<String>,
     },
-    /// Run project health checks
+    /// Run project health checks (secrets, gitignore, CI config, etc)
+    /// This is a passive check that suggests improvements, it does not modify files.
     CheckProject,
     /// Initialize a new configuration file
     Init {
@@ -103,6 +106,9 @@ pub enum Commands {
         /// Generate CI configuration for a specific provider (e.g. "github")
         #[arg(long)]
         ci: Option<String>,
+        /// Initialize with a specific profile (e.g. "Logs") without wizard
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Add path to ignore list
     Ignore {
@@ -130,6 +136,8 @@ pub enum Commands {
     Rules(RulesCommand),
     /// Scan dependencies for vulnerabilities
     Guardian(GuardianArgs),
+    /// Check for updates (stub)
+    Update,
 }
 
 #[derive(Args, Debug, Clone)]

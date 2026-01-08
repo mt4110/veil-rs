@@ -1,0 +1,15 @@
+# Observability surface: vendor domains/endpoints.
+# Note: match hostnames/domains in URLs and DSNs.
+
+[[rules]]
+id = "log.obs.domains"
+pattern = '(?i)\b(?:[a-z0-9-]+\.)*(?:sentry\.io|ingest\.sentry\.io|datadoghq\.com|newrelic\.com|splunkcloud\.com|sumologic\.com|loggly\.com|papertrailapp\.com|honeycomb\.io|lightstep\.com|instana\.io|dynatrace\.com|appdynamics\.com|grafana\.com|grafana\.net|loki\.(?:grafana\.net|com)|opentelemetry\.io|jaegertracing\.io|zipkin\.io|elastic\.co|cloud\.elastic\.co|opensearch\.org)\b'
+description = "Observability vendor domains/endpoints"
+severity = "low"
+score = 28
+base_score = 28
+category = "observability"
+tags = ["log", "observability", "domain"]
+placeholder = "<REDACTED:OBSERVABILITY>"
+context_lines_before = 0
+context_lines_after = 0

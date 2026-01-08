@@ -1,0 +1,35 @@
+# ==============================================================================
+# entropy.toml — veil default rules (schema v1)
+# Generated seed (builtin migration baseline) — 2025-12-29
+#
+# Notes:
+# - This file is part of the "default" rule pack. Ordering is controlled by
+#   00_manifest.toml in this directory.
+# - Patterns are regex strings interpreted by the engine (Rust regex).
+# - This seed aims to be behavior-identical to the current builtin rules.
+#
+# Why empty?
+# - The current builtin baseline (in this repo snapshot) does not define
+#   entropy-based rules as regex Rules. Entropy is typically a separate heuristic
+#   engine (thresholds, tokenization, allowlists).
+# - So we keep this file as a placeholder to avoid changing behavior.
+# ==============================================================================
+
+[pack]
+id = "default.entropy"
+schema_version = 1
+version = 1
+description = "entropy rules for veil default pack"
+
+# (no rules yet in this category for the builtin baseline)
+# Add rules under [[rules]] when ready.
+#
+# Example:
+# [[rules]]
+# id = "entropy.generic.high"
+# description = "High entropy token (generic heuristic)"
+# pattern = '''...'''
+# severity = "MEDIUM"
+# score = 50
+# category = "secret"
+# tags = ["entropy"]

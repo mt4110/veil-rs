@@ -1,32 +1,79 @@
 {
-    "schemaVersion": "veil-v1",
-    "summary": {
-        "total_files": 2,
-        "scanned_files": 2,
-        "skipped_files": 0,
-        "findings_count": 1,
-        "shown_findings": 1,
-        "limit_reached": false,
-        "duration_ms": 0,
-        "severity_counts": {
-            "High": 1
-        }
+  "findings": [
+    {
+      "context_after": [],
+      "context_before": [
+        ""
+      ],
+      "grade": "High",
+      "line_content": "    // A fake AWS Access Key ID for detection",
+      "line_number": 5,
+      "masked_snippet": "    // A fake AWS Access Key <REDACTED>",
+      "matched_content": "ID for detection",
+      "path": "src/main.rs",
+      "rule_id": "pii.heuristic.number_like.keyword",
+      "score": 72,
+      "severity": "Medium"
     },
-    "findings": [
-        {
-            "rule_id": "creds.aws.access_key_id",
-            "severity": "High",
-            "path": "src/main.rs",
-            "line_number": 6,
-            "matched_content": "AKIA1234567890ABCDEF",
-            "masked_snippet": "    let aws_key = \"<REDACTED>\";",
-            "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
-            "score": 100,
-            "grade": "Critical",
-            "context_before": [
-                "    // A fake AWS Access Key ID for detection"
-            ],
-            "context_after": []
-        }
-    ]
+    {
+      "context_after": [],
+      "context_before": [
+        "    // A fake AWS Access Key ID for detection"
+      ],
+      "grade": "Critical",
+      "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
+      "line_number": 6,
+      "masked_snippet": "    let aws_<REDACTED>\";",
+      "matched_content": "AKIA1234567890ABCDEF",
+      "path": "src/main.rs",
+      "rule_id": "creds.aws.access_key_id",
+      "score": 100,
+      "severity": "High"
+    },
+    {
+      "context_after": [],
+      "context_before": [
+        "    // A fake AWS Access Key ID for detection"
+      ],
+      "grade": "Medium",
+      "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
+      "line_number": 6,
+      "masked_snippet": "    let aws_<REDACTED>\";",
+      "matched_content": "1234567",
+      "path": "src/main.rs",
+      "rule_id": "pii.jp.postal_code",
+      "score": 44,
+      "severity": "Low"
+    },
+    {
+      "context_after": [],
+      "context_before": [
+        "    // A fake AWS Access Key ID for detection"
+      ],
+      "grade": "High",
+      "line_content": "    let aws_key = \"AKIA1234567890ABCDEF\";",
+      "line_number": 6,
+      "masked_snippet": "    let aws_<REDACTED>\";",
+      "matched_content": "key = \"AKIA1234567890ABCDEF",
+      "path": "src/main.rs",
+      "rule_id": "pii.heuristic.unknown_id_like.keyword",
+      "score": 80,
+      "severity": "Medium"
+    }
+  ],
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "duration_ms": 0,
+    "findings_count": 4,
+    "limit_reached": false,
+    "scanned_files": 2,
+    "severity_counts": {
+      "High": 1,
+      "Low": 1,
+      "Medium": 2
+    },
+    "shown_findings": 4,
+    "skipped_files": 0,
+    "total_files": 2
+  }
 }
