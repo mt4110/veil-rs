@@ -19,14 +19,18 @@ Veil’s rules are canonically defined as **RulePacks** (a directory with `00_ma
 For log scrubbing, generate a repo-local Log RulePack:
 
 ```bash
-veil init --profile Logs
+# Recommended: install from a pinned release tag
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+
+# Dev (Nix): build from this repo
+nix develop
+cargo install --path crates/veil-cli
 ```
+> **Note (Windows users):** You don't need Nix, but **Rust (Cargo) is required**. Just run `cargo install --path crates/veil-cli`.
 
-This creates `rules/log/` and wires your `veil.toml` to use it.
+### 2. Go to YOUR project
 
-➡ See `walkthrough.md` for the canonical architecture and workflow.
-
-## Installation
+Leave the Veil repository and go to the project you want to scan.
 
 ```bash
 # From source

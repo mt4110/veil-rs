@@ -30,3 +30,4 @@ cli_test_out*.txt
 
 # Generated local rule packs (veil init)
 /rules/
+veil.toml

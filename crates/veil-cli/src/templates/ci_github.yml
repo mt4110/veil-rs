@@ -11,26 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      # Use the install script to get the latest version
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Install Veil pinned to the tag used for generation (no mutable refs)
       - name: Install Veil
         run: |
-          curl -sSfL https://get.veil.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      # Run scan. 
-      # --deny-severity High ensures we block the build on significant secrets.
-      # --format html > report.html generates an artifact for review.
-      - name: Veil Scan
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+      # Monitoring report (HTML)
+      - name: Veil Scan (report)
         run: |
           veil scan . --format html > veil-report.html
-          # Also run check for exit code (the above pipe might mask it unless using set -o pipefail)
-          # We can do it in one go if we tee, or run twice (fast). 
-          # Let's trust veil's exit code with output.
-          
-      - name: Fail on High Severity
+
+      # Fail the build on High severity findings
+      - name: Veil Scan (enforce)
         run: |
-          veil scan . --fail-on-severity High --no-color --format text
+          veil --no-color scan . --fail-on-severity High --format text
 
       - name: Upload Report
         if: always()

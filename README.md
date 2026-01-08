@@ -44,26 +44,18 @@ rules_dir = "rules/log"
 Generate a repo-local Log RulePack template:
 
 ```bash
-veil init --profile Logs
+# 推奨: リリースタグ固定でインストール
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+
+# 開発者向け (Nix): このリポジトリからビルド
+nix develop
+cargo install --path crates/veil-cli
 ```
+> **Note (Windows users):** Nix環境は不要ですが、**Rust (Cargo) のインストールは必須**です。通常通り `cargo install --path crates/veil-cli` でインストールしてください。
 
-This creates `rules/log/` and wires `veil.toml` to use it.
+### 2. あなたのプロジェクトへ移動 (Go to YOUR project)
 
-➡ See `walkthrough.md` for the canonical architecture and workflow.
-
-## Minimum Supported Rust Version (MSRV)
-We support the latest stable Rust and **MSRV 1.82.0**.
-- **Patch Policy**: Patch releases never bump MSRV.
-- **Minor Policy**: Minor releases may bump MSRV (documented in release notes).
-
-### Quick Install (Rust 開発者向け)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mt4110/veil-rs/main/scripts/install.sh | sh
-veil --version
-```
-
-### Nix
+Veilのリポジトリから離れて、**あなたがスキャンしたいプロジェクト**のフォルダへ移動してください。
 
 ```bash
 # 一時的に試す

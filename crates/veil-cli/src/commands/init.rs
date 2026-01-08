@@ -205,38 +205,43 @@ pub fn init(
             anyhow::bail!("veil.toml already exists! Use --wizard to reconfigure.");
         }
         // Default non-interactive defaults
-        println!(
-            "{}",
-            "Generating default configuration (Application profile)...".blue()
-        );
-        println!(
-            "{}",
-            "Tip: Run `veil init --wizard` for an interactive setup.".dimmed()
-        );
-        println!(
-            "{}",
-            "Note: ext rules are generated but disabled by default.".dimmed()
-        );
-        println!(
-            "{}",
-            "      Uncomment the ext line in rules/log/00_manifest.toml to enable aggressive rules."
-                .dimmed()
-        );
+        let profile = if let Some(p_str) = profile_override.as_deref() {
+            match p_str.to_lowercase().as_str() {
+                "logs" | "log" => Profile::Logs,
+                "library" | "lib" => Profile::Library,
+                "application" | "app" => Profile::Application,
+                _ => Profile::Application,
+            }
+        } else {
+            Profile::Application
+        };
 
+        let profile_label = match profile {
+            Profile::Application => "Application",
+            Profile::Library => "Library",
+            Profile::Logs => "Logs",
+        };
         println!(
-            "\n{}",
-            "Log RulePack initialized. Enable 'core.rules_dir' in veil.toml to use it.".green()
+            "{}",
+            format!(
+                "Generating default configuration ({} profile)...",
+                profile_label
+            )
+            .blue()
         );
+        println!(
+            "{}",
+            "Tip: Run `veil init --wizard` for an interactive setup (recommended).".dimmed()
+        );
+        if profile == Profile::Logs {
+            println!(
+                "{}",
+                "Note: This profile generates a log-focused RulePack under rules/log.".dimmed()
+            );
+        }
+
         InitAnswers {
-            profile: if let Some(p_str) = profile_override {
-                match p_str.to_lowercase().as_str() {
-                    "logs" | "log" => Profile::Logs,
-                    "library" | "lib" => Profile::Library,
-                    _ => Profile::Application,
-                }
-            } else {
-                Profile::Application
-            },
+            profile,
             languages: vec![],
             fail_score: None,
             remote_rules_url: None,
@@ -271,13 +276,25 @@ pub fn init(
                 "{}",
                 format!("Created directory {}", rules_dir.display()).green()
             );
-
+            let mut created_any = false;
             for file in LogPackAssets::iter() {
                 let file_path = rules_dir.join(file.as_ref());
                 if let Some(content) = LogPackAssets::get(file.as_ref()) {
                     fs::write(&file_path, content.data.as_ref())?;
                     println!("  - Created {}", file.as_ref());
+                    created_any = true;
                 }
+            }
+
+            if created_any {
+                println!(
+                    "{}",
+                    "Log RulePack initialized at rules/log (wired via core.rules_dir).".green()
+                );
+                println!(
+                    "{}",
+                    "Tip: In rules/log/00_manifest.toml, uncomment the `ext = \"aggressive\"` line to enable aggressive rules.".bright_black()
+                );
             }
         } else {
             println!(
@@ -522,7 +539,8 @@ fn generate_ci_template(provider: &str) -> Result<()> {
 
             fs::create_dir_all(dir_path)?;
 
-            let content = include_str!("../templates/ci_github.yml");
+            let content = include_str!("../templates/ci_github.yml")
+                .replace("{{VEIL_VERSION}}", env!("CARGO_PKG_VERSION"));
             fs::write(&file_path, content)?;
             println!(
                 "{}",
