@@ -1,0 +1,14 @@
+[core]
+ignore = [
+    "flake.lock",
+    "Cargo.lock",
+    "tests/",
+    "target/",
+    "dist/",
+    ".git/",
+    "node_modules/",
+    ".direnv/"
+]
+
+[rules."pii.heuristic.number_like.keyword"]
+enabled = false
