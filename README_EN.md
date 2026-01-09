@@ -20,7 +20,7 @@ For log scrubbing, generate a repo-local Log RulePack:
 
 ```bash
 # Recommended: install from a pinned release tag
-cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
 
 # Dev (Nix): build from this repo
 nix develop

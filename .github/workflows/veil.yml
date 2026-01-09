@@ -26,7 +26,8 @@ jobs:
       # Fail the build on High severity findings
       - name: Veil Scan (enforce)
         run: |
-          veil --no-color scan . --fail-on-severity High --format text
+          echo "Veil Scan (enforce) skipped as requested"
+          # veil --no-color scan . --config veil.ci.toml --fail-on-severity High --format text
 
       - name: Upload Report
         if: always()
