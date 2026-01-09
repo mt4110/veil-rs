@@ -7,7 +7,14 @@ ignore = [
     "dist/",
     ".git/",
     "node_modules/",
-    ".direnv/"
+    ".direnv/",
+    "CHANGELOG.md",
+    "ROADMAP.md",
+    "examples/",
+    "dev/",
+    "schemas/",
+    "crates/veil/rules_ja/default/",
+    "test_summary.html"
 ]
 
 [rules."pii.heuristic.number_like.keyword"]
