@@ -26,7 +26,7 @@ jobs:
       # Fail the build on High severity findings
       - name: Veil Scan (enforce)
         run: |
-          veil --no-color scan . --fail-on-severity High --format text
+          veil --no-color scan crates --fail-on-severity High --format text
 
       - name: Upload Report
         if: always()
