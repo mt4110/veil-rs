@@ -173,9 +173,10 @@ pub fn init(
     non_interactive: bool,
     ci_provider: Option<String>,
     profile_override: Option<String>,
+    pin_tag: String,
 ) -> Result<()> {
     if let Some(provider) = ci_provider {
-        return generate_ci_template(&provider);
+        return generate_ci_template(&provider, &pin_tag);
     }
 
     let path = Path::new("veil.toml");
@@ -527,7 +528,7 @@ fn run_wizard(file_exists: bool) -> Result<Option<InitAnswers>> {
     }))
 }
 
-fn generate_ci_template(provider: &str) -> Result<()> {
+fn generate_ci_template(provider: &str, pin_tag: &str) -> Result<()> {
     match provider.to_lowercase().as_str() {
         "github" | "gh" | "actions" => {
             let dir_path = Path::new(".github/workflows");
@@ -539,8 +540,18 @@ fn generate_ci_template(provider: &str) -> Result<()> {
 
             fs::create_dir_all(dir_path)?;
 
-            let content = include_str!("../templates/ci_github.yml")
-                .replace("{{VEIL_VERSION}}", env!("CARGO_PKG_VERSION"));
+            let build_version = env!("CARGO_PKG_VERSION");
+            let tag_opt = resolve_pin_tag(pin_tag, build_version)?;
+
+            let mut content = include_str!("../templates/ci_github.yml")
+                .replace("{{VEIL_VERSION}}", build_version);
+
+            if let Some(tag) = tag_opt {
+                content = content.replace("__VEIL_TAG__", &tag);
+            } else {
+                content = content.replace(" --tag __VEIL_TAG__", "");
+            }
+
             fs::write(&file_path, content)?;
             println!(
                 "{}",
@@ -564,6 +575,42 @@ fn generate_ci_template(provider: &str) -> Result<()> {
             provider
         ),
     }
+}
+
+fn resolve_pin_tag(pin_tag: &str, build_version: &str) -> Result<Option<String>> {
+    match pin_tag {
+        "auto" => {
+            if is_prerelease(build_version) {
+                println!(
+                    "{}",
+                    format!(
+                        "Warning: Current version '{}' is a prerelease/dev build.",
+                        build_version
+                    )
+                    .yellow()
+                );
+                println!(
+                    "{}",
+                    "Skipping version pinning for CI workflow to avoid install errors."
+                        .yellow()
+                );
+                println!(
+                    "{}",
+                    "To pin a specific version, use --pin-tag vX.Y.Z".dimmed()
+                );
+                Ok(None)
+            } else {
+                Ok(Some(format!("v{}", build_version)))
+            }
+        }
+        "none" => Ok(None),
+        val if val.starts_with('v') => Ok(Some(val.to_string())),
+        _ => anyhow::bail!("Invalid --pin-tag value: '{}'. Must be 'auto', 'none', or start with 'v' (e.g. v1.0.0)", pin_tag),
+    }
+}
+
+fn is_prerelease(version: &str) -> bool {
+    version.contains('-') || version.contains('+')
 }
 
 #[cfg(test)]

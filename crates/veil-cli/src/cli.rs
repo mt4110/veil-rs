@@ -109,6 +109,12 @@ pub enum Commands {
         /// Initialize with a specific profile (e.g. "Logs") without wizard
         #[arg(long)]
         profile: Option<String>,
+        /// Pin the GitHub Actions workflow to a specific version tag.
+        /// - "auto" (default): Use current version (if stable) or display warning (if prerelease)
+        /// - "none": Do not pin version (use latest from main/master)
+        /// - "vX.Y.Z": Pin to specific version
+        #[arg(long, default_value = "auto")]
+        pin_tag: String,
     },
     /// Add path to ignore list
     Ignore {
