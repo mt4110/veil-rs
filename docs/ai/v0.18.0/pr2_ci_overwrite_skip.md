@@ -17,3 +17,5 @@
 
 ## Worklog
 - 2026-01-12: SOT created
+
+- 2026-01-12: SOT verified (thread switch)
