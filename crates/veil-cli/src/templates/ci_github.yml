@@ -17,7 +17,7 @@ jobs:
       # Install Veil pinned to the tag used for generation (no mutable refs)
       - name: Install Veil
         run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag __VEIL_TAG__ veil-cli
       # Monitoring report (HTML)
       - name: Veil Scan (report)
         run: |
