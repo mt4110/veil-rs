@@ -18,10 +18,10 @@ cat > docs/pr/PR-TBD-<short>.md <<'EOF'
 - 2–3 lines.
 
 ## Changes
-- [ ] 
+- [ ]
 
 ## Non-goals (Not changed)
-- [ ] 
+- [ ]
 
 ## Impact / Scope
 - CLI: [ ]
@@ -39,7 +39,7 @@ cargo test --workspace
 ```
 
 ### Notes / Evidence
-- [ ] 
+- [ ]
 
 ## Rollback
 - How to revert safely (1–2 lines).
