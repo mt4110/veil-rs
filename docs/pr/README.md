@@ -3,7 +3,7 @@
 This directory contains Source of Truth (SOT) documents for each Pull Request.
 A SOT document is the persistent record of the PR's intent, changes, and verification evidence.
 
-## Naming
+## SOT File Naming
 
 Recommended (before PR number is known):
 

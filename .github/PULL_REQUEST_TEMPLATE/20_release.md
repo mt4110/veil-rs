@@ -15,7 +15,7 @@ cat > docs/pr/PR-TBD-<short>.md <<'EOF'
 - Why now? What pain does this solve?
 
 ## Summary
-- 2–3 lines.
+- 2-3 lines.
 
 ## Changes
 - [ ]
@@ -42,7 +42,7 @@ cargo test --workspace
 - [ ]
 
 ## Rollback
-- How to revert safely (1–2 lines).
+- How to revert safely (1-2 lines).
 EOF
 -->
 
