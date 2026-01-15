@@ -3,13 +3,8 @@ name: Weekly Dogfood
 on:
   schedule:
     # 毎週 月曜 09:15 JST（= 00:15 UTC）
-    - cron: "15 0 * * 1"
+    - cron: 15 0 * * 1
   workflow_dispatch:
-    inputs:
-      week_id:
-        description: "Override WEEK_ID (e.g., 2026-W03). Empty = auto"
-        required: false
-        default: ""
 
 permissions:
   contents: write
@@ -26,6 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Prepare CI git config (avoid default-branch hint)
+        shell: bash
+        run: |
+          set -euo pipefail
+          config_path="${RUNNER_TEMP:-/tmp}/.gitconfig_ci"
+          echo "GIT_CONFIG_GLOBAL=$config_path" >> "$GITHUB_ENV"
+          cat > "$config_path" <<'EOF'
+          [init]
+            defaultBranch = main
+          [advice]
+            defaultBranchName = false
+          EOF
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -40,11 +48,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${{ inputs.week_id }}" ]]; then
-            week="${{ inputs.week_id }}"
-          else
-            week="$(date +%G-W%V)"
-          fi
+          week="$(date +%G-W%V)"
           echo "WEEK_ID=$week" >> "$GITHUB_ENV"
           echo "WEEK_ID=$week"
 
