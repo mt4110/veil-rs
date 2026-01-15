@@ -3,7 +3,7 @@ name: Weekly Dogfood
 on:
   schedule:
     # 毎週 月曜 09:15 JST（= 00:15 UTC）
-    - cron: "15 0 * * 1"
+    - cron: 15 0 * * 1
   workflow_dispatch:
     inputs:
       week_id:
@@ -20,12 +20,25 @@ concurrency:
 
 env:
   TZ: Asia/Tokyo
+  # Git 2.52+ の「masterがデフォ」ヒントを出させない（runner context不要）
+  GIT_CONFIG_GLOBAL: /tmp/.gitconfig_ci
 
 jobs:
   dogfood-weekly:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Prepare CI git config (avoid default-branch hint)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$GIT_CONFIG_GLOBAL" <<'EOF'
+          [init]
+            defaultBranch = main
+          [advice]
+            defaultBranchName = false
+          EOF
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -37,6 +50,7 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Compute WEEK_ID
+        id: week
         shell: bash
         run: |
           set -euo pipefail
@@ -46,13 +60,13 @@ jobs:
             week="$(date +%G-W%V)"
           fi
           echo "WEEK_ID=$week" >> "$GITHUB_ENV"
+          echo "week_id=$week" >> "$GITHUB_OUTPUT"
           echo "WEEK_ID=$week"
 
       - name: Run Dogfood Loop
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_AUTH_TOKEN: ${{ github.token }}
-          WEEK_ID: ${{ env.WEEK_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -67,8 +81,6 @@ jobs:
 
       - name: Phase 14 Analysis
         if: always()
-        env:
-          WEEK_ID: ${{ env.WEEK_ID }}
         shell: bash
         run: |
           set -euo pipefail
@@ -127,5 +139,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dogfood-${{ env.WEEK_ID }}-Tokyo
-          path: docs/dogfood/${{ env.WEEK_ID }}-Tokyo
+          name: dogfood-${{ steps.week.outputs.week_id }}-Tokyo
+          path: docs/dogfood/${{ steps.week.outputs.week_id }}-Tokyo
