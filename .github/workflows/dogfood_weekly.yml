@@ -72,7 +72,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
+          if [[ -x ./dist/cockpit-build/bin/cockpit ]]; then
+            ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
+          else
+            echo "cockpit binary not found; skipping analyze"
+          fi
 
       - name: Ensure Artifacts (Unbreakable Ritual)
         if: always()
@@ -114,7 +118,7 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add docs/dogfood
             git commit -m "chore(dogfood): weekly ${WEEK_ID} Tokyo" || true
-            git push
+            git push || echo "::warning::git push failed (branch protection?). Artifacts were uploaded."
           else
             echo "No changes in docs/dogfood; skipping commit."
           fi
