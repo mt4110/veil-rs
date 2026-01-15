@@ -1,3 +1,53 @@
+name: Weekly Dogfood
+
+on:
+  schedule:
+    # 毎週 月曜 09:15 JST（= 00:15 UTC）
+    - cron: "15 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      week_id:
+        description: "Override WEEK_ID (e.g., 2026-W03). Empty = auto"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dogfood-weekly
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Tokyo
+
+jobs:
+  dogfood-weekly:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          clean: true
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+
+      - name: Compute WEEK_ID
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ inputs.week_id }}" ]]; then
+            week="${{ inputs.week_id }}"
+          else
+            week="$(date +%G-W%V)"
+          fi
+          echo "WEEK_ID=$week" >> "$GITHUB_ENV"
+          echo "WEEK_ID=$week"
+
       - name: Run Dogfood Loop
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -5,33 +55,33 @@
           WEEK_ID: ${{ env.WEEK_ID }}
         shell: bash
         run: |
-          # Clean previous build
-          rm -rf dist/cockpit-build
+          set -euo pipefail
 
-          # Build
+          rm -rf dist/cockpit-build
           nix build .#cockpit --out-link dist/cockpit-build
 
-          # Prepare directory
           OUTDIR="docs/dogfood/${WEEK_ID}-Tokyo"
           mkdir -p "$OUTDIR"
 
-          # Run with log capture (receipts always exist)
-          set -euo pipefail
           ./dist/cockpit-build/bin/cockpit dogfood weekly 2>&1 | tee "$OUTDIR/run.log"
 
       - name: Phase 14 Analysis
         if: always()
         env:
           WEEK_ID: ${{ env.WEEK_ID }}
-        run: ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./dist/cockpit-build/bin/cockpit dogfood analyze --week-id "$WEEK_ID"
 
       - name: Ensure Artifacts (Unbreakable Ritual)
         if: always()
+        shell: bash
         run: |
+          set -euo pipefail
           TARGET_DIR="docs/dogfood/${WEEK_ID}-Tokyo"
           mkdir -p "$TARGET_DIR"
 
-          # Required files list (Phase 13 + Phase 14, additive-only)
           REQUIRED_FILES=(
             "metrics_v1.json"
             "scorecard.txt"
@@ -40,6 +90,7 @@
             "INSIGHTS.md"
             "ACTIONS.md"
             "SUMMARY.md"
+            "FIXLOG.md"
           )
 
           for file in "${REQUIRED_FILES[@]}"; do
@@ -47,12 +98,30 @@
             if [[ ! -f "$FILEPATH" ]]; then
               echo "Creating placeholder for missing artifact: $file"
               case "$file" in
-                *.json)
-                  printf "[]\n" > "$FILEPATH"
-                  ;;
-                *)
-                  printf "status: failed\nreason: Artifact generation failed or skipped\nremediation: Check workflow logs and run.log\ntimestamp: %s\n" "$(date)" > "$FILEPATH"
-                  ;;
+                *.json) printf "[]\n" > "$FILEPATH" ;;
+                *) printf "status: failed\nreason: Artifact generation failed; see workflow logs and run.log\ntimestamp: %s\n" "$(date -Is)" > "$FILEPATH" ;;
               esac
             fi
           done
+
+      - name: Commit and push dogfood artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain docs/dogfood)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/dogfood
+            git commit -m "chore(dogfood): weekly ${WEEK_ID} Tokyo" || true
+            git push
+          else
+            echo "No changes in docs/dogfood; skipping commit."
+          fi
+
+      - name: Upload dogfood artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dogfood-${{ env.WEEK_ID }}-Tokyo
+          path: docs/dogfood/${{ env.WEEK_ID }}-Tokyo
