@@ -15,10 +15,14 @@ Optional (after PR number is assigned):
 
 The key is that the file exists *before* you open the PR, so the PR body can link to it reliably.
 
-## Workflow
+## Workflow (v0.19.0+)
 
-1. Create a new SOT file (copy `sot_template.md`).
-2. Link it in your PR description: `SOT: docs/pr/PR-TBD-<short>.md`
+1. Create a new SOT file:
+   ```bash
+   veil sot new --epic <A|B|...> --slug <short-name>
+   ```
+2. Copy the path from the output and paste it into your PR description:
+   `SOT: docs/pr/PR-TBD-<short>.md`
 3. Keep the SOT updated as the PR evolves.
 4. (Optional) rename once the PR number exists.
 

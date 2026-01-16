@@ -7,42 +7,11 @@ SOT: docs/pr/PR-TBD-<short>.md
 <!--
 Run this command in your terminal to create the SOT file:
 
-cat > docs/pr/PR-TBD-<short>.md <<'EOF'
-# PR-TBD-<short>: [Title]
+# v0.19.0+
+veil sot new --epic A --slug <short>
 
-## Why (Background)
-- Why now? What pain does this solve?
-
-## Summary
-- 2-3 lines.
-
-## Changes
-- [ ]
-
-## Non-goals (Not changed)
-- [ ]
-
-## Impact / Scope
-- CLI: [ ]
-- CI: [ ]
-- Docs: [ ]
-- Rules: [ ]
-- Tests: [ ]
-
-## Verification
-
-### Commands
-```bash
-# example
-cargo test --workspace
-```
-
-### Notes / Evidence
-- [ ]
-
-## Rollback
-- How to revert safely (1-2 lines).
-EOF
+# Note: SOT is optional for changes only touching docs/ or .github/
+# If used, copy-paste the output "### SOT - docs/pr/..." below.
 -->
 
 # Changes

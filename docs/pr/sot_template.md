@@ -1,3 +1,4 @@
+# [LEGACY] Use `veil sot new` instead
 # PR-TBD-<short>: [Title]
 
 ## Why (Background)
