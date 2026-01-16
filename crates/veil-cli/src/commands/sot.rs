@@ -46,6 +46,7 @@ fn run_new(args: &SotNewArgs) -> Result<bool> {
     let (branch, commit) =
         get_git_info().unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
     let created_at = Local::now().format("%Y-%m-%d").to_string();
+    let title = args.title.as_deref().unwrap_or("TBD");
 
     // 5. Template replacement
     // We use include_str! relative to this file location
@@ -55,7 +56,8 @@ fn run_new(args: &SotNewArgs) -> Result<bool> {
         .replace("{{epic}}", epic)
         .replace("{{created_at}}", &created_at)
         .replace("{{branch}}", &branch)
-        .replace("{{commit}}", &commit);
+        .replace("{{commit}}", &commit)
+        .replace("{{title}}", title);
 
     // 6. Action
     if args.dry_run {

@@ -6,6 +6,7 @@ status: draft
 created_at: {{created_at}}
 branch: {{branch}}
 commit: {{commit}}
+title: {{title}}
 ---
 
 ## Overview
