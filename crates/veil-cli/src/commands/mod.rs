@@ -11,5 +11,6 @@ pub mod mask;
 pub mod pre_commit;
 pub mod rules;
 pub mod scan;
+pub mod sot;
 pub mod triage;
 pub mod update;

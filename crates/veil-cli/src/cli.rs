@@ -142,6 +142,9 @@ pub enum Commands {
     Rules(RulesCommand),
     /// Scan dependencies for vulnerabilities
     Guardian(GuardianArgs),
+    /// SOT (Source of Truth) tools
+    #[command(subcommand)]
+    Sot(SotCommand),
     /// Check for updates (stub)
     Update,
 }
@@ -272,6 +275,43 @@ pub enum ConfigLayer {
 pub enum ConfigFormat {
     Json,
     Toml,
+}
+
+#[derive(Subcommand)]
+pub enum SotCommand {
+    /// Create a new SOT file
+    New(SotNewArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct SotNewArgs {
+    /// Target release version (e.g. v0.19.0). If not specified, inferred from branch.
+    #[arg(long)]
+    pub release: Option<String>,
+
+    /// Epic identifier (A, B, C...)
+    #[arg(long, default_value = "A")]
+    pub epic: String,
+
+    /// Optional slug for filename
+    #[arg(long)]
+    pub slug: Option<String>,
+
+    /// Output directory
+    #[arg(long, default_value = "docs/pr")]
+    pub out: PathBuf,
+
+    /// Optional title overlap
+    #[arg(long)]
+    pub title: Option<String>,
+
+    /// Dry run (do not write files)
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Overwrite existing files
+    #[arg(long)]
+    pub force: bool,
 }
 
 fn parse_severity(s: &str) -> Result<Severity, String> {
