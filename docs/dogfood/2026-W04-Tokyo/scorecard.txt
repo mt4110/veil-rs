@@ -1,0 +1,4 @@
+scorecard_score_0_100: 25
+scorecard_score_0_10: 2.5
+scorecard_repo: https://github.com/mt4110/veil-rs
+scorecard_source: ossf/scorecard CLI
