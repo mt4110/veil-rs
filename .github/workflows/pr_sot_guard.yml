@@ -65,7 +65,7 @@ jobs:
             echo "To fix:"
             echo "1. Create SOT:"
             echo "   veil sot new --epic <A|B|...> --slug <short>"
-            echo "   (or use --release v0.19.0 if autodetection fails)"
+            echo "   (or use --release <vX.Y.Z> if autodetection fails)"
             echo ""
             echo "2. Add to git:"
             echo "   git add docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md"

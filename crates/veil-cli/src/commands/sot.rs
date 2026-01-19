@@ -98,7 +98,6 @@ fn run_new(args: &SotNewArgs) -> Result<bool> {
     Ok(false)
 }
 
-
 fn run_rename(args: &SotRenameArgs) -> Result<bool> {
     // 1) Locate source file
     let src_path = match &args.path {
@@ -134,7 +133,8 @@ fn run_rename(args: &SotRenameArgs) -> Result<bool> {
                 }
                 1 => candidates.remove(0),
                 _ => {
-                    let mut msg = String::from("Multiple PR-TBD SOT files found. Please specify --path:\n");
+                    let mut msg =
+                        String::from("Multiple PR-TBD SOT files found. Please specify --path:\n");
                     for c in &candidates {
                         msg.push_str(&format!("- {}\n", c.display()));
                     }
