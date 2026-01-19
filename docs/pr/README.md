@@ -31,7 +31,10 @@ The key is that the file exists *before* you open the PR, so the PR body can lin
    - docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
    ```
 3. Keep the SOT updated as the PR evolves.
-4. (Optional) rename once the PR number exists (manual rename for now; `veil sot rename` will automate this in v0.19.0).
+4. (Optional) rename once the PR number exists:
+   ```bash
+   veil sot rename --pr <number>
+   ```
 
 ## Why SOT?
 

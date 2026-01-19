@@ -1,4 +1,4 @@
-use crate::cli::{SotCommand, SotNewArgs};
+use crate::cli::{SotCommand, SotNewArgs, SotRenameArgs};
 use anyhow::{anyhow, Context, Result};
 use chrono::Local;
 use colored::Colorize;
@@ -10,6 +10,7 @@ use std::process::Command;
 pub fn run(cmd: &SotCommand) -> Result<bool> {
     match cmd {
         SotCommand::New(args) => run_new(args),
+        SotCommand::Rename(args) => run_rename(args),
     }
 }
 
@@ -93,6 +94,157 @@ fn run_new(args: &SotNewArgs) -> Result<bool> {
             release, epic
         );
     }
+
+    Ok(false)
+}
+
+
+fn run_rename(args: &SotRenameArgs) -> Result<bool> {
+    // 1) Locate source file
+    let src_path = match &args.path {
+        Some(p) => p.clone(),
+        None => {
+            let dir = &args.dir;
+            let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+            let entries = fs::read_dir(dir)
+                .with_context(|| format!("Failed to read directory: {}", dir.display()))?;
+
+            for e in entries {
+                let e = e?;
+                let path = e.path();
+                if !path.is_file() {
+                    continue;
+                }
+                let name = match path.file_name().and_then(|s| s.to_str()) {
+                    Some(s) => s,
+                    None => continue,
+                };
+                if name.starts_with("PR-TBD-") && name.ends_with(".md") {
+                    candidates.push(path);
+                }
+            }
+
+            match candidates.len() {
+                0 => {
+                    return Err(anyhow!(
+                        "No PR-TBD SOT file found under {}. Provide --path or create one via `veil sot new`.",
+                        dir.display()
+                    ));
+                }
+                1 => candidates.remove(0),
+                _ => {
+                    let mut msg = String::from("Multiple PR-TBD SOT files found. Please specify --path:\n");
+                    for c in &candidates {
+                        msg.push_str(&format!("- {}\n", c.display()));
+                    }
+                    return Err(anyhow!(msg));
+                }
+            }
+        }
+    };
+
+    // 2) Compute destination path
+    let file_name = src_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow!("Invalid filename: {}", src_path.display()))?;
+
+    if !file_name.starts_with("PR-TBD-") {
+        return Err(anyhow!(
+            "Expected a PR-TBD SOT file, but got: {}",
+            src_path.display()
+        ));
+    }
+
+    let dst_name = file_name.replacen("PR-TBD-", &format!("PR-{}-", args.pr), 1);
+    let dst_path = src_path.with_file_name(dst_name);
+
+    // 3) Load content and update front matter
+    let content = fs::read_to_string(&src_path)
+        .with_context(|| format!("Failed to read SOT file: {}", src_path.display()))?;
+
+    // Update `pr:` line.
+    // - If `pr: TBD` -> set to pr
+    // - If `pr: <n>` differs -> require --force
+    let re_pr = Regex::new(r"(?m)^pr:\s*(?P<val>\S+)\s*$").unwrap();
+    let mut existing_val: Option<String> = None;
+    if let Some(caps) = re_pr.captures(&content) {
+        existing_val = Some(caps.name("val").unwrap().as_str().to_string());
+    }
+
+    if let Some(v) = existing_val.as_deref() {
+        let v_norm = v.trim();
+        if v_norm != "TBD" {
+            if v_norm != args.pr.to_string() {
+                if !args.force {
+                    return Err(anyhow!(
+                        "SOT already has pr: {} (expected TBD). Use --force to overwrite to pr: {}.",
+                        v_norm,
+                        args.pr
+                    ));
+                }
+            }
+        }
+    }
+
+    let updated = if re_pr.is_match(&content) {
+        re_pr
+            .replace(&content, format!("pr: {}", args.pr))
+            .to_string()
+    } else {
+        // If the file has no pr: line, add it to the front matter (best-effort).
+        // Insert after the first '---' line.
+        let re_front = Regex::new(r"(?m)^---\s*$").unwrap();
+        if let Some(mat) = re_front.find(&content) {
+            let insert_at = mat.end();
+            format!(
+                "{}\npr: {}{}",
+                &content[..insert_at],
+                args.pr,
+                &content[insert_at..]
+            )
+        } else {
+            content.clone()
+        }
+    };
+
+    // 4) Action
+    if args.dry_run {
+        println!(
+            "Dry run: would rename {} -> {}",
+            src_path.display(),
+            dst_path.display()
+        );
+        println!("Dry run: would set front matter pr: {}", args.pr);
+        return Ok(false);
+    }
+
+    if dst_path.exists() && !args.force {
+        return Err(anyhow!(
+            "Destination {} already exists. Use --force to overwrite.",
+            dst_path.display()
+        ));
+    }
+
+    fs::write(&dst_path, &updated)
+        .with_context(|| format!("Failed to write SOT file: {}", dst_path.display()))?;
+
+    if dst_path != src_path {
+        fs::remove_file(&src_path)
+            .with_context(|| format!("Failed to remove old SOT file: {}", src_path.display()))?;
+    }
+
+    println!(
+        "{} Renamed SOT: {} -> {}",
+        "✅".green(),
+        src_path.display(),
+        dst_path.display()
+    );
+    println!();
+    println!("Copy-paste into PR body:");
+    println!("### SOT");
+    println!("- {}", dst_path.display());
 
     Ok(false)
 }

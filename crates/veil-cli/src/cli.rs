@@ -281,6 +281,9 @@ pub enum ConfigFormat {
 pub enum SotCommand {
     /// Create a new SOT file
     New(SotNewArgs),
+
+    /// Rename a PR-TBD SOT file to PR-<number>-... and update front matter
+    Rename(SotRenameArgs),
 }
 
 #[derive(Args, Debug)]
@@ -310,6 +313,29 @@ pub struct SotNewArgs {
     pub dry_run: bool,
 
     /// Overwrite existing files
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SotRenameArgs {
+    /// Pull Request number (e.g. 123)
+    #[arg(long)]
+    pub pr: u32,
+
+    /// Path to the SOT file (optional). If omitted, auto-detects a single PR-TBD-*.md under --dir.
+    #[arg(long)]
+    pub path: Option<PathBuf>,
+
+    /// Directory to search for PR-TBD-*.md (default: docs/pr)
+    #[arg(long, default_value = "docs/pr")]
+    pub dir: PathBuf,
+
+    /// Dry run (do not rename/write files)
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Overwrite existing destination file, and allow updating an existing pr: <n> even if different
     #[arg(long)]
     pub force: bool,
 }
