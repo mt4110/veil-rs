@@ -173,18 +173,15 @@ fn run_rename(args: &SotRenameArgs) -> Result<bool> {
         existing_val = Some(caps.name("val").unwrap().as_str().to_string());
     }
 
-    if let Some(v) = existing_val.as_deref() {
-        let v_norm = v.trim();
-        if v_norm != "TBD" {
-            if v_norm != args.pr.to_string() {
-                if !args.force {
-                    return Err(anyhow!(
-                        "SOT already has pr: {} (expected TBD). Use --force to overwrite to pr: {}.",
-                        v_norm,
-                        args.pr
-                    ));
-                }
-            }
+    if let Some(v_norm) = existing_val.as_deref() {
+        let expected = args.pr.to_string();
+
+        if v_norm != expected && !args.force {
+            return Err(anyhow!(
+                "SOT already has pr: {} (expected TBD). Use --force to overwrite to pr: {}.",
+                v_norm,
+                expected
+            ));
         }
     }
 
