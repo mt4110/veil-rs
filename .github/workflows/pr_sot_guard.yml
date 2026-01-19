@@ -19,73 +19,57 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Get list of changed files
-          # origin/main vs HEAD
-          # We assume PR target is main or develop.
-          base_ref="origin/${{ github.base_ref }}"
-          
-          echo "Comparing HEAD against $base_ref"
-          
-          changed_files="$(git diff --name-only "$base_ref" HEAD)"
+          # Compute changed files for this PR using merge-base (stable, avoids relying on origin/<branch> refs).
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          echo "Computing changed files via: git diff --name-only ${base_sha}...${head_sha}"
+          changed_files="$(git diff --name-only "${base_sha}...${head_sha}")"
+
+          if [ -z "${changed_files}" ]; then
+            echo "✅ No file changes detected."
+            exit 0
+          fi
 
           # Check if changes are only in docs/ or .github/
           # We filter out docs/ and .github/ lines. If nothing remains, it's a docs-only PR.
-          code_changes="$(echo "$changed_files" | grep -vE '^(docs/|\.github/)' || true)"
+          code_changes="$(echo "${changed_files}" | grep -vE '^(docs/|\.github/)' || true)"
 
-          if [ -z "$code_changes" ]; then
+          if [ -z "${code_changes}" ]; then
             echo "✅ Docs/CI only changes. SOT not required."
             exit 0
           fi
 
           echo "⚠️ Code changes detected:"
-          echo "$code_changes" | head -n 5
-          if [ "$(echo "$code_changes" | wc -l)" -gt 5 ]; then echo "..."; fi
+          echo "${code_changes}" | head -n 5
+          if [ "$(echo "${code_changes}" | wc -l)" -gt 5 ]; then echo "..."; fi
           echo ""
 
-          # Check for SOT file in the diff (newly added or modified)
-          # OR just existence in docs/pr/PR-{TBD,numbers}* in the current tree?
-          # Ideally, it should be in the PR.
-          # We check if any file in docs/pr/ matches the pattern AND is in the changed_files list?
-          # Or just if it exists in the tree is enough? Usually implies it's in the repo.
-          # Be stricter: ensure it is part of this PR or recently added?
-          # For v0.19.0, strict check: MUST have SOT in docs/pr/PR-*.md
-
-          # Look for SOT in docs/pr/
-          # We accept PR-TBD-*.md or PR-[0-9]*.md
+          # Look for SOT in docs/pr/ (must be part of this PR's changed files)
+          # We accept PR-TBD-*.md or PR-<number>-*.md
           sot_files="$(ls docs/pr/PR-TBD-*.md docs/pr/PR-[0-9]*.md 2>/dev/null || true)"
 
-          # Filter to see if any of these SOTs are actually touched in this PR?
-          # If I add a SOT, it shows up in changed_files.
-          
           sot_found=0
-          for f in $sot_files; do
-            # Check if $f is in changed_files
-            if echo "$changed_files" | grep -q "^$f$"; then
+          for f in ${sot_files}; do
+            if echo "${changed_files}" | grep -Fqx "${f}"; then
               sot_found=1
-              echo "✅ SOT found in PR: $f"
+              echo "✅ SOT found in PR: ${f}"
               break
             fi
           done
 
-          # Fallback: if SOT exists but wasn't touched? 
-          # Maybe we just relaxed to "SOT must exist corresponding to this feature"?
-          # But for now, let's enforce "SOT file must be present in the PR changes" to ensure it's fresh?
-          # Or at least "SOT must exist". 
-          # The user requirement says: "CI error message... no docs/pr/PR-*.md found in this PR".
-          # So it implies it must be in the PR.
-
-          if [ "$sot_found" -eq 0 ]; then
-             echo "❌ SOT Missing!"
-             echo "Code changes detected, but no SOT file found in docs/pr/ in this PR."
-             echo ""
-             echo "To fix:"
-             echo "1. Create SOT:"
-             echo "   veil sot new --epic <A|B|...> --slug <short>"
-             echo "   (or use --release v0.19.0 if autodetection fails)"
-             echo ""
-             echo "2. Add to git:"
-             echo "   git add docs/pr/PR-TBD-..."
-             echo "   git commit -m \"docs: add SOT\""
-             echo ""
-             exit 1
+          if [ "${sot_found}" -eq 0 ]; then
+            echo "❌ SOT Missing!"
+            echo "Code changes detected, but no SOT file found in docs/pr/ in this PR."
+            echo ""
+            echo "To fix:"
+            echo "1. Create SOT:"
+            echo "   veil sot new --epic <A|B|...> --slug <short>"
+            echo "   (or use --release v0.19.0 if autodetection fails)"
+            echo ""
+            echo "2. Add to git:"
+            echo "   git add docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md"
+            echo "   git commit -m \"docs: add SOT\""
+            echo ""
+            exit 1
           fi

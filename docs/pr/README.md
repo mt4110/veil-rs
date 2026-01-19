@@ -7,11 +7,14 @@ A SOT document is the persistent record of the PR's intent, changes, and verific
 
 Recommended (before PR number is known):
 
-- `docs/pr/PR-TBD-<short>.md`  (e.g. `PR-TBD-pr-template-sot.md`)
+- `docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md`
+  - e.g. `docs/pr/PR-TBD-v0.19.0-epic-a.md`
+  - e.g. `docs/pr/PR-TBD-v0.19.0-epic-b-sot-ux.md`
 
 Optional (after PR number is assigned):
 
-- rename to `docs/pr/PR-1234-<short>.md`
+- rename to `docs/pr/PR-<pr>-<release>-epic-<epic>[-<slug>].md`
+  - e.g. `docs/pr/PR-123-v0.19.0-epic-b-sot-ux.md`
 
 The key is that the file exists *before* you open the PR, so the PR body can link to it reliably.
 
@@ -20,14 +23,18 @@ The key is that the file exists *before* you open the PR, so the PR body can lin
 1. Create a new SOT file:
    ```bash
    veil sot new --epic <A|B|...> --slug <short-name>
+   # Add --release vX.Y.Z if release inference fails.
    ```
-2. Copy the path from the output and paste it into your PR description:
-   `SOT: docs/pr/PR-TBD-<short>.md`
+2. Copy-paste the block printed by the command into your PR description:
+   ```md
+   ### SOT
+   - docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
+   ```
 3. Keep the SOT updated as the PR evolves.
-4. (Optional) rename once the PR number exists.
+4. (Optional) rename once the PR number exists (manual rename for now; `veil sot rename` will automate this in v0.19.0).
 
 ## Why SOT?
 
-- Directly editable via `cat > ...` commands in the PR template (avoids `$EDITOR` instability).
+- Consistent naming + metadata via `veil sot new` (no manual `cat > ...`).
 - Persistent record that survives squash merges.
 - Single place for complex verification logs and evidence.
