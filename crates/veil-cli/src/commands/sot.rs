@@ -177,21 +177,19 @@ fn run_rename(args: &SotRenameArgs) -> Result<bool> {
         let desired = args.pr.to_string();
         let current = v_norm.trim().to_string();
 
-        // OK: TBD -> PR number is the normal flow
-        let is_tbd = current.eq_ignore_ascii_case("TBD");
-        // OK: already renamed (idempotent)
-        let is_same = current == desired;
-
-        if is_same {
+        if current.eq_ignore_ascii_case("TBD") {
+            // OK: proceed (normal flow)
+        } else if current == desired {
+            // OK: idempotent
             return Ok(false);
-        }
-        if !is_tbd && !args.force {
+        } else if !args.force {
             return Err(anyhow!(
                 "SOT already has pr: {} (expected TBD). Use --force to overwrite to pr: {}.",
                 current,
                 desired
             ));
         }
+        // if --force, continue and overwrite
     }
 
     let updated = if re_pr.is_match(&content) {
