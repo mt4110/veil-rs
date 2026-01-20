@@ -1,48 +1,21 @@
 # Documentation Update
 
 # SOT
-<!-- REQUIRED -->
-SOT: docs/pr/PR-TBD-<short>.md
+<!--
+SOT is optional for changes only touching docs/ or .github/.
+If you choose to use SOT, create it using the command below and paste the output block here.
+-->
+
+### SOT
+- docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
 
 <!--
 Run this command in your terminal to create the SOT file:
 
-cat > docs/pr/PR-TBD-<short>.md <<'EOF'
-# PR-TBD-<short>: [Title]
+# v0.19.0+
+veil sot new --epic <A|B|...> --slug <short>
 
-## Why (Background)
-- Why now? What pain does this solve?
-
-## Summary
-- 2-3 lines.
-
-## Changes
-- [ ]
-
-## Non-goals (Not changed)
-- [ ]
-
-## Impact / Scope
-- CLI: [ ]
-- CI: [ ]
-- Docs: [ ]
-- Rules: [ ]
-- Tests: [ ]
-
-## Verification
-
-### Commands
-```bash
-# example
-cargo test --workspace
-```
-
-### Notes / Evidence
-- [ ]
-
-## Rollback
-- How to revert safely (1-2 lines).
-EOF
+# Then copy-paste the output block here (it prints the exact "### SOT" section).
 -->
 
 # Changes

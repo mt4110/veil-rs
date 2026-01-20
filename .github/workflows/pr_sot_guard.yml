@@ -1,0 +1,75 @@
+name: SOT Guard
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  check-sot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check SOT existence
+        run: |
+          set -euo pipefail
+
+          # Compute changed files for this PR using merge-base (stable, avoids relying on origin/<branch> refs).
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          echo "Computing changed files via: git diff --name-only ${base_sha}...${head_sha}"
+          changed_files="$(git diff --name-only "${base_sha}...${head_sha}")"
+
+          if [ -z "${changed_files}" ]; then
+            echo "✅ No file changes detected."
+            exit 0
+          fi
+
+          # Check if changes are only in docs/ or .github/
+          # We filter out docs/ and .github/ lines. If nothing remains, it's a docs-only PR.
+          code_changes="$(echo "${changed_files}" | grep -vE '^(docs/|\.github/)' || true)"
+
+          if [ -z "${code_changes}" ]; then
+            echo "✅ Docs/CI only changes. SOT not required."
+            exit 0
+          fi
+
+          echo "⚠️ Code changes detected:"
+          echo "${code_changes}" | head -n 5
+          if [ "$(echo "${code_changes}" | wc -l)" -gt 5 ]; then echo "..."; fi
+          echo ""
+
+          # Look for SOT in docs/pr/ (must be part of this PR's changed files)
+          # We accept PR-TBD-*.md or PR-<number>-*.md
+          sot_files="$(ls docs/pr/PR-TBD-*.md docs/pr/PR-[0-9]*.md 2>/dev/null || true)"
+
+          sot_found=0
+          for f in ${sot_files}; do
+            if echo "${changed_files}" | grep -Fqx "${f}"; then
+              sot_found=1
+              echo "✅ SOT found in PR: ${f}"
+              break
+            fi
+          done
+
+          if [ "${sot_found}" -eq 0 ]; then
+            echo "❌ SOT Missing!"
+            echo "Code changes detected, but no SOT file found in docs/pr/ in this PR."
+            echo ""
+            echo "To fix:"
+            echo "1. Create SOT:"
+            echo "   veil sot new --epic <A|B|...> --slug <short>"
+            echo "   (or use --release <vX.Y.Z> if autodetection fails)"
+            echo ""
+            echo "2. Add to git:"
+            echo "   git add docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md"
+            echo "   git commit -m \"docs: add SOT\""
+            echo ""
+            exit 1
+          fi

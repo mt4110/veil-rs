@@ -2,48 +2,18 @@
 <!-- Brief description of what this PR accomplishes. -->
 
 # SOT
-<!-- REQUIRED: Source of Truth document. Create it using the command below. -->
-SOT: docs/pr/PR-TBD-<short>.md
+<!-- REQUIRED: Source of Truth document. Create it using the command below, then paste the output block here. -->
+
+### SOT
+- docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
 
 <!--
 Run this command in your terminal to create the SOT file:
 
-cat > docs/pr/PR-TBD-<short>.md <<'EOF'
-# PR-TBD-<short>: [Title]
+# v0.19.0+
+veil sot new --epic <A|B|...> --slug <short>
 
-## Why (Background)
-- Why now? What pain does this solve?
-
-## Summary
-- 2-3 lines.
-
-## Changes
-- [ ]
-
-## Non-goals (Not changed)
-- [ ]
-
-## Impact / Scope
-- CLI: [ ]
-- CI: [ ]
-- Docs: [ ]
-- Rules: [ ]
-- Tests: [ ]
-
-## Verification
-
-### Commands
-```bash
-# example
-cargo test --workspace
-```
-
-### Notes / Evidence
-- [ ]
-
-## Rollback
-- How to revert safely (1-2 lines).
-EOF
+# Then copy-paste the output block here (it prints the exact "### SOT" section).
 -->
 
 # Changes
