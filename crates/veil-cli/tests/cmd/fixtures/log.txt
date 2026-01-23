@@ -1,0 +1,3 @@
+INFO: This is a normal log line.
+DEBUG: AWS_KEY=AKIAIOSFODNN7EXAMPLE login attempt.
+INFO: Operation completed.

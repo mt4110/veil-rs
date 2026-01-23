@@ -1,0 +1,7 @@
+bin.name = "veil"
+args = ["--no-color", "mask", "--dry-run", "tests/cmd/fixtures/secret.txt"]
+status = "success"
+stdout = """
+[DRY-RUN] Would mask 1 secrets in: tests/cmd/fixtures/secret.txt
+"""
+stderr = ""
