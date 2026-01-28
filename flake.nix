@@ -47,9 +47,9 @@
           src = ./.;
           subPackages = [ "cmd/cockpit" ];
           vendorHash = null;
-          
+
           nativeBuildInputs = [ pkgs.makeWrapper ];
-          
+
           postFixup = ''
             wrapProgram $out/bin/cockpit \
               --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.git pkgs.scorecard ]}
@@ -113,6 +113,99 @@
             exec ${cockpitPkg}/bin/cockpit status "$@"
           '';
         };
+        prverifyScript = pkgs.writeShellApplication {
+          name = "prverify";
+          runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.git rustStable ];
+          text = ''
+              set -u
+              set -o pipefail
+
+              root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+              cd "$root"
+
+              out_dir=".local/prverify"
+              mkdir -p "$out_dir"
+
+              ts="$(date -u +%Y%m%dT%H%M%SZ)"
+              sha="$(git rev-parse --short HEAD 2>/dev/null || echo no-git)"
+              report="$(printf '%s/prverify_%s_%s.md' "$out_dir" "$ts" "$sha")"
+
+              : > "$report"
+              exec > >(tee -a "$report") 2>&1
+
+              write_header() {
+                cat <<'HDR'
+            # PR verify report
+
+            このレポートは `nix run .#prverify` の実行結果です。
+
+            ## Environment
+            HDR
+                echo ""
+                echo "- timestamp (UTC): $ts"
+                echo "- git sha: $sha"
+                echo "- rustc: $(rustc --version 2>/dev/null || echo 'N/A')"
+                echo "- cargo: $(cargo --version 2>/dev/null || echo 'N/A')"
+                echo ""
+                echo "## Commands"
+                echo '```bash'
+                echo 'cargo test -p veil-cli --test cli_tests'
+                echo 'cargo test --workspace'
+                echo '```'
+                echo ""
+              }
+
+              run_block() {
+                local title="$1"; shift
+                echo "## $title"
+                echo '```'
+                "$@" 2>&1
+                local rc=$?
+                echo '```'
+                echo ""
+                echo "- exit_code: $rc"
+                echo ""
+                return $rc
+              }
+
+              write_header
+
+              rc1=0
+              rc2=0
+
+              run_block "cli smoke (trycmd)" cargo test -p veil-cli --test cli_tests || rc1=$?
+              run_block "workspace tests" cargo test --workspace || rc2=$?
+
+              echo "## Notes / Evidence"
+              echo ""
+              if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ]; then
+                echo "- Local run: PASS"
+              else
+                echo "- Local run: FAIL (cli_tests=$rc1, workspace=$rc2)"
+              fi
+              echo ""
+
+              echo "## Rollback"
+              echo ""
+              echo '```bash'
+              echo '# 1コミットだけ戻す'
+              echo 'git revert <commit>'
+              echo ""
+              echo '# 範囲でまとめて戻す'
+              echo 'git revert <oldest_commit>^..<newest_commit>'
+              echo '```'
+              echo ""
+
+              echo "---"
+              echo "report: $report"
+
+              if [ "$rc1" -ne 0 ]; then exit "$rc1"; fi
+              if [ "$rc2" -ne 0 ]; then exit "$rc2"; fi
+              exit 0
+          '';
+        };
+
+
       in
       {
         packages.veil = veilPkg;
@@ -125,6 +218,7 @@
         apps."ai-pack" = { type = "app"; program = "${aiPackScript}/bin/ai-pack"; };
         apps.gen = { type = "app"; program = "${genScript}/bin/gen"; };
         apps.status = { type = "app"; program = "${statusScript}/bin/status"; };
+        apps.prverify = { type = "app"; program = "${prverifyScript}/bin/prverify"; };
         apps.default = veilApp;
 
         devShells.default = pkgs.mkShell {
