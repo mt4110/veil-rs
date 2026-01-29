@@ -1,0 +1,5 @@
+bin.name = "veil"
+args = ["--no-color", "--version"]
+status = "success"
+stdout = "veil [..]"
+stderr = ""

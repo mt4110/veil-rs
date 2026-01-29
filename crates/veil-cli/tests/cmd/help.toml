@@ -1,23 +1,21 @@
-bin.name = "veil-cli"
+bin.name = "veil"
 args = ["--help"]
 status = "success"
 stdout = """
 A high-performance secret detection tool
 
-Usage: veil-cli [OPTIONS] <COMMAND>
-
+...
 Commands:
   scan           Scan files for secrets
-  filter         Filter STDIN and mask secrets (outputs to STDOUT)
-  mask           Rewrite files in-place masking found secrets
-  check-project  Run project health checks
-  init           Initialize a new configuration file
-  ignore         Add path to ignore list
+...
+  guardian       Scan dependencies for vulnerabilities
+  update         Check for updates (stub)
   help           Print this message or the help of the given subcommand(s)
 
 Options:
   -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
 ...
   -h, --help             Print help
+  -V, --version          Print version
 """
 stderr = ""

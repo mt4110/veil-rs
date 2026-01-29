@@ -1,18 +1,26 @@
+# repro plan (local)
 
-# Reproduction Steps
+目的：**「検証して、証拠を書いて、戻し方も書く」** を *手順書の腐敗なし* で回す。
 
-1. Create a `repro_test` directory.
-2. Inside, run `veil init` (defaults to Application).
-3. Create `test_pii.txt` with JP MyNumber: `マイナンバー 1234-5678-9012`.
-4. Run `veil scan`.
-5. Check output for `pii.jp.mynumber.keyword` (from `pii_jp.toml`).
-6. Check output for `log.pii...` (should NOT be there).
+このリポジトリでは、再現手順を「CLIフラグ列」で固定すると壊れやすいです。
+（将来フラグが増減して、未来の自分がコケる）
 
-## Verification Code
+なので、**テスト駆動 + 設定駆動** を前提に寄せます。
+
+## TL;DR（ワンコマンド）
+
 ```bash
-mkdir -p repro_test
-cd repro_test
-../../target/debug/veil init
-echo "マイナンバー 1234-5678-9012" > test_pii.txt
-../../target/debug/veil scan
+nix run .#prverify
+```
+
+- smoke（trycmd） + workspace テスト
+- 実行ログを `.local/prverify/` に Markdown として保存
+
+詳細は `docs/ci/prverify.md` を参照。
+
+## Manual fallback（Nixが使えない時）
+
+```bash
+cargo test -p veil-cli --test cli_tests
+cargo test --workspace
 ```

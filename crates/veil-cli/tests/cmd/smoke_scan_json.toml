@@ -1,0 +1,23 @@
+bin.name = "veil"
+args = ["--no-color", "scan", "tests/cmd/fixtures/clean", "--format", "json"]
+status = "success"
+# We expect valid JSON array or object. Just check start/end or keywords for smoke.
+stdout = """
+[..]
+  "schemaVersion": "veil-v1",
+  "summary": {
+    "total_files": 1,
+    "scanned_files": 1,
+    "skipped_files": 0,
+    "total_findings": 0,
+    "new_findings": 0,
+    "baseline_suppressed": 0,
+    "limit_reached": false,
+    "duration_ms": [..],
+    "baseline_path": null,
+    "severity_counts": [..]
+  },
+  "findings": []
+}
+"""
+stderr = ""

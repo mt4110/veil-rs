@@ -1,0 +1,13 @@
+bin.name = "veil"
+args = ["--no-color", "config", "check"]
+status = "success"
+stdout = """
+[..]Validating configuration...
+[..]Configuration loaded successfully.
+[..]Config Path: [..]
+[..]Total Active Rules: [..]
+
+[..]Performing constraints check...
+[..]No safety issues found in [..] rules.
+"""
+stderr = ""

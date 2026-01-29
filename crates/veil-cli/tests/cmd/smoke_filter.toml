@@ -1,0 +1,14 @@
+bin.name = "veil"
+args = ["--no-color", "filter"]
+stdin = """
+INFO: This is a normal log line.
+DEBUG: AWS_KEY=AKIAIOSFODNN7EXAMPLE login attempt.
+INFO: Operation completed.
+"""
+status = "success"
+stdout = """
+INFO: This is a normal log line.
+DEBUG: AWS_KEY=<REDACTED> login attempt.
+INFO: Operation completed.
+"""
+stderr = ""
