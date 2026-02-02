@@ -41,3 +41,12 @@ The key is that the file exists *before* you open the PR, so the PR body can lin
 - Consistent naming + metadata via `veil sot new` (no manual `cat > ...`).
 - Persistent record that survives squash merges.
 - Single place for complex verification logs and evidence.
+
+> [!CAUTION]
+> **Use the correct `veil` binary**
+> When running `veil sot new`, ensure you are using the version of `veil` consistent with the repository tools, or build it fresh. The system `veil` in your PATH might be outdated.
+>
+> **Recommended:**
+> ```bash
+> cargo run -p veil-cli -- sot new --epic <EPIC> --slug <SLUG>
+> ```
