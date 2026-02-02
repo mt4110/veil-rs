@@ -87,6 +87,44 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Build
         run: cargo build --verbose
+      - name: Check Future Incompatibilities
+        run: |
+          set -euo pipefail
+          mkdir -p .local/ci
+          cargo check --workspace --all-targets --future-incompat-report 2>&1 | tee .local/ci/check_future_incompat.log
+
+          # `cargo report future-incompatibilities` only works when a report exists.
+          # If no report exists, that's a valid state (no future-incompat warnings observed).
+          if cargo report future-incompatibilities > .local/ci/future_incompat.txt 2>&1; then
+            echo "✅ future-incompat report saved"
+          else
+            rm -f .local/ci/future_incompat.txt
+            echo "✅ no future-incompat report available"
+          fi
+
+      - name: Install sqlx-cli
+        run: |
+          set -euo pipefail
+          if command -v cargo-sqlx >/dev/null 2>&1; then
+            cargo sqlx --version
+            exit 0
+          fi
+          cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls
+          cargo sqlx --version
+
+      - name: Check SQLx Prepare
+        run: |
+          set -euo pipefail
+          SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sqlx_prepare_check.txt
+
+      - name: Upload Guardrail Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrail-logs
+          path: .local/ci/
+          if-no-files-found: ignore
+
       - name: Test Unit
         run: |
           cargo test --workspace --lib --bins --verbose
