@@ -79,6 +79,16 @@ jobs:
         with:
           toolchain: stable
           components: clippy, rustfmt
+
+      - name: Cache Cargo Registry & Git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Check formatting
@@ -87,6 +97,65 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Build
         run: cargo build --verbose
+      - name: Check Future Incompatibilities
+        run: |
+          set -euo pipefail
+          mkdir -p .local/ci
+          cargo check --workspace --all-targets --future-incompat-report 2>&1 | tee .local/ci/check_future_incompat.log
+
+          # `cargo report future-incompatibilities` only works when a report exists.
+          # If no report exists, that's a valid state (no future-incompat warnings observed).
+          if cargo report future-incompatibilities > .local/ci/future_incompat.txt 2>&1; then
+            echo "✅ future-incompat report saved"
+          else
+            rm -f .local/ci/future_incompat.txt
+            echo "✅ no future-incompat report available"
+          fi
+
+      - name: Install sqlx-cli (Robust)
+        run: |
+          set -euo pipefail
+          mkdir -p .local/ci
+
+          if command -v cargo-sqlx >/dev/null 2>&1; then
+            echo "cargo-sqlx already installed."
+            cargo sqlx --version
+            exit 0
+          fi
+
+          echo "Installing sqlx-cli..."
+
+          # Retry loop (max 3 attempts)
+          for i in 1 2 3; do
+            echo "Attempt $i/3..."
+            if cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls 2>&1 | tee -a .local/ci/sqlx_cli_install.log; then
+              echo "Installation successful."
+              cargo sqlx --version
+              exit 0
+            fi
+
+            echo "Attempt $i failed. Sleeping..."
+            sleep 5
+            [ "$i" -eq 1 ] && sleep 10 # Sleep 15s total for 1st retry
+            [ "$i" -eq 2 ] && sleep 15 # Sleep 20s total for 2nd retry
+          done
+
+          echo "Failed to install sqlx-cli after 3 attempts."
+          exit 1
+
+      - name: Check SQLx Prepare
+        run: |
+          set -euo pipefail
+          SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sqlx_prepare_check.txt
+
+      - name: Upload Guardrail Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrail-logs
+          path: .local/ci/
+          if-no-files-found: ignore
+
       - name: Test Unit
         run: |
           cargo test --workspace --lib --bins --verbose
