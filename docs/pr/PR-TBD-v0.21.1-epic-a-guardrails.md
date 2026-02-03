@@ -41,6 +41,7 @@ title: ci: guardrails (future-incompat + sqlx prepare)
 #### sqlx guardrail
 - 準備：
   - `sqlx-cli` (v0.8.6) をインストール（CI環境に無い場合）。
+  - **Robustness**: Cache (`~/.cargo/registry` + `git`), Retry (max 3), Log (`.local/ci/sqlx_cli_install.log`).
 - 実行：
   - `SQLX_OFFLINE=true cargo sqlx prepare --check --workspace`
 - 目的：
@@ -73,4 +74,5 @@ title: ci: guardrails (future-incompat + sqlx prepare)
 - artifacts:
   - `.local/ci/check_future_incompat.log`（常に）
   - `.local/ci/future_incompat.txt`（レポートがある時だけ）
+  - `.local/ci/sqlx_cli_install.log`（インストール試行時）
   - `.local/ci/sqlx_prepare_check.txt`

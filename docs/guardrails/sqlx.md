@@ -4,7 +4,12 @@ The **SQLx Guardrail** ensures that all **compile-time checked SQL queries** in 
 
 ## What Runs in CI?
 
-In the `stable` job, we first install `sqlx-cli` (pinned version), then run:
+In the `stable` job (`.github/workflows/ci.yml`), we first install `sqlx-cli` (v0.8.6) with robustness measures:
+- **Caching**: `~/.cargo/registry` and `~/.cargo/git` are cached to speed up installs.
+- **Retries**: Installation is attempted up to 3 times with backoff to handle network instability.
+- **Logging**: Installation logs are saved to `.local/ci/sqlx_cli_install.log` (upload-artifact `guardrail-logs`).
+
+Then we run the strict check:
 
 ```bash
 SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sqlx_prepare_check.txt
@@ -19,19 +24,11 @@ It forces `sqlx` to check queries against the offline cache file(s) committed in
 
 ## Recovery (Shortest Path)
 
-If this check fails (typically with "query data is out of date" or similar), follow these steps locally:
+If the **Install** step fails:
+- Check `.local/ci/sqlx_cli_install.log` in artifacts.
+- Rerun the workflow (transient network issues are common).
 
-1.  **Ensure DB is Up**:
-    ```bash
-    cargo sqlx migrate run
-    ```
-
-2.  **Update Offline Data**:
-    ```bash
-    # Runs `cargo sqlx prepare` (without --check) to rewrite the cache file(s)
-    cargo sqlx prepare --workspace -- --all-targets
-    ```
-    *Note: The generated file might be `sqlx-data.json` or split across crates depending on configuration.*
-
-3.  **Commit**:
-    Commit the updated cache file(s).
+If the **Check** step fails (typically "query data is out of date"):
+1.  **Ensure DB is Up**: `cargo sqlx migrate run`
+2.  **Update Offline Data**: `cargo sqlx prepare --workspace -- --all-targets`
+3.  **Commit**: Commit the updated cache file(s).

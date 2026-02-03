@@ -79,6 +79,16 @@ jobs:
         with:
           toolchain: stable
           components: clippy, rustfmt
+
+      - name: Cache Cargo Registry & Git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Check formatting
@@ -102,15 +112,36 @@ jobs:
             echo "✅ no future-incompat report available"
           fi
 
-      - name: Install sqlx-cli
+      - name: Install sqlx-cli (Robust)
         run: |
           set -euo pipefail
+          mkdir -p .local/ci
+
           if command -v cargo-sqlx >/dev/null 2>&1; then
+            echo "cargo-sqlx already installed."
             cargo sqlx --version
             exit 0
           fi
-          cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls
-          cargo sqlx --version
+
+          echo "Installing sqlx-cli..."
+
+          # Retry loop (max 3 attempts)
+          for i in 1 2 3; do
+            echo "Attempt $i/3..."
+            if cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls 2>&1 | tee -a .local/ci/sqlx_cli_install.log; then
+              echo "Installation successful."
+              cargo sqlx --version
+              exit 0
+            fi
+
+            echo "Attempt $i failed. Sleeping..."
+            sleep 5
+            [ "$i" -eq 1 ] && sleep 10 # Sleep 15s total for 1st retry
+            [ "$i" -eq 2 ] && sleep 15 # Sleep 20s total for 2nd retry
+          done
+
+          echo "Failed to install sqlx-cli after 3 attempts."
+          exit 1
 
       - name: Check SQLx Prepare
         run: |
