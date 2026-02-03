@@ -1,6 +1,6 @@
 # CI Guardrail: SQLx Prepare
 
-The **SQLx Guardrail** ensures that all SQL queries in the codebase are valid and that the offline query cache (`sqlx-data.json`) is up-to-date.
+The **SQLx Guardrail** ensures that all **compile-time checked SQL queries** in the codebase are valid and that their offline cache (typically `sqlx-data.json`) is consistent with the code.
 
 ## What Runs in CI?
 
@@ -12,13 +12,14 @@ SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sq
 
 ### Why `SQLX_OFFLINE=true`?
 
-It forces `sqlx` to check against `sqlx-data.json` instead of a live database. This ensures:
-1.  The `sqlx-data.json` committed in the repo matches the code.
-2.  The code will compile in environments without a running DB (like simple CI agents or during packaging).
+It forces `sqlx` to check queries against the offline cache file(s) committed in the repository (e.g., `sqlx-data.json`) instead of a live database. This ensures:
+
+1.  **Cache Consistency**: Detects if you modified SQL queries in Rust code but forgot to update the offline cache.
+2.  **Offline Buildability**: Ensures the code can verify query types in environments without a running database.
 
 ## Recovery (Shortest Path)
 
-If this check fails (typically "query data is out of date"), follow these steps locally:
+If this check fails (typically with "query data is out of date" or similar), follow these steps locally:
 
 1.  **Ensure DB is Up**:
     ```bash
@@ -27,9 +28,10 @@ If this check fails (typically "query data is out of date"), follow these steps 
 
 2.  **Update Offline Data**:
     ```bash
-    # This updates sqlx-data.json
+    # Runs `cargo sqlx prepare` (without --check) to rewrite the cache file(s)
     cargo sqlx prepare --workspace -- --all-targets
     ```
+    *Note: The generated file might be `sqlx-data.json` or split across crates depending on configuration.*
 
 3.  **Commit**:
-    Commit the updated `sqlx-data.json`.
+    Commit the updated cache file(s).

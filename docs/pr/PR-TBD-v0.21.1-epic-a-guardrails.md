@@ -21,9 +21,9 @@ title: ci: guardrails (future-incompat + sqlx prepare)
 - [x] SOT運用で PATH の古い `veil` 罠を回避する注意書きを docs に残す
 
 ## Non-Goals
-- [x] 依存関係のアップグレード自体（警告が出たら別PR/別Epicで扱う）
-- [x] Dependabotの脆弱性修正（このPRのスコープ外）
-- [x] CIの高速化（cache最適化などは後続で）
+- 依存関係のアップグレード自体（警告が出たら別PR/別Epicで扱う）
+- Dependabotの脆弱性修正（このPRのスコープ外）
+- CIの高速化（cache最適化などは後続で）
 
 ## Design
 
@@ -69,7 +69,7 @@ title: ci: guardrails (future-incompat + sqlx prepare)
 
 ## Audit Notes
 ### Evidence
-- prverify report: `.local/prverify/prverify_20260203T010439Z_8644d82.md`
+- prverify report: `.local/prverify/prverify_20260203T012502Z_f10e600.md`
 - artifacts:
   - `.local/ci/check_future_incompat.log`（常に）
   - `.local/ci/future_incompat.txt`（レポートがある時だけ）
