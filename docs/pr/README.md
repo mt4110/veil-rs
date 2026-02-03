@@ -44,7 +44,7 @@ The key is that the file exists *before* you open the PR, so the PR body can lin
 
 > [!CAUTION]
 > **Use the correct `veil` binary**
-> When running `veil sot new`, ensure you are using the version of `veil` consistent with the repository tools, or build it fresh. The system `veil` in your PATH might be outdated.
+> When running `veil sot new`, ensure you are using the version of `veil` consistent with the repository tools.
 >
 > **Recommended:**
 > ```bash

@@ -4,31 +4,32 @@ The **SQLx Guardrail** ensures that all SQL queries in the codebase are valid an
 
 ## What Runs in CI?
 
-In the `stable` job, the following command runs:
+In the `stable` job, we first install `sqlx-cli` (pinned version), then run:
 
 ```bash
-SQLX_OFFLINE=true cargo sqlx prepare --check --workspace
+SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sqlx_prepare_check.txt
 ```
 
-## Intent
+### Why `SQLX_OFFLINE=true`?
 
-- **Verify Queries**: Ensures compile-time checked queries are valid against the schema.
-- **Check Cache**: Ensures `sqlx-data.json` matches the actual queries in the code. This is crucial because we build in offline mode in some environments (and CI often needs it).
+It forces `sqlx` to check against `sqlx-data.json` instead of a live database. This ensures:
+1.  The `sqlx-data.json` committed in the repo matches the code.
+2.  The code will compile in environments without a running DB (like simple CI agents or during packaging).
 
 ## Recovery (Shortest Path)
 
-If this check fails in CI (usually due to "query data is out of date"), follow these steps:
+If this check fails (typically "query data is out of date"), follow these steps locally:
 
-1.  **Ensure Database is Up**:
+1.  **Ensure DB is Up**:
     ```bash
-    # Ensure your local DB is running and migrated
     cargo sqlx migrate run
     ```
 
 2.  **Update Offline Data**:
     ```bash
+    # This updates sqlx-data.json
     cargo sqlx prepare --workspace -- --all-targets
     ```
 
-3.  **Commit Changes**:
-    Commit the updated `sqlx-data.json` file.
+3.  **Commit**:
+    Commit the updated `sqlx-data.json`.
