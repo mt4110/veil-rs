@@ -14,41 +14,45 @@ echo "pwd=$(pwd)"
 echo "cargo=$(cargo --version)"
 echo "rustc=$(rustc --version)"
 
-# Cargo.lock から sqlx の version を拾う（最初に出てくる sqlx を採用）
-SQLX_VERSION="$(
-  awk '
-    $0=="[[package]]"{in_pkg=1; name=""; ver=""; next}
-    in_pkg && $1=="name" && $3=="\"sqlx\"" {name="sqlx"}
-    in_pkg && $1=="version" {gsub(/"/,"",$3); ver=$3}
-    in_pkg && name=="sqlx" && ver!="" {print ver; exit}
-    $0==""{in_pkg=0}
-  ' Cargo.lock 2>/dev/null || true
-)"
+# Version logic: env override > pinned default
+# Cargo.lock is unreliable for CLI versioning, so we default to explicit pin.
+DEFAULT_VERSION="0.8.6"
+TARGET_VERSION="${SQLX_CLI_VERSION:-$DEFAULT_VERSION}"
+echo "target_version=${TARGET_VERSION}"
 
-if [[ -n "${SQLX_VERSION}" ]]; then
-  echo "sqlx_version_from_lock=${SQLX_VERSION}"
-else
-  echo "sqlx_version_from_lock=NOT_FOUND"
-fi
-
-# 既に入ってるなら情報を出す（キャッシュ確認にもなる）
+# 既に入ってるならバージョン確認
 if command -v sqlx >/dev/null 2>&1; then
-  echo "existing_sqlx_cli=$(sqlx --version || true)"
+  # Try checking 'cargo sqlx --version' first as it's the most reliable
+  if ! CURRENT_VERSION=$(cargo sqlx --version 2>/dev/null | awk '{print $2}'); then
+     # Fallback to just checking the binary version if cargo subcommand fails (unlikely if installed via cargo)
+     CURRENT_VERSION=$(sqlx --version | awk '{print $2}')
+  fi
+  echo "existing_sqlx_cli=${CURRENT_VERSION}"
+
+  if [[ "${CURRENT_VERSION}" == "${TARGET_VERSION}" ]]; then
+    echo "Version match. Skipping install."
+    exit 0
+  fi
+  echo "Version mismatch or force reinstall needed."
 fi
 
-# install コマンド（version拾えたら pin）
-if [[ -n "${SQLX_VERSION}" ]]; then
-  INSTALL_CMD=(cargo install sqlx-cli --locked --version "${SQLX_VERSION}")
-else
-  INSTALL_CMD=(cargo install sqlx-cli --locked)
-fi
+echo "Installing sqlx-cli v${TARGET_VERSION}..."
 
-MAX=5
-SLEEP=5
+INSTALL_CMD=(
+  cargo install sqlx-cli
+  --locked
+  --version "${TARGET_VERSION}"
+  --no-default-features
+  --features postgres,rustls
+)
+
+MAX=3
+SLEEP=10
 
 for i in $(seq 1 "${MAX}"); do
   echo "--- attempt ${i}/${MAX} ---"
   if "${INSTALL_CMD[@]}"; then
+    echo "Install successful."
     break
   fi
   code=$?
@@ -62,5 +66,6 @@ for i in $(seq 1 "${MAX}"); do
   SLEEP=$((SLEEP * 2))
 done
 
-echo "installed_sqlx_cli=$(sqlx --version || true)"
+INSTALLED_VERSION=$(cargo sqlx --version)
+echo "installed_sqlx_cli=${INSTALLED_VERSION}"
 echo "OK"
