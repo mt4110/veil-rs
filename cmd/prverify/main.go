@@ -100,6 +100,7 @@ func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult)
 
 func main() {
 	smokeOnly := flag.Bool("smoke-only", false, "run only the P0 CLI smoke suite (trycmd)")
+	wantedPR := flag.Int("wanted-pr", 0, "prefer docs/pr/PR-<N>-*.md when selecting SOT (0 = auto)")
 	flag.Parse()
 
 	root := bestEffortRepoRoot()
@@ -145,7 +146,7 @@ func main() {
 		start := time.Now()
 		// Use os.DirFS for real execution
 		repoFS := os.DirFS(root)
-		err := validateDrift(repoFS)
+		err := validateDrift(repoFS, *wantedPR)
 		dur := time.Since(start)
 		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
 		if err != nil {
@@ -160,7 +161,7 @@ func main() {
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 }
 
-func validateDrift(repoFS fs.FS) error {
+func validateDrift(repoFS fs.FS, wantedPR int) error {
 	// A. CI Check (.github/workflows/ci.yml)
 	// Note: in fs.FS paths are always slash-separated and relative to root (no leading period/slash)
 	ciPath := ".github/workflows/ci.yml"
@@ -228,9 +229,8 @@ func validateDrift(repoFS fs.FS) error {
 
 	// C. SOT Check (docs/pr/PR-<number>-*.md)
 	// Deterministic selection: Filter by wantedPR (if any) or pick Max PR number.
-	// wantedPR is 0 if unknown/unset.
-	// In future, we could parse args/env for specific PR number.
-	sotPath, err := findSOT(repoFS, 0)
+	// wantedPR is 0 if unknown/unset (auto selection).
+	sotPath, err := findSOT(repoFS, wantedPR)
 	if err != nil {
 		if checkIgnore(repoFS, err) {
 			fmt.Printf("WARN: [Ignored] %v\n", err)
@@ -319,7 +319,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		if !strings.HasPrefix(name, "PR-") || !strings.HasSuffix(name, ".md") {
 			continue
 		}
-		
+
 		// Extract digits between "PR-" and next "-"
 		rest := strings.TrimPrefix(name, "PR-")
 		idx := strings.Index(rest, "-")
@@ -327,12 +327,8 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 			continue
 		}
 		numStr := rest[:idx]
-		
-		// Pure stdlib logic, no regex
-		// manual simplified Atoi to avoid heavy imports if desired, 
-		// but standardstrconv is fine. We need to import strconv.
-		// Since we didn't import strconv yet, let's use a simple loop or update imports.
-		// Let's assume standard behavior and just verify digits.
+
+		// Verify digits (stdlib only)
 		isDigits := true
 		for _, r := range numStr {
 			if r < '0' || r > '9' {
@@ -344,14 +340,12 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 			continue
 		}
 
-		// Parse manual logic (since imports are locked in replace_file_content chunk)
-		// actually, we can add strconv import in a separate step or loop-parse here.
-		// Loop parse is safe and zero-dependency.
+		// Parse integer manually
 		val := 0
 		for _, r := range numStr {
 			val = val*10 + int(r-'0')
 		}
-		
+
 		if wantedPR > 0 && val != wantedPR {
 			continue
 		}
@@ -363,6 +357,9 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 	}
 
 	if maxPR == -1 {
+		if wantedPR > 0 {
+			return "", fmt.Errorf("sot_missing: PR-%d not found", wantedPR)
+		}
 		return "", fmt.Errorf("sot_missing: no valid PR-XX-*.md files found in docs/pr/")
 	}
 
@@ -373,7 +370,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		// so maxPR implies wantedPR if found.
 		selectedPR = wantedPR
 	}
-	
+
 	files := candidates[selectedPR]
 	if len(files) == 0 {
 		// Should be covered by maxPR logic, but if wantedPR was set and not found:
