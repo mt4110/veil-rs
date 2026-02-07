@@ -30,61 +30,82 @@ func TestValidateDrift(t *testing.T) {
 		{
 			name: "Clean / No Drift",
 			fs: fstest.MapFS{
-				".github/workflows/ci.yml":          {Data: []byte(validCI)},
-				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				".github/workflows/ci.yml":             {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":              {Data: []byte(validDoc)},
 				"docs/pr/PR-35-v0.22.0-robust-sqlx.md": {Data: []byte(validSOT)},
 			},
 			wantErr: "",
 		},
-		
+
 		// PR-37 Logic: Max PR Fallback
 		{
 			name: "SOT Max PR Selection (History exists)",
 			fs: fstest.MapFS{
-				".github/workflows/ci.yml":          {Data: []byte(validCI)},
-				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
-				"docs/pr/PR-33-old.md":              {Data: []byte("old")},
-				"docs/pr/PR-34-mid.md":              {Data: []byte("mid")},
-				"docs/pr/PR-35-new.md":              {Data: []byte(validSOT)}, // Should pick this (Max PR)
+				".github/workflows/ci.yml": {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
+				"docs/pr/PR-33-old.md":     {Data: []byte("old")},
+				"docs/pr/PR-34-mid.md":     {Data: []byte("mid")},
+				"docs/pr/PR-35-new.md":     {Data: []byte(validSOT)}, // Should pick this (Max PR)
 			},
 			wantErr: "",
 		},
 		{
 			name: "SOT Ambiguous (Same PR Number)",
 			fs: fstest.MapFS{
-				".github/workflows/ci.yml":          {Data: []byte(validCI)},
-				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
-				"docs/pr/PR-35-a.md":                {Data: []byte(validSOT)},
-				"docs/pr/PR-35-b.md":                {Data: []byte(validSOT)},
+				".github/workflows/ci.yml": {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
+				"docs/pr/PR-35-a.md":       {Data: []byte(validSOT)},
+				"docs/pr/PR-35-b.md":       {Data: []byte(validSOT)},
 			},
 			wantErr: "sot_ambiguous",
 		},
 		{
 			name: "SOT Missing (No PR files)",
 			fs: fstest.MapFS{
-				".github/workflows/ci.yml":          {Data: []byte(validCI)},
-				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
-				"docs/pr/README.md":                 {Data: []byte("ignore")},
-				"docs/pr/PR-TBD-ignore.md":          {Data: []byte("ignore")}, // non-numeric ignored
+				".github/workflows/ci.yml": {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
+				"docs/pr/README.md":        {Data: []byte("ignore")},
+				"docs/pr/PR-TBD-ignore.md": {Data: []byte("ignore")}, // non-numeric ignored
 			},
 			wantErr: "sot_missing",
 		},
 		{
 			name: "SOT Ignore Invalid Filenames",
 			fs: fstest.MapFS{
-				".github/workflows/ci.yml":          {Data: []byte(validCI)},
-				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
-				"docs/pr/PR-35-valid.md":            {Data: []byte(validSOT)},
-				"docs/pr/PR-35-invalid":             {Data: []byte("no extension")},
-				"docs/pr/PR-nobum-invalid.md":       {Data: []byte("no num")},
+				".github/workflows/ci.yml":    {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":     {Data: []byte(validDoc)},
+				"docs/pr/PR-35-valid.md":      {Data: []byte(validSOT)},
+				"docs/pr/PR-35-invalid":       {Data: []byte("no extension")},
+				"docs/pr/PR-nobum-invalid.md": {Data: []byte("no num")},
 			},
 			wantErr: "",
+		},
+		{
+			name: "Drift Ignored via .driftignore",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml": {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
+				// SOT Missing normally causes error "sot_missing", but we ignore it.
+				"docs/pr/README.md": {Data: []byte("ignore")},
+				".driftignore":      {Data: []byte("# Ignore SOT missing\nsot_missing")},
+			},
+			wantErr: "",
+		},
+		{
+			name: "Drift Not Ignored (Mismatch .driftignore)",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml": {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
+				"docs/pr/README.md":        {Data: []byte("ignore")},
+				".driftignore":             {Data: []byte("other_error")},
+			},
+			wantErr: "sot_missing",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDrift(tt.fs)
+			err := validateDrift(tt.fs, 0)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Errorf("validateDrift() unexpected error: %v", err)
@@ -107,12 +128,12 @@ func TestFindSOT_Logic(t *testing.T) {
 		"docs/pr/PR-34-mid.md": {Data: []byte("")},
 		"docs/pr/PR-35-new.md": {Data: []byte("")},
 	}
-	
+
 	// Case 1: Wanted PR exists logic
-	// Note: We need to expose findSOT or copy logic if private. 
+	// Note: We need to expose findSOT or copy logic if private.
 	// Since findSOT is private in main package, we test via internal test in same package.
 	// This file is package main, so we can access findSOT.
-	
+
 	// Wanted = 34
 	got, err := findSOT(fsys, 34)
 	if err != nil {

@@ -100,6 +100,7 @@ func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult)
 
 func main() {
 	smokeOnly := flag.Bool("smoke-only", false, "run only the P0 CLI smoke suite (trycmd)")
+	wantedPR := flag.Int("wanted-pr", 0, "prefer docs/pr/PR-<N>-*.md when selecting SOT (0 = auto)")
 	flag.Parse()
 
 	root := bestEffortRepoRoot()
@@ -145,7 +146,7 @@ func main() {
 		start := time.Now()
 		// Use os.DirFS for real execution
 		repoFS := os.DirFS(root)
-		err := validateDrift(repoFS)
+		err := validateDrift(repoFS, *wantedPR)
 		dur := time.Since(start)
 		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
 		if err != nil {
@@ -160,7 +161,7 @@ func main() {
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 }
 
-func validateDrift(repoFS fs.FS) error {
+func validateDrift(repoFS fs.FS, wantedPR int) error {
 	// A. CI Check (.github/workflows/ci.yml)
 	// Note: in fs.FS paths are always slash-separated and relative to root (no leading period/slash)
 	ciPath := ".github/workflows/ci.yml"
@@ -228,24 +229,69 @@ func validateDrift(repoFS fs.FS) error {
 
 	// C. SOT Check (docs/pr/PR-<number>-*.md)
 	// Deterministic selection: Filter by wantedPR (if any) or pick Max PR number.
-	// wantedPR is 0 if unknown/unset.
-	// In future, we could parse args/env for specific PR number.
-	sotPath, err := findSOT(repoFS, 0)
+	// wantedPR is 0 if unknown/unset (auto selection).
+	sotPath, err := findSOT(repoFS, wantedPR)
 	if err != nil {
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
 		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
 	// Read and verify SOT content
 	content, err := fs.ReadFile(repoFS, sotPath)
 	if err != nil {
+		// Read errors are usually fatal system errors, but technically could be ignored if desired.
+		// For now, let's allow ignoring them too if they match.
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
 		return fmt.Errorf("SOT Drift: failed to read %s: %w", sotPath, err)
 	}
 	s := string(content)
 	if !strings.Contains(s, "sqlx_cli_install.log") || !strings.Contains(s, "SQLX_OFFLINE") {
-		return fmt.Errorf("SOT Drift: %s missing required evidence/policy keywords", sotPath)
+		err := fmt.Errorf("%s missing required evidence/policy keywords", sotPath)
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
+		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
 	return nil
+}
+
+// checkIgnore checks if the given error matches any rule in .driftignore.
+// .driftignore is expected in the root of repoFS.
+// Rules:
+// - One string per line.
+// - If the error message contains the line string (substring match), it is ignored.
+// - Comments (#) and empty lines are skipped.
+func checkIgnore(repoFS fs.FS, targetErr error) bool {
+	if targetErr == nil {
+		return false
+	}
+	errMsg := targetErr.Error()
+
+	content, err := fs.ReadFile(repoFS, ".driftignore")
+	if err != nil {
+		// If file missing or unreadable, no ignores apply.
+		return false
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.Contains(errMsg, line) {
+			return true
+		}
+	}
+	return false
 }
 
 // findSOT locates the Source of Truth file deterministically.
@@ -282,11 +328,14 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		}
 		numStr := rest[:idx]
 
+
+		// Verify digits (stdlib only)
 		// Pure stdlib logic, no regex
 		// manual simplified Atoi to avoid heavy imports if desired,
 		// but standardstrconv is fine. We need to import strconv.
 		// Since we didn't import strconv yet, let's use a simple loop or update imports.
 		// Let's assume standard behavior and just verify digits.
+
 		isDigits := true
 		for _, r := range numStr {
 			if r < '0' || r > '9' {
@@ -298,9 +347,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 			continue
 		}
 
-		// Parse manual logic (since imports are locked in replace_file_content chunk)
-		// actually, we can add strconv import in a separate step or loop-parse here.
-		// Loop parse is safe and zero-dependency.
+		// Parse integer manually
 		val := 0
 		for _, r := range numStr {
 			val = val*10 + int(r-'0')
@@ -317,6 +364,9 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 	}
 
 	if maxPR == -1 {
+		if wantedPR > 0 {
+			return "", fmt.Errorf("sot_missing: PR-%d not found", wantedPR)
+		}
 		return "", fmt.Errorf("sot_missing: no valid PR-XX-*.md files found in docs/pr/")
 	}
 

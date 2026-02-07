@@ -42,10 +42,17 @@ If `drift-check` fails:
    - If SOT missing: add/restore `docs/pr/PR-<digits>-*.md`.
    - If SOT ambiguous: keep **exactly one** file for that PR number (merge/delete duplicates).
    - If evidence missing: update the selected SOT so it reflects reality (e.g., sync commit SHA / include required keywords).
-3. **Verify**:
-   - Run `go test ./...`.
-   - Run `nix run .#prverify`.
-   - Ensure it passes (Green).
+
+## Handling Exceptions
+In rare cases (e.g., temporary workarounds or legacy acceptance), you may need to ignore specific drift failures.
+
+1. Create or edit `.driftignore` in the repository root.
+2. Add a unique substring of the error message you want to ignore.
+   ```text
+   # Ignore SOT missing until next release
+   sot_missing
+   ```
+3. `prverify` will now print `WARN: [Ignored] ...` and pass (Green).
 
 ## Non-Goals
 - Expanding drift check to arbitrary files without a clear policy.
