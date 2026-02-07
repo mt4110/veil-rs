@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-02-07 "Guardrails & Evidence"
+
+This release solidifies the development lifecycle by introducing deterministic guardrails and mandatory evidence (SOT) for all code changes.
+
+### 🛡️ Guardrails: Drift Check & SOT Enforcement
+- **Drift Check Stabilization**: Unified the detection of CI configuration, documentation, and SOT alignment to prevent configuration drift.
+- **I/O & FS Testability**: Refactored `prverify` to use `os.DirFS` and `fstest.MapFS`, making the guardrails themselves fully testable and reproducible.
+- **Deterministic SOT Selection**: Implemented strict rules for SOT discovery (`--wanted-pr`, Max PR fallback) to eliminate ambiguity in evidence tracking.
+- **SOT Contract**: CI now strictly enforces that any code change must be accompanied by a Source of Truth (SOT) document.
+
+### 📜 Invariants Kept
+- **Merge Commit Policy**: Preserving commit history SHA to ensure evidence stability.
+- **CI as Observability**: CI artifacts in `.local/ci/` are treated as fixed, auditable evidence points.
+- **SOT as Contract**: Code changes without SOT are blocked by default.
+
+---
+
+## [0.22.0] - 2026-02-07 "ガードレールと証拠"
+
+本リリースは、決定論的なガードレールと、すべてのコード変更に対する証拠（SOT）の強制を導入することで、開発ライフサイクルを強固なものにします。
+
+### 🛡️ ガードレール: Drift Check と SOT 強制
+- **Drift Check の安定化**: CI設定、ドキュメント、SOTの整合性検知を統合し、設定の乖離（ドリフト）を未然に防ぎます。
+- **I/O & FS のテスト容易性**: `prverify` を `os.DirFS` および `fstest.MapFS` を使用するようにリファクタリングし、ガードレール自体のテストと再現を容易にしました。
+- **決定論的な SOT 選択**: SOT探索の厳格なルール（`--wanted-pr`、最大PRへのフォールバック）を実装し、証拠追跡の曖昧さを排除しました。
+- **SOT 契約**: コードの変更には必ず Source of Truth (SOT) ドキュメントを伴うことを CI で厳格に強制します。
+
+### 📜 守られた不変条件
+- **マージコミットポリシー**: 証拠の安定性を保証するため、コミット履歴の SHA を維持します。
+- **観測点としての CI**: `.local/ci/` 以下の CI 成果物を、固定された監査可能な証拠として扱います。
+- **契約としての SOT**: SOT のないコード変更はデフォルトでブロックされます。
+
 ## [0.12.0] - 2025-12-19
 
 ### 🛡️ Guardian: Operator UX & Resilience
