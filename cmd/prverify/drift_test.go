@@ -80,6 +80,27 @@ func TestValidateDrift(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "Drift Ignored via .driftignore",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":          {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				// SOT Missing normally causes error "sot_missing", but we ignore it.
+				"docs/pr/README.md":                 {Data: []byte("ignore")},
+				".driftignore":                      {Data: []byte("# Ignore SOT missing\nsot_missing")},
+			},
+			wantErr: "",
+		},
+		{
+			name: "Drift Not Ignored (Mismatch .driftignore)",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":          {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				"docs/pr/README.md":                 {Data: []byte("ignore")},
+				".driftignore":                      {Data: []byte("other_error")},
+			},
+			wantErr: "sot_missing",
+		},
 	}
 
 	for _, tt := range tests {

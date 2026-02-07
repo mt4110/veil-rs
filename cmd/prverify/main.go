@@ -232,20 +232,66 @@ func validateDrift(repoFS fs.FS) error {
 	// In future, we could parse args/env for specific PR number.
 	sotPath, err := findSOT(repoFS, 0)
 	if err != nil {
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
 		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
 	// Read and verify SOT content
 	content, err := fs.ReadFile(repoFS, sotPath)
 	if err != nil {
+		// Read errors are usually fatal system errors, but technically could be ignored if desired.
+		// For now, let's allow ignoring them too if they match.
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
 		return fmt.Errorf("SOT Drift: failed to read %s: %w", sotPath, err)
 	}
 	s := string(content)
 	if !strings.Contains(s, "sqlx_cli_install.log") || !strings.Contains(s, "SQLX_OFFLINE") {
-		return fmt.Errorf("SOT Drift: %s missing required evidence/policy keywords", sotPath)
+		err := fmt.Errorf("%s missing required evidence/policy keywords", sotPath)
+		if checkIgnore(repoFS, err) {
+			fmt.Printf("WARN: [Ignored] %v\n", err)
+			return nil
+		}
+		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
 	return nil
+}
+
+// checkIgnore checks if the given error matches any rule in .driftignore.
+// .driftignore is expected in the root of repoFS.
+// Rules:
+// - One string per line.
+// - If the error message contains the line string (substring match), it is ignored.
+// - Comments (#) and empty lines are skipped.
+func checkIgnore(repoFS fs.FS, targetErr error) bool {
+	if targetErr == nil {
+		return false
+	}
+	errMsg := targetErr.Error()
+
+	content, err := fs.ReadFile(repoFS, ".driftignore")
+	if err != nil {
+		// If file missing or unreadable, no ignores apply.
+		return false
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.Contains(errMsg, line) {
+			return true
+		}
+	}
+	return false
 }
 
 // findSOT locates the Source of Truth file deterministically.
@@ -283,7 +329,6 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		numStr := rest[:idx]
 		
 		// Pure stdlib logic, no regex
-		var pragNum int
 		// manual simplified Atoi to avoid heavy imports if desired, 
 		// but standardstrconv is fine. We need to import strconv.
 		// Since we didn't import strconv yet, let's use a simple loop or update imports.
