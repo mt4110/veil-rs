@@ -328,7 +328,14 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		}
 		numStr := rest[:idx]
 
+
 		// Verify digits (stdlib only)
+		// Pure stdlib logic, no regex
+		// manual simplified Atoi to avoid heavy imports if desired,
+		// but standardstrconv is fine. We need to import strconv.
+		// Since we didn't import strconv yet, let's use a simple loop or update imports.
+		// Let's assume standard behavior and just verify digits.
+
 		isDigits := true
 		for _, r := range numStr {
 			if r < '0' || r > '9' {
