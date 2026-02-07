@@ -219,6 +219,9 @@ func validateCI(repoFS fs.FS) error {
 		{"Log Generation", func(s string) bool {
 			return strings.Contains(s, ".local/ci/sqlx_cli_install.log") && strings.Contains(s, ".local/ci/sqlx_prepare_check.txt")
 		}, "CI must generate specific log files", "Ensure steps in ci.yml output to .local/ci/sqlx_cli_install.log and sqlx_prepare_check.txt"},
+		{"Keep File", func(s string) bool {
+			return strings.Contains(s, ": > .local/ci/.keep")
+		}, "CI must create .local/ci/.keep", "Restore the step to create .local/ci/.keep in ci.yml"},
 		{"Artifact Upload", func(s string) bool {
 			return strings.Contains(s, "actions/upload-artifact") && strings.Contains(s, "path:") && strings.Contains(s, ".local/ci/")
 		}, "CI must upload .local/ci/ as artifacts", "Restore actions/upload-artifact for the .local/ci/ directory"},
