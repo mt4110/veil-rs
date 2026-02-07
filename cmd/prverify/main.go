@@ -176,7 +176,9 @@ func validateDrift(root string) error {
 		{"Log Generation", func(s string) bool {
 			return strings.Contains(s, ".local/ci/sqlx_cli_install.log") && strings.Contains(s, ".local/ci/sqlx_prepare_check.txt")
 		}, "CI must generate specific log files"},
-		{"Artifact Upload", func(s string) bool { return strings.Contains(s, ".local/ci/") && strings.Contains(s, "path:") }, "CI must upload .local/ci/ as artifacts"},
+		{"Artifact Upload", func(s string) bool {
+			return strings.Contains(s, "actions/upload-artifact") && strings.Contains(s, "path:") && strings.Contains(s, ".local/ci/")
+		}, "CI must upload .local/ci/ as artifacts via upload-artifact action"},
 		{"Keep File", func(s string) bool { return strings.Contains(s, ".local/ci/.keep") }, "CI must create .local/ci/.keep"},
 	}
 
