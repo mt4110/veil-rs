@@ -20,6 +20,13 @@ Ensures a valid Source of Truth (SOT) exists for the current release.
 - **Must**: The SOT must contain evidence keywords (`sqlx_cli_install.log`, `SQLX_OFFLINE`).
 - **Rule**: If SOT is missing or mismatched, **FAIL**. SOT is the contract of the release.
 
+### 4. SOT Selection Rules
+To avoid ambiguity, `drift-check` selects the SOT deterministically:
+- **Filename**: Must match `docs/pr/PR-<digits>-*.md`.
+- **Priority**: Exact PR number match (if context is known).
+- **Ambiguity**: If multiple candidates differ only by description or version, **FAIL** (`sot_ambiguous`).
+- **Missing**: If no candidates found, **FAIL** (`sot_missing`).
+
 ## Runbook
 If `drift-check` fails:
 

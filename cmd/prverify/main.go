@@ -226,36 +226,61 @@ func validateDrift(repoFS fs.FS) error {
 		}
 	}
 
-	// C. SOT Check (docs/pr/*-v0.22.0-epic-a-robust-sqlx.md)
-	// Manual glob logic for fs.FS
-	entries, err := fs.ReadDir(repoFS, "docs/pr")
+	// C. SOT Check (docs/pr/PR-<number>-*.md)
+	// Deterministic selection
+	sotPath, err := findSOT(repoFS)
 	if err != nil {
-		// SOT dir missing is a FAIL for SOT check
-		return fmt.Errorf("SOT Drift: failed to read docs/pr: %w", err)
+		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
-	foundSOT := false
+	// Read and verify SOT content
+	content, err := fs.ReadFile(repoFS, sotPath)
+	if err != nil {
+		return fmt.Errorf("SOT Drift: failed to read %s: %w", sotPath, err)
+	}
+	s := string(content)
+	if !strings.Contains(s, "sqlx_cli_install.log") || !strings.Contains(s, "SQLX_OFFLINE") {
+		return fmt.Errorf("SOT Drift: %s missing required evidence/policy keywords", sotPath)
+	}
+
+	return nil
+}
+
+// findSOT locates the Source of Truth file deterministically.
+// Rules:
+// 1. Must be in docs/pr/
+// 2. Must match PR-\d+-*.md
+// 3. Must be unique (ambiguity => error)
+func findSOT(repoFS fs.FS) (string, error) {
+	entries, err := fs.ReadDir(repoFS, "docs/pr")
+	if err != nil {
+		return "", fmt.Errorf("failed to read docs/pr: %w", err)
+	}
+
+	var candidates []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		name := e.Name()
-		if strings.Contains(name, "v0.22.0") && strings.Contains(name, "robust-sqlx") {
-			content, err := fs.ReadFile(repoFS, "docs/pr/"+name)
-			if err != nil {
-				continue
-			}
-			s := string(content)
-			if strings.Contains(s, "sqlx_cli_install.log") && strings.Contains(s, "SQLX_OFFLINE") {
-				foundSOT = true
-				break
+		// Simple check: starts with PR-, contains digits, ends with .md
+		// We avoid complex regex to keep it stdlib-lite if possible, but path.Match or logic is fine.
+		// Strict format: PR-<digits>-<desc>.md
+		if strings.HasPrefix(name, "PR-") && strings.HasSuffix(name, ".md") {
+			// Check for digits after PR-
+			rest := strings.TrimPrefix(name, "PR-")
+			if len(rest) > 0 && rest[0] >= '0' && rest[0] <= '9' {
+				candidates = append(candidates, "docs/pr/"+name)
 			}
 		}
 	}
 
-	if !foundSOT {
-		return fmt.Errorf("SOT Drift: No v0.22.0 robust-sqlx SOT found with required evidence/policy keywords")
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("sot_missing: no PR-XX-*.md files found in docs/pr/")
+	}
+	if len(candidates) > 1 {
+		return "", fmt.Errorf("sot_ambiguous: multiple candidates found: %v", candidates)
 	}
 
-	return nil
+	return candidates[0], nil
 }

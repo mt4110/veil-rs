@@ -65,7 +65,7 @@ Evidence:
 			wantErr: "Docs Drift: Term 'SQLX_OFFLINE' not found",
 		},
 		{
-			name: "SOT Drift: Invalid content",
+			name: "SOT Drift: Content missing keywords",
 			fs: fstest.MapFS{
 				".github/workflows/ci.yml":          {Data: []byte(validCI)},
 				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
@@ -80,7 +80,38 @@ Evidence:
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
 				"docs/pr/readme.md":        {Data: []byte("irrelevant")},
 			},
-			wantErr: "SOT Drift",
+			wantErr: "sot_missing",
+		},
+		{
+			name: "SOT Ambiguous: Multiple Candidates",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":          {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				"docs/pr/PR-35-foo.md":              {Data: []byte(validSOT)},
+				"docs/pr/PR-36-bar.md":              {Data: []byte(validSOT)},
+			},
+			wantErr: "sot_ambiguous",
+		},
+		{
+			name: "SOT Exact Match (Implicit Single)",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":          {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				"docs/pr/PR-35-v0.22.0-robust-sqlx.md": {Data: []byte(validSOT)},
+				"docs/pr/README.md":                 {Data: []byte("ignore")},
+			},
+			wantErr: "",
+		},
+		{
+			name: "SOT Ignore Invalid Filenames",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":          {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":           {Data: []byte(validDoc)},
+				"docs/pr/PR-35-valid.md":            {Data: []byte(validSOT)},
+				"docs/pr/PR-TBD-invalid.md":         {Data: []byte(validSOT)}, // Should be ignored by numeric check
+				"docs/pr/draft.md":                  {Data: []byte(validSOT)},
+			},
+			wantErr: "",
 		},
 	}
 
