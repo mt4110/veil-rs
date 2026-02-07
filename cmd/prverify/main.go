@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -138,6 +139,116 @@ func main() {
 		}
 	}
 
+	// 3) Drift Check (Consistency between CI, Docs, and SOT)
+	{
+		fmt.Println("==> Drift Check")
+		start := time.Now()
+		err := validateDrift(root)
+		dur := time.Since(start)
+		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR: drift check failed:", err)
+			fmt.Println()
+			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+			os.Exit(1)
+		}
+	}
+
 	fmt.Println()
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+}
+
+func validateDrift(root string) error {
+	// A. CI Check (.github/workflows/ci.yml)
+	ciPath := filepath.Join(root, ".github", "workflows", "ci.yml")
+	ciContent, err := os.ReadFile(ciPath)
+	if err != nil {
+		return fmt.Errorf("failed to read CI config: %w", err)
+	}
+	ciStr := string(ciContent)
+
+	checks := []struct {
+		name  string
+		check func(string) bool
+		err   string
+	}{
+		{"Install Script", func(s string) bool { return strings.Contains(s, "ops/ci/install_sqlx_cli.sh") }, "CI must use ops/ci/install_sqlx_cli.sh"},
+		{"Log Generation", func(s string) bool {
+			return strings.Contains(s, ".local/ci/sqlx_cli_install.log") && strings.Contains(s, ".local/ci/sqlx_prepare_check.txt")
+		}, "CI must generate specific log files"},
+		{"Artifact Upload", func(s string) bool {
+			return strings.Contains(s, "actions/upload-artifact") && strings.Contains(s, "path:") && strings.Contains(s, ".local/ci/")
+		}, "CI must upload .local/ci/ as artifacts via upload-artifact action"},
+		{"Keep File", func(s string) bool { return strings.Contains(s, ".local/ci/.keep") }, "CI must create .local/ci/.keep"},
+	}
+
+	for _, c := range checks {
+		if !c.check(ciStr) {
+			return fmt.Errorf("CI Drift: %s", c.err)
+		}
+	}
+
+	// B. Docs Check (docs/guardrails/sqlx.md, docs/ci/prverify.md)
+	// We scan both or specific ones. Let's scan specific ones as requested.
+	docsFiles := []string{
+		filepath.Join("docs", "guardrails", "sqlx.md"),
+		filepath.Join("docs", "ci", "prverify.md"),
+	}
+
+	docChecks := []struct {
+		name string
+		term string
+	}{
+		{"SQLX_OFFLINE", "SQLX_OFFLINE"},
+		{"Install Log", "sqlx_cli_install.log"},
+		{"Shell Script Exception", "ops/ci/"},
+	}
+
+	foundDocs := make(map[string]bool)
+	for _, f := range docsFiles {
+		content, err := os.ReadFile(filepath.Join(root, f))
+		if err == nil {
+			s := string(content)
+			for _, dc := range docChecks {
+				if strings.Contains(s, dc.term) {
+					foundDocs[dc.name] = true
+				}
+			}
+		}
+	}
+
+	// We just need these terms to appear *somewhere* in the doc set, not necessarily all in one.
+	for _, dc := range docChecks {
+		if !foundDocs[dc.name] {
+			return fmt.Errorf("Docs Drift: Term '%s' not found in %v", dc.term, docsFiles)
+		}
+	}
+
+	// C. SOT Check (docs/pr/*-v0.22.0-epic-a-robust-sqlx.md)
+	// Hand-rolled glob since we are in simple main.go
+	files, err := os.ReadDir(filepath.Join(root, "docs", "pr"))
+	if err != nil {
+		return fmt.Errorf("failed to read docs/pr: %w", err)
+	}
+
+	foundSOT := false
+	for _, f := range files {
+		if strings.Contains(f.Name(), "v0.22.0") && strings.Contains(f.Name(), "robust-sqlx") {
+			content, err := os.ReadFile(filepath.Join(root, "docs", "pr", f.Name()))
+			if err != nil {
+				continue
+			}
+			s := string(content)
+			if strings.Contains(s, "sqlx_cli_install.log") && strings.Contains(s, "SQLX_OFFLINE") {
+				foundSOT = true
+				break
+			}
+		}
+	}
+
+	if !foundSOT {
+		return fmt.Errorf("SOT Drift: No v0.22.0 robust-sqlx SOT found with required evidence/policy keywords")
+	}
+
+	return nil
 }

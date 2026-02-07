@@ -6,6 +6,13 @@
 
 手順書に **今のCLIに存在しないオプション** が混ざると、未来の自分が高確率でコケます。
 
+## Drift Check
+`prverify` includes a **Drift Check** to ensure consistency between:
+1. **CI Configuration** (`.github/workflows/ci.yml`): Verifies critical security steps (using `ops/ci` scripts, generating logs, uploading artifacts) are present.
+2. **Documentation** (`docs/guardrails/`): Verifies that policies like `SQLX_OFFLINE=true` and `ops/ci` exceptions are documented.
+3. **Source of Truth (SOT)** (`docs/pr/`): Verifies that the active SOT (e.g., v0.22.0) exists and correctly references evidence requirements.
+
+If `prverify` fails at the Drift Check stage, it means the code/CI implementation has diverged from the documented guardrails, and must be realigned.
 - 例: `scan --rules ...` / `scan -p ...` → **scan にそのフラグが無い**
 - 例: `filter --pack jp` → **filter にそのフラグが無い**
 
