@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -143,7 +143,9 @@ func main() {
 	{
 		fmt.Println("==> Drift Check")
 		start := time.Now()
-		err := validateDrift(root)
+		// Use os.DirFS for real execution
+		repoFS := os.DirFS(root)
+		err := validateDrift(repoFS)
 		dur := time.Since(start)
 		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
 		if err != nil {
@@ -158,10 +160,11 @@ func main() {
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 }
 
-func validateDrift(root string) error {
+func validateDrift(repoFS fs.FS) error {
 	// A. CI Check (.github/workflows/ci.yml)
-	ciPath := filepath.Join(root, ".github", "workflows", "ci.yml")
-	ciContent, err := os.ReadFile(ciPath)
+	// Note: in fs.FS paths are always slash-separated and relative to root (no leading period/slash)
+	ciPath := ".github/workflows/ci.yml"
+	ciContent, err := fs.ReadFile(repoFS, ciPath)
 	if err != nil {
 		return fmt.Errorf("failed to read CI config: %w", err)
 	}
@@ -189,10 +192,9 @@ func validateDrift(root string) error {
 	}
 
 	// B. Docs Check (docs/guardrails/sqlx.md, docs/ci/prverify.md)
-	// We scan both or specific ones. Let's scan specific ones as requested.
 	docsFiles := []string{
-		filepath.Join("docs", "guardrails", "sqlx.md"),
-		filepath.Join("docs", "ci", "prverify.md"),
+		"docs/guardrails/sqlx.md",
+		"docs/ci/prverify.md",
 	}
 
 	docChecks := []struct {
@@ -206,7 +208,7 @@ func validateDrift(root string) error {
 
 	foundDocs := make(map[string]bool)
 	for _, f := range docsFiles {
-		content, err := os.ReadFile(filepath.Join(root, f))
+		content, err := fs.ReadFile(repoFS, f)
 		if err == nil {
 			s := string(content)
 			for _, dc := range docChecks {
@@ -217,38 +219,123 @@ func validateDrift(root string) error {
 		}
 	}
 
-	// We just need these terms to appear *somewhere* in the doc set, not necessarily all in one.
+	// We just need these terms to appear *somewhere* in the doc set
 	for _, dc := range docChecks {
 		if !foundDocs[dc.name] {
 			return fmt.Errorf("Docs Drift: Term '%s' not found in %v", dc.term, docsFiles)
 		}
 	}
 
-	// C. SOT Check (docs/pr/*-v0.22.0-epic-a-robust-sqlx.md)
-	// Hand-rolled glob since we are in simple main.go
-	files, err := os.ReadDir(filepath.Join(root, "docs", "pr"))
+	// C. SOT Check (docs/pr/PR-<number>-*.md)
+	// Deterministic selection: Filter by wantedPR (if any) or pick Max PR number.
+	// wantedPR is 0 if unknown/unset.
+	// In future, we could parse args/env for specific PR number.
+	sotPath, err := findSOT(repoFS, 0)
 	if err != nil {
-		return fmt.Errorf("failed to read docs/pr: %w", err)
+		return fmt.Errorf("SOT Drift: %w", err)
 	}
 
-	foundSOT := false
-	for _, f := range files {
-		if strings.Contains(f.Name(), "v0.22.0") && strings.Contains(f.Name(), "robust-sqlx") {
-			content, err := os.ReadFile(filepath.Join(root, "docs", "pr", f.Name()))
-			if err != nil {
-				continue
-			}
-			s := string(content)
-			if strings.Contains(s, "sqlx_cli_install.log") && strings.Contains(s, "SQLX_OFFLINE") {
-				foundSOT = true
-				break
-			}
-		}
+	// Read and verify SOT content
+	content, err := fs.ReadFile(repoFS, sotPath)
+	if err != nil {
+		return fmt.Errorf("SOT Drift: failed to read %s: %w", sotPath, err)
 	}
-
-	if !foundSOT {
-		return fmt.Errorf("SOT Drift: No v0.22.0 robust-sqlx SOT found with required evidence/policy keywords")
+	s := string(content)
+	if !strings.Contains(s, "sqlx_cli_install.log") || !strings.Contains(s, "SQLX_OFFLINE") {
+		return fmt.Errorf("SOT Drift: %s missing required evidence/policy keywords", sotPath)
 	}
 
 	return nil
+}
+
+// findSOT locates the Source of Truth file deterministically.
+// Rules:
+// 1. Must match PR-\d+-*.md
+// 2. If wantedPR > 0, filter only that PR number.
+// 3. Otherwise, select the Highest PR Number available.
+// 4. If multiple candidates exist for the selected PR number => Fail (Ambiguous).
+func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
+	entries, err := fs.ReadDir(repoFS, "docs/pr")
+	if err != nil {
+		return "", fmt.Errorf("failed to read docs/pr: %w", err)
+	}
+
+	// Group path by PR number
+	candidates := make(map[int][]string)
+	maxPR := -1
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Parse PR number if name matches PR-\d+-*.md
+		if !strings.HasPrefix(name, "PR-") || !strings.HasSuffix(name, ".md") {
+			continue
+		}
+
+		// Extract digits between "PR-" and next "-"
+		rest := strings.TrimPrefix(name, "PR-")
+		idx := strings.Index(rest, "-")
+		if idx <= 0 {
+			continue
+		}
+		numStr := rest[:idx]
+
+		// Pure stdlib logic, no regex
+		// manual simplified Atoi to avoid heavy imports if desired,
+		// but standardstrconv is fine. We need to import strconv.
+		// Since we didn't import strconv yet, let's use a simple loop or update imports.
+		// Let's assume standard behavior and just verify digits.
+		isDigits := true
+		for _, r := range numStr {
+			if r < '0' || r > '9' {
+				isDigits = false
+				break
+			}
+		}
+		if !isDigits {
+			continue
+		}
+
+		// Parse manual logic (since imports are locked in replace_file_content chunk)
+		// actually, we can add strconv import in a separate step or loop-parse here.
+		// Loop parse is safe and zero-dependency.
+		val := 0
+		for _, r := range numStr {
+			val = val*10 + int(r-'0')
+		}
+
+		if wantedPR > 0 && val != wantedPR {
+			continue
+		}
+
+		candidates[val] = append(candidates[val], "docs/pr/"+name)
+		if val > maxPR {
+			maxPR = val
+		}
+	}
+
+	if maxPR == -1 {
+		return "", fmt.Errorf("sot_missing: no valid PR-XX-*.md files found in docs/pr/")
+	}
+
+	// Select the PR group
+	selectedPR := maxPR
+	if wantedPR > 0 {
+		// If explicit wantedPR provided, we only populated that group
+		// so maxPR implies wantedPR if found.
+		selectedPR = wantedPR
+	}
+
+	files := candidates[selectedPR]
+	if len(files) == 0 {
+		// Should be covered by maxPR logic, but if wantedPR was set and not found:
+		return "", fmt.Errorf("sot_missing: PR-%d not found", wantedPR)
+	}
+	if len(files) > 1 {
+		return "", fmt.Errorf("sot_ambiguous: multiple files for PR-%d: %v", selectedPR, files)
+	}
+
+	return files[0], nil
 }
