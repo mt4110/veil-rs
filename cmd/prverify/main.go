@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -143,7 +143,9 @@ func main() {
 	{
 		fmt.Println("==> Drift Check")
 		start := time.Now()
-		err := validateDrift(root)
+		// Use os.DirFS for real execution
+		repoFS := os.DirFS(root)
+		err := validateDrift(repoFS)
 		dur := time.Since(start)
 		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
 		if err != nil {
@@ -158,10 +160,11 @@ func main() {
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 }
 
-func validateDrift(root string) error {
+func validateDrift(repoFS fs.FS) error {
 	// A. CI Check (.github/workflows/ci.yml)
-	ciPath := filepath.Join(root, ".github", "workflows", "ci.yml")
-	ciContent, err := os.ReadFile(ciPath)
+	// Note: in fs.FS paths are always slash-separated and relative to root (no leading period/slash)
+	ciPath := ".github/workflows/ci.yml"
+	ciContent, err := fs.ReadFile(repoFS, ciPath)
 	if err != nil {
 		return fmt.Errorf("failed to read CI config: %w", err)
 	}
@@ -189,10 +192,9 @@ func validateDrift(root string) error {
 	}
 
 	// B. Docs Check (docs/guardrails/sqlx.md, docs/ci/prverify.md)
-	// We scan both or specific ones. Let's scan specific ones as requested.
 	docsFiles := []string{
-		filepath.Join("docs", "guardrails", "sqlx.md"),
-		filepath.Join("docs", "ci", "prverify.md"),
+		"docs/guardrails/sqlx.md",
+		"docs/ci/prverify.md",
 	}
 
 	docChecks := []struct {
@@ -206,7 +208,7 @@ func validateDrift(root string) error {
 
 	foundDocs := make(map[string]bool)
 	for _, f := range docsFiles {
-		content, err := os.ReadFile(filepath.Join(root, f))
+		content, err := fs.ReadFile(repoFS, f)
 		if err == nil {
 			s := string(content)
 			for _, dc := range docChecks {
@@ -217,7 +219,7 @@ func validateDrift(root string) error {
 		}
 	}
 
-	// We just need these terms to appear *somewhere* in the doc set, not necessarily all in one.
+	// We just need these terms to appear *somewhere* in the doc set
 	for _, dc := range docChecks {
 		if !foundDocs[dc.name] {
 			return fmt.Errorf("Docs Drift: Term '%s' not found in %v", dc.term, docsFiles)
@@ -225,16 +227,21 @@ func validateDrift(root string) error {
 	}
 
 	// C. SOT Check (docs/pr/*-v0.22.0-epic-a-robust-sqlx.md)
-	// Hand-rolled glob since we are in simple main.go
-	files, err := os.ReadDir(filepath.Join(root, "docs", "pr"))
+	// Manual glob logic for fs.FS
+	entries, err := fs.ReadDir(repoFS, "docs/pr")
 	if err != nil {
-		return fmt.Errorf("failed to read docs/pr: %w", err)
+		// SOT dir missing is a FAIL for SOT check
+		return fmt.Errorf("SOT Drift: failed to read docs/pr: %w", err)
 	}
 
 	foundSOT := false
-	for _, f := range files {
-		if strings.Contains(f.Name(), "v0.22.0") && strings.Contains(f.Name(), "robust-sqlx") {
-			content, err := os.ReadFile(filepath.Join(root, "docs", "pr", f.Name()))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.Contains(name, "v0.22.0") && strings.Contains(name, "robust-sqlx") {
+			content, err := fs.ReadFile(repoFS, "docs/pr/"+name)
 			if err != nil {
 				continue
 			}
