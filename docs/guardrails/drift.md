@@ -23,8 +23,10 @@ Ensures a valid Source of Truth (SOT) exists for the current release.
 ### 4. SOT Selection Rules
 To avoid ambiguity, `drift-check` selects the SOT deterministically:
 - **Filename**: Must match `docs/pr/PR-<digits>-*.md`.
-- **Priority**: Exact PR number match (if context is known).
-- **Ambiguity**: If multiple candidates differ only by description or version, **FAIL** (`sot_ambiguous`).
+- **Priority**:
+  1. **Exact Match**: If the PR number is specified (known context), that file is selected.
+  2. **Max PR**: If context is unknown, the file with the **highest** PR number is selected.
+- **Ambiguity**: If multiple candidates exist for the *same* PR number (duplicate), **FAIL** (`sot_ambiguous`).
 - **Missing**: If no candidates found, **FAIL** (`sot_missing`).
 
 ## Runbook

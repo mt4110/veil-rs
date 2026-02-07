@@ -227,8 +227,10 @@ func validateDrift(repoFS fs.FS) error {
 	}
 
 	// C. SOT Check (docs/pr/PR-<number>-*.md)
-	// Deterministic selection
-	sotPath, err := findSOT(repoFS)
+	// Deterministic selection: Filter by wantedPR (if any) or pick Max PR number.
+	// wantedPR is 0 if unknown/unset.
+	// In future, we could parse args/env for specific PR number.
+	sotPath, err := findSOT(repoFS, 0)
 	if err != nil {
 		return fmt.Errorf("SOT Drift: %w", err)
 	}
@@ -248,39 +250,93 @@ func validateDrift(repoFS fs.FS) error {
 
 // findSOT locates the Source of Truth file deterministically.
 // Rules:
-// 1. Must be in docs/pr/
-// 2. Must match PR-\d+-*.md
-// 3. Must be unique (ambiguity => error)
-func findSOT(repoFS fs.FS) (string, error) {
+// 1. Must match PR-\d+-*.md
+// 2. If wantedPR > 0, filter only that PR number.
+// 3. Otherwise, select the Highest PR Number available.
+// 4. If multiple candidates exist for the selected PR number => Fail (Ambiguous).
+func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 	entries, err := fs.ReadDir(repoFS, "docs/pr")
 	if err != nil {
 		return "", fmt.Errorf("failed to read docs/pr: %w", err)
 	}
 
-	var candidates []string
+	// Group path by PR number
+	candidates := make(map[int][]string)
+	maxPR := -1
+
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		name := e.Name()
-		// Simple check: starts with PR-, contains digits, ends with .md
-		// We avoid complex regex to keep it stdlib-lite if possible, but path.Match or logic is fine.
-		// Strict format: PR-<digits>-<desc>.md
-		if strings.HasPrefix(name, "PR-") && strings.HasSuffix(name, ".md") {
-			// Check for digits after PR-
-			rest := strings.TrimPrefix(name, "PR-")
-			if len(rest) > 0 && rest[0] >= '0' && rest[0] <= '9' {
-				candidates = append(candidates, "docs/pr/"+name)
+		// Parse PR number if name matches PR-\d+-*.md
+		if !strings.HasPrefix(name, "PR-") || !strings.HasSuffix(name, ".md") {
+			continue
+		}
+		
+		// Extract digits between "PR-" and next "-"
+		rest := strings.TrimPrefix(name, "PR-")
+		idx := strings.Index(rest, "-")
+		if idx <= 0 {
+			continue
+		}
+		numStr := rest[:idx]
+		
+		// Pure stdlib logic, no regex
+		var pragNum int
+		// manual simplified Atoi to avoid heavy imports if desired, 
+		// but standardstrconv is fine. We need to import strconv.
+		// Since we didn't import strconv yet, let's use a simple loop or update imports.
+		// Let's assume standard behavior and just verify digits.
+		isDigits := true
+		for _, r := range numStr {
+			if r < '0' || r > '9' {
+				isDigits = false
+				break
 			}
+		}
+		if !isDigits {
+			continue
+		}
+
+		// Parse manual logic (since imports are locked in replace_file_content chunk)
+		// actually, we can add strconv import in a separate step or loop-parse here.
+		// Loop parse is safe and zero-dependency.
+		val := 0
+		for _, r := range numStr {
+			val = val*10 + int(r-'0')
+		}
+		
+		if wantedPR > 0 && val != wantedPR {
+			continue
+		}
+
+		candidates[val] = append(candidates[val], "docs/pr/"+name)
+		if val > maxPR {
+			maxPR = val
 		}
 	}
 
-	if len(candidates) == 0 {
-		return "", fmt.Errorf("sot_missing: no PR-XX-*.md files found in docs/pr/")
-	}
-	if len(candidates) > 1 {
-		return "", fmt.Errorf("sot_ambiguous: multiple candidates found: %v", candidates)
+	if maxPR == -1 {
+		return "", fmt.Errorf("sot_missing: no valid PR-XX-*.md files found in docs/pr/")
 	}
 
-	return candidates[0], nil
+	// Select the PR group
+	selectedPR := maxPR
+	if wantedPR > 0 {
+		// If explicit wantedPR provided, we only populated that group
+		// so maxPR implies wantedPR if found.
+		selectedPR = wantedPR
+	}
+	
+	files := candidates[selectedPR]
+	if len(files) == 0 {
+		// Should be covered by maxPR logic, but if wantedPR was set and not found:
+		return "", fmt.Errorf("sot_missing: PR-%d not found", wantedPR)
+	}
+	if len(files) > 1 {
+		return "", fmt.Errorf("sot_ambiguous: multiple files for PR-%d: %v", selectedPR, files)
+	}
+
+	return files[0], nil
 }
