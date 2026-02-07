@@ -21,7 +21,7 @@ jobs:
       - name: Ensure no .sh files
         run: |
           # CI scripts in ops/ci/ are allowed as an exception.
-          if [ -n "$(git ls-files '*.sh' | grep -v '^ops/ci/')" ]; then
+          if git ls-files '*.sh' | grep -qv '^ops/ci/'; then
             echo "Error: Shell scripts (.sh) are forbidden. Please use Go/Nix/Rust."
             echo "Exception: ops/ci/*.sh is allowed."
             git ls-files '*.sh' | grep -v '^ops/ci/'
