@@ -26,33 +26,45 @@ To avoid guessing, `drift-check` selects the SOT deterministically:
 - **Priority**:
   1. **Exact Match (optional)**: If a PR number is provided as context, that PR is selected.
   2. **Max PR (default)**: Otherwise, the candidate with the **highest** PR number is selected.
+  - Provide PR context via `--wanted-pr <N>` (0 = auto).
+    - Example (Nix): `nix run .#prverify -- --wanted-pr 35`
 - **Ambiguity**: If multiple candidates exist for the *same* PR number (duplicate), **FAIL** (`sot_ambiguous`).
 - **Missing**: If no candidates found, **FAIL** (`sot_missing`).
 
-## Runbook
-If `drift-check` fails:
+## Runbook (Quick Fix)
 
-1. **Read the Log**: Look for `ERROR: drift check failed:` and the following prefixes.
-   - `CI Drift:` CI config was changed illegally. Revert or update `ops/ci` scripts and workflow config.
-   - `Docs Drift:` Docs are missing key terms. Restore them.
-   - `SOT Drift:` SOT is missing/ambiguous or evidence is incomplete.
-     - `... sot_missing: ...` No valid SOT candidate found.
-     - `... sot_ambiguous: ...` Duplicate candidates exist for the same PR number.
-2. **Fix**:
-   - If SOT missing: add/restore `docs/pr/PR-<digits>-*.md`.
-   - If SOT ambiguous: keep **exactly one** file for that PR number (merge/delete duplicates).
-   - If evidence missing: update the selected SOT so it reflects reality (e.g., sync commit SHA / include required keywords).
+If `nix run .#prverify` fails, look at the **1-scroll error block** at the end.
 
-## Handling Exceptions
-In rare cases (e.g., temporary workarounds or legacy acceptance), you may need to ignore specific drift failures.
+| Category | Typical Cause | Fix Command (Example) |
+| :--- | :--- | :--- |
+| **CI** | Workflow or `ops/` drift | `git checkout main .github/workflows/ci.yml` |
+| **Docs** | Missing policy terms | `grep -r "SQLX_OFFLINE" docs/` |
+| **SOT** | Missing/Duplicate/No Evidence | `ls docs/pr/` or edit the latest SOT |
 
-1. Create or edit `.driftignore` in the repository root.
-2. Add a unique substring of the error message you want to ignore.
-   ```text
-   # Ignore SOT missing until next release
-   sot_missing
-   ```
-3. `prverify` will now print `WARN: [Ignored] ...` and pass (Green).
+### Recovery Steps:
+1. **Identify**: Check the `Cause:` and `Fix:` fields in the CLI output.
+2. **Execute**: Run the recommended fix command.
+3. **Verify**: `nix run .#prverify` (should be green).
+
+## Handling Exceptions (.driftignore)
+
+For temporary workarounds or legacy acceptance, use structured exceptions in `.driftignore`.
+
+### Format
+`substring # <reason> | until_YYYYMMDD`
+
+- **substring**: The unique part of the error message to ignore.
+- **reason**: Why this exception is needed (Audit required).
+- **until**: Expiration date (Maintenance required).
+
+### Example
+```text
+# Temporary ignore until v0.23.0 cleanup
+sot_missing # Pending PR-39 creation | until_20260301
+```
+
+> [!IMPORTANT]
+> Expired exceptions will trigger a **Warning** and should be removed as technical debt.
 
 ## Non-Goals
 - Expanding drift check to arbitrary files without a clear policy.
