@@ -273,7 +273,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		if !strings.HasPrefix(name, "PR-") || !strings.HasSuffix(name, ".md") {
 			continue
 		}
-		
+
 		// Extract digits between "PR-" and next "-"
 		rest := strings.TrimPrefix(name, "PR-")
 		idx := strings.Index(rest, "-")
@@ -281,10 +281,9 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 			continue
 		}
 		numStr := rest[:idx]
-		
+
 		// Pure stdlib logic, no regex
-		var pragNum int
-		// manual simplified Atoi to avoid heavy imports if desired, 
+		// manual simplified Atoi to avoid heavy imports if desired,
 		// but standardstrconv is fine. We need to import strconv.
 		// Since we didn't import strconv yet, let's use a simple loop or update imports.
 		// Let's assume standard behavior and just verify digits.
@@ -306,7 +305,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		for _, r := range numStr {
 			val = val*10 + int(r-'0')
 		}
-		
+
 		if wantedPR > 0 && val != wantedPR {
 			continue
 		}
@@ -328,7 +327,7 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 		// so maxPR implies wantedPR if found.
 		selectedPR = wantedPR
 	}
-	
+
 	files := candidates[selectedPR]
 	if len(files) == 0 {
 		// Should be covered by maxPR logic, but if wantedPR was set and not found:
