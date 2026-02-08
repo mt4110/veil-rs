@@ -3,7 +3,7 @@
 To ensure a smooth developer experience, `prverify` failures must be **Deterministic** and **Actionable within 1 Scroll**.
 
 ## 1. Output Structure
-Every failure block must follow this exact template:
+Every failure block must follow this template (header format may vary slightly):
 
 ```text
 [<Category> Drift] <Summary>
@@ -11,6 +11,7 @@ Every failure block must follow this exact template:
   Action: <High-level guidance>
   Fix:    <Specific command to run>
 ```
+*Note: The header might also appear as `<Category> Drift detected!` followed by Cause/Action/Fix.*
 
 ### Example
 ```text

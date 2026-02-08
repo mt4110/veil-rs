@@ -5,7 +5,7 @@
 - **Current**: Existing drift-check exceptions remain governed by `.driftignore` and `docs/guardrails/drift.md` until fully migrated.
 
 ## 1. Core Principles
-- **Centralization**: All exceptions must be registered in the **Exception Registry** (`ops/exceptions.toml`). Scattered ignore comments are deprecated.
+- **Centralization**: For **Exception Registry v1** (PR42+), all exceptions must be registered in the **Exception Registry** (`ops/exceptions.toml`). Scattered ignore comments are deprecated.
 - **Accountability**: Every exception must have an **Owner**, a **Reason**, and an **Audit Trail**.
 - **Temporality**: Exceptions should be temporary. **Expiry** (`expires_at`) is mandatory by default. Use "Perpetual Exception" criteria for long-term overrides.
 
