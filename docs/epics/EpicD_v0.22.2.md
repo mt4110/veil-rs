@@ -30,14 +30,14 @@ Establish a sustainable operation model for Guardrails to prevent "exception spa
 - Excessive target expansion (strictly limited scope).
 - Automated exception extension/generation (prevents rot).
 
-3.  **Target Selection**
-    1.  **Target-1 (Required): Exception Registry v1 (PR42)**
-        -   Centralized ledger (`ops/exceptions.toml`).
-        -   Explicit schema validation (id, rule, scope, reason, owner, audit).
-        -   *Note: Expiry is NOT enforced in PR42.*
-    2.  **Target-2 (Recommended): Expiry Enforcement (PR43+)**
-        -   Fail on expired exceptions.
-        -   1-scroll recovery UX.
+## 3. Target Selection
+1.  **Target-1 (Required): Exception Registry v1 (PR42)**
+    -   Centralized ledger (`ops/exceptions.toml`).
+    -   Explicit schema validation (id, rule, scope, reason, owner, audit).
+    -   *Note: Expiry is NOT enforced in PR42.*
+2.  **Target-2 (Recommended): Expiry Enforcement (PR43+)**
+    -   Fail on expired exceptions.
+    -   1-scroll recovery UX.
 
 ## 4. Acceptance Criteria
 - [ ] `prverify` is Green.
