@@ -16,7 +16,7 @@ func TestValidateDrift(t *testing.T) {
       - uses: actions/upload-artifact
         with:
           path: .local/ci/
-      - run: touch .local/ci/.keep
+      - run: : > .local/ci/.keep
 `
 	validDoc := "SQLX_OFFLINE sqlx_cli_install.log ops/ci/"
 	validSOT := "Evidence:\n- sqlx_cli_install.log\n- SQLX_OFFLINE"
