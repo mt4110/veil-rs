@@ -2,23 +2,42 @@
 
 To ensure a smooth developer experience, `prverify` failures must be **Deterministic** and **Actionable within 1 Scroll**.
 
-## 1. Output Structure
-Failure blocks must match `driftError.Print()` output. Format adapts to `NO_COLOR`.
+## 1. Enforcement Timeline & Output
+`prverify` output format depends on the version/PR:
 
-### Default (Text / NO_COLOR)
+- **PR41 (Current Main)**: Outputs a **Header** + `Cause/Action/Fix`. `NO_COLOR` removes ANSI but formatting remains.
+- **PR42+ (Registry v1)**: Outputs `Reason/Fix/Next` (No Header). `NO_COLOR` switches to plain text (no ANSI symbols).
+
+## 2. Output Structure
+
+### PR41 (Current Main Output)
+Used by legacy drift checks until PR42 merge.
+
+```text
+[<Category> Drift] <Summary>
+  Cause:  <reason>
+  Action: <guidance>
+  Fix:    <command>
+```
+*Note: PR41 output always includes a category header.*
+
+### PR42+ (New Output)
+Standard for Registry v1 and future checks.
+
+#### Text / NO_COLOR
 ```text
 Reason: <reason>
 Fix:    <command>
 Next:   <command>
 ```
 
-### ANSI (Color)
-ANSI is enabled when `NO_COLOR` is unset. Set `NO_COLOR` for plain logs / CI determinism.
+#### ANSI (Color)
+ANSI is enabled when `NO_COLOR` is unset.
 - **Reason**: Bold
 - **Fix**: Green command
 - **Next**: Blue command
 
-### Example
+### Example (PR42+)
 ```text
 Reason: expires_at (2025-01-01) is in the past
 Fix:    edit ops/exceptions.toml
@@ -26,7 +45,7 @@ Next:   nix run .#prverify
 ```
 
 > [!NOTE]
-> `driftError.Print` does not currently output a header (e.g. `[Registry Drift]`). The category is internal to the error struct.
+> **Header Policy**: PR41 outputs a header; PR42+ does **not** output a header (category is internal to existing error struct).
 
 ## 2. Determinism Rules
 - **Ordering**: Output items must be **sorted deterministically** (e.g., by ID asc, then Path asc, then Rule asc).
