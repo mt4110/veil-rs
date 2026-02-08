@@ -21,7 +21,7 @@ Every failure block must follow this exact template:
 ```
 
 ## 2. Determinism Rules
-- **Ordering**: Output items must be sorted securely (e.g., by ID, Path, then Rule).
+- **Ordering**: Output items must be **sorted deterministically** (e.g., by ID asc, then Path asc, then Rule asc).
 - **Formatting**:
     - No absolute paths (use relative to repo root).
     - Stable newlines and indentation.
@@ -33,7 +33,7 @@ Every failure block must follow this exact template:
 - **Overflow**: If more than 10 items exist, show `... and N more` at the bottom.
 
 ## 4. Color & Styling
-- **Heading**: Bold/Red for immediate attention.
-- **Keys**: Bold (Cause/Action/Fix).
-- **Fix Command**: Green (copy-pasteable).
-- Use `NO_COLOR` env var to disable coloring if set.
+- **Default (Recommendation)**: Output must be fully readable with **NO color**.
+- **Optional**: If colors are used for emphasis (e.g., Red for errors, Green for fixes):
+    - Must respect `NO_COLOR` env var (disable if set).
+    - Color codes must never convey meaning alone (text content must differ).
