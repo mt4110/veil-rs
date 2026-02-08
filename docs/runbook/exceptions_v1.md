@@ -59,10 +59,11 @@ v1 supports exactly **two** scope types:
 5.  Commit with reason.
 
 ### Updating/Removing an Exception
-- **Expired**: Fail behavior will trigger.
+- **Expired**: Fail behavior will trigger in **Target-2 (PR43+)**.
     - **Fix**: Resolve the issue (remove exception) OR Extend expiry (with new audit entry).
 - **Stale**: Remove exceptions that no longer match any findings.
 
 ## 6. Audit & Review
 - `prverify` acts as the automated auditor.
-- Exceptions without valid schema or expired dates will cause `prverify` to FAIL.
+- **PR42**: schema/date-format violations FAIL.
+- **PR43+**: expiry enforcement (UTC today > expires_at) FAIL.

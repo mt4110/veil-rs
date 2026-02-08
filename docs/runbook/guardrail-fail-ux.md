@@ -6,16 +6,16 @@ To ensure a smooth developer experience, `prverify` failures must be **Determini
 Every failure block must follow this template (header format may vary slightly):
 
 ```text
-[<Category> Drift] <Summary>
+<Category> Drift detected!
   Cause:  <Specific reason for failure>
   Action: <High-level guidance>
   Fix:    <Specific command to run>
 ```
-*Note: The header might also appear as `<Category> Drift detected!` followed by Cause/Action/Fix.*
+*Note: The header might also appear as `[<Category> Drift] <Summary>` in legacy or specific contexts.*
 
 ### Example
 ```text
-[Registry Drift] Exception EX-20260208-001 is expired
+Registry Drift detected!
   Cause:  expires_at (2025-01-01) is in the past
   Action: Remove the exception or extend validity with justification
   Fix:    edit ops/exceptions.toml
