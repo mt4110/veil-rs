@@ -1,70 +1,121 @@
 # Runbook: Review Bundle
 
-This runbook describes how to generate a **review bundle** — a small archive optimized for fast, deterministic review.
+This runbook describes how to generate a **review bundle** — a small archive optimized for fast review.
 
-A review bundle contains:
+A bundle contains:
 - `INDEX.md` (navigation)
 - `meta/` (base/head, branch, changed file list, stats)
 - `files/` (latest snapshots of changed files)
 - `patch/` (committed patch series + optional WIP diffs)
-- `evidence/` (single prverify PASS log when available)
+- `evidence/` (prverify PASS log when available)
 
 ---
 
-## Quick Start
+## Quickstart
 
-### 1. Generate Bundle (Clean)
-Recommended for final PR submission. Requires a clean working tree.
+From repository root:
+
 ```bash
 bash ops/review_bundle.sh
 ```
-Output: `.local/review-bundles/veil-rs_review_YYYYMMDD_HHMMSS_<commit>.tar.gz`
 
-### 2. Generate Bundle (WIP)
-Useful for pre-commit review or debugging locally. Includes staged/unstaged changes.
+This generates a clean bundle under:
+
+- `.local/review-bundles/<project>_review_<timestamp>_<head12>.tar.gz`
+
+> `<project>` is derived from the repo root directory name.
+
+---
+
+## Pre-commit review (WIP)
+
+To review changes **before committing**:
+
 ```bash
 MODE=wip bash ops/review_bundle.sh
 ```
-Output: `.local/review-bundles/veil-rs_review_wip_YYYYMMDD_HHMMSS_<commit>.tar.gz`
 
-## Configuration (Optional)
+This generates:
 
-You can customize behavior with environment variables:
+- `.local/review-bundles/<project>_review_wip_<timestamp>_<head12>.tar.gz`
 
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `MODE` | `clean` | `clean` (committed only) or `wip` (include dirty state) |
-| `OUT_DIR` | `.local/review-bundles` | Directory to save the bundle |
-| `INCLUDE_FILE` | `.review-bundle.include` | Path to file listing extra files to bundle |
-| `BASE_REF` | `origin/main` | Diff base reference |
+WIP mode additionally includes:
+- `patch/wip_index.patch` (staged diff)
+- `patch/wip_worktree.patch` (unstaged diff)
+- untracked files copied into `files/` (if relevant)
 
-### Including Extra Files
-To bundle additional context files (e.g., related docs or config) that haven't changed:
-1. Create `.review-bundle.include` in the repo root.
-2. Add file paths (one per line). Supports simple globs.
-   ```text
-   # Example .review-bundle.include
-   docs/runbook/*.md
-   ops/config.toml
-   ```
+---
 
-## Reviewing a Bundle
+## Inspecting a bundle
 
-1. **Extract**:
-   ```bash
-   mkdir review
-   tar -xzf veil-rs_review_*.tar.gz -C review
-   ```
-2. **Read INDEX**:
-   Open `review/INDEX.md` to see metadata and navigation.
-   ```bash
-   cat review/INDEX.md
-   ```
+Extract:
 
-3. **Inspect**:
-   - `files/`: Contains the full content of changed files (snapshot).
-   - `patch/`: Contains `.patch` files for applying or viewing diffs.
-   - `evidence/`: Contains the verification log. **Verify one exists!**
-     ```bash
-     ls review/evidence/
-     ```
+```bash
+tar -xzf .local/review-bundles/*_review*.tar.gz
+# Extracts into ./review/
+```
+
+Read the index first:
+
+```bash
+sed -n '1,200p' review/INDEX.md
+```
+
+Common reading order:
+1) `review/meta/changed_files.txt`
+2) `review/files/`
+3) `review/patch/series.patch`
+4) `review/evidence/` (if present)
+
+---
+
+## Configuration
+
+Environment variables:
+
+- `REPO` (default: `.`)
+  - repository path
+
+- `MODE` (default: `clean`)
+  - `clean` or `wip`
+
+- `OUT_DIR` (default: `.local/review-bundles`)
+  - output directory (relative to repo root or absolute)
+
+- `BASE_REF` (default: `origin/main`)
+  - merge-base ref used to compute `base`
+
+- `INCLUDE_FILE` (default: `.review-bundle.include`)
+  - optional file listing extra files to always include (one pathspec per line)
+  - supports simple globs like `docs/runbook/*.md`
+  - blank lines and `# comments` are ignored
+
+- `EVIDENCE_FILE` (default: unset)
+  - explicitly include a prverify PASS log (relative to repo root or absolute)
+
+Examples:
+
+```bash
+BASE_REF=main bash ops/review_bundle.sh
+OUT_DIR=/tmp/review-bundles MODE=wip bash ops/review_bundle.sh
+EVIDENCE_FILE=.local/prverify/prverify_20260208T075813Z_abcdef0.md bash ops/review_bundle.sh
+```
+
+---
+
+## Evidence behavior
+
+Evidence is optional. The tool will attempt to include:
+
+1) a PASS log matching `HEAD` (12 or 7 short SHA), otherwise  
+2) the latest `prverify_*.md`, and write a warning trail.
+
+If `review/evidence/` is empty, check:
+
+- `review/meta/warnings.txt`
+
+---
+
+## Security notes
+
+Do not generate or share a bundle that contains secrets.

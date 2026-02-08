@@ -15,21 +15,25 @@ set -euo pipefail
 #   - one pathspec per line (supports simple globs like docs/runbook/*.md)
 #   - blank lines and comments (# ...) are ignored
 #
-# Usage:
+# Evidence:
+#   - If EVIDENCE_FILE is set, it is included (absolute or relative to repo root)
+#   - Otherwise auto-detect .local/prverify:
+#       1) Prefer logs matching HEAD (12 or 7 short SHA)
+#       2) Fallback to latest prverify_*.md with a warning trail
+#
+# Usage (from repo root):
 #   bash ops/review_bundle.sh
 #   MODE=wip bash ops/review_bundle.sh
 #
 # Optional:
 #   REPO=../some-repo BASE_REF=origin/main OUT_DIR=.local/review-bundles MODE=wip bash ops/review_bundle.sh
-#
-# Note: This script is repo-agnostic and relies on git commands and standard paths.
 
 repo="${REPO:-.}"
 BASE_REF="${BASE_REF:-origin/main}"
 MODE="${MODE:-clean}"
 OUT_DIR="${OUT_DIR:-.local/review-bundles}"
 INCLUDE_FILE="${INCLUDE_FILE:-.review-bundle.include}"
-ts=$(date +'%Y%m%d_%H%M%S')
+ts="$(date +'%Y%m%d_%H%M%S')"
 
 cleanup() {
   if [ -n "${tmp:-}" ] && [ -d "${tmp:-}" ]; then
@@ -45,7 +49,6 @@ fi
 
 toplevel="$(git -C "$repo" rev-parse --show-toplevel)"
 project="$(basename "$toplevel")"
-# safe-ish slug for filenames
 project_slug="$(printf "%s" "$project" | tr -c 'A-Za-z0-9._-' '_' )"
 
 # Clean requirement only for MODE=clean
@@ -74,7 +77,7 @@ if [ "$MODE" = "wip" ]; then
   suffix="_wip"
 fi
 
-# output dir
+# output dir (absolute or relative to repo root)
 case "$OUT_DIR" in
   /*) out_dir="$OUT_DIR" ;;
   *)  out_dir="$toplevel/$OUT_DIR" ;;
@@ -86,6 +89,9 @@ out="$out_dir/${project_slug}_review${suffix}_${ts}_${head12}.tar.gz"
 tmp="$(mktemp -d)"
 root="$tmp/review"
 mkdir -p "$root/meta" "$root/patch" "$root/files" "$root/evidence"
+
+# Always create warnings.txt so reviewers can rely on it existing.
+: > "$root/meta/warnings.txt"
 
 # --- META ---
 git -C "$toplevel" rev-parse HEAD > "$root/meta/head_sha.txt"
@@ -106,8 +112,10 @@ git -C "$toplevel" diff --name-status "$base..HEAD" > "$root/meta/name_status_co
 if [ "$MODE" = "wip" ]; then
   git -C "$toplevel" diff --stat --cached > "$root/meta/diff_stat_index.txt"
   git -C "$toplevel" diff --name-status --cached > "$root/meta/name_status_index.txt"
+
   git -C "$toplevel" diff --stat > "$root/meta/diff_stat_worktree.txt"
   git -C "$toplevel" diff --name-status > "$root/meta/name_status_worktree.txt"
+
   git -C "$toplevel" ls-files --others --exclude-standard > "$root/meta/untracked_files.txt"
 fi
 
@@ -133,7 +141,7 @@ while IFS= read -r f; do
   [ -z "$f" ] && continue
   [ -f "$toplevel/$f" ] || continue
   mkdir -p "$root/files/$(dirname "$f")"
-  cp -p "$toplevel/$f" "$root/files/$f"
+  cp "$toplevel/$f" "$root/files/$f"
 done < "$root/meta/changed_files.txt"
 
 # --- OPTIONAL EXTRA INCLUDE LIST (.review-bundle.include) ---
@@ -145,19 +153,23 @@ esac
 : > "$root/meta/extra_files.txt"
 if [ -f "$include_path" ]; then
   while IFS= read -r spec; do
+    # Strip comments + trim whitespace
     spec="${spec%%#*}"
     spec="$(printf "%s" "$spec" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [ -z "$spec" ] && continue
 
     # safety: disallow absolute and parent traversal
     case "$spec" in
-      /*|*..*) printf "WARN: skip unsafe include spec: %s\n" "$spec" >> "$root/meta/warnings.txt"; continue ;;
+      /*|*..*) echo "WARN: skip unsafe include spec: $spec" >> "$root/meta/warnings.txt"; continue ;;
     esac
 
+    # If it looks like a glob, use git pathspec magic :(glob)
     if printf "%s" "$spec" | grep -Eq '[*?\[]'; then
       git -C "$toplevel" ls-files -- ":(glob)$spec" 2>/dev/null >> "$root/meta/extra_files.txt" || true
     else
+      # Try tracked path first
       git -C "$toplevel" ls-files -- "$spec" 2>/dev/null >> "$root/meta/extra_files.txt" || true
+      # Also allow untracked explicit file path
       if [ -f "$toplevel/$spec" ]; then
         echo "$spec" >> "$root/meta/extra_files.txt"
       fi
@@ -171,29 +183,40 @@ if [ -s "$root/meta/extra_files.txt" ]; then
     [ -z "$f" ] && continue
     [ -f "$toplevel/$f" ] || continue
     mkdir -p "$root/files/$(dirname "$f")"
-    cp -p "$toplevel/$f" "$root/files/$f"
+    cp "$toplevel/$f" "$root/files/$f"
   done < "$root/meta/extra_files.txt"
 fi
 
-# --- EVIDENCE (latest PASS log or explicit file) ---
-# Repo-agnostic: looks for .local/prverify by default, or uses EVIDENCE_FILE
+# --- EVIDENCE ---
 if [ -n "${EVIDENCE_FILE:-}" ]; then
-  if [ -f "$EVIDENCE_FILE" ]; then
-    cp -p "$EVIDENCE_FILE" "$root/evidence/$(basename "$EVIDENCE_FILE")"
+  case "$EVIDENCE_FILE" in
+    /*) ev_path="$EVIDENCE_FILE" ;;
+    *)  ev_path="$toplevel/$EVIDENCE_FILE" ;;
+  esac
+
+  if [ -f "$ev_path" ]; then
+    cp "$ev_path" "$root/evidence/$(basename "$ev_path")"
   else
     echo "WARN: EVIDENCE_FILE specified but not found: $EVIDENCE_FILE" >> "$root/meta/warnings.txt"
   fi
 else
-  # Auto-detect (tailored for this specific project layout, but removable/ignorable)
   ev=$(
     ls -1t "$toplevel/.local/prverify"/prverify_*_"${head12}".md 2>/dev/null | head -n 1 \
     || ls -1t "$toplevel/.local/prverify"/prverify_*_"${head7}".md 2>/dev/null | head -n 1 \
     || true
   )
+
+  if [ -z "${ev:-}" ]; then
+    ev="$(ls -1t "$toplevel/.local/prverify"/prverify_*.md 2>/dev/null | head -n 1 || true)"
+    if [ -n "${ev:-}" ]; then
+      echo "WARN: No prverify log found for HEAD (${head12}); included latest: $(basename "$ev")" >> "$root/meta/warnings.txt"
+    fi
+  fi
+
   if [ -n "${ev:-}" ] && [ -f "$ev" ]; then
-    cp -p "$ev" "$root/evidence/$(basename "$ev")"
+    cp "$ev" "$root/evidence/$(basename "$ev")"
   else
-    echo "WARN: No evidence log found in .local/prverify for HEAD ($head12)" >> "$root/meta/warnings.txt"
+    echo "WARN: No evidence log found in .local/prverify" >> "$root/meta/warnings.txt"
   fi
 fi
 
@@ -213,11 +236,14 @@ fi
   echo "3) patch/series.patch"
   if [ "$MODE" = "wip" ]; then
     echo "4) patch/wip_index.patch + patch/wip_worktree.patch"
+    echo "5) evidence/ (if present)"
+  else
+    echo "4) evidence/ (if present)"
   fi
-  echo "5) evidence/ (if present)"
   echo
   echo "## Optional"
   echo "- meta/extra_files.txt (resolved from $INCLUDE_FILE if exists)"
+  echo "- meta/warnings.txt (always present; check if evidence missing)"
 } > "$root/INDEX.md"
 
 # --- PACK ---
@@ -225,7 +251,7 @@ tar_opts=()
 if tar --help 2>/dev/null | grep -q -- '--no-xattrs'; then tar_opts+=(--no-xattrs); fi
 if tar --help 2>/dev/null | grep -q -- '--no-mac-metadata'; then tar_opts+=(--no-mac-metadata); fi
 
-COPYFILE_DISABLE=1 tar "${tar_opts[@]}" -czf "$out" -C "$tmp" review
+COPYFILE_DISABLE=1 tar ${tar_opts[@]+"${tar_opts[@]}"} -czf "$out" -C "$tmp" review
 
 ls -lh "$out"
 echo "OK: $out"
