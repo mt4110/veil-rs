@@ -185,7 +185,13 @@ func main() {
 		fmt.Println("==> Drift Check")
 		start := time.Now()
 		repoFS := os.DirFS(root)
-		err := validateDrift(repoFS, *wantedPR)
+
+		// Critical: Normalize "Today" to Midnight UTC for deterministic behavior.
+		// Do not use time.Now() inside validation logic.
+		now := time.Now().UTC()
+		utcToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+		err := validateDrift(repoFS, *wantedPR, utcToday)
 		dur := time.Since(start)
 		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
 		if err != nil {
@@ -205,14 +211,14 @@ func main() {
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 }
 
-func validateDrift(repoFS fs.FS, wantedPR int) error {
+func validateDrift(repoFS fs.FS, wantedPR int, utcToday time.Time) error {
 	if err := validateCI(repoFS); err != nil {
 		return err
 	}
 	if err := validateDocs(repoFS); err != nil {
 		return err
 	}
-	if err := validateRegistryFile(repoFS); err != nil {
+	if err := validateRegistryFile(repoFS, utcToday); err != nil {
 		return err
 	}
 	return validateSOT(repoFS, wantedPR)

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func TestValidateDrift(t *testing.T) {
@@ -120,7 +121,8 @@ func TestValidateDrift(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateDrift(tt.fs, 0)
+			// pass a dummy date (2026-02-08)
+			err := validateDrift(tt.fs, 0, time.Date(2026, 2, 8, 0, 0, 0, 0, time.UTC))
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Errorf("validateDrift() unexpected error: %v", err)

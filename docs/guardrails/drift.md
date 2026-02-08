@@ -18,7 +18,7 @@ Ensures documentation contains necessary keywords for maintenance.
 Ensures `ops/exceptions.toml` exists and is valid.
 - **Must**: File must exist and be valid TOML.
 - **Must**: Compliance with schema (required fields, scope grammar, date formats).
-- *Note: PR42 enforces schema only; expiry enforcement is PR43+.*
+- *Note: Expiry enforcement is ACTIVE (PR43+). Items with `expires_at < utc_today` will FAIL.*
 
 ### 4. SOT Drift
 Ensures a valid Source of Truth (SOT) exists and contains evidence for the guardrails.

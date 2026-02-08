@@ -40,3 +40,6 @@ result
 
 # nix build output
 result
+# Go test cache
+.cache_iso/
+.go/

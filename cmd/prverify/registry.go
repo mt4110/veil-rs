@@ -13,14 +13,15 @@ import (
 
 // Exception represents a single entry in the registry
 type Exception struct {
-	ID        string   `toml:"id"`
-	Rule      string   `toml:"rule"`
-	Scope     string   `toml:"scope"`
-	Reason    string   `toml:"reason"`
-	Owner     string   `toml:"owner"`
-	CreatedAt string   `toml:"created_at"`
-	Audit     []string `toml:"audit"`
-	ExpiresAt string   `toml:"expires_at,omitempty"`
+	ID            string   `toml:"id"`
+	Rule          string   `toml:"rule"`
+	Scope         string   `toml:"scope"`
+	Reason        string   `toml:"reason"`
+	Owner         string   `toml:"owner"`
+	CreatedAt     string   `toml:"created_at"`
+	Audit         []string `toml:"audit"`
+	ExpiresAt     string   `toml:"expires_at,omitempty"`
+	OriginalIndex int      `toml:"-"` // Internal use for deterministic sorting of missing IDs
 }
 
 // Registry represents the top-level structure of ops/exceptions.toml
@@ -29,7 +30,7 @@ type Registry struct {
 }
 
 // validateRegistryFile serves as the entry point for the registry check in validateDrift
-func validateRegistryFile(repoFS fs.FS) error {
+func validateRegistryFile(repoFS fs.FS, utcToday time.Time) error {
 	path := "ops/exceptions.toml"
 
 	// 1. Check existence
@@ -69,30 +70,34 @@ func validateRegistryFile(repoFS fs.FS) error {
 		}
 	}
 
+	// Populate OriginalIndex for stable sorting fallback
+	for i := range reg.Exceptions {
+		reg.Exceptions[i].OriginalIndex = i
+	}
+
 	// 4. Validate
-	if errs := validateRegistry(&reg); len(errs) > 0 {
+	if errs := validateRegistry(&reg, utcToday); len(errs) > 0 {
 		count := len(errs)
 		maxShow := 10
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("Registry validation failed (%d errors): ", count))
+		sb.WriteString(fmt.Sprintf("Registry validation failed (%d errors): (utc_today=%s)", count, utcToday.Format("2006-01-02")))
 
 		for i, e := range errs {
+			if i == 0 {
+				sb.WriteString("\n")
+			}
 			if i >= maxShow {
-				if i > 0 {
-					sb.WriteString("; ")
-				}
-				sb.WriteString(fmt.Sprintf("... and %d more", count-maxShow))
+				sb.WriteString(fmt.Sprintf("- ... and %d more", count-maxShow))
 				break
 			}
-			if i > 0 {
-				sb.WriteString("; ")
-			}
-			sb.WriteString(e.Error())
+			sb.WriteString(fmt.Sprintf("- %s\n", e.Error()))
 		}
+		
+		// Note: Footer (Fix/Next) is handled by driftError.Print(), so we don't include it in reason.
 
 		return &driftError{
 			category: "Registry",
-			reason:   sb.String(), // Single-line formatted reason
+			reason:   sb.String(), 
 			fixCmd:   fmt.Sprintf("Correct the invalid entries in %s", path),
 		}
 	}
@@ -102,20 +107,24 @@ func validateRegistryFile(repoFS fs.FS) error {
 
 // validateRegistry checks the schema and constraints of the registry
 // It returns a list of errors to ensure deterministic reporting of all issues
-func validateRegistry(reg *Registry) []error {
+func validateRegistry(reg *Registry, utcToday time.Time) []error {
 	var errs []error
 	seenIDs := make(map[string]bool)
 
 	// Sort exceptions by ID for deterministic validation order
-	sort.SliceStable(reg.Exceptions, func(i, j int) bool {
+	// Fallback to OriginalIndex used to preserve logical order of file for missing/duplicate IDs
+	sort.Slice(reg.Exceptions, func(i, j int) bool {
+		if reg.Exceptions[i].ID == reg.Exceptions[j].ID {
+			return reg.Exceptions[i].OriginalIndex < reg.Exceptions[j].OriginalIndex
+		}
 		return reg.Exceptions[i].ID < reg.Exceptions[j].ID
 	})
 
-	for i, ex := range reg.Exceptions {
+	for _, ex := range reg.Exceptions {
 		// Stable key for error reporting
 		key := ex.ID
 		if key == "" {
-			key = fmt.Sprintf("idx %d", i)
+			key = fmt.Sprintf("idx %d", ex.OriginalIndex)
 		}
 
 		// ID Uniqueness & Presence
@@ -162,8 +171,15 @@ func validateRegistry(reg *Registry) []error {
 			}
 		}
 		if ex.ExpiresAt != "" {
-			if _, err := time.Parse("2006-01-02", ex.ExpiresAt); err != nil {
+			expires, err := time.Parse("2006-01-02", ex.ExpiresAt)
+			if err != nil {
 				errs = append(errs, fmt.Errorf("%s: invalid expires_at '%s' (must be YYYY-MM-DD)", key, ex.ExpiresAt))
+			} else {
+				// Expiry Rule: utcToday > expiresAt
+				// i.e., expired if Today is After ExpiresAt
+				if utcToday.After(expires) {
+					errs = append(errs, fmt.Errorf("%s: expired on %s", key, ex.ExpiresAt))
+				}
 			}
 		}
 	}
