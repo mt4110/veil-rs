@@ -39,7 +39,7 @@ func validateRegistryFile(repoFS fs.FS) error {
 			return &driftError{
 				category: "Registry",
 				reason:   "ops/exceptions.toml is missing",
-				fixCmd:   "touch ops/exceptions.toml",
+				fixCmd:   "mkdir -p ops && touch ops/exceptions.toml",
 			}
 		}
 		return &driftError{
@@ -78,6 +78,9 @@ func validateRegistryFile(repoFS fs.FS) error {
 
 		for i, e := range errs {
 			if i >= maxShow {
+				if i > 0 {
+					sb.WriteString("; ")
+				}
 				sb.WriteString(fmt.Sprintf("... and %d more", count-maxShow))
 				break
 			}
