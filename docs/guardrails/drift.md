@@ -14,13 +14,19 @@ Ensures `.github/workflows/ci.yml` is configured correctly.
 Ensures documentation contains necessary keywords for maintenance.
 - **Must**: `docs/guardrails/sqlx.md` or `docs/ci/prverify.md` must mention `SQLX_OFFLINE`, `sqlx_cli_install.log`, and `ops/ci/`.
 
-### 3. SOT Drift
+### 3. Registry Drift
+Ensures `ops/exceptions.toml` exists and is valid.
+- **Must**: File must exist and be valid TOML.
+- **Must**: Compliance with schema (required fields, scope grammar, date formats).
+- *Note: PR42 enforces schema only; expiry enforcement is PR43+.*
+
+### 4. SOT Drift
 Ensures a valid Source of Truth (SOT) exists and contains evidence for the guardrails.
 - **Must**: At least one SOT candidate file matching `docs/pr/PR-<digits>-*.md` must exist.
 - **Must**: The **selected** SOT must contain evidence keywords (`sqlx_cli_install.log`, `SQLX_OFFLINE`).
 - **Rule**: If SOT is missing, ambiguous, or evidence is incomplete, **FAIL**. SOT is the evidence contract of the release.
 
-### 4. SOT Selection Rules
+### 5. SOT Selection Rules
 To avoid guessing, `drift-check` selects the SOT deterministically:
 - **Filename**: Must match `docs/pr/PR-<digits>-*.md`.
 - **Priority**:
@@ -39,6 +45,7 @@ If `drift-check` fails locally or in CI, look at the **1-scroll error block** at
 | :--- | :--- | :--- |
 | **CI** | Workflow or `ops/` drift | `git checkout main .github/workflows/ci.yml` |
 | **Docs** | Missing policy terms | `grep -r "SQLX_OFFLINE" docs/` |
+| **Registry** | Missing or invalid `ops/exceptions.toml` | `mkdir -p ops && touch ops/exceptions.toml` |
 | **SOT** | Missing/Duplicate/No Evidence | `ls docs/pr/` or edit the latest SOT |
 
 ### Recovery Steps:
