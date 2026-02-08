@@ -13,6 +13,7 @@ Next:   <command>
 ```
 
 ### ANSI (Color)
+ANSI is enabled when `NO_COLOR` is unset. Set `NO_COLOR` for plain logs / CI determinism.
 - **Reason**: Bold
 - **Fix**: Green command
 - **Next**: Blue command
@@ -23,6 +24,9 @@ Reason: expires_at (2025-01-01) is in the past
 Fix:    edit ops/exceptions.toml
 Next:   nix run .#prverify
 ```
+
+> [!NOTE]
+> `driftError.Print` does not currently output a header (e.g. `[Registry Drift]`). The category is internal to the error struct.
 
 ## 2. Determinism Rules
 - **Ordering**: Output items must be **sorted deterministically** (e.g., by ID asc, then Path asc, then Rule asc).

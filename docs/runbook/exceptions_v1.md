@@ -1,13 +1,16 @@
 # Runbook: Exception Management v1
 
 ## Status / Scope
-- **Target**: This runbook governs the upcoming **Exception Registry v1** (`ops/exceptions.toml`) introduced in PR42+.
-- **Current**: Existing drift-check exceptions remain governed by `.driftignore` and `docs/guardrails/drift.md` until fully migrated.
+- **Target**: This runbook governs the upcoming **Exception Registry v1** (`ops/exceptions.toml`).
+- **Enforcement Timeline**:
+    - **PR41**: Existing `.driftignore` behavior maintained (Registry is documentation-only).
+    - **PR42**: Registry presence + Schema/Format validation (Expiry enforcement is **NOT** active).
+    - **PR43+**: Expiry enforcement (Expired items FAIL).
 
 ## 1. Core Principles
 - **Centralization**: For **Exception Registry v1** (PR42+), all exceptions must be registered in the **Exception Registry** (`ops/exceptions.toml`). Scattered ignore comments are deprecated.
 - **Accountability**: Every exception must have an **Owner**, a **Reason**, and an **Audit Trail**.
-- **Temporality**: Exceptions should be temporary. **Expiry** (`expires_at`) is mandatory by default. Use "Perpetual Exception" criteria for long-term overrides.
+- **Temporality**: Exceptions should be temporary. **Expiry** (`expires_at`) is mandatory for policy (PR43+ enforcement). Use "Perpetual Exception" criteria for long-term overrides.
 
 ## 2. Exception Schema (v1)
 
@@ -24,7 +27,7 @@ Exceptions are defined in `ops/exceptions.toml` using the `[[exception]]` array-
 
 ### Optional Fields (Strict Policy)
 - **expires_at**: Expiry date (`YYYY-MM-DD`).
-    - **Policy**: SHOULD exist. Omission requires meeting **Perpetual Exception** criteria:
+    - **Policy**: SHOULD exist. Omission requires meeting **Perpetual Exception** criteria (Not enforced in PR42):
         1. **Narrow Scope**: Must not wildcard broadly (e.g., no `path:**`).
         2. **Durable Audit**: Must link to a permanent decision record (e.g., Architecture Decision Record).
         3. **Explicit Reason**: Must state why expiry is impossible (e.g., "Vendor lock file format").
