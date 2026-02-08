@@ -13,6 +13,12 @@ title: TBD
 - Kickoff **Epic D (v0.22.2)**: Establish sustainable Guardrail Operations & Exceptions.
 - Define governance, schema, and UX for handling False Positives/Negatives.
 
+> [!CAUTION]
+> **Drift Check Constraints**:
+> - This file (`PR-TBD-...`) is currently **ignored** by drift-check SOT detection.
+> - If renamed to `PR-41-...`, it **MUST** include audit keywords (e.g. `SQLX_OFFLINE`) or `prverify` will FAIL.
+> - Do not rename until PR41 is ready to merge and fully compliant.
+
 ## Change Summary
 - **Epic Definition**: `docs/epics/EpicD_v0.22.2.md`
 - **Runbook**: `docs/runbook/exceptions_v1.md` (Schema, Rules)

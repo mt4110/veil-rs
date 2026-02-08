@@ -21,6 +21,9 @@ Establish a sustainable operation model for Guardrails to prevent "exception spa
 - **Target Extensions**: Limited to 1-2 specific extensions (Registry, Expiry).
 - **Operator-first UX**: maintain "quiet when healthy" and "actionable when failing".
 
+> [!NOTE]
+> This epic introduces **Exception Registry v1** in **PR42+**. It does not change existing `.driftignore` behavior in **PR41**.
+
 ### Out of Scope
 - Unrelated feature additions.
 - Proliferation of exceptions without governance (must have reason + audit).
