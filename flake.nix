@@ -115,7 +115,7 @@
         };
         prverifyScript = pkgs.writeShellApplication {
           name = "prverify";
-          runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.git rustStable ];
+          runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.git pkgs.go_1_24 rustStable ];
           text = ''
               set -u
               set -o pipefail
@@ -146,42 +146,49 @@
                 echo "- git sha: $sha"
                 echo "- rustc: $(rustc --version 2>/dev/null || echo 'N/A')"
                 echo "- cargo: $(cargo --version 2>/dev/null || echo 'N/A')"
+                echo "- go: $(go version 2>/dev/null || echo 'N/A')"
                 echo ""
                 echo "## Commands"
                 echo '```bash'
                 echo 'cargo test -p veil-cli --test cli_tests'
                 echo 'cargo test --workspace'
+                echo 'go run ./cmd/prverify'
                 echo '```'
                 echo ""
               }
 
-              run_block() {
-                local title="$1"; shift
-                echo "## $title"
-                echo '```'
-                "$@" 2>&1
-                local rc=$?
-                echo '```'
-                echo ""
-                echo "- exit_code: $rc"
-                echo ""
-                return $rc
-              }
 
               write_header
 
-              rc1=0
-              rc2=0
+              rc3=0
 
-              run_block "cli smoke (trycmd)" cargo test -p veil-cli --test cli_tests || rc1=$?
-              run_block "workspace tests" cargo test --workspace || rc2=$?
+              # Drift Check (Go)
+              # This tool also runs the necessary smoke tests internally.
+              {
+                unset GOROOT
+                unset GOPATH
+                export GOCACHE
+                GOCACHE=$(mktemp -d)
+                trap 'rm -rf "$GOCACHE"' EXIT
+
+                export NO_COLOR=1
+
+                echo "## Drift Check (Go)"
+                echo '```'
+                go run ./cmd/prverify "$@" 2>&1
+                rc3=$?
+                echo '```'
+                echo ""
+                echo "- exit_code: $rc3"
+                echo ""
+              }
 
               echo "## Notes / Evidence"
               echo ""
-              if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ]; then
+              if [ "$rc3" -eq 0 ]; then
                 echo "- Local run: PASS"
               else
-                echo "- Local run: FAIL (cli_tests=$rc1, workspace=$rc2)"
+                echo "- Local run: FAIL (exit_code=$rc3)"
               fi
               echo ""
 
@@ -199,8 +206,7 @@
               echo "---"
               echo "report: $report"
 
-              if [ "$rc1" -ne 0 ]; then exit "$rc1"; fi
-              if [ "$rc2" -ne 0 ]; then exit "$rc2"; fi
+              if [ "$rc3" -ne 0 ]; then exit "$rc3"; fi
               exit 0
           '';
         };

@@ -16,7 +16,7 @@ func TestValidateDrift(t *testing.T) {
       - uses: actions/upload-artifact
         with:
           path: .local/ci/
-      - run: touch .local/ci/.keep
+      - run: : > .local/ci/.keep
 `
 	validDoc := "SQLX_OFFLINE sqlx_cli_install.log ops/ci/"
 	validSOT := "Evidence:\n- sqlx_cli_install.log\n- SQLX_OFFLINE"
@@ -156,5 +156,55 @@ func TestFindSOT_Logic(t *testing.T) {
 	}
 	if !strings.Contains(got, "PR-35") {
 		t.Errorf("findSOT(0) = %q, want PR-35 (Max)", got)
+	}
+}
+
+func TestParseException(t *testing.T) {
+	today := "20250101"
+
+	tests := []struct {
+		name      string
+		substring string
+		meta      string
+		want      bool // true = ignored, false = failed (expired)
+	}{
+		{
+			name:      "Valid Future Expiry",
+			substring: "foo",
+			meta:      "reason | until_20250201",
+			want:      true,
+		},
+		{
+			name:      "Expired",
+			substring: "foo",
+			meta:      "reason | until_20241231",
+			want:      false,
+		},
+		{
+			name:      "Missing Expiry (Legacy/Invalid but ignored)",
+			substring: "foo",
+			meta:      "reason only",
+			want:      true, // Currently warns but returns true
+		},
+		{
+			name:      "Malformed Expiry Length",
+			substring: "foo",
+			meta:      "reason | until_2025",
+			want:      true, // Warns but returns true
+		},
+		{
+			name:      "Malformed Expiry Non-Digit",
+			substring: "foo",
+			meta:      "reason | until_2025xxxx",
+			want:      true, // Warns but returns true
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseException(tt.substring, tt.meta, today); got != tt.want {
+				t.Errorf("parseException() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
