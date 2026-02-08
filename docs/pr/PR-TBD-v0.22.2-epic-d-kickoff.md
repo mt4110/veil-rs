@@ -23,6 +23,7 @@ title: TBD
 - **Epic Definition**: `docs/epics/EpicD_v0.22.2.md`
 - **Runbook**: `docs/runbook/exceptions_v1.md` (Schema, Rules)
 - **UX Guidelines**: `docs/runbook/guardrail-fail-ux.md` (Fail Template)
+- **Corrections**: Docs corrected to match `driftError.Print` (Reason/Fix/Next) and PR42 enforcement timeline.
 
 ## Invariants kept
 - **Green Verification**: `nix run .#prverify` remains green.

@@ -2,24 +2,50 @@
 
 To ensure a smooth developer experience, `prverify` failures must be **Deterministic** and **Actionable within 1 Scroll**.
 
-## 1. Output Structure
-Every failure block must follow this template (header format may vary slightly):
+## 1. Enforcement Timeline & Output
+`prverify` output format depends on the version/PR:
+
+- **PR41 (Current Main)**: Outputs a **Header** + `Cause/Action/Fix`. `NO_COLOR` removes ANSI but formatting remains.
+- **PR42+ (Registry v1)**: Outputs `Reason/Fix/Next` (No Header). `NO_COLOR` switches to plain text (no ANSI symbols).
+
+## 2. Output Structure
+
+### PR41 (Current Main Output)
+Used by legacy drift checks until PR42 merge.
 
 ```text
 [<Category> Drift] <Summary>
-  Cause:  <Specific reason for failure>
-  Action: <High-level guidance>
-  Fix:    <Specific command to run>
+  Cause:  <reason>
+  Action: <guidance>
+  Fix:    <command>
 ```
-*Note: The header might also appear as `<Category> Drift detected!` followed by Cause/Action/Fix.*
+*Note: PR41 output always includes a category header.*
 
-### Example
+### PR42+ (New Output)
+Standard for Registry v1 and future checks.
+
+#### Text / NO_COLOR
 ```text
-[Registry Drift] Exception EX-20260208-001 is expired
-  Cause:  expires_at (2025-01-01) is in the past
-  Action: Remove the exception or extend validity with justification
-  Fix:    edit ops/exceptions.toml
+Reason: <reason>
+Fix:    <command>
+Next:   <command>
 ```
+
+#### ANSI (Color)
+ANSI is enabled when `NO_COLOR` is unset.
+- **Reason**: Bold
+- **Fix**: Green command
+- **Next**: Blue command
+
+### Example (PR42+)
+```text
+Reason: expires_at (2025-01-01) is in the past
+Fix:    edit ops/exceptions.toml
+Next:   nix run .#prverify
+```
+
+> [!NOTE]
+> **Header Policy**: PR41 outputs a header; PR42+ does **not** output a header (category is internal to existing error struct).
 
 ## 2. Determinism Rules
 - **Ordering**: Output items must be **sorted deterministically** (e.g., by ID asc, then Path asc, then Rule asc).

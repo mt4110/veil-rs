@@ -60,7 +60,6 @@ If `drift-check` fails locally or in CI, look at the **1-scroll error block** at
 2. **Execute**: Run the `Fix` command.
 3. **Verify**: Run the `Next` command.
 
-
 ## Handling Exceptions (.driftignore)
 
 For temporary workarounds or legacy acceptance, use structured exceptions in `.driftignore`.
