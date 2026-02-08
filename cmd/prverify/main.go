@@ -110,6 +110,18 @@ func (e *driftError) Error() string {
 }
 
 func (e *driftError) Print() {
+	if os.Getenv("NO_COLOR") != "" {
+		fmt.Fprintf(os.Stderr, "%s Drift detected!\n", e.category)
+		fmt.Fprintf(os.Stderr, "  Cause:  %s\n", e.reason)
+		if e.action != "" {
+			fmt.Fprintf(os.Stderr, "  Action: %s\n", e.action)
+		}
+		if e.fixCmd != "" {
+			fmt.Fprintf(os.Stderr, "  Fix:    %s\n", e.fixCmd)
+		}
+		return
+	}
+
 	fmt.Fprintf(os.Stderr, "\x1b[1;31m%s Drift detected!\x1b[0m\n", e.category)
 	fmt.Fprintf(os.Stderr, "  \x1b[1mCause:\x1b[0m  %s\n", e.reason)
 	if e.action != "" {
@@ -352,21 +364,48 @@ func checkIgnore(repoFS fs.FS, targetErr error) bool {
 		if len(parts) > 1 {
 			return parseException(substring, strings.TrimSpace(parts[1]), today)
 		}
-		fmt.Printf("WARN: [Ignored] %s (legacy format - please add reason and expiry)\n", substring)
+		// Metadata missing entirely
+		fmt.Printf("WARN: [Invalid ignore] %s (missing metadata - expected '# reason | until_YYYYMMDD')\n", substring)
 		return true
 	}
 	return false
 }
 
 func parseException(substring, meta, today string) bool {
-	if idx := strings.LastIndex(meta, "| until_"); idx != -1 {
-		expiry := strings.TrimSpace(meta[idx+len("| until_"):])
-		if len(expiry) == 8 && expiry < today {
-			fmt.Printf("\x1b[1;33mWARN: [Expired] %s (expired on %s)\x1b[0m\n", substring, expiry)
-			return false
+	idx := strings.LastIndex(meta, "| until_")
+	if idx == -1 {
+		// Metadata present but no expiry suffix: treat as invalid ignore (but currently allowed with warning for transition).
+		// Note context: "reason | until_YYYYMMDD"
+		fmt.Printf("WARN: [Invalid ignore] %s (# %s) – missing expiry (expected '| until_YYYYMMDD')\n", substring, meta)
+		return true // Still ignoring for now to avoid breaking legacy, but warning loudly.
+	}
+
+	expiry := strings.TrimSpace(meta[idx+len("| until_"):])
+	if len(expiry) != 8 {
+		fmt.Printf("WARN: [Invalid ignore] %s (# %s) – malformed expiry '%s' (expected YYYYMMDD)\n", substring, meta, expiry)
+		return true
+	}
+
+	// Simple digit check
+	for _, ch := range expiry {
+		if ch < '0' || ch > '9' {
+			fmt.Printf("WARN: [Invalid ignore] %s (# %s) – non-digit characters in expiry '%s'\n", substring, meta, expiry)
+			return true
 		}
 	}
-	fmt.Printf("WARN: [Ignored] %s (# %s)\n", substring, meta)
+
+	if expiry < today {
+		// Expired!
+		if os.Getenv("NO_COLOR") != "" {
+			fmt.Printf("WARN: [Expired] %s (expired on %s)\n", substring, expiry)
+		} else {
+			fmt.Printf("\x1b[1;33mWARN: [Expired] %s (expired on %s)\x1b[0m\n", substring, expiry)
+		}
+		// Return false so drift check FAILS.
+		return false
+	}
+
+	// Valid and future
 	return true
 }
 
