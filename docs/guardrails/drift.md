@@ -35,16 +35,17 @@ To avoid guessing, `drift-check` selects the SOT deterministically:
 
 If `nix run .#prverify` fails, look at the **1-scroll error block** at the end.
 
-| Category | Typical Cause | Fix Command (Example) |
+| Category | Reason | Fix Command (Example) |
 | :--- | :--- | :--- |
 | **CI** | Workflow or `ops/` drift | `git checkout main .github/workflows/ci.yml` |
 | **Docs** | Missing policy terms | `grep -r "SQLX_OFFLINE" docs/` |
 | **SOT** | Missing/Duplicate/No Evidence | `ls docs/pr/` or edit the latest SOT |
 
+
 ### Recovery Steps:
-1. **Identify**: Check the `Cause:` and `Fix:` fields in the CLI output.
-2. **Execute**: Run the recommended fix command.
-3. **Verify**: `nix run .#prverify` (should be green).
+1. **Identify**: Check the `Reason:` and `Fix:` fields in the 1-scroll CLI output.
+2. **Execute**: Run the recommended `Fix` command.
+3. **Verify**: Run `nix run .#prverify` (should be green).
 
 ## Handling Exceptions (.driftignore)
 
@@ -64,7 +65,8 @@ sot_missing # Pending PR-39 creation | until_20260301
 ```
 
 > [!IMPORTANT]
-> Expired exceptions will trigger a **Warning** and should be removed as technical debt.
+> Expired exceptions will cause the drift check to **FAIL** (not ignored) and output a Warning.
+> **Fix**: Remove the line (if resolved) or update the `until_YYYYMMDD` date (if extension is approved).
 
 ## Non-Goals
 - Expanding drift check to arbitrary files without a clear policy.
