@@ -21,10 +21,11 @@ jobs:
       - name: Ensure no .sh files
         run: |
           # CI scripts in ops/ci/ are allowed as an exception.
-          if git ls-files '*.sh' | grep -qv '^ops/ci/'; then
+          # Vendored scripts (vendor/) are ignored as they are upstream dependencies.
+          if git ls-files '*.sh' | grep -Ev '^(ops/ci/|vendor/)' > /dev/null; then
             echo "Error: Shell scripts (.sh) are forbidden. Please use Go/Nix/Rust."
-            echo "Exception: ops/ci/*.sh is allowed."
-            git ls-files '*.sh' | grep -v '^ops/ci/'
+            echo "Exceptions: ops/ci/*.sh and vendor/**/*.sh are allowed."
+            git ls-files '*.sh' | grep -Ev '^(ops/ci/|vendor/)'
             exit 1
           fi
 
