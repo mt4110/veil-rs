@@ -104,7 +104,7 @@ func validateRegistry(reg *Registry) []error {
 	seenIDs := make(map[string]bool)
 
 	// Sort exceptions by ID for deterministic validation order
-	sort.Slice(reg.Exceptions, func(i, j int) bool {
+	sort.SliceStable(reg.Exceptions, func(i, j int) bool {
 		return reg.Exceptions[i].ID < reg.Exceptions[j].ID
 	})
 

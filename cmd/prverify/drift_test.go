@@ -33,6 +33,7 @@ func TestValidateDrift(t *testing.T) {
 				".github/workflows/ci.yml":             {Data: []byte(validCI)},
 				"docs/guardrails/sqlx.md":              {Data: []byte(validDoc)},
 				"docs/pr/PR-35-v0.22.0-robust-sqlx.md": {Data: []byte(validSOT)},
+				"ops/exceptions.toml":                  {Data: []byte("")},
 			},
 			wantErr: "",
 		},
@@ -45,7 +46,8 @@ func TestValidateDrift(t *testing.T) {
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
 				"docs/pr/PR-33-old.md":     {Data: []byte("old")},
 				"docs/pr/PR-34-mid.md":     {Data: []byte("mid")},
-				"docs/pr/PR-35-new.md":     {Data: []byte(validSOT)}, // Should pick this (Max PR)
+				"docs/pr/PR-35-new.md":     {Data: []byte(validSOT)},
+				"ops/exceptions.toml":      {Data: []byte("")},
 			},
 			wantErr: "",
 		},
@@ -56,6 +58,7 @@ func TestValidateDrift(t *testing.T) {
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
 				"docs/pr/PR-35-a.md":       {Data: []byte(validSOT)},
 				"docs/pr/PR-35-b.md":       {Data: []byte(validSOT)},
+				"ops/exceptions.toml":      {Data: []byte("")},
 			},
 			wantErr: "sot_ambiguous",
 		},
@@ -65,7 +68,8 @@ func TestValidateDrift(t *testing.T) {
 				".github/workflows/ci.yml": {Data: []byte(validCI)},
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
 				"docs/pr/README.md":        {Data: []byte("ignore")},
-				"docs/pr/PR-TBD-ignore.md": {Data: []byte("ignore")}, // non-numeric ignored
+				"docs/pr/PR-TBD-ignore.md": {Data: []byte("ignore")},
+				"ops/exceptions.toml":      {Data: []byte("")},
 			},
 			wantErr: "sot_missing",
 		},
@@ -77,6 +81,7 @@ func TestValidateDrift(t *testing.T) {
 				"docs/pr/PR-35-valid.md":      {Data: []byte(validSOT)},
 				"docs/pr/PR-35-invalid":       {Data: []byte("no extension")},
 				"docs/pr/PR-nobum-invalid.md": {Data: []byte("no num")},
+				"ops/exceptions.toml":         {Data: []byte("")},
 			},
 			wantErr: "",
 		},
@@ -85,9 +90,9 @@ func TestValidateDrift(t *testing.T) {
 			fs: fstest.MapFS{
 				".github/workflows/ci.yml": {Data: []byte(validCI)},
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
-				// SOT Missing normally causes error "sot_missing", but we ignore it.
-				"docs/pr/README.md": {Data: []byte("ignore")},
-				".driftignore":      {Data: []byte("# Ignore SOT missing\nsot_missing")},
+				"docs/pr/README.md":        {Data: []byte("ignore")},
+				".driftignore":             {Data: []byte("# Ignore SOT missing\nsot_missing")},
+				"ops/exceptions.toml":      {Data: []byte("")},
 			},
 			wantErr: "",
 		},
@@ -98,8 +103,18 @@ func TestValidateDrift(t *testing.T) {
 				"docs/guardrails/sqlx.md":  {Data: []byte(validDoc)},
 				"docs/pr/README.md":        {Data: []byte("ignore")},
 				".driftignore":             {Data: []byte("other_error")},
+				"ops/exceptions.toml":      {Data: []byte("")},
 			},
 			wantErr: "sot_missing",
+		},
+		{
+			name: "Registry Missing",
+			fs: fstest.MapFS{
+				".github/workflows/ci.yml":             {Data: []byte(validCI)},
+				"docs/guardrails/sqlx.md":              {Data: []byte(validDoc)},
+				"docs/pr/PR-35-v0.22.0-robust-sqlx.md": {Data: []byte(validSOT)},
+			},
+			wantErr: "ops/exceptions.toml is missing",
 		},
 	}
 

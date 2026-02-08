@@ -212,6 +212,9 @@ func validateDrift(repoFS fs.FS, wantedPR int) error {
 	if err := validateDocs(repoFS); err != nil {
 		return err
 	}
+	if err := validateRegistryFile(repoFS); err != nil {
+		return err
+	}
 	return validateSOT(repoFS, wantedPR)
 }
 
