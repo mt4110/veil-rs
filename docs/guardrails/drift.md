@@ -33,7 +33,7 @@ To avoid guessing, `drift-check` selects the SOT deterministically:
 
 ## Runbook (Quick Fix)
 
-If `nix run .#prverify` fails, look at the **1-scroll error block** at the end.
+If `drift-check` fails locally or in CI, look at the **1-scroll error block** at the end.
 
 | Category | Typical Cause | Fix Command (Example) |
 | :--- | :--- | :--- |
@@ -42,9 +42,14 @@ If `nix run .#prverify` fails, look at the **1-scroll error block** at the end.
 | **SOT** | Missing/Duplicate/No Evidence | `ls docs/pr/` or edit the latest SOT |
 
 ### Recovery Steps:
-1. **Identify**: Check the `Cause:` and `Fix:` fields in the CLI output.
-2. **Execute**: Run the recommended fix command.
-3. **Verify**: `nix run .#prverify` (should be green).
+1. **Identify**: Check the `Reason:`, `Fix:`, and `Next:` fields in the CLI output.
+   ```text
+   Reason: ...
+   Fix:    ...
+   Next:   nix run .#prverify
+   ```
+2. **Execute**: Run the `Fix` command.
+3. **Verify**: Run the `Next` command.
 
 ## Handling Exceptions (.driftignore)
 
