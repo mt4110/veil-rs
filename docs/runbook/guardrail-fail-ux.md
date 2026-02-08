@@ -3,22 +3,25 @@
 To ensure a smooth developer experience, `prverify` failures must be **Deterministic** and **Actionable within 1 Scroll**.
 
 ## 1. Output Structure
-Every failure block must follow this template (header format may vary slightly):
+Failure blocks must match `driftError.Print()` output. Format adapts to `NO_COLOR`.
 
+### Default (Text / NO_COLOR)
 ```text
-<Category> Drift detected!
-  Cause:  <Specific reason for failure>
-  Action: <High-level guidance>
-  Fix:    <Specific command to run>
+Reason: <reason>
+Fix:    <command>
+Next:   <command>
 ```
-*Note: The header might also appear as `[<Category> Drift] <Summary>` in legacy or specific contexts.*
+
+### ANSI (Color)
+- **Reason**: Bold
+- **Fix**: Green command
+- **Next**: Blue command
 
 ### Example
 ```text
-Registry Drift detected!
-  Cause:  expires_at (2025-01-01) is in the past
-  Action: Remove the exception or extend validity with justification
-  Fix:    edit ops/exceptions.toml
+Reason: expires_at (2025-01-01) is in the past
+Fix:    edit ops/exceptions.toml
+Next:   nix run .#prverify
 ```
 
 ## 2. Determinism Rules

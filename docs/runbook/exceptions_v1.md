@@ -67,3 +67,6 @@ v1 supports exactly **two** scope types:
 - `prverify` acts as the automated auditor.
 - **PR42**: schema/date-format violations FAIL.
 - **PR43+**: expiry enforcement (UTC today > expires_at) FAIL.
+
+> [!NOTE]
+> `ops/exceptions.toml` is valid even if empty (0 exceptions).
