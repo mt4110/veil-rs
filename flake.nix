@@ -183,25 +183,11 @@
                 echo ""
               }
 
-              echo "## Notes / Evidence"
-              echo ""
-              if [ "$rc3" -eq 0 ]; then
-                echo "- Local run: PASS"
+              if [ "$rc3" -ne 0 ]; then
+                echo "FAIL: prverify components drift or fail."
               else
-                echo "- Local run: FAIL (exit_code=$rc3)"
+                echo "PASS: All checks passed."
               fi
-              echo ""
-
-              echo "## Rollback"
-              echo ""
-              echo '```bash'
-              echo '# 1コミットだけ戻す'
-              echo 'git revert <commit>'
-              echo ""
-              echo '# 範囲でまとめて戻す'
-              echo 'git revert <oldest_commit>^..<newest_commit>'
-              echo '```'
-              echo ""
 
               echo "---"
               echo "report: $report"

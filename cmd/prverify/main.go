@@ -62,8 +62,7 @@ func fmtDur(d time.Duration) string {
 func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult) string {
 	var b strings.Builder
 
-	b.WriteString("-=======\n")
-	b.WriteString("Notes / Evidence\n\n")
+	b.WriteString("## Notes / Evidence\n\n")
 
 	b.WriteString("Local env:\n")
 	if rustcV != "" {
@@ -81,19 +80,30 @@ func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult)
 	}
 
 	b.WriteString("\nTests:\n")
+	allOK := true
 	for _, s := range steps {
 		status := "OK"
 		if !s.ok {
 			status = "FAIL"
+			allOK = false
 		}
 		b.WriteString(fmt.Sprintf("- `%s` => %s (%s)\n", s.cmdLine, status, fmtDur(s.duration)))
 	}
 
-	b.WriteString("\nRollback\n\n")
+	b.WriteString("\n## Rollback\n\n")
 	b.WriteString("Revert the merge/squash commit for this PR.\n")
-	b.WriteString("- Squash merge: `git revert <commit_sha>`\n")
-	b.WriteString("- Merge commit: `git revert -m 1 <merge_commit_sha>`\n")
-	b.WriteString("-=======\n")
+	b.WriteString("```bash\n")
+	b.WriteString("# 1コミットだけ戻す\n")
+	b.WriteString("git revert <commit>\n\n")
+	b.WriteString("# 範囲でまとめて戻す\n")
+	b.WriteString("git revert <oldest_commit>^..<newest_commit>\n")
+	b.WriteString("```\n")
+
+	if allOK {
+		b.WriteString("\n- Local run: PASS\n")
+	} else {
+		b.WriteString("\n- Local run: FAIL\n")
+	}
 
 	return b.String()
 }
@@ -101,7 +111,6 @@ func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult)
 type driftError struct {
 	category string
 	reason   string
-	action   string
 	fixCmd   string
 }
 
@@ -110,26 +119,23 @@ func (e *driftError) Error() string {
 }
 
 func (e *driftError) Print() {
+	nextCmd := "nix run .#prverify"
+
+	// Plain text output (no ANSI) - strictly for NO_COLOR or just cleaner logs
 	if os.Getenv("NO_COLOR") != "" {
-		fmt.Fprintf(os.Stderr, "%s Drift detected!\n", e.category)
-		fmt.Fprintf(os.Stderr, "  Cause:  %s\n", e.reason)
-		if e.action != "" {
-			fmt.Fprintf(os.Stderr, "  Action: %s\n", e.action)
-		}
-		if e.fixCmd != "" {
-			fmt.Fprintf(os.Stderr, "  Fix:    %s\n", e.fixCmd)
-		}
+		fmt.Fprintf(os.Stderr, "Reason: %s\n", e.reason)
+		fmt.Fprintf(os.Stderr, "Fix:    %s\n", e.fixCmd)
+		fmt.Fprintf(os.Stderr, "Next:   %s\n", nextCmd)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "\x1b[1;31m%s Drift detected!\x1b[0m\n", e.category)
-	fmt.Fprintf(os.Stderr, "  \x1b[1mCause:\x1b[0m  %s\n", e.reason)
-	if e.action != "" {
-		fmt.Fprintf(os.Stderr, "  \x1b[1mAction:\x1b[0m %s\n", e.action)
-	}
-	if e.fixCmd != "" {
-		fmt.Fprintf(os.Stderr, "  \x1b[1mFix:\x1b[0m    \x1b[32m%s\x1b[0m\n", e.fixCmd)
-	}
+	// ANSI output
+	// Reason: <reason>
+	// Fix:    <cmd>
+	// Next:   <cmd>
+	fmt.Fprintf(os.Stderr, "\x1b[1mReason:\x1b[0m %s\n", e.reason)
+	fmt.Fprintf(os.Stderr, "\x1b[1mFix:\x1b[0m    \x1b[32m%s\x1b[0m\n", e.fixCmd)
+	fmt.Fprintf(os.Stderr, "\x1b[1mNext:\x1b[0m   \x1b[34m%s\x1b[0m\n", nextCmd)
 }
 
 func main() {
@@ -216,7 +222,7 @@ func validateCI(repoFS fs.FS) error {
 		return &driftError{
 			category: "CI",
 			reason:   fmt.Sprintf("failed to read CI config: %v", err),
-			action:   "Ensure .github/workflows/ci.yml exists and is readable.",
+			fixCmd:   "Ensure .github/workflows/ci.yml exists and is readable.",
 		}
 	}
 	ciStr := string(ciContent)
@@ -227,16 +233,34 @@ func validateCI(repoFS fs.FS) error {
 		reason string
 		fix    string
 	}{
-		{"Install Script", func(s string) bool { return strings.Contains(s, "ops/ci/install_sqlx_cli.sh") }, "CI must use ops/ci/install_sqlx_cli.sh", "Restore the use of ops/ci/install_sqlx_cli.sh in ci.yml"},
-		{"Log Generation", func(s string) bool {
-			return strings.Contains(s, ".local/ci/sqlx_cli_install.log") && strings.Contains(s, ".local/ci/sqlx_prepare_check.txt")
-		}, "CI must generate specific log files", "Ensure steps in ci.yml output to .local/ci/sqlx_cli_install.log and sqlx_prepare_check.txt"},
-		{"Keep File", func(s string) bool {
-			return strings.Contains(s, ": > .local/ci/.keep")
-		}, "CI must create .local/ci/.keep", "Restore the step to create .local/ci/.keep in ci.yml"},
-		{"Artifact Upload", func(s string) bool {
-			return strings.Contains(s, "actions/upload-artifact") && strings.Contains(s, "path:") && strings.Contains(s, ".local/ci/")
-		}, "CI must upload .local/ci/ as artifacts", "Restore actions/upload-artifact for the .local/ci/ directory"},
+		{
+			"Install Script",
+			func(s string) bool { return strings.Contains(s, "ops/ci/install_sqlx_cli.sh") },
+			"CI must use ops/ci/install_sqlx_cli.sh",
+			"Edit .github/workflows/ci.yml to use ops/ci/install_sqlx_cli.sh",
+		},
+		{
+			"Log Generation",
+			func(s string) bool {
+				return strings.Contains(s, ".local/ci/sqlx_cli_install.log") && strings.Contains(s, ".local/ci/sqlx_prepare_check.txt")
+			},
+			"CI must generate specific log files (.local/ci/sqlx_cli_install.log, .local/ci/sqlx_prepare_check.txt)",
+			"Update ci.yml to redirect output to these log files.",
+		},
+		{
+			"Keep File",
+			func(s string) bool { return strings.Contains(s, ": > .local/ci/.keep") },
+			"CI must create .local/ci/.keep to preserve the directory",
+			"mkdir -p .local/ci && : > .local/ci/.keep", // Just illustrating the command needed, though this check is about the CI wrapper
+		},
+		{
+			"Artifact Upload",
+			func(s string) bool {
+				return strings.Contains(s, "actions/upload-artifact") && strings.Contains(s, "path:") && strings.Contains(s, ".local/ci/")
+			},
+			"CI must upload .local/ci/ as artifacts",
+			"Add actions/upload-artifact step for .local/ci/ directory.",
+		},
 	}
 
 	for _, c := range checks {
@@ -244,11 +268,11 @@ func validateCI(repoFS fs.FS) error {
 			return &driftError{
 				category: "CI",
 				reason:   c.reason,
-				action:   "Revert or update the CI workflow to match the guardrails policy.",
 				fixCmd:   c.fix,
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -281,8 +305,7 @@ func validateDocs(repoFS fs.FS) error {
 			return &driftError{
 				category: "Docs",
 				reason:   fmt.Sprintf("Required term '%s' not found in %v", dc.term, docsFiles),
-				action:   "Update documentation to include descriptions of guardrails.",
-				fixCmd:   fmt.Sprintf("Add '%s' to one of: %v", dc.term, docsFiles),
+				fixCmd:   fmt.Sprintf("Edit one of %v to include '%s'", docsFiles, dc.term),
 			}
 		}
 	}
@@ -297,15 +320,16 @@ func validateSOT(repoFS fs.FS, wantedPR int) error {
 			return nil
 		}
 		reason := err.Error()
-		action := "Ensure SOT file exists in docs/pr/ as PR-<digits>-*.md"
+		fix := "Check docs/pr/ directory and ensure exactly one SOT file (PR-XX-....md) exists."
 		if strings.Contains(reason, "sot_ambiguous") {
-			action = "Merge or remove duplicate SOT files."
+			fix = "Remove duplicate SOT files for the same PR number in docs/pr/."
+		} else if strings.Contains(reason, "sot_missing") {
+			fix = "Create a SOT file in docs/pr/ (e.g., docs/pr/PR-38-epic-c.md)."
 		}
 		return &driftError{
 			category: "SOT",
 			reason:   reason,
-			action:   action,
-			fixCmd:   "Check docs/pr/ and ensure exactly one SOT exists.",
+			fixCmd:   fix,
 		}
 	}
 
@@ -317,7 +341,7 @@ func validateSOT(repoFS fs.FS, wantedPR int) error {
 		return &driftError{
 			category: "SOT",
 			reason:   fmt.Sprintf("failed to read SOT %s: %v", sotPath, err),
-			action:   "Ensure the SOT file is readable.",
+			fixCmd:   fmt.Sprintf("chmod +r %s", sotPath),
 		}
 	}
 
@@ -330,8 +354,7 @@ func validateSOT(repoFS fs.FS, wantedPR int) error {
 		return &driftError{
 			category: "SOT",
 			reason:   err.Error(),
-			action:   "Add required evidence keywords to the SOT.",
-			fixCmd:   fmt.Sprintf("Edit %s and add evidence.", sotPath),
+			fixCmd:   fmt.Sprintf("Edit %s to include 'sqlx_cli_install.log' and 'SQLX_OFFLINE' in the Evidence section.", sotPath),
 		}
 	}
 	return nil
@@ -348,7 +371,7 @@ func checkIgnore(repoFS fs.FS, targetErr error) bool {
 		return false
 	}
 
-	today := time.Now().Format("20060102")
+	today := time.Now().UTC().Format("20060102")
 	for _, line := range strings.Split(string(content), "\n") {
 		fullLine := strings.TrimSpace(line)
 		if fullLine == "" || strings.HasPrefix(fullLine, "#") {
@@ -357,6 +380,12 @@ func checkIgnore(repoFS fs.FS, targetErr error) bool {
 
 		parts := strings.SplitN(fullLine, "#", 2)
 		substring := strings.TrimSpace(parts[0])
+
+		if substring == "" {
+			fmt.Printf("WARN: [Invalid ignore] (empty substring matches everything) - line: '%s'\n", fullLine)
+			continue
+		}
+
 		if !strings.Contains(errMsg, substring) {
 			continue
 		}
