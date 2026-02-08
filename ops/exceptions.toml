@@ -1,0 +1,12 @@
+# Exception Registry v1
+# Managed by: ops/exceptions.toml
+# Schema: docs/runbook/exceptions_v1.md
+
+# [[exception]]
+# id = "EX-20260208-000"
+# rule = "example-rule"
+# scope = "path:src/example/**"
+# reason = "Example entry for registry initialization"
+# owner = "@mt4110"
+# created_at = "2026-02-08"
+# audit = ["https://github.com/mt4110/veil-rs/pull/42"]

@@ -34,3 +34,9 @@ veil.toml
 
 # local automation outputs
 /.local/
+
+# nix build output
+result
+
+# nix build output
+result
