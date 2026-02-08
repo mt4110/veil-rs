@@ -4,30 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/pelletier/go-toml/v2"
+	"veil-rs/internal/registry"
 )
-
-// Exception represents a single entry in the registry
-type Exception struct {
-	ID            string   `toml:"id"`
-	Rule          string   `toml:"rule"`
-	Scope         string   `toml:"scope"`
-	Reason        string   `toml:"reason"`
-	Owner         string   `toml:"owner"`
-	CreatedAt     string   `toml:"created_at"`
-	Audit         []string `toml:"audit"`
-	ExpiresAt     string   `toml:"expires_at,omitempty"`
-	OriginalIndex int      `toml:"-"` // Internal use for deterministic sorting of missing IDs
-}
-
-// Registry represents the top-level structure of ops/exceptions.toml
-type Registry struct {
-	Exceptions []Exception `toml:"exception"`
-}
 
 // validateRegistryFile serves as the entry point for the registry check in validateDrift
 func validateRegistryFile(repoFS fs.FS, utcToday time.Time) error {
@@ -41,42 +22,31 @@ func validateRegistryFile(repoFS fs.FS, utcToday time.Time) error {
 				category: "Registry",
 				reason:   "ops/exceptions.toml is missing",
 				fixCmd:   "mkdir -p ops && touch ops/exceptions.toml",
+				nextCmd:  "nix run .#veil -- exceptions list",
 			}
 		}
 		return &driftError{
 			category: "Registry",
 			reason:   fmt.Sprintf("failed to stat %s: %v", path, err),
-			fixCmd:   "Ensure registry file is readable.",
+			fixCmd:   "Ensure registry file is accessible.",
+			nextCmd:  "nix run .#veil -- exceptions list",
 		}
 	}
 
-	// 2. Read
-	content, err := fs.ReadFile(repoFS, path)
+	// 2. Load & Validate using shared logic
+	loader := &registry.Loader{FS: repoFS}
+	reg, err := loader.Load(utcToday)
 	if err != nil {
 		return &driftError{
 			category: "Registry",
-			reason:   fmt.Sprintf("failed to read %s: %v", path, err),
-			fixCmd:   "Ensure registry file is readable.",
+			reason:   fmt.Sprintf("Failed to load registry: %v", err),
+			fixCmd:   fmt.Sprintf("Fix syntax errors in %s", path),
+			nextCmd:  "nix run .#veil -- exceptions list",
 		}
 	}
 
-	// 3. Parse
-	var reg Registry
-	if err := toml.Unmarshal(content, &reg); err != nil {
-		return &driftError{
-			category: "Registry",
-			reason:   fmt.Sprintf("TOML parse error: %v", err),
-			fixCmd:   fmt.Sprintf("edit %s", path),
-		}
-	}
-
-	// Populate OriginalIndex for stable sorting fallback
-	for i := range reg.Exceptions {
-		reg.Exceptions[i].OriginalIndex = i
-	}
-
-	// 4. Validate
-	if errs := validateRegistry(&reg, utcToday); len(errs) > 0 {
+	// 3. Validate
+	if errs := registry.Validate(reg, utcToday); len(errs) > 0 {
 		count := len(errs)
 		maxShow := 10
 		var sb strings.Builder
@@ -93,96 +63,29 @@ func validateRegistryFile(repoFS fs.FS, utcToday time.Time) error {
 			sb.WriteString(fmt.Sprintf("- %s\n", e.Error()))
 		}
 		
-		// Note: Footer (Fix/Next) is handled by driftError.Print(), so we don't include it in reason.
+		isExpiryError := false
+		for _, e := range errs {
+			if strings.Contains(e.Error(), "expired") || strings.Contains(e.Error(), "status=expired") {
+				isExpiryError = true
+				break
+			}
+		}
+		
+		fixCmd := fmt.Sprintf("Correct the invalid entries in %s", path)
+		nextCmd := "nix run .#veil -- exceptions list"
+		
+		if isExpiryError {
+			fixCmd = "Renew expiry or remove exception (see runbook: docs/runbook/exception-registry.md)"
+			nextCmd = "nix run .#veil -- exceptions list --status expired"
+		}
 
 		return &driftError{
 			category: "Registry",
 			reason:   sb.String(), 
-			fixCmd:   fmt.Sprintf("Correct the invalid entries in %s", path),
+			fixCmd:   fixCmd,
+			nextCmd:  nextCmd,
 		}
 	}
 
 	return nil
-}
-
-// validateRegistry checks the schema and constraints of the registry
-// It returns a list of errors to ensure deterministic reporting of all issues
-func validateRegistry(reg *Registry, utcToday time.Time) []error {
-	var errs []error
-	seenIDs := make(map[string]bool)
-
-	// Sort exceptions by ID for deterministic validation order
-	// Fallback to OriginalIndex used to preserve logical order of file for missing/duplicate IDs
-	sort.Slice(reg.Exceptions, func(i, j int) bool {
-		if reg.Exceptions[i].ID == reg.Exceptions[j].ID {
-			return reg.Exceptions[i].OriginalIndex < reg.Exceptions[j].OriginalIndex
-		}
-		return reg.Exceptions[i].ID < reg.Exceptions[j].ID
-	})
-
-	for _, ex := range reg.Exceptions {
-		// Stable key for error reporting
-		key := ex.ID
-		if key == "" {
-			key = fmt.Sprintf("idx %d", ex.OriginalIndex)
-		}
-
-		// ID Uniqueness & Presence
-		if ex.ID == "" {
-			errs = append(errs, fmt.Errorf("%s: missing id", key))
-		} else {
-			if seenIDs[ex.ID] {
-				errs = append(errs, fmt.Errorf("duplicate id: %s", ex.ID))
-			}
-			seenIDs[ex.ID] = true
-		}
-
-		// Mandatory fields
-		if ex.Rule == "" {
-			errs = append(errs, fmt.Errorf("%s: missing rule", key))
-		}
-		if ex.Scope == "" {
-			errs = append(errs, fmt.Errorf("%s: missing scope", key))
-		}
-		if ex.Reason == "" {
-			errs = append(errs, fmt.Errorf("%s: missing reason", key))
-		}
-		if ex.Owner == "" {
-			errs = append(errs, fmt.Errorf("%s: missing owner", key))
-		}
-		if ex.CreatedAt == "" {
-			errs = append(errs, fmt.Errorf("%s: missing created_at", key))
-		}
-		if len(ex.Audit) == 0 {
-			errs = append(errs, fmt.Errorf("%s: missing audit trail", key))
-		}
-
-		// Scope Grammar
-		if ex.Scope != "" {
-			if !strings.HasPrefix(ex.Scope, "path:") && !strings.HasPrefix(ex.Scope, "fingerprint:") {
-				errs = append(errs, fmt.Errorf("%s: invalid scope format '%s' (must start with path: or fingerprint:)", key, ex.Scope))
-			}
-		}
-
-		// Date Formats
-		if ex.CreatedAt != "" {
-			if _, err := time.Parse("2006-01-02", ex.CreatedAt); err != nil {
-				errs = append(errs, fmt.Errorf("%s: invalid created_at '%s' (must be YYYY-MM-DD)", key, ex.CreatedAt))
-			}
-		}
-		if ex.ExpiresAt != "" {
-			expires, err := time.Parse("2006-01-02", ex.ExpiresAt)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("%s: invalid expires_at '%s' (must be YYYY-MM-DD)", key, ex.ExpiresAt))
-			} else {
-				// Expiry Rule: utcToday > expiresAt
-				// i.e., expired if Today is After ExpiresAt
-				if utcToday.After(expires) {
-					errs = append(errs, fmt.Errorf("%s: expired on %s", key, ex.ExpiresAt))
-				}
-			}
-		}
-	}
-
-	return errs
 }

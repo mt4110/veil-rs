@@ -43,3 +43,5 @@ result
 # Go test cache
 .cache_iso/
 .go/
+
+veil-rs_review_*.tar.gz

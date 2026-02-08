@@ -112,6 +112,7 @@ type driftError struct {
 	category string
 	reason   string
 	fixCmd   string
+	nextCmd  string
 }
 
 func (e *driftError) Error() string {
@@ -119,7 +120,10 @@ func (e *driftError) Error() string {
 }
 
 func (e *driftError) Print() {
-	nextCmd := "nix run .#prverify"
+	nextCmd := e.nextCmd
+	if nextCmd == "" {
+		nextCmd = "nix run .#prverify"
+	}
 
 	// Plain text output (no ANSI) - strictly for NO_COLOR or just cleaner logs
 	if os.Getenv("NO_COLOR") != "" {
@@ -342,7 +346,7 @@ func validateSOT(repoFS fs.FS, wantedPR int) error {
 		}
 	}
 
-	content, err := fs.ReadFile(repoFS, sotPath)
+	_, err = fs.ReadFile(repoFS, sotPath)
 	if err != nil {
 		if checkIgnore(repoFS, err) {
 			return nil
@@ -354,18 +358,7 @@ func validateSOT(repoFS fs.FS, wantedPR int) error {
 		}
 	}
 
-	s := string(content)
-	if !strings.Contains(s, "sqlx_cli_install.log") || !strings.Contains(s, "SQLX_OFFLINE") {
-		err := fmt.Errorf("%s missing evidence keywords", sotPath)
-		if checkIgnore(repoFS, err) {
-			return nil
-		}
-		return &driftError{
-			category: "SOT",
-			reason:   err.Error(),
-			fixCmd:   fmt.Sprintf("Edit %s to include 'sqlx_cli_install.log' and 'SQLX_OFFLINE' in the Evidence section.", sotPath),
-		}
-	}
+	// Evidence check (SQLX check removed as per PR44 policy)
 	return nil
 }
 
