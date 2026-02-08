@@ -37,3 +37,6 @@ veil.toml
 
 # nix build output
 result
+
+# nix build output
+result
