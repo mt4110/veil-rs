@@ -4,8 +4,8 @@
 - **Target**: This runbook governs the upcoming **Exception Registry v1** (`ops/exceptions.toml`).
 - **Enforcement Timeline**:
     - **PR41**: Existing `.driftignore` behavior maintained (Registry is documentation-only).
-    - **PR42**: Registry presence + Schema/Format validation (Expiry enforcement is **NOT** active).
-    - **PR43+**: Expiry enforcement (Expired items FAIL).
+    - **PR42**: Registry presence + Schema/Format validation.
+    - **PR43+** (Active): Expiry enforcement ACTIVE (Expired items FAIL).
 
 ## 1. Core Principles
 - **Centralization**: For **Exception Registry v1** (PR42+), all exceptions must be registered in the **Exception Registry** (`ops/exceptions.toml`). Scattered ignore comments are deprecated.
@@ -27,11 +27,12 @@ Exceptions are defined in `ops/exceptions.toml` using the `[[exception]]` array-
 
 ### Optional Fields (Strict Policy)
 - **expires_at**: Expiry date (`YYYY-MM-DD`).
-    - **Policy**: SHOULD exist. Omission requires meeting **Perpetual Exception** criteria (Not enforced in PR42):
-        1. **Narrow Scope**: Must not wildcard broadly (e.g., no `path:**`).
-        2. **Durable Audit**: Must link to a permanent decision record (e.g., Architecture Decision Record).
-        3. **Explicit Reason**: Must state why expiry is impossible (e.g., "Vendor lock file format").
-        4. **Periodic Review**: Owner must review manually (e.g., quarterly).
+- **expires_at**: Expiry date (`YYYY-MM-DD`).
+    - **Policy**: Recommended (should exist).
+    - **Enforcement (PR43)**:
+        - If present: **Enforced** (must be today or later in UTC; expired only when utc_today > expires_at).
+        - If missing: **Allowed** (PASS in PR43).
+    - **Long-term**: Perpetual exceptions (no expiry) require audit trails and periodic review.
 
 ### Scope Grammar
 v1 supports exactly **two** scope types:
@@ -62,14 +63,14 @@ v1 supports exactly **two** scope types:
 5.  Commit with reason.
 
 ### Updating/Removing an Exception
-- **Expired**: Fail behavior will trigger in **Target-2 (PR43+)**.
+- **Expired**: Fail behavior is **ACTIVE** (PR43+).
     - **Fix**: Resolve the issue (remove exception) OR Extend expiry (with new audit entry).
 - **Stale**: Remove exceptions that no longer match any findings.
 
 ## 6. Audit & Review
 - `prverify` acts as the automated auditor.
 - **PR42**: schema/date-format violations FAIL.
-- **PR43+**: expiry enforcement (UTC today > expires_at) FAIL.
+- **PR43+** (Active): expiry enforcement (UTC today > expires_at) FAIL.
 
 > [!NOTE]
 > `ops/exceptions.toml` is valid even if empty (0 exceptions).
