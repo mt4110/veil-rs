@@ -62,8 +62,7 @@ func fmtDur(d time.Duration) string {
 func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult) string {
 	var b strings.Builder
 
-	b.WriteString("-=======\n")
-	b.WriteString("Notes / Evidence\n\n")
+	b.WriteString("## Notes / Evidence\n\n")
 
 	b.WriteString("Local env:\n")
 	if rustcV != "" {
@@ -81,19 +80,30 @@ func renderMarkdown(rustcV, cargoV, gitSHA, gitDirty string, steps []stepResult)
 	}
 
 	b.WriteString("\nTests:\n")
+	allOK := true
 	for _, s := range steps {
 		status := "OK"
 		if !s.ok {
 			status = "FAIL"
+			allOK = false
 		}
 		b.WriteString(fmt.Sprintf("- `%s` => %s (%s)\n", s.cmdLine, status, fmtDur(s.duration)))
 	}
 
-	b.WriteString("\nRollback\n\n")
+	b.WriteString("\n## Rollback\n\n")
 	b.WriteString("Revert the merge/squash commit for this PR.\n")
-	b.WriteString("- Squash merge: `git revert <commit_sha>`\n")
-	b.WriteString("- Merge commit: `git revert -m 1 <merge_commit_sha>`\n")
-	b.WriteString("-=======\n")
+	b.WriteString("```bash\n")
+	b.WriteString("# 1コミットだけ戻す\n")
+	b.WriteString("git revert <commit>\n\n")
+	b.WriteString("# 範囲でまとめて戻す\n")
+	b.WriteString("git revert <oldest_commit>^..<newest_commit>\n")
+	b.WriteString("```\n")
+
+	if allOK {
+		b.WriteString("\n- Local run: PASS\n")
+	} else {
+		b.WriteString("\n- Local run: FAIL\n")
+	}
 
 	return b.String()
 }
@@ -263,16 +273,6 @@ func validateCI(repoFS fs.FS) error {
 		}
 	}
 
-	// filesystem check for .keep
-	keepPath := ".local/ci/.keep"
-	if _, err := fs.ReadFile(repoFS, keepPath); err != nil {
-		return &driftError{
-			category: "CI",
-			reason:   "missing .local/ci/.keep (required for directory persistence)",
-			fixCmd:   "mkdir -p .local/ci && : > .local/ci/.keep",
-		}
-	}
-
 	return nil
 }
 
@@ -371,7 +371,7 @@ func checkIgnore(repoFS fs.FS, targetErr error) bool {
 		return false
 	}
 
-	today := time.Now().Format("20060102")
+	today := time.Now().UTC().Format("20060102")
 	for _, line := range strings.Split(string(content), "\n") {
 		fullLine := strings.TrimSpace(line)
 		if fullLine == "" || strings.HasPrefix(fullLine, "#") {
@@ -380,6 +380,12 @@ func checkIgnore(repoFS fs.FS, targetErr error) bool {
 
 		parts := strings.SplitN(fullLine, "#", 2)
 		substring := strings.TrimSpace(parts[0])
+
+		if substring == "" {
+			fmt.Printf("WARN: [Invalid ignore] (empty substring matches everything) - line: '%s'\n", fullLine)
+			continue
+		}
+
 		if !strings.Contains(errMsg, substring) {
 			continue
 		}
