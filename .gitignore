@@ -45,3 +45,9 @@ result
 .go/
 
 veil-rs_review_*.tar.gz
+# Custom ignores for PR44 dev
+temp_secrets.txt
+test_output*.txt
+review/
+crates/veil-cli/.veil/
+.local/pr44/
