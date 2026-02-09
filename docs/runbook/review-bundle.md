@@ -16,7 +16,7 @@ A bundle contains:
 From repository root:
 
 ```bash
-bash ops/review_bundle.sh
+bash ops/ci/review_bundle.sh
 ```
 
 This generates a clean bundle under:
@@ -32,7 +32,7 @@ This generates a clean bundle under:
 To review changes **before committing**:
 
 ```bash
-MODE=wip bash ops/review_bundle.sh
+MODE=wip bash ops/ci/review_bundle.sh
 ```
 
 This generates:
@@ -96,9 +96,9 @@ Environment variables:
 Examples:
 
 ```bash
-BASE_REF=main bash ops/review_bundle.sh
-OUT_DIR=/tmp/review-bundles MODE=wip bash ops/review_bundle.sh
-EVIDENCE_FILE=.local/prverify/prverify_20260208T075813Z_abcdef0.md bash ops/review_bundle.sh
+BASE_REF=main bash ops/ci/review_bundle.sh
+OUT_DIR=/tmp/review-bundles MODE=wip bash ops/ci/review_bundle.sh
+EVIDENCE_FILE=.local/prverify/prverify_20260208T075813Z_abcdef0.md bash ops/ci/review_bundle.sh
 ```
 
 ---
