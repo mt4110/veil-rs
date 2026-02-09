@@ -1,0 +1,12 @@
+$ veil scan tests/cmd/fixtures/secret.txt --unsafe --no-ignore
+? failed
+Scanning...
+[CRITICAL] [sev:HIGH] (Score: 100) [creds.aws.access_key_id] tests/cmd/fixtures/secret.txt:1  API_KEY=AKIAIOSFODNN7EXAMPLE
+     Hint: exception add fx_oickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+Scan Summary
+  Time Taken:    [..]s
+  Total Files:   1
+  Scanned Files: 1
+  Found 1 new secrets.
+```

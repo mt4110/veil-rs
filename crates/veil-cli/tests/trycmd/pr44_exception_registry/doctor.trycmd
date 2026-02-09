@@ -1,0 +1,20 @@
+```console
+$ veil exceptions doctor --system-registry .tmp/doctor/registry.toml
+OK
+Registry loaded successfully from .tmp/doctor/registry.toml
+Version: 1
+Exceptions: 0
+
+$ veil exceptions add fx_dickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Doctor test" --expires 1h --system-registry .tmp/doctor/registry.toml
+Added exception for fx_dickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions doctor --system-registry .tmp/doctor/registry.toml
+OK
+Registry loaded successfully from .tmp/doctor/registry.toml
+Version: 1
+Exceptions: 1
+
+$ veil exceptions remove fx_dickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --system-registry .tmp/doctor/registry.toml
+Removed exception fx_dickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+```

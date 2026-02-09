@@ -1,0 +1,15 @@
+```console
+$ veil exceptions list --system-registry .tmp/list/registry.toml
+ ID                                                      | Status | Expiry | Reason 
+---------------------------------------------------------+--------+--------+-----------
+ fx_lickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya | Active | Never  | List test 
+
+$ veil exceptions add fx_lickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "List test" --system-registry .tmp/list/registry.toml
+Added exception for fx_lickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions list --system-registry .tmp/list/registry.toml
+ ID                                                      | Status | Expiry | Reason 
+---------------------------------------------------------+--------+--------+-----------
+ fx_lickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya | Active | Never  | List test 
+
+```

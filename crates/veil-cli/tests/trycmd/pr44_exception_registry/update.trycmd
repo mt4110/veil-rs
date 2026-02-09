@@ -1,0 +1,18 @@
+```console
+$ veil exceptions add fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Initial reason" --expires 30d --system-registry .tmp/update/registry.toml
+Added exception for fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions list --system-registry .tmp/update/registry.toml
+ ID                                                      | Status | Expiry                           | Reason 
+---------------------------------------------------------+--------+----------------------------------+----------------
+ fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya | Active | [..] | Initial reason 
+
+$ veil exceptions add fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Updated reason" --expires 60d --system-registry .tmp/update/registry.toml
+Added exception for fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions list --system-registry .tmp/update/registry.toml
+ ID                                                      | Status | Expiry                           | Reason 
+---------------------------------------------------------+--------+----------------------------------+----------------
+ fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya | Active | [..] | Updated reason 
+
+```

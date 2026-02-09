@@ -1,0 +1,15 @@
+```console
+$ veil exceptions add fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Remove test" --system-registry .tmp/remove/registry.toml
+Added exception for fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions remove fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --system-registry .tmp/remove/registry.toml
+Removed exception fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions list --system-registry .tmp/remove/registry.toml
+No exceptions found in registry.
+
+$ veil exceptions remove fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --system-registry .tmp/remove/registry.toml
+? 2
+Error: Exception fx_rickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya not found
+
+```

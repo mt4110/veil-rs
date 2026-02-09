@@ -1,0 +1,35 @@
+```console
+$ veil exceptions add fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Test Hint" --system-registry .tmp/scan_registry/registry.toml
+Added exception for fx_uickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil scan case1 --system-registry .tmp/scan_registry/registry.toml --no-ignore
+[HIGH] [sev:MED] (Score: 80) [pii.heuristic.unknown_id_like.keyword] case1/target.txt:1  fake_api_<REDACTED>"
+     Hint: veil exceptions add fx_4zwxcml5lczk6hp5bqimdncloubc6dj2rmp5lhav67t6l74txqcq --reason "..." --expires 30d
+
+Scan Summary
+  Time Taken:    [..]s
+  Total Files:   1
+  Scanned Files: 1
+  Found 1 new secrets.
+
+$ veil scan case1 --system-registry .tmp/scan_registry/empty.toml --no-ignore
+[HIGH] [sev:MED] (Score: 80) [pii.heuristic.unknown_id_like.keyword] case1/target.txt:1  fake_api_<REDACTED>"
+     Hint: veil exceptions add fx_4zwxcml5lczk6hp5bqimdncloubc6dj2rmp5lhav67t6l74txqcq --reason "..." --expires 30d
+
+Scan Summary
+  Time Taken:    [..]s
+  Total Files:   1
+  Scanned Files: 1
+  Found 1 new secrets.
+
+$ veil scan case1 --system-registry .tmp/scan_registry/empty.toml --no-ignore
+[HIGH] [sev:MED] (Score: 80) [pii.heuristic.unknown_id_like.keyword] case1/target.txt:1  fake_api_<REDACTED>"
+     Hint: veil exceptions add fx_4zwxcml5lczk6hp5bqimdncloubc6dj2rmp5lhav67t6l74txqcq --reason "..." --expires 30d
+
+Scan Summary
+  Time Taken:    [..]s
+  Total Files:   1
+  Scanned Files: 1
+  Found 1 new secrets.
+
+```
