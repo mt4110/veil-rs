@@ -1,9 +1,9 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 
 #[test]
 fn test_exceptions_flag_exclusivity() {
     // Test that --system-registry and --registry-path cannot be used together
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     let result = cmd
         .args(&[
             "exceptions",
@@ -36,7 +36,7 @@ fn test_exceptions_flag_exclusivity() {
 
 #[test]
 fn test_exceptions_help_shows_all_flags() {
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     let result = cmd.args(&["exceptions", "--help"]).assert().success();
 
     let output = String::from_utf8_lossy(&result.get_output().stdout);
@@ -59,7 +59,7 @@ fn test_exceptions_help_shows_all_flags() {
 #[test]
 fn test_system_registry_flag_is_boolean() {
     // Verify that --system-registry doesn't take a value
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     let result = cmd
         .args(&["exceptions", "--system-registry", "list"])
         .assert();
