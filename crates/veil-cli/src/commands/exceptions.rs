@@ -8,12 +8,13 @@ use prettytable::{format, Cell, Row, Table};
 use std::path::PathBuf;
 use veil_core::registry::{Registry, RegistryError};
 
-pub fn run(args: ExceptionsArgs) -> Result<bool> {
+pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     let registry_path = args
         .system_registry
+        .clone()
         .unwrap_or_else(|| PathBuf::from(".veil/exception_registry.toml"));
 
-    match args.command {
+    match &args.command {
         ExceptionsSubcommand::List => run_list(&registry_path),
         ExceptionsSubcommand::Add(cmd_args) => run_add(cmd_args, &registry_path),
         ExceptionsSubcommand::Remove(cmd_args) => run_remove(cmd_args, &registry_path),
@@ -74,11 +75,11 @@ use std::str::FromStr;
 use veil_core::finding_id::FindingId;
 use veil_core::registry::ExceptionEntry;
 
-fn run_add(args: ExceptionsAddArgs, registry_path: &PathBuf) -> Result<bool> {
+fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
-    let expires_at = if let Some(s) = args.expires {
-        Some(parse_expiry(&s)?)
+    let expires_at = if let Some(s) = &args.expires {
+        Some(parse_expiry(s)?)
     } else {
         None
     };
@@ -99,7 +100,7 @@ fn run_add(args: ExceptionsAddArgs, registry_path: &PathBuf) -> Result<bool> {
 
     let entry = ExceptionEntry {
         id: id.clone(),
-        reason: args.reason,
+        reason: args.reason.clone(),
         expires_at,
         created_at,
         created_by,
@@ -151,7 +152,7 @@ fn parse_expiry(s: &str) -> Result<chrono::DateTime<Utc>> {
     Ok(Utc::now() + duration)
 }
 
-fn run_remove(args: ExceptionsRemoveArgs, registry_path: &PathBuf) -> Result<bool> {
+fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
     let mut registry = match Registry::load(registry_path) {
@@ -181,7 +182,7 @@ fn run_remove(args: ExceptionsRemoveArgs, registry_path: &PathBuf) -> Result<boo
     Ok(false)
 }
 
-fn run_cleanup(args: ExceptionsCleanupArgs, registry_path: &PathBuf) -> Result<bool> {
+fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf) -> Result<bool> {
     let mut registry = match Registry::load(registry_path) {
         Ok(reg) => reg,
         Err(RegistryError::NotFound(_)) => {

@@ -1,6 +1,7 @@
 pub mod check_project;
 pub mod config;
 pub mod doctor;
+pub mod exceptions;
 pub mod filter;
 pub mod fix;
 pub mod git;

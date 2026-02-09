@@ -145,6 +145,8 @@ pub enum Commands {
     /// SOT (Source of Truth) tools
     #[command(subcommand)]
     Sot(SotCommand),
+    /// Exception Registry management
+    Exceptions(ExceptionsArgs),
     /// Check for updates (stub)
     Update,
 }
@@ -339,6 +341,59 @@ pub struct SotRenameArgs {
     #[arg(long)]
     pub force: bool,
 }
+
+#[derive(Args, Debug)]
+pub struct ExceptionsArgs {
+    /// Path to exception registry file
+    #[arg(long, value_name = "PATH")]
+    pub system_registry: Option<PathBuf>,
+    
+    #[command(subcommand)]
+    pub command: ExceptionsSubcommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ExceptionsSubcommand {
+    /// List all exceptions
+    List,
+    /// Add a new exception
+    Add(ExceptionsAddArgs),
+    /// Remove an exception by ID
+    Remove(ExceptionsRemoveArgs),
+    /// Clean up expired exceptions
+    Cleanup(ExceptionsCleanupArgs),
+    /// Check registry health
+    Doctor,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsAddArgs {
+    /// Exception ID (e.g., VL-001-abc123)
+    pub id: String,
+    /// Reason for the exception
+    #[arg(long)]
+    pub reason: String,
+    /// Expiration (e.g., 30d, 1w, 1y)
+    #[arg(long)]
+    pub expires: Option<String>,
+    /// Dry run (don't write changes)
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsRemoveArgs {
+    /// Exception ID to remove
+    pub id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsCleanupArgs {
+    /// Dry run (don't write changes)
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
 
 fn parse_severity(s: &str) -> Result<Severity, String> {
     let v = s.to_lowercase();
