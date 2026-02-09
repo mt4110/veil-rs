@@ -27,26 +27,27 @@ impl FromStr for FindingId {
         if !s.starts_with("fx_") {
             return Err("invalid finding id prefix (must start with fx_)".to_string());
         }
-        
+
         // We don't necessarily need to decode back to bytes for equality checks if we only store the hash.
         // But for full roundtrip correctness:
         let base32_part = &s[3..].to_uppercase(); // data-encoding expects uppercase for BASE32
         let bytes = BASE32_NOPAD
             .decode(base32_part.as_bytes())
             .map_err(|e| format!("invalid base32 encoding: {}", e))?;
-            
-        let array: [u8; 32] = bytes.try_into().map_err(|_| "invalid finding id length (must be 32 bytes)".to_string())?;
-        
+
+        let array: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| "invalid finding id length (must be 32 bytes)".to_string())?;
+
         Ok(Self(array))
     }
 }
-
 
 impl FindingId {
     /// Create a new deterministic FindingId.
     pub fn new(rule_id: &str, path: &Path, span: &SpanData, capture: &str) -> Self {
         let mut hasher = Hasher::new();
-        
+
         // 1. Rule ID
         hasher.update(rule_id.as_bytes());
         hasher.update(b"\0");
@@ -96,16 +97,18 @@ impl<'de> Deserialize<'de> for FindingId {
         if !s.starts_with("fx_") {
             return Err(serde::de::Error::custom("invalid finding id prefix"));
         }
-        
+
         // We don't necessarily need to decode back to bytes for equality checks if we only store the hash.
         // But for full roundtrip correctness:
         let base32_part = &s[3..].to_uppercase(); // data-encoding expects uppercase for BASE32
         let bytes = BASE32_NOPAD
             .decode(base32_part.as_bytes())
             .map_err(serde::de::Error::custom)?;
-            
-        let array: [u8; 32] = bytes.try_into().map_err(|_| serde::de::Error::custom("invalid finding id length"))?;
-        
+
+        let array: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid finding id length"))?;
+
         Ok(Self(array))
     }
 }
@@ -139,22 +142,27 @@ mod tests {
 
         let id1 = FindingId::new(rule, &path, &span, capture);
         let id2 = FindingId::new(rule, &path, &span, capture);
-        
+
         assert_eq!(id1, id2);
         assert_eq!(id1.to_string(), id2.to_string());
-        
+
         // Ensure format
         let s = id1.to_string();
         assert!(s.starts_with("fx_"));
         // 32 bytes * 8 bits / 5 bits per char = 51.2 -> 52 chars.
-        assert_eq!(s.len(), 3 + 52); 
+        assert_eq!(s.len(), 3 + 52);
     }
 
     #[test]
     fn test_finding_id_sensitivity() {
-        let base_span = SpanData { start_line: 1, start_col: 1, end_line: 1, end_col: 1 };
+        let base_span = SpanData {
+            start_line: 1,
+            start_col: 1,
+            end_line: 1,
+            end_col: 1,
+        };
         let id1 = FindingId::new("rule1", Path::new("a"), &base_span, "secret");
-        
+
         // Different rule
         let id2 = FindingId::new("rule2", Path::new("a"), &base_span, "secret");
         assert_ne!(id1, id2);
@@ -164,7 +172,10 @@ mod tests {
         assert_ne!(id1, id3);
 
         // Different span
-        let span2 = SpanData { start_line: 2, ..base_span };
+        let span2 = SpanData {
+            start_line: 2,
+            ..base_span
+        };
         let id4 = FindingId::new("rule1", Path::new("a"), &span2, "secret"); // struct update syntax not avail for local struct definition in test without implementation, just construct new
         assert_ne!(id1, id4);
 
@@ -179,7 +190,17 @@ mod tests {
 
     #[test]
     fn test_serde_roundtrip() {
-        let id = FindingId::new("r", Path::new("p"), &SpanData{start_line:1,start_col:1,end_line:1,end_col:1}, "s");
+        let id = FindingId::new(
+            "r",
+            Path::new("p"),
+            &SpanData {
+                start_line: 1,
+                start_col: 1,
+                end_line: 1,
+                end_col: 1,
+            },
+            "s",
+        );
         let json = serde_json::to_string(&id).unwrap();
         let decoded: FindingId = serde_json::from_str(&json).unwrap();
         assert_eq!(id, decoded);

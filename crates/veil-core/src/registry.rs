@@ -125,8 +125,8 @@ impl Registry {
             }
         })?;
 
-        let registry: Registry =
-            toml::from_str(&content).map_err(|e| RegistryError::ParseError(path.to_path_buf(), e.to_string()))?;
+        let registry: Registry = toml::from_str(&content)
+            .map_err(|e| RegistryError::ParseError(path.to_path_buf(), e.to_string()))?;
 
         if registry.version != CURRENT_VERSION {
             return Err(RegistryError::VersionMismatch {
@@ -173,7 +173,8 @@ impl Registry {
         }
 
         // Serialize（canonical）
-        let content = toml::to_string_pretty(self).map_err(|e| RegistryError::SerializationError(e.to_string()))?;
+        let content = toml::to_string_pretty(self)
+            .map_err(|e| RegistryError::SerializationError(e.to_string()))?;
 
         // Atomic write
         let mut tmp = tempfile::Builder::new()
@@ -182,7 +183,8 @@ impl Registry {
             .tempfile_in(dir)
             .map_err(RegistryError::Io)?;
 
-        tmp.write_all(content.as_bytes()).map_err(RegistryError::Io)?;
+        tmp.write_all(content.as_bytes())
+            .map_err(RegistryError::Io)?;
         tmp.flush().map_err(RegistryError::Io)?;
         tmp.as_file().sync_all().map_err(RegistryError::Io)?;
 
@@ -377,7 +379,13 @@ reason = "test"
             expires_at: Some(now + one_hour),
         });
 
-        assert_eq!(registry.check(&id_expired, now), ExceptionStatus::Expired(now - one_hour));
-        assert_eq!(registry.check(&id_missing, now), ExceptionStatus::NotExcepted);
+        assert_eq!(
+            registry.check(&id_expired, now),
+            ExceptionStatus::Expired(now - one_hour)
+        );
+        assert_eq!(
+            registry.check(&id_missing, now),
+            ExceptionStatus::NotExcepted
+        );
     }
 }
