@@ -63,6 +63,10 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.92.0
+      - name: Versions
+        run: |
+          rustc -V
+          cargo -V
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Check
@@ -89,6 +93,11 @@ jobs:
         with:
           toolchain: 1.92.0
           components: clippy, rustfmt
+
+      - name: Versions
+        run: |
+          rustc -V
+          cargo -V
 
       - name: Cache Cargo Registry & Git
         uses: actions/cache@v4
