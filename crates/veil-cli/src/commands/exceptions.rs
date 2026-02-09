@@ -8,16 +8,63 @@ use prettytable::{format, Cell, Row, Table};
 use std::path::PathBuf;
 use veil_core::registry::{Registry, RegistryError};
 
-pub fn run(args: &ExceptionsArgs) -> Result<bool> {
-    let registry_path = if args.system_registry {
-        // System default path (Unix convention)
-        PathBuf::from("/etc/veil/exceptions.toml")
+/// Registry path resolution result
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RegistrySource {
+    SystemDefault,
+    ExplicitPath,
+    RepoDefault,
+    None,
+}
+
+#[derive(Debug, Clone)]
+pub struct RegistryResolved {
+    pub source: RegistrySource,
+    pub path: Option<PathBuf>,
+}
+
+/// Resolve registry path according to SOT 4.1 priority:
+/// 1. --system-registry → SystemDefaultPath
+/// 2. --registry-path <PATH> → ExplicitPath
+/// 3. ops/exceptions.toml (exists) → RepoDefault
+/// 4. None
+pub fn resolve_registry_path(args: &ExceptionsArgs) -> RegistryResolved {
+    if args.system_registry {
+        // Priority 1: System default
+        RegistryResolved {
+            source: RegistrySource::SystemDefault,
+            path: Some(PathBuf::from("/etc/veil/exceptions.toml")),
+        }
     } else if let Some(path) = &args.registry_path {
-        path.clone()
+        // Priority 2: Explicit path
+        RegistryResolved {
+            source: RegistrySource::ExplicitPath,
+            path: Some(path.clone()),
+        }
     } else {
-        // Repo-local default
-        PathBuf::from(".veil/exception_registry.toml")
-    };
+        // Priority 3: Repo default (only if exists)
+        let repo_default = PathBuf::from("ops/exceptions.toml");
+        if repo_default.exists() {
+            RegistryResolved {
+                source: RegistrySource::RepoDefault,
+                path: Some(repo_default),
+            }
+        } else {
+            // Priority 4: None
+            RegistryResolved {
+                source: RegistrySource::None,
+                path: None,
+            }
+        }
+    }
+}
+
+pub fn run(args: &ExceptionsArgs) -> Result<bool> {
+    let resolved = resolve_registry_path(args);
+    let registry_path = resolved.path.unwrap_or_else(|| {
+        // Fallback for commands that require a path (they will fail gracefully)
+        PathBuf::from("ops/exceptions.toml")
+    });
 
     match &args.command {
         ExceptionsSubcommand::List => run_list(&registry_path),
@@ -269,4 +316,116 @@ fn run_doctor(registry_path: &PathBuf) -> Result<bool> {
         Err(e) => return Err(e.into()),
     }
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::ExceptionsSubcommand;
+
+    #[test]
+    fn test_resolve_priority_system_registry() {
+        let args = ExceptionsArgs {
+            system_registry: true,
+            registry_path: None,
+            strict_exceptions: false,
+            command: ExceptionsSubcommand::List,
+        };
+
+        let resolved = resolve_registry_path(&args);
+        assert_eq!(resolved.source, RegistrySource::SystemDefault);
+        assert_eq!(
+            resolved.path,
+            Some(PathBuf::from("/etc/veil/exceptions.toml"))
+        );
+    }
+
+    #[test]
+    fn test_resolve_priority_explicit_path() {
+        let args = ExceptionsArgs {
+            system_registry: false,
+            registry_path: Some(PathBuf::from("/custom/path.toml")),
+            strict_exceptions: false,
+            command: ExceptionsSubcommand::List,
+        };
+
+        let resolved = resolve_registry_path(&args);
+        assert_eq!(resolved.source, RegistrySource::ExplicitPath);
+        assert_eq!(resolved.path, Some(PathBuf::from("/custom/path.toml")));
+    }
+
+    #[test]
+    fn test_resolve_priority_repo_default_exists() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        // Create temp directory and make it current
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        // Create ops/exceptions.toml
+        fs::create_dir_all("ops").unwrap();
+        fs::write("ops/exceptions.toml", "# test").unwrap();
+        
+        // Verify it exists
+        assert!(PathBuf::from("ops/exceptions.toml").exists(), "ops/exceptions.toml should exist");
+
+        let args = ExceptionsArgs {
+            system_registry: false,
+            registry_path: None,
+            strict_exceptions: false,
+            command: ExceptionsSubcommand::List,
+        };
+
+        let resolved = resolve_registry_path(&args);
+        assert_eq!(resolved.source, RegistrySource::RepoDefault);
+        assert_eq!(resolved.path, Some(PathBuf::from("ops/exceptions.toml")));
+
+        // Cleanup
+        std::env::set_current_dir(&original_dir).unwrap();
+    }
+
+    #[test]
+    fn test_resolve_priority_none() {
+        use tempfile::TempDir;
+
+        // Create temp directory with NO ops/exceptions.toml
+        let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let args = ExceptionsArgs {
+            system_registry: false,
+            registry_path: None,
+            strict_exceptions: false,
+            command: ExceptionsSubcommand::List,
+        };
+
+        let resolved = resolve_registry_path(&args);
+        assert_eq!(resolved.source, RegistrySource::None);
+        assert_eq!(resolved.path, None);
+
+        // Cleanup
+        std::env::set_current_dir(&original_dir).unwrap();
+    }
+
+    #[test]
+    fn test_system_registry_overrides_explicit() {
+        // system-registry should take priority even if registry-path is set
+        // (though CLI flags prevent this via conflicts_with)
+        let args = ExceptionsArgs {
+            system_registry: true,
+            registry_path: Some(PathBuf::from("/custom/path.toml")),
+            strict_exceptions: false,
+            command: ExceptionsSubcommand::List,
+        };
+
+        let resolved = resolve_registry_path(&args);
+        assert_eq!(resolved.source, RegistrySource::SystemDefault);
+        assert_eq!(
+            resolved.path,
+            Some(PathBuf::from("/etc/veil/exceptions.toml"))
+        );
+    }
 }
