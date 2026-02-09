@@ -1,0 +1,10 @@
+```console
+$ veil exceptions add fx_aickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Add test" --expires 30d --system-registry .tmp/add/registry.toml
+Added exception for fx_aickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions list --system-registry .tmp/add/registry.toml
+ ID                                                      | Status | Expiry                           | Reason 
+---------------------------------------------------------+--------+----------------------------------+----------
+ fx_aickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya | Active | [..] | Add test 
+
+```

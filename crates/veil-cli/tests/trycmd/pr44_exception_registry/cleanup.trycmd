@@ -1,0 +1,11 @@
+```console
+$ veil exceptions add fx_cickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya --reason "Cleanup test" --expires=-100d --system-registry .tmp/cleanup/registry.toml
+Added exception for fx_cickmu2dcrtvu5z4zl4rpewqhywlb3hrcko2f74jpk7vgghahoya
+
+$ veil exceptions cleanup --system-registry .tmp/cleanup/registry.toml
+Removed 1 expired exceptions.
+
+$ veil exceptions list --system-registry .tmp/cleanup/registry.toml
+No exceptions found in registry.
+
+```

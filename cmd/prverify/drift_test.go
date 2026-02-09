@@ -20,7 +20,7 @@ func TestValidateDrift(t *testing.T) {
       - run: : > .local/ci/.keep
 `
 	validDoc := "SQLX_OFFLINE sqlx_cli_install.log ops/ci/"
-	validSOT := "Evidence:\n- sqlx_cli_install.log\n- SQLX_OFFLINE"
+	validSOT := "Evidence:\n- PASS log"
 
 	tests := []struct {
 		name    string

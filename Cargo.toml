@@ -14,6 +14,7 @@ rust-version = "1.82.0"
 edition = "2021"
 
 [workspace.dependencies]
+fs2 = "0.4.3"
 veil-core = { path = "crates/veil-core", version = "0.17.0" }
 veil-guardian = { path = "crates/veil-guardian", version = "0.17.0" }
 veil-config = { path = "crates/veil-config", version = "0.17.0" }

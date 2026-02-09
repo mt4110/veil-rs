@@ -1,7 +1,9 @@
 pub mod baseline;
+pub mod finding_id;
 pub mod masking;
 pub mod metrics;
 pub mod model;
+pub mod registry;
 pub mod remote;
 pub mod rules;
 pub mod scanner;
@@ -9,7 +11,9 @@ pub mod scoring;
 pub mod summary;
 
 pub use crate::masking::{apply_masks, apply_masks_spans, MaskSpan, DEFAULT_PLACEHOLDER};
+pub use finding_id::FindingId;
 pub use model::{Finding, Rule, Severity};
+pub use registry::Registry;
 pub use rules::builtin::{get_all_rules, get_default_rules};
 pub use rules::grade::{calculate_grade, Grade};
 pub use scanner::result::ScanResult;
