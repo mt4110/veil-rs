@@ -14,6 +14,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Versions
+        run: |
+          rustc -V
+          cargo -V
+
       # Install Veil pinned to the tag used for generation (no mutable refs)
       - name: Install Veil
         run: |
