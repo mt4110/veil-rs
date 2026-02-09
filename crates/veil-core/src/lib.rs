@@ -1,8 +1,8 @@
 pub mod baseline;
+pub mod finding_id;
 pub mod masking;
 pub mod metrics;
 pub mod model;
-pub mod finding_id;
 pub mod registry;
 pub mod remote;
 pub mod rules;
