@@ -9,10 +9,15 @@ use std::path::PathBuf;
 use veil_core::registry::{Registry, RegistryError};
 
 pub fn run(args: &ExceptionsArgs) -> Result<bool> {
-    let registry_path = args
-        .system_registry
-        .clone()
-        .unwrap_or_else(|| PathBuf::from(".veil/exception_registry.toml"));
+    let registry_path = if args.system_registry {
+        // System default path (Unix convention)
+        PathBuf::from("/etc/veil/exceptions.toml")
+    } else if let Some(path) = &args.registry_path {
+        path.clone()
+    } else {
+        // Repo-local default
+        PathBuf::from(".veil/exception_registry.toml")
+    };
 
     match &args.command {
         ExceptionsSubcommand::List => run_list(&registry_path),

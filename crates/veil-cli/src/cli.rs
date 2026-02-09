@@ -344,9 +344,17 @@ pub struct SotRenameArgs {
 
 #[derive(Args, Debug)]
 pub struct ExceptionsArgs {
-    /// Path to exception registry file
-    #[arg(long, value_name = "PATH")]
-    pub system_registry: Option<PathBuf>,
+    /// Use system-wide exception registry (e.g., /etc/veil/exceptions.toml)
+    #[arg(long, conflicts_with = "registry_path")]
+    pub system_registry: bool,
+    
+    /// Path to explicit exception registry file
+    #[arg(long, value_name = "PATH", conflicts_with = "system_registry")]
+    pub registry_path: Option<PathBuf>,
+    
+    /// Fail fast on registry issues (missing/invalid/expired)
+    #[arg(long)]
+    pub strict_exceptions: bool,
     
     #[command(subcommand)]
     pub command: ExceptionsSubcommand,
