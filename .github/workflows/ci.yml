@@ -55,14 +55,14 @@ jobs:
       - run: nix run .#go-test
 
   msrv:
-    name: MSRV (1.82.0)
+    name: MSRV (1.92.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install MSRV
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.82.0
+          toolchain: 1.92.0
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
       - name: Check
@@ -87,7 +87,7 @@ jobs:
       - name: Install Stable
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: 1.92.0
           components: clippy, rustfmt
 
       - name: Cache Cargo Registry & Git
@@ -147,7 +147,7 @@ jobs:
         with:
           name: guardrail-logs
           path: .local/ci/
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       - name: Test Unit
         run: |
