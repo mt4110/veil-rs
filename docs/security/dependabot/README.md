@@ -14,6 +14,10 @@
 3. **One-Scroll Recovery**:
    If a command fails, the cause and next action should be visible in the last screen of output.
 
+4. **No Infinite Waits (Timeboxing)**:
+   Any command that might hang (network/build) must have a timebox. If it stalls, kill it manually or use `timeout`.
+
+
 ## Remediation Strategy (Minimum PR Principle)
 
 - **1 PR = 1 Vulnerability** (or a small cluster of related low-risk updates).
