@@ -59,6 +59,85 @@ pub fn resolve_registry_path(args: &ExceptionsArgs) -> RegistryResolved {
     }
 }
 
+/// Result of registry loading with strict handling
+enum RegistryLoadResult {
+    Ok(Registry),
+    MissingWarning,
+    Error(anyhow::Error),
+}
+
+/// Load registry with strict/non-strict handling per SOT 4.3
+/// 
+/// Strict mode (fail fast):
+/// - missing/unreadable → Error
+/// - parse error → Error
+/// - schema validation → Error
+/// 
+/// Non-strict mode (warn and continue):
+/// - missing/unreadable → Warning + empty registry
+/// - parse/schema error → Warning (but FAIL for mutating ops - safety first)
+fn load_registry_strict(
+    path: &PathBuf,
+    strict: bool,
+    is_mutating: bool,
+) -> RegistryLoadResult {
+    match Registry::load(path) {
+        Ok(registry) => RegistryLoadResult::Ok(registry),
+        Err(RegistryError::NotFound(_)) => {
+            if strict {
+                RegistryLoadResult::Error(anyhow::anyhow!(
+                    "Registry not found at {}\n\nNext steps:\n  1. Create registry: veil exceptions add <finding-id> --reason \"...\" --expires 30d\n  2. Or use --registry-path to specify alternative location\n  3. Or disable strict mode (remove --strict-exceptions)",
+                    path.display()
+                ))
+            } else {
+                eprintln!(
+                    "Warning: Registry not found at {}. Exceptions disabled for this operation.",
+                    path.display()
+                );
+                RegistryLoadResult::MissingWarning
+            }
+        }
+        Err(RegistryError::ParseError(p, e)) => {
+            let error = anyhow::anyhow!(
+                "Parse error in registry at {}: {}\n\nNext steps:\n  1. Fix TOML syntax in {}\n  2. Or use --registry-path to specify alternative registry\n  3. Rollback: git restore {}",
+                p.display(),
+                e,
+                p.display(),
+                p.display()
+            );
+            
+            if strict || is_mutating {
+                // Mutating ops ALWAYS fail on parse error (safety first)
+                RegistryLoadResult::Error(error)
+            } else {
+                eprintln!(
+                    "Warning: {}\nExceptions disabled for this operation.",
+                    error
+                );
+                RegistryLoadResult::MissingWarning
+            }
+        }
+        Err(RegistryError::VersionMismatch { found, expected }) => {
+            let error = anyhow::anyhow!(
+                "Schema version mismatch. Expected {}, found {}.\n\nNext steps:\n  1. Upgrade veil: cargo install veil-cli\n  2. Or migrate registry: veil exceptions doctor",
+                expected,
+                found
+            );
+            
+            if strict || is_mutating {
+                RegistryLoadResult::Error(error)
+            } else {
+                eprintln!(
+                    "Warning: {}\nExceptions disabled for this operation.",
+                    error
+                );
+                RegistryLoadResult::MissingWarning
+            }
+        }
+        Err(e) => RegistryLoadResult::Error(e.into()),
+    }
+}
+
 pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     let resolved = resolve_registry_path(args);
     let registry_path = resolved.path.unwrap_or_else(|| {
@@ -67,19 +146,19 @@ pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     });
 
     match &args.command {
-        ExceptionsSubcommand::List => run_list(&registry_path),
-        ExceptionsSubcommand::Add(cmd_args) => run_add(cmd_args, &registry_path),
-        ExceptionsSubcommand::Remove(cmd_args) => run_remove(cmd_args, &registry_path),
-        ExceptionsSubcommand::Cleanup(cmd_args) => run_cleanup(cmd_args, &registry_path),
-        ExceptionsSubcommand::Doctor => run_doctor(&registry_path),
+        ExceptionsSubcommand::List => run_list(&registry_path, args.strict_exceptions),
+        ExceptionsSubcommand::Add(cmd_args) => run_add(cmd_args, &registry_path, args.strict_exceptions),
+        ExceptionsSubcommand::Remove(cmd_args) => run_remove(cmd_args, &registry_path, args.strict_exceptions),
+        ExceptionsSubcommand::Cleanup(cmd_args) => run_cleanup(cmd_args, &registry_path, args.strict_exceptions),
+        ExceptionsSubcommand::Doctor => run_doctor(&registry_path, args.strict_exceptions),
     }
 }
 
-fn run_list(registry_path: &PathBuf) -> Result<bool> {
-    let registry = match Registry::load(registry_path) {
-        Ok(reg) => reg,
-        Err(RegistryError::NotFound(_)) => Registry::default(),
-        Err(e) => return Err(e.into()),
+fn run_list(registry_path: &PathBuf, strict: bool) -> Result<bool> {
+    let registry = match load_registry_strict(registry_path, strict, false) {
+        RegistryLoadResult::Ok(reg) => reg,
+        RegistryLoadResult::MissingWarning => Registry::default(),
+        RegistryLoadResult::Error(e) => return Err(e),
     };
 
     if registry.exceptions.is_empty() {
@@ -127,7 +206,7 @@ use std::str::FromStr;
 use veil_core::finding_id::FindingId;
 use veil_core::registry::ExceptionEntry;
 
-fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf) -> Result<bool> {
+fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf, strict: bool) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
     let expires_at = if let Some(s) = &args.expires {
@@ -137,10 +216,10 @@ fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf) -> Result<bool> {
     };
 
     // Load registry first to check for existing entry
-    let mut registry = match Registry::load(registry_path) {
-        Ok(reg) => reg,
-        Err(RegistryError::NotFound(_)) => Registry::default(),
-        Err(e) => return Err(e.into()),
+    let mut registry = match load_registry_strict(registry_path, strict, true) {
+        RegistryLoadResult::Ok(reg) => reg,
+        RegistryLoadResult::MissingWarning => Registry::default(),
+        RegistryLoadResult::Error(e) => return Err(e),
     };
 
     // Check if ID exists to preserve creation metadata
@@ -204,18 +283,18 @@ fn parse_expiry(s: &str) -> Result<chrono::DateTime<Utc>> {
     Ok(Utc::now() + duration)
 }
 
-fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf) -> Result<bool> {
+fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf, strict: bool) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
-    let mut registry = match Registry::load(registry_path) {
-        Ok(reg) => reg,
-        Err(RegistryError::NotFound(_)) => {
+    let mut registry = match load_registry_strict(registry_path, strict, true) {
+        RegistryLoadResult::Ok(reg) => reg,
+        RegistryLoadResult::MissingWarning => {
             return Err(anyhow::anyhow!(
                 "Registry not found at {}",
                 registry_path.display()
             ))
         }
-        Err(e) => return Err(e.into()),
+        RegistryLoadResult::Error(e) => return Err(e),
     };
 
     let initial_len = registry.exceptions.len();
@@ -234,14 +313,14 @@ fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf) -> Result<bo
     Ok(false)
 }
 
-fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf) -> Result<bool> {
-    let mut registry = match Registry::load(registry_path) {
-        Ok(reg) => reg,
-        Err(RegistryError::NotFound(_)) => {
+fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf, strict: bool) -> Result<bool> {
+    let mut registry = match load_registry_strict(registry_path, strict, true) {
+        RegistryLoadResult::Ok(reg) => reg,
+        RegistryLoadResult::MissingWarning => {
             println!("Registry not found, nothing to cleanup.");
             return Ok(false);
         }
-        Err(e) => return Err(e.into()),
+        RegistryLoadResult::Error(e) => return Err(e),
     };
 
     let now = Utc::now();
@@ -283,9 +362,9 @@ fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf) -> Result<
     Ok(false)
 }
 
-fn run_doctor(registry_path: &PathBuf) -> Result<bool> {
-    match Registry::load(registry_path) {
-        Ok(reg) => {
+fn run_doctor(registry_path: &PathBuf, strict: bool) -> Result<bool> {
+    match load_registry_strict(registry_path, strict, false) {
+        RegistryLoadResult::Ok(reg) => {
             println!("OK");
             println!(
                 "Registry loaded successfully from {}",
@@ -294,29 +373,17 @@ fn run_doctor(registry_path: &PathBuf) -> Result<bool> {
             println!("Version: {}", reg.version);
             println!("Exceptions: {}", reg.exceptions.len());
         }
-        Err(RegistryError::NotFound(_)) => {
-            println!("Error: Registry missing");
-            // Return Ok to avoid duplicate error printing and exit code 2
+        RegistryLoadResult::MissingWarning => {
+            println!("Warning: Registry missing");
             return Ok(false);
         }
-        Err(RegistryError::ParseError(path, e)) => {
-            return Err(anyhow::anyhow!(
-                "Parse Error in {}: {}. Manual fix required.",
-                path.display(),
-                e
-            ));
+        RegistryLoadResult::Error(e) => {
+            return Err(e);
         }
-        Err(RegistryError::VersionMismatch { found, expected }) => {
-            return Err(anyhow::anyhow!(
-                "Version mismatch. Expected {}, found {}.",
-                expected,
-                found
-            ));
-        }
-        Err(e) => return Err(e.into()),
     }
     Ok(false)
 }
+
 
 #[cfg(test)]
 mod tests {
