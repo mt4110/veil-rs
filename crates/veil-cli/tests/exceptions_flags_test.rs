@@ -40,7 +40,7 @@ fn test_exceptions_help_shows_all_flags() {
     let result = cmd.args(&["exceptions", "--help"]).assert().success();
 
     let output = String::from_utf8_lossy(&result.get_output().stdout);
-    
+
     // Verify all three key flags are documented
     assert!(
         output.contains("--system-registry"),
@@ -63,7 +63,7 @@ fn test_system_registry_flag_is_boolean() {
     let result = cmd
         .args(&["exceptions", "--system-registry", "list"])
         .assert();
-    
+
     // Should succeed (list command will fail due to missing registry, but arg parsing succeeds)
     // We're just verifying the flag doesn't expect a value
     let output = String::from_utf8_lossy(&result.get_output().stderr);

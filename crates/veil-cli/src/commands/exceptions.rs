@@ -67,12 +67,12 @@ enum RegistryLoadResult {
 }
 
 /// Load registry with strict/non-strict handling per SOT 4.3
-/// 
+///
 /// Strict mode (fail fast):
 /// - missing/unreadable → Error
 /// - parse error → Error
 /// - schema validation → Error
-/// 
+///
 /// Non-strict mode (warn and continue):
 /// - missing/unreadable → Warning + empty registry
 /// - parse/schema error → Warning (but FAIL for mutating ops - safety first)
@@ -88,7 +88,7 @@ fn load_registry_strict(
         RegistrySource::RepoDefault => "source: repo_default",
         RegistrySource::None => "source: none",
     };
-    
+
     match Registry::load(path) {
         Ok(registry) => RegistryLoadResult::Ok(registry),
         Err(RegistryError::NotFound(_)) => {
@@ -116,7 +116,7 @@ fn load_registry_strict(
                 p.display(),
                 p.display()
             );
-            
+
             if strict || is_mutating {
                 // Mutating ops ALWAYS fail on parse error (safety first)
                 RegistryLoadResult::Error(error)
@@ -136,7 +136,7 @@ fn load_registry_strict(
                 expected,
                 found
             );
-            
+
             if strict || is_mutating {
                 RegistryLoadResult::Error(error)
             } else {
@@ -153,9 +153,8 @@ fn load_registry_strict(
 
 pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     // Get repo root (current working directory for CLI)
-    let repo_root = std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."));
-    
+    let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+
     let resolved = resolve_registry_path(args, &repo_root);
     let registry_path = resolved.path.unwrap_or_else(|| {
         // Fallback for commands that require a path (they will fail gracefully)
@@ -163,11 +162,30 @@ pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     });
 
     match &args.command {
-        ExceptionsSubcommand::List => run_list(&registry_path, args.strict_exceptions, &resolved.source),
-        ExceptionsSubcommand::Add(cmd_args) => run_add(cmd_args, &registry_path, args.strict_exceptions, &resolved.source),
-        ExceptionsSubcommand::Remove(cmd_args) => run_remove(cmd_args, &registry_path, args.strict_exceptions, &resolved.source),
-        ExceptionsSubcommand::Cleanup(cmd_args) => run_cleanup(cmd_args, &registry_path, args.strict_exceptions, &resolved.source),
-        ExceptionsSubcommand::Doctor => run_doctor(&registry_path, args.strict_exceptions, &resolved.source),
+        ExceptionsSubcommand::List => {
+            run_list(&registry_path, args.strict_exceptions, &resolved.source)
+        }
+        ExceptionsSubcommand::Add(cmd_args) => run_add(
+            cmd_args,
+            &registry_path,
+            args.strict_exceptions,
+            &resolved.source,
+        ),
+        ExceptionsSubcommand::Remove(cmd_args) => run_remove(
+            cmd_args,
+            &registry_path,
+            args.strict_exceptions,
+            &resolved.source,
+        ),
+        ExceptionsSubcommand::Cleanup(cmd_args) => run_cleanup(
+            cmd_args,
+            &registry_path,
+            args.strict_exceptions,
+            &resolved.source,
+        ),
+        ExceptionsSubcommand::Doctor => {
+            run_doctor(&registry_path, args.strict_exceptions, &resolved.source)
+        }
     }
 }
 
@@ -223,7 +241,12 @@ use std::str::FromStr;
 use veil_core::finding_id::FindingId;
 use veil_core::registry::ExceptionEntry;
 
-fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf, strict: bool, source: &RegistrySource) -> Result<bool> {
+fn run_add(
+    args: &ExceptionsAddArgs,
+    registry_path: &PathBuf,
+    strict: bool,
+    source: &RegistrySource,
+) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
     let expires_at = if let Some(s) = &args.expires {
@@ -240,11 +263,12 @@ fn run_add(args: &ExceptionsAddArgs, registry_path: &PathBuf, strict: bool, sour
     };
 
     // Check if ID exists to preserve creation metadata
-    let (created_at, created_by) = if let Some(existing) = registry.exceptions.iter().find(|e| e.id == id) {
-        (existing.created_at, existing.created_by.clone())
-    } else {
-        (Some(Utc::now()), std::env::var("USER").ok())
-    };
+    let (created_at, created_by) =
+        if let Some(existing) = registry.exceptions.iter().find(|e| e.id == id) {
+            (existing.created_at, existing.created_by.clone())
+        } else {
+            (Some(Utc::now()), std::env::var("USER").ok())
+        };
 
     let entry = ExceptionEntry {
         id: id.clone(),
@@ -294,13 +318,23 @@ fn parse_expiry(s: &str) -> Result<chrono::DateTime<Utc>> {
         "y" => chrono::Duration::days(num * 365),
         "h" => chrono::Duration::hours(num),
         "m" => chrono::Duration::minutes(num),
-        _ => return Err(anyhow::anyhow!("Unknown unit '{}' (use d, w, y, h, m)", unit)),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unknown unit '{}' (use d, w, y, h, m)",
+                unit
+            ))
+        }
     };
 
     Ok(Utc::now() + duration)
 }
 
-fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf, strict: bool, source: &RegistrySource) -> Result<bool> {
+fn run_remove(
+    args: &ExceptionsRemoveArgs,
+    registry_path: &PathBuf,
+    strict: bool,
+    source: &RegistrySource,
+) -> Result<bool> {
     let id = FindingId::from_str(&args.id).map_err(|e| anyhow::anyhow!(e))?;
 
     let mut registry = match load_registry_strict(registry_path, strict, true, source) {
@@ -330,7 +364,12 @@ fn run_remove(args: &ExceptionsRemoveArgs, registry_path: &PathBuf, strict: bool
     Ok(false)
 }
 
-fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf, strict: bool, source: &RegistrySource) -> Result<bool> {
+fn run_cleanup(
+    args: &ExceptionsCleanupArgs,
+    registry_path: &PathBuf,
+    strict: bool,
+    source: &RegistrySource,
+) -> Result<bool> {
     let mut registry = match load_registry_strict(registry_path, strict, true, source) {
         RegistryLoadResult::Ok(reg) => reg,
         RegistryLoadResult::MissingWarning => {
@@ -354,7 +393,10 @@ fn run_cleanup(args: &ExceptionsCleanupArgs, registry_path: &PathBuf, strict: bo
         .count();
 
     if args.dry_run {
-        println!("Dry Run: Would remove {} expired exceptions.", expired_count);
+        println!(
+            "Dry Run: Would remove {} expired exceptions.",
+            expired_count
+        );
         return Ok(false);
     }
 
@@ -401,13 +443,12 @@ fn run_doctor(registry_path: &PathBuf, strict: bool, source: &RegistrySource) ->
     Ok(false)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::cli::ExceptionsSubcommand;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_resolve_priority_system_registry() {
@@ -459,7 +500,10 @@ mod tests {
 
         let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::RepoDefault);
-        assert_eq!(resolved.path, Some(temp_dir.path().join("ops/exceptions.toml")));
+        assert_eq!(
+            resolved.path,
+            Some(temp_dir.path().join("ops/exceptions.toml"))
+        );
     }
 
     #[test]
