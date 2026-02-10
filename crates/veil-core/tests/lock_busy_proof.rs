@@ -28,8 +28,7 @@ fn test_lock_busy_is_non_blocking() {
         .unwrap();
 
     // Use fs2 explicitly to match the impl
-    let _exclusive_guard = fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
-
+    fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
     // Spawn thread that tries to load (which needs shared lock)
     let (tx, rx) = channel();
     let registry_path_clone = registry_path.clone();
@@ -109,7 +108,7 @@ fn test_save_lock_busy_is_non_blocking() {
         .open(&lock_path)
         .unwrap();
 
-    let _exclusive_guard = fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
+    fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
 
     // Try to save (which needs exclusive lock)
     let (tx, rx) = channel();

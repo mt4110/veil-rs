@@ -77,7 +77,7 @@ enum RegistryLoadResult {
 /// - missing/unreadable → Warning + empty registry
 /// - parse/schema error → Warning (but FAIL for mutating ops - safety first)
 fn load_registry_strict(
-    path: &PathBuf,
+    path: &Path,
     strict: bool,
     is_mutating: bool,
     source: &RegistrySource,
