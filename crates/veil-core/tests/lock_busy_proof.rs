@@ -12,11 +12,11 @@ use veil_core::registry::{Registry, RegistryError};
 fn test_lock_busy_is_non_blocking() {
     let temp_dir = TempDir::new().unwrap();
     let registry_path = temp_dir.path().join("test_registry.toml");
-    
+
     // Create a registry file
     let mut registry = Registry::new();
     registry.save(&registry_path).unwrap();
-    
+
     // Hold exclusive lock in main thread
     let lock_path = registry_path.with_extension("lock");
     let _lock_file = OpenOptions::new()
@@ -26,19 +26,19 @@ fn test_lock_busy_is_non_blocking() {
         .write(true)
         .open(&lock_path)
         .unwrap();
-    
+
     // Use fs2 explicitly to match the impl
     let _exclusive_guard = fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
-    
+
     // Spawn thread that tries to load (which needs shared lock)
     let (tx, rx) = channel();
     let registry_path_clone = registry_path.clone();
-    
+
     thread::spawn(move || {
         let result = Registry::load(&registry_path_clone);
         tx.send(result).expect("channel send failed");
     });
-    
+
     // CRITICAL: Timeout-based hang detection
     // If lock is blocking, this will timeout → test FAILS
     // If lock is non-blocking, result comes back immediately with LockBusy→ test PASSES
@@ -52,7 +52,7 @@ fn test_lock_busy_is_non_blocking() {
             panic!("Thread crashed unexpectedly");
         }
     };
-    
+
     // Verify it returned LockBusy (not hanging)
     match result {
         Err(RegistryError::LockBusy(path)) => {
@@ -71,7 +71,7 @@ fn test_lock_busy_error_message_contract() {
     let lock_path = PathBuf::from("/fake/path.lock");
     let err = RegistryError::LockBusy(lock_path.clone());
     let msg = err.to_string();
-    
+
     // Contract: Must indicate lock status and path
     assert!(
         msg.contains("locked") || msg.contains("busy"),
@@ -94,11 +94,11 @@ fn test_lock_busy_error_message_contract() {
 fn test_save_lock_busy_is_non_blocking() {
     let temp_dir = TempDir::new().unwrap();
     let registry_path = temp_dir.path().join("test_registry_save.toml");
-    
+
     // Create initial registry
     let mut registry = Registry::new();
     registry.save(&registry_path).unwrap();
-    
+
     // Hold exclusive lock
     let lock_path = registry_path.with_extension("lock");
     let _lock_file = OpenOptions::new()
@@ -108,19 +108,19 @@ fn test_save_lock_busy_is_non_blocking() {
         .write(true)
         .open(&lock_path)
         .unwrap();
-    
+
     let _exclusive_guard = fs2::FileExt::try_lock_exclusive(&_lock_file).unwrap();
-    
+
     // Try to save (which needs exclusive lock)
     let (tx, rx) = channel();
     let registry_path_clone = registry_path.clone();
-    
+
     thread::spawn(move || {
         let mut reg = Registry::new();
         let result = reg.save(&registry_path_clone);
         tx.send(result).expect("channel send failed");
     });
-    
+
     // Hang detection
     let timeout = Duration::from_secs(2);
     let result = match rx.recv_timeout(timeout) {
@@ -132,7 +132,7 @@ fn test_save_lock_busy_is_non_blocking() {
             panic!("Thread crashed unexpectedly");
         }
     };
-    
+
     // Verify non-blocking LockBusy
     match result {
         Err(RegistryError::LockBusy(path)) => {
