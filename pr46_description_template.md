@@ -22,8 +22,9 @@ nix run .#prverify
 - **prverify**: `.local/prverify/prverify_20260209T215359Z_967e8a3.md` ✅
 
 ### Current (最新)
-- **Commit**: `<FILL: git rev-parse --short=7 HEAD>`
-- **prverify**: `<FILL: .local/prverify/prverify_YYYYMMDDTHHMMSSZ_<sha>.md>` ✅
+- **Commit**: `50927e9`
+- **prverify**: `.local/prverify/prverify_20260210T005052Z_50927e9.md` ✅
+- **Review bundle**: `.local/review-bundles/veil-rs_review_wip_20260210_095128_50927e9ed92c.tar.gz` ✅
 
 ---
 
