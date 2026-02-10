@@ -189,7 +189,7 @@ pub fn run(args: &ExceptionsArgs) -> Result<bool> {
     }
 }
 
-fn run_list(registry_path: &PathBuf, strict: bool, source: &RegistrySource) -> Result<bool> {
+fn run_list(registry_path: &Path, strict: bool, source: &RegistrySource) -> Result<bool> {
     let registry = match load_registry_strict(registry_path, strict, false, source) {
         RegistryLoadResult::Ok(reg) => reg,
         RegistryLoadResult::MissingWarning => Registry::default(),
@@ -243,7 +243,7 @@ use veil_core::registry::ExceptionEntry;
 
 fn run_add(
     args: &ExceptionsAddArgs,
-    registry_path: &PathBuf,
+    registry_path: &Path,
     strict: bool,
     source: &RegistrySource,
 ) -> Result<bool> {
@@ -331,7 +331,7 @@ fn parse_expiry(s: &str) -> Result<chrono::DateTime<Utc>> {
 
 fn run_remove(
     args: &ExceptionsRemoveArgs,
-    registry_path: &PathBuf,
+    registry_path: &Path,
     strict: bool,
     source: &RegistrySource,
 ) -> Result<bool> {
@@ -366,7 +366,7 @@ fn run_remove(
 
 fn run_cleanup(
     args: &ExceptionsCleanupArgs,
-    registry_path: &PathBuf,
+    registry_path: &Path,
     strict: bool,
     source: &RegistrySource,
 ) -> Result<bool> {
