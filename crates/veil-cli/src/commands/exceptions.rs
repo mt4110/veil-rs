@@ -421,7 +421,7 @@ fn run_cleanup(
     Ok(false)
 }
 
-fn run_doctor(registry_path: &PathBuf, strict: bool, source: &RegistrySource) -> Result<bool> {
+fn run_doctor(registry_path: &Path, strict: bool, source: &RegistrySource) -> Result<bool> {
     match load_registry_strict(registry_path, strict, false, source) {
         RegistryLoadResult::Ok(reg) => {
             println!("OK");
