@@ -5,7 +5,7 @@ use crate::cli::{
 use anyhow::Result;
 use chrono::Utc;
 use prettytable::{format, Cell, Row, Table};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use veil_core::registry::{Registry, RegistryError};
 
 /// Registry path resolution result
@@ -28,7 +28,7 @@ pub struct RegistryResolved {
 /// 2. --registry-path <PATH> → ExplicitPath
 /// 3. ops/exceptions.toml (exists) → RepoDefault
 /// 4. None
-pub fn resolve_registry_path(args: &ExceptionsArgs) -> RegistryResolved {
+pub fn resolve_registry_path(args: &ExceptionsArgs, repo_root: &Path) -> RegistryResolved {
     if args.system_registry {
         // Priority 1: System default
         RegistryResolved {
@@ -43,7 +43,7 @@ pub fn resolve_registry_path(args: &ExceptionsArgs) -> RegistryResolved {
         }
     } else {
         // Priority 3: Repo default (only if exists)
-        let repo_default = PathBuf::from("ops/exceptions.toml");
+        let repo_default = repo_root.join("ops/exceptions.toml");
         if repo_default.exists() {
             RegistryResolved {
                 source: RegistrySource::RepoDefault,
@@ -152,7 +152,11 @@ fn load_registry_strict(
 }
 
 pub fn run(args: &ExceptionsArgs) -> Result<bool> {
-    let resolved = resolve_registry_path(args);
+    // Get repo root (current working directory for CLI)
+    let repo_root = std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."));
+    
+    let resolved = resolve_registry_path(args, &repo_root);
     let registry_path = resolved.path.unwrap_or_else(|| {
         // Fallback for commands that require a path (they will fail gracefully)
         PathBuf::from("ops/exceptions.toml")
@@ -402,9 +406,12 @@ fn run_doctor(registry_path: &PathBuf, strict: bool, source: &RegistrySource) ->
 mod tests {
     use super::*;
     use crate::cli::ExceptionsSubcommand;
+    use tempfile::TempDir;
+    use std::fs;
 
     #[test]
     fn test_resolve_priority_system_registry() {
+        let temp_dir = TempDir::new().unwrap();
         let args = ExceptionsArgs {
             system_registry: true,
             registry_path: None,
@@ -412,7 +419,7 @@ mod tests {
             command: ExceptionsSubcommand::List,
         };
 
-        let resolved = resolve_registry_path(&args);
+        let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::SystemDefault);
         assert_eq!(
             resolved.path,
@@ -422,6 +429,7 @@ mod tests {
 
     #[test]
     fn test_resolve_priority_explicit_path() {
+        let temp_dir = TempDir::new().unwrap();
         let args = ExceptionsArgs {
             system_registry: false,
             registry_path: Some(PathBuf::from("/custom/path.toml")),
@@ -429,27 +437,18 @@ mod tests {
             command: ExceptionsSubcommand::List,
         };
 
-        let resolved = resolve_registry_path(&args);
+        let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::ExplicitPath);
         assert_eq!(resolved.path, Some(PathBuf::from("/custom/path.toml")));
     }
 
     #[test]
     fn test_resolve_priority_repo_default_exists() {
-        use std::fs;
-        use tempfile::TempDir;
-
-        // Create temp directory and make it current
+        // Create temp directory with ops/exceptions.toml
         let temp_dir = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&temp_dir).unwrap();
-
-        // Create ops/exceptions.toml
-        fs::create_dir_all("ops").unwrap();
-        fs::write("ops/exceptions.toml", "# test").unwrap();
-        
-        // Verify it exists
-        assert!(PathBuf::from("ops/exceptions.toml").exists(), "ops/exceptions.toml should exist");
+        let ops_dir = temp_dir.path().join("ops");
+        fs::create_dir_all(&ops_dir).unwrap();
+        fs::write(ops_dir.join("exceptions.toml"), "# test").unwrap();
 
         let args = ExceptionsArgs {
             system_registry: false,
@@ -458,22 +457,15 @@ mod tests {
             command: ExceptionsSubcommand::List,
         };
 
-        let resolved = resolve_registry_path(&args);
+        let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::RepoDefault);
-        assert_eq!(resolved.path, Some(PathBuf::from("ops/exceptions.toml")));
-
-        // Cleanup
-        std::env::set_current_dir(&original_dir).unwrap();
+        assert_eq!(resolved.path, Some(temp_dir.path().join("ops/exceptions.toml")));
     }
 
     #[test]
     fn test_resolve_priority_none() {
-        use tempfile::TempDir;
-
         // Create temp directory with NO ops/exceptions.toml
         let temp_dir = TempDir::new().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&temp_dir).unwrap();
 
         let args = ExceptionsArgs {
             system_registry: false,
@@ -482,16 +474,14 @@ mod tests {
             command: ExceptionsSubcommand::List,
         };
 
-        let resolved = resolve_registry_path(&args);
+        let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::None);
         assert_eq!(resolved.path, None);
-
-        // Cleanup
-        std::env::set_current_dir(&original_dir).unwrap();
     }
 
     #[test]
     fn test_system_registry_overrides_explicit() {
+        let temp_dir = TempDir::new().unwrap();
         // system-registry should take priority even if registry-path is set
         // (though CLI flags prevent this via conflicts_with)
         let args = ExceptionsArgs {
@@ -501,7 +491,7 @@ mod tests {
             command: ExceptionsSubcommand::List,
         };
 
-        let resolved = resolve_registry_path(&args);
+        let resolved = resolve_registry_path(&args, temp_dir.path());
         assert_eq!(resolved.source, RegistrySource::SystemDefault);
         assert_eq!(
             resolved.path,
