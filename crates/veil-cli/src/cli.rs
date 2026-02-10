@@ -145,6 +145,8 @@ pub enum Commands {
     /// SOT (Source of Truth) tools
     #[command(subcommand)]
     Sot(SotCommand),
+    /// Exception Registry management
+    Exceptions(ExceptionsArgs),
     /// Check for updates (stub)
     Update,
 }
@@ -338,6 +340,66 @@ pub struct SotRenameArgs {
     /// Overwrite existing destination file, and allow updating an existing pr: <n> even if different
     #[arg(long)]
     pub force: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsArgs {
+    /// Use system-wide exception registry (e.g., /etc/veil/exceptions.toml)
+    #[arg(long, conflicts_with = "registry_path")]
+    pub system_registry: bool,
+
+    /// Path to explicit exception registry file
+    #[arg(long, value_name = "PATH", conflicts_with = "system_registry")]
+    pub registry_path: Option<PathBuf>,
+
+    /// Fail fast on registry issues (missing/invalid/expired)
+    #[arg(long)]
+    pub strict_exceptions: bool,
+
+    #[command(subcommand)]
+    pub command: ExceptionsSubcommand,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum ExceptionsSubcommand {
+    /// List all exceptions
+    List,
+    /// Add a new exception
+    Add(ExceptionsAddArgs),
+    /// Remove an exception by ID
+    Remove(ExceptionsRemoveArgs),
+    /// Clean up expired exceptions
+    Cleanup(ExceptionsCleanupArgs),
+    /// Check registry health
+    Doctor,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsAddArgs {
+    /// Exception ID (e.g., VL-001-abc123)
+    pub id: String,
+    /// Reason for the exception
+    #[arg(long)]
+    pub reason: String,
+    /// Expiration (e.g., 30d, 1w, 1y)
+    #[arg(long)]
+    pub expires: Option<String>,
+    /// Dry run (don't write changes)
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsRemoveArgs {
+    /// Exception ID to remove
+    pub id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct ExceptionsCleanupArgs {
+    /// Dry run (don't write changes)
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 fn parse_severity(s: &str) -> Result<Severity, String> {

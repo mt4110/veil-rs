@@ -129,6 +129,7 @@ fn main() -> anyhow::Result<()> {
         },
         Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
         Some(Commands::Sot(cmd)) => commands::sot::run(cmd).map(|_| false),
+        Some(Commands::Exceptions(args)) => commands::exceptions::run(args).map(|_| false),
         Some(Commands::Update) => commands::update::update().map(|_| false),
         None => {
             // If no subcommand is provided, print help
