@@ -6,3 +6,5 @@
   - nix run .#prverify
   - nix build .#cockpit
   - nix build .#ai-pack
+
+Latest prverify report: docs/evidence/prverify/prverify_20260211T021046Z_fe0205b.md

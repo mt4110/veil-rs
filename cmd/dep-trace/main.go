@@ -78,7 +78,13 @@ type Metadata struct {
 	Resolve struct {
 		Nodes []Node `json:"nodes"`
 	} `json:"resolve"`
-	WorkspaceMembers []string `json:"workspace_members"`
+	WorkspaceMembers []string  `json:"workspace_members"`
+	Packages         []Package `json:"packages"`
+}
+
+type Package struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
 }
 
 type Node struct {
@@ -105,12 +111,18 @@ func traceViaMetadata() error {
 		return err
 	}
 
+	// Build ID -> Name map
+	idToName := make(map[string]string, len(meta.Packages))
+	for _, p := range meta.Packages {
+		idToName[p.ID] = p.Name
+	}
+
 	// Build graph: Reversed edges (Child -> []Parent)
 	parents := make(map[string][]string)
 	nodeMap := make(map[string]Node)
 
 	var targetID string
-	
+
 	// Set of workspace members for quick lookup
 	members := make(map[string]bool)
 	for _, m := range meta.WorkspaceMembers {
@@ -119,7 +131,13 @@ func traceViaMetadata() error {
 
 	for _, n := range meta.Resolve.Nodes {
 		nodeMap[n.ID] = n
-		pkgName := getPkgName(n.ID)
+		// Use the map for name resolution
+		pkgName := idToName[n.ID]
+		if pkgName == "" {
+			// Fallback if not found (unlikely in valid metadata)
+			pkgName = n.ID
+		}
+
 		if pkgName == "sqlx-mysql" {
 			targetID = n.ID
 		}
@@ -149,7 +167,7 @@ func traceViaMetadata() error {
 
 		if members[curr.id] {
 			// Found path!
-			printMetadataPath(curr.path, nodeMap)
+			printMetadataPath(curr.path, nodeMap, idToName)
 			return nil
 		}
 
@@ -168,13 +186,7 @@ func traceViaMetadata() error {
 }
 
 func getPkgName(id string) string {
-	// ID format is typically "name version (source)" or just "name 1.2.3 (source)"
-	// But it's opaque. The reliable way is to split by space and take first, OR look at `packages` list.
-	// However, `resolve.nodes` doesn't have name directly, but typically start with name.
-	// Actually, `resolve.nodes` keys match `packages[].id`.
-	// For simplicity, we'll try to parse the ID string as commonly implemented, 
-	// but strictly we should use the package list.
-	// Let's rely on space separation which is standard for cargo metadata ID representation.
+	// Keep for lock trace fallback
 	parts := strings.Fields(id)
 	if len(parts) > 0 {
 		return parts[0]
@@ -182,21 +194,24 @@ func getPkgName(id string) string {
 	return id
 }
 
-func printMetadataPath(path []string, nodes map[string]Node) {
+func printMetadataPath(path []string, nodes map[string]Node, idToName map[string]string) {
 	fmt.Println("\nMETADATA TRACE:")
 	// Path is [sqlx-mysql, parent, grandparent, ..., workspace_member]
 	// We want to print: Workspace Member -> ... -> sqlx-mysql
 	for i := len(path) - 1; i >= 0; i-- {
 		id := path[i]
 		node := nodes[id]
-		name := getPkgName(id)
-		
+		name := idToName[id]
+		if name == "" {
+			name = id
+		}
+
 		pad := strings.Repeat("  ", len(path)-1-i)
 		arrow := ""
 		if i < len(path)-1 {
 			arrow = "-> "
 		}
-		
+
 		fmt.Printf("%s%s%s\n", pad, arrow, name)
 		if len(node.Features) > 0 {
 			// Filter for relevant features if possible, or just list enabled ones
@@ -209,7 +224,6 @@ func printMetadataPath(path []string, nodes map[string]Node) {
 		}
 	}
 }
-
 
 // --- Lock Trace (Fallback) ---
 // Simple parsing of [[package]] blocks
@@ -226,9 +240,9 @@ func traceViaLock() error {
 	// [[package]]
 	// name = "foo"
 	// dependencies = [ "bar", "baz" ]
-	
+
 	parents := make(map[string][]string)
-	
+
 	scanner := bufio.NewScanner(f)
 	var currentPkg string
 	inDeps := false
@@ -240,7 +254,7 @@ func traceViaLock() error {
 			inDeps = false
 			continue
 		}
-		
+
 		if strings.HasPrefix(line, `name = "`) {
 			val := strings.TrimPrefix(line, `name = "`)
 			val = strings.TrimSuffix(val, `"`)
@@ -252,7 +266,7 @@ func traceViaLock() error {
 			inDeps = true
 			continue
 		}
-		
+
 		if inDeps {
 			if line == "]" {
 				inDeps = false
@@ -275,16 +289,16 @@ func traceViaLock() error {
 
 	// BFS
 	target := "sqlx-mysql"
-	// Need to know workspace members. 
+	// Need to know workspace members.
 	// Without metadata, we can guess or just find *any* path that ends in a "known" source?
 	// Or we can just print the tree upwards up to a certain depth.
 	// Since we are in `veil-rs`, members likely start with `veil-`.
-	
+
 	type pathItem struct {
 		name string
 		path []string
 	}
-	
+
 	queue := []pathItem{{name: target, path: []string{target}}}
 	visited := make(map[string]bool)
 	visited[target] = true
@@ -314,7 +328,7 @@ func traceViaLock() error {
 			}
 		}
 	}
-	
+
 	if !foundPath {
 		fmt.Println("\nLOCK TRACE (Partial - could not trace to veil-*):")
 		// Just dump immediate parents of sqlx-mysql
