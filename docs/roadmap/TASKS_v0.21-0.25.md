@@ -5,13 +5,16 @@
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 git status --porcelain=v1
+```
 
-1.2 Branch
+### 1.2 Branch
+```bash
 git switch main
 git pull --ff-only
 git switch -c feature/pr<NUM>-<slug>
+```
 
-1.3 SOT / plan / task を最初に置く（空でも良い：存在が契約）
+### 1.3 SOT / plan / task を最初に置く（空でも良い：存在が契約）
 
 docs/pr/PR-<NUM>-<slug>.md
 
