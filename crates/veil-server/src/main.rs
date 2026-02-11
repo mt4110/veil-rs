@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod api;
+mod db;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -17,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Starting veil-server...");
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = sqlx::postgres::PgPoolOptions::new()
+    let pool = db::PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await
