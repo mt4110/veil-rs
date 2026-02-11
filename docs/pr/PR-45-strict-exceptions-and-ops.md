@@ -41,7 +41,7 @@ Fix registry lock handling to use **non-blocking file locks** via `fs2`, prevent
 
 ## Operations Runbook
 
-See [`docs/ops/strict_exceptions_recovery.md`](../../ops/strict_exceptions_recovery.md) for lock contention troubleshooting.
+See [`docs/ops/strict_exceptions_recovery.md`](../ops/strict_exceptions_recovery.md) for lock contention troubleshooting.
 
 **Lock Contention Behavior** (PR45):
 - Registry operations return `RegistryError::LockBusy` immediately if lock is held
