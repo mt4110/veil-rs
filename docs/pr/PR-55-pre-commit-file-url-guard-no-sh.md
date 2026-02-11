@@ -143,7 +143,7 @@ git commit -m "chore: pre-commit md file-url guard (no .sh files)"
 
 ## 📌 SOT Commit
 
-* SOT commit (HEAD short sha): `67cb4c7`
+* SOT commit (HEAD short sha): `1e6e6e4`
 
 ---
 
