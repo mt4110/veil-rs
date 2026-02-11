@@ -1,7 +1,7 @@
 # PR-56 — Issue #47 PR-C (idna/url) Remediation — deterministic evidence loop
 
 ## ✅ Meta (fill by checklist)
-- [ ] PR URL: <paste PR URL here>
+- [x] PR URL: 
 - [x] Issue URL: https://github.com/mt4110/veil-rs/issues/47
 - [x] Branch: feature/pr56-issue47-prc-idna-url-remediation
 - [x] Base (main) at kickoff: 8018f93
