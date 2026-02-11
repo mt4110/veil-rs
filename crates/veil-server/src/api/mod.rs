@@ -1,6 +1,6 @@
+use crate::db::{Error, FromRow, PgPool, PgRow, Row};
 use axum::{extract::State, http::StatusCode, response::Json};
 use serde::{Deserialize, Serialize};
-use crate::db::{Row, PgPool, FromRow, PgRow, Error};
 
 #[derive(Serialize, Deserialize)]
 pub struct RuleRow {
