@@ -184,7 +184,47 @@ func main() {
 		}
 	}
 
-	// 3) Drift Check (Consistency between CI, Docs, and SOT)
+	// 3) Dependency Guard
+	{
+		fmt.Println("==> Dependency Guard")
+		start := time.Now()
+		
+		// Run cmd/dep-trace
+		// Note: We deliberately use standard go run. 
+		// If GOROOT is messed up (like in local nix shells sometimes), we might need the same workaround as manual testing,
+		// but typically inside `nix run .#prverify`, the environment is cleaner.
+		// However, to be safe and consistent with the user's manual fix:
+		// We'll trust the current environment 'go' but if it fails with version skew, 
+		// it fails safe (as error).
+		
+		cmd := exec.Command("go", "run", "./cmd/dep-trace")
+		cmd.Dir = root
+		
+		// Capture output to print on failure
+		var buf bytes.Buffer
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		
+		err := cmd.Run()
+		dur := time.Since(start)
+		
+		output := strings.TrimSpace(buf.String())
+		
+		steps = append(steps, stepResult{cmdLine: "dep-guard", ok: err == nil, duration: dur})
+		
+		if err != nil {
+			fmt.Printf("FAIL: Dependency Guard found issues (or failed to run):\n\n%s\n", output)
+			fmt.Println()
+			
+			// Add output to markdown note? Maybe too long.
+			// Just ensure it's in the log (done above).
+			
+			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+			os.Exit(1)
+		}
+	}
+
+	// 4) Drift Check (Consistency between CI, Docs, and SOT)
 	{
 		fmt.Println("==> Drift Check")
 		start := time.Now()
