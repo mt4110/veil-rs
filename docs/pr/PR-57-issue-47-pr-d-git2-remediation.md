@@ -25,14 +25,13 @@ This PR explicitly forces `git2` to `0.20.4` in `veil-cli` and resolves the lock
 ### 2. prverify
 - Command: `nix run .#prverify`
 - Result: **PASS**
-- Report: [prverify_20260212T041630Z_8f5c77f.md](../../evidence/prverify/prverify_20260212T041630Z_8f5c77f.md)
+- Report: [prverify_20260212T050653Z_c4ef971.md](../../evidence/prverify/prverify_20260212T050653Z_c4ef971.md)
 
 ### 3. Cockpit Check
 - Command: `nix run .#check`
 - Result: **PASS**
 
 ```bash
-warning: Git tree '/Users/masakitakemura/_workspace/veil-rs' is dirty
 Running check with go version go1.24.11 darwin/arm64
 COCKPIT_RFv1: RESULT=PASS STEP=check
 
