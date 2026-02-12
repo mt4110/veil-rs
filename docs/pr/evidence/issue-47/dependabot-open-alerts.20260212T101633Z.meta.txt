@@ -1,0 +1,4 @@
+timestamp_utc=20260212T101633Z
+repo=mt4110/veil-rs
+endpoint=repos/mt4110/veil-rs/dependabot/alerts?state=open&per_page=100
+open_count=0
