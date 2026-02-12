@@ -29,4 +29,4 @@ PR58で露呈した運用地雷を、runbook上の “型” として固定す�
 - plan/task:
   - `docs/pr/PR-59-ops-runbook-no-heredoc/plan.md`
   - `docs/pr/PR-59-ops-runbook-no-heredoc/task.md`
-- **Latest prverify report:** `docs/evidence/prverify/<filled-by-task>.md`
+- **Latest prverify report:** `docs/evidence/prverify/`
