@@ -1,277 +1,318 @@
-# PR58 Task — Issue #47 Closeout (RunAlways)
+# PR58 Task — Issue #47 Closeout (structured control words / ultra fine-grained)
 
-> Labels:
-> - RUN_ALWAYS: must run even if “already done”
-> - IF / ELSE: branching control
-> - FOR: loops/pagination
-> - ERR: error handling
-> - TEST: verification assertions
+Legend:
+- if / else if / else
+- for / continue / break
+- error: stop immediately
+- skip: record reason and move on
+- TEST: assert; fail => error
+
+Rule (degrade-model safe):
+- Do NOT discuss “IsArtifact”. Do the work.
+- Prefer overwrite (cat <<'EOF') over patch edits.
+- If a step yields no change (no diff), stop and proceed (do not loop).
+- Evidence pointers in docs must NEVER point to `.local/`. Use `docs/pr/evidence/issue-47/`.
 
 ---
 
-## 0) PATH_DISCOVERY (RUN_ALWAYS)
+## 00) Path Discovery (RunAlways)
 
+- [ ] TEST: repo root exists; cd repo root
 ```bash
 set -euo pipefail
-
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel)" || (echo "error: not a git repo"; exit 1)
+cd "$ROOT"
 echo "ROOT=$ROOT"
 
-# Canonical targets (preferred)
-PLAN="$ROOT/docs/pr/PR-58-issue-47-closeout.plan.md"
-TASK="$ROOT/docs/pr/PR-58-issue-47-closeout.task.md"
-SOT ="$ROOT/docs/pr/PR-58-issue-47-closeout.md"
 
-EV_DIR="$ROOT/.local/evidence/issue-47"
-PRV_DIR="$ROOT/.local/prverify"
-```
+ if docs/pr missing -> create; else continue
 
-IF docs/pr does not exist:
+if [ ! -d "docs/pr" ]; then
+  mkdir -p "docs/pr"
+fi
 
-```bash
-# IF_FAIL: locate docs folder
-ls -la "$ROOT/docs" || true
-find "$ROOT" -maxdepth 3 -type d -name pr -o -name docs | sed -n '1,80p'
-# ERR: stop and set correct PLAN/TASK/SOT paths before continuing.
-```
 
-## 1) BRANCH + CLEAN START (RUN_ALWAYS)
+ set canonical paths (TEST)
 
-```bash
-cd "$ROOT"
-git switch main
+PLAN="docs/pr/PR-58-issue-47-closeout.plan.md"
+TASK="docs/pr/PR-58-issue-47-closeout.task.md"
+SOT="docs/pr/PR-58-issue-47-closeout.md"
+EVDIR="docs/pr/evidence/issue-47"
+
+mkdir -p "$EVDIR"
+test -d "docs" && test -d "docs/pr" && test -d "$EVDIR"
+
+01) Branch Selection (RunAlways)
+
+ TEST: working tree clean; else error
+
+test -z "$(git status --porcelain=v1)" || (echo "error: dirty working tree"; git status --porcelain=v1; exit 1)
+
+
+ for candidate branches -> if found break; else continue; after loop error
+
+FOUND=""
+for b in \
+  "feature/pr58-issue47-closeout" \
+  "feature/pr58-issue-47-closeout" \
+  "pr58" \
+  "feature/pr58"
+do
+  if git show-ref --verify --quiet "refs/heads/$b"; then
+    FOUND="$b"
+    break
+  else
+    continue
+  fi
+done
+
+test -n "$FOUND" || (echo "error: PR58 branch not found"; git branch --all | sed -n '1,200p'; exit 1)
+
+echo "BRANCH=$FOUND"
+git switch "$FOUND"
 git pull --ff-only
 
-# TEST: working tree clean
-test -z "$(git status --porcelain=v1)" && echo "[OK] clean" || (git status --porcelain=v1; exit 1)
+02) Tooling Preflight (RunAlways)
 
-git switch -c feature/pr58-issue47-closeout
-```
+ TEST: gh exists
 
-## 2) DEPENDABOT OPEN=0 SNAPSHOT (RUN_ALWAYS)
-### 2.1 Resolve repo slug (RUN_ALWAYS)
+command -v gh >/dev/null || (echo "error: gh not installed"; exit 1)
 
-```bash
-# TEST: gh available
-command -v gh >/dev/null || (echo "ERR: gh not found"; exit 1)
 
-# TEST: auth
-gh auth status || (echo "ERR: gh not authenticated"; exit 1)
+ TEST: gh auth ok
 
-REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+gh auth status || (echo "error: gh not authenticated"; exit 1)
+
+
+ set REPO slug (TEST)
+
+REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)" || (echo "error: cannot read repo"; exit 1)
+test -n "$REPO"
 echo "REPO=$REPO"
-```
 
-### 2.2 Snapshot “open alerts” (RUN_ALWAYS)
 
-```bash
-mkdir -p "$EV_DIR"
+ set timestamp
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
-OUT="$EV_DIR/dependabot-open-alerts.$TS.json"
-META="$EV_DIR/dependabot-open-alerts.$TS.meta.txt"
+echo "TS=$TS"
 
-# FOR: pagination-safe (even though we expect 0)
-# NOTE: --paginate emits multiple JSON arrays; jq -s 'add|length' merges them.
-gh api --paginate -H "Accept: application/vnd.github+json" \
-  "/repos/$REPO/dependabot/alerts?state=open&per_page=100" > "$OUT" \
-  || (echo "ERR: dependabot api failed" | tee "$META"; exit 1)
+03) Evidence: Dependabot open=0 Snapshot (RunAlways)
 
-COUNT="$(cat "$OUT" | jq -s 'add | length')"
+ capture JSON snapshot (error if empty)
+
+DB_OUT="$EVDIR/dependabot-open-alerts.$TS.json"
+
+gh api -H "Accept: application/vnd.github+json" \
+  "/repos/$REPO/dependabot/alerts?state=open&per_page=100" > "$DB_OUT" \
+  || (echo "error: dependabot api failed"; exit 1)
+
+test -s "$DB_OUT" || (echo "error: empty dependabot snapshot"; exit 1)
+
+
+ compute open_count (no jq) (TEST)
+
+COUNT="$(python3 - <<PY
+import json
+with open("$DB_OUT","r",encoding="utf-8") as f:
+    print(len(json.load(f)))
+PY
+)"
+echo "open_count=$COUNT"
+
+
+ write meta
+
+DB_META="$EVDIR/dependabot-open-alerts.$TS.meta.txt"
 {
   echo "timestamp_utc=$TS"
   echo "repo=$REPO"
-  echo "endpoint=/repos/$REPO/dependabot/alerts?state=open&per_page=100 (--paginate)"
+  echo "endpoint=/repos/$REPO/dependabot/alerts?state=open&per_page=100"
   echo "open_count=$COUNT"
-} | tee "$META"
+} | tee "$DB_META"
 
-# TEST: expect 0
-test "$COUNT" = "0" && echo "[OK] dependabot open alerts = 0" || (echo "ERR: open alerts != 0"; exit 1)
-```
 
-## 3) QUIET MAIN CONFIRMATION (RUN_ALWAYS)
-### 3.1 Run prverify (RUN_ALWAYS)
+ TEST: open_count == 0 else error stop (do NOT claim clean)
 
-```bash
-# Keep evidence in repo
-mkdir -p "$PRV_DIR"
+test "$COUNT" = "0" || (echo "error: dependabot open alerts != 0"; exit 1)
 
-# Run prverify on current branch (which is based on up-to-date main)
-nix run .#prverify
-```
+04) Evidence: prverify Quiet Main (RunAlways)
 
-### 3.2 Locate latest prverify report for current HEAD (RUN_ALWAYS)
+ run prverify (error stop on failure)
 
-```bash
+nix run .#prverify || (echo "error: prverify failed"; exit 1)
+
+
+ locate latest prverify report for current HEAD7 (TEST)
+
 HEAD7="$(git rev-parse --short=7 HEAD)"
-LATEST="$(find "$PRV_DIR" -maxdepth 1 -type f -name "prverify_*_${HEAD7}.md" -print | sort -r | head -n 1)"
+PRV_SRC=".local/prverify"
 
-# TEST: must exist
-test -n "${LATEST:-}" && test -f "$LATEST" && echo "[OK] prverify evidence: $LATEST" || (echo "ERR: prverify report not found for HEAD=$HEAD7"; ls -la "$PRV_DIR" | sed -n '1,120p'; exit 1)
-```
+LATEST="$(find "$PRV_SRC" -maxdepth 1 -type f -name "prverify_*_${HEAD7}.md" -print | sort -r | head -n 1)"
+test -n "${LATEST:-}" && test -f "$LATEST" || (echo "error: prverify report not found for HEAD7=$HEAD7"; ls -la "$PRV_SRC" | sed -n '1,200p'; exit 1)
 
-IF you need stricter “quiet” assertion:
+echo "LATEST=$LATEST"
 
-```bash
-# Optional TEST: ensure no WARN in the prverify report (policy-dependent)
-if rg -n "\bWARN\b" "$LATEST" >/dev/null; then
-  echo "ERR: WARN found in prverify report: $LATEST"
-  rg -n "\bWARN\b" "$LATEST" || true
+
+ copy to committed evidence dir (TEST)
+
+cp -a "$LATEST" "$EVDIR/"
+PRV_PIN="$EVDIR/$(basename "$LATEST")"
+test -f "$PRV_PIN" || (echo "error: pinned prverify missing"; exit 1)
+echo "PRV_PIN=$PRV_PIN"
+
+
+ optional TEST: no WARN in report (enable if policy requires)
+
+if rg -n "\bWARN\b" "$PRV_PIN" >/dev/null; then
+  echo "error: WARN found in pinned prverify"
+  rg -n "\bWARN\b" "$PRV_PIN" || true
   exit 1
 else
-  echo "[OK] no WARN in prverify report"
+  echo "skip: no WARN found"
 fi
-```
 
-## 4) WRITE DOCS (RUN_ALWAYS)
-### 4.1 Write Plan/Task/SOT files (RUN_ALWAYS)
+05) Issue #47 Closeout (RunAlways)
 
-Create docs/pr dir if needed:
+ write closeout comment body (committed copy)
 
-```bash
-mkdir -p "$(dirname "$PLAN")"
-```
-
-Write PLAN:
-
-```bash
-cat > "$PLAN" <<'EOF'
-<PASTE Plan.md CONTENT HERE>
-EOF
-```
-
-Write TASK:
-
-```bash
-cat > "$TASK" <<'EOF'
-<PASTE Task.md CONTENT HERE>
-EOF
-```
-
-Write SOT (closeout note):
-
-```bash
-cat > "$SOT" <<EOF
-# PR58 — Issue #47 Closeout (Evidence + Quiet Main)
-
-## Closeout Summary
-
-Issue #47 is resolved by **PR56** and **PR57**.
-This PR (PR58) finalizes evidence pointers and confirms baseline “quiet main”.
-
-## Evidence
-
-- Dependabot open alerts snapshot: \`$OUT\`
-  - Meta: \`$META\`
-  - Expected: open_count=0
-- Quiet main (prverify): \`$LATEST\`
-
-## Links
-
-- PR56: <LINK_HERE>
-- PR57: <LINK_HERE>
-- Issue #47: <LINK_HERE>
-
-## Closing Note (for Issue #47)
-
-Resolved by PR56 + PR57; checks green; Dependabot open alerts = 0; quiet main confirmed (see evidence pointers above). Closing.
-EOF
-```
-
-### 4.2 Optional: runbook note (IF)
-# IF: a runbook exists for dependabot/security
-rg -n "Dependabot" "$ROOT/docs" || true
-
-
-IF a suitable file exists (example):
-- docs/runbook/security.md
-- docs/runbook/dependabot.md
-
-THEN append a tiny note:
-
-```bash
-# Example target (adjust if found)
-RB="$ROOT/docs/runbook/dependabot.md"
-
-mkdir -p "$(dirname "$RB")"
-cat >> "$RB" <<'EOF'
-
-## Dependabot lag note
-
-Dependabot alerts can lag. Always snapshot **pre/post** state using the API and re-check that **open=0** before declaring the baseline clean.
-EOF
-```
-
-## 5) ISSUE #47 COMMENT + CLOSE (RUN_ALWAYS)
-### 5.1 Prepare comment body (RUN_ALWAYS)
-
-```bash
 ISSUE=47
-BODY="$EV_DIR/issue47-closeout-comment.$TS.md"
+ISSUE_COMMENT="$EVDIR/issue47-closeout-comment.$TS.md"
 
-cat > "$BODY" <<EOF
+cat > "$ISSUE_COMMENT" <<EOF2
 Resolved by PR56 + PR57.
 
 - Checks: green
-- Dependabot: open alerts = 0 (snapshot: \`$META\`)
-- Quiet main: confirmed (prverify: \`$LATEST\`)
+- Dependabot: open alerts = 0 (meta: \`$DB_META\`)
+- Quiet main: confirmed (prverify: \`$PRV_PIN\`)
 
 Closing Issue #47.
-EOF
-```
+EOF2
 
-### 5.2 Comment + close (RUN_ALWAYS)
+test -s "$ISSUE_COMMENT" || (echo "error: issue comment file empty"; exit 1)
+echo "ISSUE_COMMENT=$ISSUE_COMMENT"
 
-```bash
-STATE="$(gh issue view "$ISSUE" --repo "$REPO" --json state -q .state)"
-echo "Issue #$ISSUE state=$STATE"
 
-# Comment always (even if already closed)
-gh issue comment "$ISSUE" --repo "$REPO" --body-file "$BODY"
+ get issue state (TEST)
 
-IF [ "$STATE" = "OPEN" ]; then
-  gh issue close "$ISSUE" --repo "$REPO"
-  echo "[OK] closed Issue #$ISSUE"
+STATE="$(gh issue view "$ISSUE" --repo "$REPO" --json state -q .state)" || (echo "error: cannot view issue"; exit 1)
+test -n "$STATE"
+echo "Issue#$ISSUE state=$STATE"
+
+
+ comment always
+
+gh issue comment "$ISSUE" --repo "$REPO" --body-file "$ISSUE_COMMENT" \
+  || (echo "error: failed to comment issue"; exit 1)
+
+
+ if OPEN -> close; else if CLOSED -> skip close; else error
+
+if [ "$STATE" = "OPEN" ]; then
+  gh issue close "$ISSUE" --repo "$REPO" || (echo "error: failed to close issue"; exit 1)
+elif [ "$STATE" = "CLOSED" ]; then
+  echo "skip: already closed"
 else
-  echo "[OK] Issue #$ISSUE already closed"
+  echo "error: unexpected issue state=$STATE"
+  exit 1
 fi
-```
 
-## 6) COMMIT + PR (RUN_ALWAYS)
 
-```bash
-cd "$ROOT"
+ TEST: issue is CLOSED
 
-# Stage only intended artifacts
-git add "$PLAN" "$TASK" "$SOT" "$EV_DIR" "$PRV_DIR"
+gh issue view "$ISSUE" --repo "$REPO" --json state -q .state | rg -q "CLOSED" \
+  || (echo "error: issue not CLOSED"; exit 1)
 
-# TEST: show diff summary
+06) Pin SOT placeholders to exact evidence filenames (RunAlways)
+
+ TEST: SOT exists
+
+test -f "$SOT" || (echo "error: SOT missing: $SOT"; exit 1)
+
+
+ replace placeholders {{DB_OUT}} {{DB_META}} {{PRV_PIN}} {{ISSUE_COMMENT}} (TEST)
+
+python3 - <<PY
+from pathlib import Path
+p=Path("$SOT")
+s=p.read_text(encoding="utf-8")
+
+repl = {
+  "{{DB_OUT}}": "$DB_OUT",
+  "{{DB_META}}": "$DB_META",
+  "{{PRV_PIN}}": "$PRV_PIN",
+  "{{ISSUE_COMMENT}}": "$ISSUE_COMMENT",
+}
+
+for k,v in repl.items():
+  s = s.replace(k, v)
+
+# TEST: no placeholders remain
+for k in repl.keys():
+  if k in s:
+    raise SystemExit(f"error: placeholder still present: {k}")
+
+p.write_text(s, encoding="utf-8")
+print("pinned:", p)
+PY
+
+
+ TEST: SOT has no .local/ pointers
+
+if rg -n "\.local/" "$SOT" >/dev/null; then
+  echo "error: SOT still contains .local pointers"
+  rg -n "\.local/" "$SOT" || true
+  exit 1
+else
+  echo "OK: SOT has no .local pointers"
+fi
+
+07) Commit / Push (RunAlways)
+
+ stage only docs paths (TEST)
+
+git add "$PLAN" "$TASK" "$SOT" "$EVDIR"
 git diff --cached --stat
 
-git commit -m "docs(pr58): finalize Issue #47 closeout evidence"
-git push -u origin feature/pr58-issue47-closeout
-```
 
-Create PR (example):
+ TEST: no .local staged (error)
 
-```bash
-gh pr create --repo "$REPO" \
-  --title "PR58: Issue #47 closeout (evidence + quiet main)" \
-  --body "Final evidence pointers for closing Issue #47. Links PR56+PR57, pins dependabot open=0 snapshot + prverify quiet main evidence." \
-  --base main
-```
+if git diff --cached --name-only | rg -n "^\.(local|local/)" >/dev/null; then
+  echo "error: .local staged"
+  git diff --cached --name-only | rg -n "^\.(local|local/)" || true
+  exit 1
+else
+  echo "OK: no .local staged"
+fi
 
-## 7) POST-MERGE SANITY (TEST)
 
-After merge, on main:
+ commit (if nothing staged -> skip)
 
-```bash
-git switch main
-git pull --ff-only
-nix run .#prverify
-```
+if git diff --cached --quiet; then
+  echo "skip: nothing to commit"
+else
+  git commit -m "docs(pr58): make Issue #47 closeout evidence pointerable"
+fi
 
-TEST:
-- Issue #47 is closed
-- open alerts still 0
-- prverify green
+
+ push
+
+git push
+
+08) Final Verification (TEST)
+
+ TEST: PR58 exists
+
+gh pr view 58 --repo "$REPO" --json url,headRefName,state -q '.' || (echo "error: cannot view PR58"; exit 1)
+
+
+ TEST: Issue #47 CLOSED
+
+gh issue view 47 --repo "$REPO" --json state -q .state || (echo "error: cannot view issue 47"; exit 1)
+
+
+ TEST: evidence files exist in repo tree
+
+ls -la "$EVDIR" | sed -n '1,200p'
+
+
+EOF
