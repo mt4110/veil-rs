@@ -11,7 +11,7 @@ If execution stops mid-way, resume from the last committed Phase.
 - [x] 0.2 tools exist: gh/jq/rg/cargo
 - [x] 0.3 branch created
 - [x] 0.4 evidence dirs created
-- [ ] Commit: docs scaffold
+- [x] Commit: docs scaffold
 
 STOP IF:
 - worktree cannot be made clean without uncertainty
