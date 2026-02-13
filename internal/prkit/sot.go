@@ -84,7 +84,11 @@ func findRepoRoot() (string, error) {
 
 func generateSOTContent(epic, slug, release string) string {
 	ts := time.Now().UTC().Format("2006-01-02")
-	return fmt.Sprintf(`# [PR-TBD] %s: %s
+	user := os.Getenv("USER")
+	if user == "" {
+		user = "unknown"
+	}
+	return fmt.Sprintf(`# [PR-TBD] %s
 
 ## Meta
 - Epic: %s
@@ -101,5 +105,5 @@ TODO: Describe the goal of this PR.
 
 ## Verification
 - [ ] TODO
-`, slug, slug, epic, release, ts, os.Getenv("USER"))
+`, slug, epic, release, ts, user)
 }

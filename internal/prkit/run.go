@@ -2,6 +2,8 @@ package prkit
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -39,6 +41,12 @@ func RunExecuteMode(outPath string, reviewBundle bool) (int, error) {
 	}
 
 	if outPath != "" {
+		// Validate directory existence
+		dir := filepath.Dir(outPath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return 2, fmt.Errorf("output directory does not exist: %s", dir)
+		}
+
 		if err := evidence.WriteJSON(outPath); err != nil {
 			return 1, fmt.Errorf("failed to write evidence to %s: %w", outPath, err)
 		}
@@ -69,29 +77,9 @@ func collectEvidence(mode string) (*Evidence, error) {
 	sha, err := getGitSHA()
 	if err != nil {
 		// Ensure we still emit failure evidence JSON on Git SHA resolution errors
-		if genErr := GenerateFailureEvidence(fmt.Errorf("cannot resolve git sha: %w", err)); genErr != nil {
-			// If we cannot even generate failure evidence, propagate that as an internal error
-			return nil, genErr
-		}
-		// Evidence was emitted with a failure status; signal failure via exit code
-		// Logic in wrapper will handle outputting this failure evidence if needed,
-		// but GenerateFailureEvidence writes to Stdout by default.
-		// For verification consistency we should probably return the "Failure Evidence" object
-		// instead of printing it immediately if we want to support --out.
-		// However, GenerateFailureEvidence is existing helper.
-		// Let's refactor GenerateFailureEvidence to return *Evidence instead of printing?
-		// For now, let's keep it simple. If failure occurs here, we might just fail.
-		// BUT the contract says we should emit evidence.
-
-		// To properly support --out for failure cases, we should adjust GenerateFailureEvidence.
-		// But for minimal changes: stick to printing behavior for catastrophic early failure?
-		// Or better: construct partial evidence and return it with error?
-
-		// Let's rely on the existing behavior for now, assuming "cannot resolve git sha" is rare/fatal.
-		// Actually, let's make collectEvidence robust.
 		evidence.GitSHA = "unknown"
-		// We will continue to try running checks? Or fail immediately?
-		// Original code returned 2.
+		// We could try to return partial evidence, but for now we follow the existing pattern
+		// of failing the execution if we can't contextually bind to a commit.
 		return nil, fmt.Errorf("cannot resolve git sha: %w", err)
 	}
 	evidence.GitSHA = sha

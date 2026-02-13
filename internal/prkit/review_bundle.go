@@ -20,7 +20,14 @@ func generateReviewBundle() (string, error) {
 
 	// 2. Run the script
 	// MODE=wip bash <script>
+	// Run from repo root to ensure consistent behavior
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find repo root: %w", err)
+	}
+
 	cmd := exec.Command("bash", scriptPath)
+	cmd.Dir = repoRoot
 	cmd.Env = append(os.Environ(), "MODE=wip")
 
 	// We need to capture stdout to parse "OK: <path>"
@@ -34,31 +41,42 @@ func generateReviewBundle() (string, error) {
 	}
 
 	// 3. Parse output
-	// Expecting last line to be "OK: <path>"
+	// Expecting *last line* to be "OK: <path>"
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	var bundlePath string
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(line, "OK: ") {
-			bundlePath = strings.TrimPrefix(line, "OK: ")
-			break
-		}
+	if len(lines) == 0 {
+		return "", fmt.Errorf("empty output from review bundle script")
 	}
 
+	lastLine := strings.TrimSpace(lines[len(lines)-1])
+	const okPrefix = "OK: "
+	if !strings.HasPrefix(lastLine, okPrefix) {
+		return "", fmt.Errorf("could not find '%s<path>' in last line of review bundle output:\n%s", okPrefix, output)
+	}
+
+	bundlePath := strings.TrimPrefix(lastLine, okPrefix)
 	if bundlePath == "" {
-		return "", fmt.Errorf("could not find 'OK: <path>' in review bundle output:\n%s", output)
+		return "", fmt.Errorf("empty bundle path in review bundle output:\n%s", output)
 	}
 
-	// 4. Compute SHA256
-	// The path from review_bundle.sh might be relative to repo root or absolute.
-	// The script is run from CWD which is repo root.
-	// Output is usually relative ".local/..." or absolute.
+	// Adjust bundlePath to be absolute if it's relative, or just trust it?
+	// The script usually prints relative path from repo root.
+	// Let's resolve it relative to repoRoot if it is not absolute.
+	if !filepath.IsAbs(bundlePath) {
+		bundlePath = filepath.Join(repoRoot, bundlePath)
+	}
+
+	// 4. Validate existence
+	if _, err := os.Stat(bundlePath); err != nil {
+		return "", fmt.Errorf("bundle path reported by script does not exist: %s: %w", bundlePath, err)
+	}
+
+	// 5. Compute SHA256
 	sha, err := computeSHA256(bundlePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to compute sha256 of bundle %s: %w", bundlePath, err)
 	}
 
-	// 5. Return formatted string
+	// 6. Return formatted string
 	// Format: "review_bundle:<filename>:<sha256>"
 	filename := filepath.Base(bundlePath)
 	return fmt.Sprintf("review_bundle:%s:%s", filename, sha), nil
