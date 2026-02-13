@@ -51,3 +51,5 @@ test_output*.txt
 review/
 crates/veil-cli/.veil/
 .local/pr44/
+# Go binaries
+/prkit
