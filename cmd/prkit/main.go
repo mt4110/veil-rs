@@ -41,9 +41,16 @@ func run() int {
 
 	const failGenErr = "failed to generate failure evidence: %v\n"
 
+	if !dryRun {
+		if err := prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run")); err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
+		}
+		return 2
+	}
+
 	if format != "portable-json" {
 		if err := prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format)); err != nil {
-			fmt.Fprintf(os.Stderr, failGenErr, err)
+			fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
 		}
 		return 2
 	}

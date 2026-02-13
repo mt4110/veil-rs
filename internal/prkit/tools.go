@@ -15,7 +15,7 @@ func collectToolVersions() []ToolVersion {
 		if err != nil {
 			versions = append(versions, ToolVersion{
 				Name:    tool,
-				Version: fmt.Sprintf("skip %s: %v", tool, err), // 1-line reason
+				Version: fmt.Sprintf("skip: %v", err), // 1-line reason
 			})
 		} else {
 			versions = append(versions, ToolVersion{
@@ -30,7 +30,7 @@ func collectToolVersions() []ToolVersion {
 func getToolVersion(tool string) (string, error) {
 	_, err := exec.LookPath(tool)
 	if err != nil {
-		return "", fmt.Errorf("not found in PATH")
+		return "", fmt.Errorf("not found in PATH: %w", err)
 	}
 
 	// Most tools support --version, some like go use version
