@@ -1170,5 +1170,5 @@ Tests:
 PASS: All checks passed.
 Exit code: 0
 ```
--rw-r--r-- 1 masakitakemura staff 59K Feb 13 12:00 /Users/masakitakemura/_workspace/veil-rs/.local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
-OK: /Users/masakitakemura/_workspace/veil-rs/.local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
+-rw-r--r-- 1 masakitakemura staff 59K Feb 13 12:00 .local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
+OK: .local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
