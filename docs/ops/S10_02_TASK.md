@@ -91,4 +91,4 @@
 - [x] git add docs/pr
 - [x] git commit -m "docs(pr63): add SOT"
 - [x] git push
-- [ ] CIの “SOT Missing” が消えることを確認
+- [x] CIの “SOT Missing” が消えることを確認
