@@ -19,7 +19,13 @@ func RunDryRun() (int, error) {
 	// Collect Git SHA
 	sha, err := getGitSHA()
 	if err != nil {
-		return 1, fmt.Errorf("cannot resolve git sha: %w", err)
+		// Ensure we still emit failure evidence JSON on Git SHA resolution errors
+		if genErr := GenerateFailureEvidence(fmt.Errorf("cannot resolve git sha: %w", err)); genErr != nil {
+			// If we cannot even generate failure evidence, propagate that as an internal error
+			return 1, genErr
+		}
+		// Evidence was emitted with a failure status; signal failure via exit code
+		return 2, nil
 	}
 	evidence.GitSHA = sha
 

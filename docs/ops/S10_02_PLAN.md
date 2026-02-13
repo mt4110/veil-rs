@@ -68,8 +68,7 @@ plan:
   - PASS => exit_code=0
   - FAIL => exit_code!=0
 - output:
-  - human text (短い)
-  - portable evidence JSON (最後に1発、安定フォーマット)
+  - portable evidence JSON のみ（最後に1発、安定フォーマット。余計な human text は出さない）
 
 ---
 

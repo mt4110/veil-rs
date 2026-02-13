@@ -8,28 +8,27 @@ import (
 
 func getGitSHA() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("git rev-parse HEAD failed: %v, output: %s", err, strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
 func checkGitCleanWorktree() CheckResult {
 	cmd := exec.Command("git", "status", "--porcelain=v1")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 
 	result := CheckResult{
 		Name: "git_clean_worktree",
 	}
 
+	output := strings.TrimSpace(string(out))
 	if err != nil {
 		result.Status = "FAIL"
-		result.Details = fmt.Sprintf("failed to run git status: %v, output: %s", err, string(out))
+		result.Details = fmt.Sprintf("failed to run git status: %v, output: %s", err, output)
 		return result
 	}
-
-	output := strings.TrimSpace(string(out))
 	if output == "" {
 		result.Status = "PASS"
 		result.Details = "worktree is clean"

@@ -36,8 +36,8 @@ func run() int {
 
 	exitCode, err := prkit.RunDryRun()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		return 1 // Fallback generic error code
+		_ = prkit.GenerateFailureEvidence(err)
+		return 2
 	}
 	return exitCode
 }
