@@ -1,4 +1,9 @@
-== verify ==
+# S10 Kickoff Evidence
+
+> [!NOTE]
+> Initial run (below) was WIP/dirty. See "Clean Rail Re-run" at the bottom for the sterile baseline.
+
+== verify (WIP) ==
 # PR verify report
 
 このレポートは `nix run .#prverify` の実行結果です。
@@ -1148,3 +1153,22 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 --- Dependabot Alerts ---
 []
+
+## Clean Rail Re-run (post-commit)
+
+- git: d795bf9 (clean)
+- prverify: PASS
+- [Portable-first Evidence Policy](S10_ACCEPTANCE.md#2-deterministic-evidence-portable-first)
+
+```text
+Tests:
+- `cargo test -p veil-cli --test cli_tests` => OK
+- `cargo test --workspace` => OK
+- `dep-guard` => OK
+- `drift-check` => OK
+
+PASS: All checks passed.
+Exit code: 0
+```
+-rw-r--r-- 1 masakitakemura staff 59K Feb 13 12:00 /Users/masakitakemura/_workspace/veil-rs/.local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
+OK: /Users/masakitakemura/_workspace/veil-rs/.local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
