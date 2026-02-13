@@ -1287,7 +1287,7 @@ Output:
 - PR #64: Refactor RunDryRun to return exit code instead of calling os.Exit (app/copilot-swe-agent)
 
 ### Remediation Actions
-- **Absolute Paths**: Removed absolute paths (`<repo_root>/`) from `docs/ops/S10_evidence.md` and `docs/evidence` logs.
+- **Absolute Paths**: Removed absolute Unix paths (e.g., `/Users/.../veil-rs/`) and replaced them with relative paths (`./`) in `docs/ops/S10_evidence.md` and `docs/evidence` logs.
 - **Broken Fences**: Audit (including PR 68 files) found no broken markdown fences in touched files.
 - **CWD Dependencies**: No shell execution found requiring `cmd.Dir` pinning fixes.
 - **Temp Files**: No accidental tracked temp files found.
