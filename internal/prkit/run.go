@@ -54,7 +54,7 @@ func GenerateFailureEvidence(failureErr error) error {
 	evidence := Evidence{
 		SchemaVersion:  1,
 		TimestampUTC:   time.Now().UTC().Format("20060102T150405Z"),
-		Mode:           "preflight", // Distinct mode for boot failures
+		Mode:           "dry-run",
 		Status:         "FAIL",
 		ExitCode:       2,
 		ArtifactHashes: []string{},
