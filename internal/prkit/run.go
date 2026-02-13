@@ -2,11 +2,10 @@ package prkit
 
 import (
 	"fmt"
-	"os"
 	"time"
 )
 
-func RunDryRun() error {
+func RunDryRun() (int, error) {
 	// Initialize evidence
 	evidence := Evidence{
 		SchemaVersion:  1,
@@ -20,7 +19,7 @@ func RunDryRun() error {
 	// Collect Git SHA
 	sha, err := getGitSHA()
 	if err != nil {
-		return fmt.Errorf("cannot resolve git sha: %w", err)
+		return 1, fmt.Errorf("cannot resolve git sha: %w", err)
 	}
 	evidence.GitSHA = sha
 
@@ -41,12 +40,15 @@ func RunDryRun() error {
 		evidence.Status = "FAIL"
 		evidence.ExitCode = 2
 		if err := evidence.PrintJSON(); err != nil {
-			return err
+			return 2, err
 		}
-		os.Exit(2)
+		return 2, nil
 	}
 
-	return evidence.PrintJSON()
+	if err := evidence.PrintJSON(); err != nil {
+		return 1, err
+	}
+	return 0, nil
 }
 
 func GenerateFailureEvidence(failureErr error) error {

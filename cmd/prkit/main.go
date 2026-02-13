@@ -9,13 +9,10 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(2)
-	}
+	os.Exit(run())
 }
 
-func run() error {
+func run() int {
 	var dryRun bool
 	var format string
 
@@ -25,13 +22,18 @@ func run() error {
 
 	if !dryRun {
 		_ = prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run"))
-		os.Exit(2)
+		return 2
 	}
 
 	if format != "portable-json" {
 		_ = prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format))
-		os.Exit(2)
+		return 2
 	}
 
-	return prkit.RunDryRun()
+	exitCode, err := prkit.RunDryRun()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1 // Fallback generic error code
+	}
+	return exitCode
 }

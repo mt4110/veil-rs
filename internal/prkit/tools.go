@@ -15,7 +15,7 @@ func collectToolVersions() []ToolVersion {
 		if err != nil {
 			versions = append(versions, ToolVersion{
 				Name:    tool,
-				Version: fmt.Sprintf("skip: %v", err), // 1-line reason
+				Version: fmt.Sprintf("skip %s: %v", tool, err), // 1-line reason
 			})
 		} else {
 			versions = append(versions, ToolVersion{
@@ -40,9 +40,9 @@ func getToolVersion(tool string) (string, error) {
 	}
 
 	cmd := exec.Command(tool, arg)
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("execution failed")
+		return "", fmt.Errorf("execution failed: %v, output: %s", err, strings.TrimSpace(string(out)))
 	}
 
 	return strings.TrimSpace(string(out)), nil

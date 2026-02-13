@@ -1,6 +1,7 @@
 package prkit
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -24,7 +25,7 @@ func checkGitCleanWorktree() CheckResult {
 
 	if err != nil {
 		result.Status = "FAIL"
-		result.Details = "failed to run git status"
+		result.Details = fmt.Sprintf("failed to run git status: %v, output: %s", err, string(out))
 		return result
 	}
 
