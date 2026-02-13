@@ -1,4 +1,4 @@
-# [PR-TBD] prkit-exec-v1: prkit-exec-v1
+# [PR-TBD] prkit-exec-v1: Execution toolkit v1
 
 ## Meta
 - Epic: A
