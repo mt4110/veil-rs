@@ -29,7 +29,7 @@
 
 ### ルール（これだけ守れば事故らない）
 - 手動実行のホスト側は `set -eo pipefail` を推奨（`-u` は付けない）
-- `-u` が必要なら **必ず subshell に閉じ込める**（例：`bash -lc` の中）
+- `-u` が必要なら **必ず 別 bash プロセス に閉じ込める**（例：`bash -lc` の中）
 - 重要変数は「毎回セットし直す」：`REPO` / `ISSUE` / `EVDIR`（ターミナル跨ぎ事故対策）
 - 変数の未設定は `: "${VAR:?set VAR}"` で即死させる（嘘を付かない）
 - ファイル生成は heredoc 禁止。**`printf` を使う**
@@ -46,7 +46,7 @@ EVDIR="docs/evidence/pr59"
 : "${REPO:?set REPO}" "${ISSUE:?set ISSUE}" "${EVDIR:?set EVDIR}"
 mkdir -p "$EVDIR"
 
-# set -u を使いたい時（subshell に封印）
+# set -u を使いたい時（別 bash プロセスに封印）
 env REPO="mt4110/veil-rs" ISSUE="59" EVDIR="docs/evidence/pr59" \
 bash -lc 'set -euo pipefail
 : "${REPO:?}" "${ISSUE:?}" "${EVDIR:?}"
@@ -73,5 +73,12 @@ test -n "$LATEST" && test -f "$LATEST"
 mkdir -p docs/evidence/prverify
 cp -a "$LATEST" "docs/evidence/prverify/$(basename "$LATEST")"
 ```
+## Terminology Control（用語の厳密性）
 
+誤解による運用ミスを防ぐため、以下の用語を厳密に使い分ける：
 
+- **別 bash プロセス**: `bash -lc '...'` などによって新しく起動された Bash インスタンスを指す。
+  - 親シェルの状態（set/shopt/関数/alias/trap など）が引き継がれず隔離される。
+  - **注意**: ファイルシステムやネットワークは同じ OS 上で共有される。
+- **subshell（厳密）**: `( list )` や `$( command )` など、Bash 構文が作る子プロセス環境を指す。
+  - 親シェルの状態の多くを引き継ぐ。この runbook では、この意味以外で subshell という言葉を使わない。
