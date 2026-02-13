@@ -69,10 +69,10 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
    Compiling hyper-rustls v0.27.7
    Compiling reqwest v0.12.28
    Compiling sqlx-postgres v0.8.6
-   Compiling veil-guardian v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-guardian)
-   Compiling veil-core v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-core)
-   Compiling veil-cli v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-cli)
-   Compiling veil-server v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-server)
+   Compiling veil-guardian v0.17.0 (./crates/veil-guardian)
+   Compiling veil-core v0.17.0 (./crates/veil-core)
+   Compiling veil-cli v0.17.0 (./crates/veil-cli)
+   Compiling veil-server v0.17.0 (./crates/veil-server)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 24.37s
      Running unittests src/main.rs (target/debug/deps/veil-7b4d0451de6f73b2)
 
@@ -1276,3 +1276,23 @@ Output:
   "artifact_hashes": []
 }
 ```
+
+## S10-06 Post-merge Copilot PR Audit Evidence
+
+### Audited PRs (Suspects)
+- PR #68: fix(prkit): improve error diagnostics in git check functions (app/copilot-swe-agent)
+- PR #67: Use CombinedOutput to capture stderr in git status check (app/copilot-swe-agent)
+- PR #66: fix(prkit): wrap exec.LookPath error for actionable debugging (app/copilot-swe-agent)
+- PR #65: fix(prkit): remove redundant tool name from skip message format (app/copilot-swe-agent)
+- PR #64: Refactor RunDryRun to return exit code instead of calling os.Exit (app/copilot-swe-agent)
+
+### Remediation Actions
+- **Absolute Paths**: Removed absolute paths (`/Users/masakitakemura/_workspace/veil-rs/`) from `docs/ops/S10_evidence.md` and `docs/evidence` logs.
+- **Broken Fences**: Audit (including PR 68 files) found no broken markdown fences in touched files.
+- **CWD Dependencies**: No shell execution found requiring `cmd.Dir` pinning fixes.
+- **Temp Files**: No accidental tracked temp files found.
+
+### Verification
+**Command**: `nix run .#prverify`
+**Status**: PASS
+**Report**: `.local/prverify/prverify_20260213T104023Z_a7695e1.md`
