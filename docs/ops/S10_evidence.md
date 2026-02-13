@@ -1292,7 +1292,6 @@ Output (partial):
   ]
 }
 ```
-```
 (Note: exit_code 2 is expected due to dirty worktree during development)
 
 ## S10-05 SOT Scaffolding Evidence
