@@ -70,12 +70,28 @@ func findReviewBundleScript() (string, error) {
 		"ops/review_bundle.sh",
 	}
 
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			return c, nil
-		}
+	startDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
-	return "", fmt.Errorf("review_bundle script not found in %v", candidates)
+
+	dir := startDir
+	for {
+		for _, c := range candidates {
+			fullPath := filepath.Join(dir, c)
+			if _, err := os.Stat(fullPath); err == nil {
+				return fullPath, nil
+			}
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("review_bundle script not found in %v (starting from %s)", candidates, startDir)
 }
 
 func computeSHA256(path string) (string, error) {
