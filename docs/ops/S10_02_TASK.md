@@ -5,15 +5,15 @@
 
 ## 0. Preflight (repo状態とパス確定)
 
-- [ ] cd "$(git rev-parse --show-toplevel)"
-- [ ] git status -sb
-- [ ] Verify worktree is clean (`git status --porcelain=v1` is empty)
+- [x] cd "$(git rev-parse --show-toplevel)"
+- [x] git status -sb
+- [x] Verify worktree is clean (`git status --porcelain=v1` is empty)
   - [ ] if not clean: error "worktree dirty => STOP (commit/stash first)"
-- [ ] Verify repo layout (cmd/prverify exists)
+- [x] Verify repo layout (cmd/prverify exists)
   - [ ] if not found: error "prverify cmd not found => STOP (need repo layout output)"
-- [ ] Verify repo layout (internal/ exists)
+- [x] Verify repo layout (internal/ exists)
   - [ ] if not found: error "internal/ not found => STOP (do not invent new layout)"
-- [ ] Verify repo layout (docs/ops exists)
+- [x] Verify repo layout (docs/ops exists)
   - [ ] if not found: error "docs/ops not found => STOP"
 
 ## 1. 実装ファイル作成（Goのみでロジック）
