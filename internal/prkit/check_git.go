@@ -8,9 +8,9 @@ import (
 
 func getGitSHA() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "HEAD")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("git rev-parse HEAD failed: %v, output: %s", err, strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
