@@ -18,8 +18,8 @@
 
 ## 1. 実装ファイル作成（Goのみでロジック）
 
-- [x] if exists("cmd/prkit"):
-  - [x] error "cmd/prkit already exists => STOP"
+- [x] Verify repo layout (cmd/prkit exists)
+  - [ ] if not found: error "cmd/prkit missing => STOP"
 - [x] create file: cmd/prkit/main.go
 - [x] create file: internal/prkit/portable_evidence.go
 - [x] create file: internal/prkit/run.go
@@ -28,9 +28,9 @@
 
 設計制約:
 - [x] if any map[string]any を evidence 出力に使いそうなら:
-  - [x] error "map order unstable => STOP (use struct + slice)"
+  - [ ] error "map order unstable => STOP (use struct + slice)"
 - [x] if shell script にロジックを入れそうなら:
-  - [x] error "logic must be Go => STOP"
+  - [ ] error "logic must be Go => STOP"
 
 ## 2. CLI wiring (dry-run only)
 
@@ -50,13 +50,13 @@
 - [x] tool_versions 収集
   - [x] for tool in [go, git, rustc, cargo, nix]:
     - [x] if tool not found:
-      - [x] skip "tool_versions:<tool>" reason="not found in PATH"
-      - [x] continue
+      - [ ] skip "tool_versions:<tool>" reason="not found in PATH"
+      - [ ] continue
     - [x] else:
       - [x] capture version string
 - [x] JSON 出力は struct の field order で固定
   - [x] if output is not stable/deterministic:
-    - [x] error "portable json unstable => STOP"
+    - [ ] error "portable json unstable => STOP"
 
 ## 4. Docs (ops) 追加
 
@@ -64,7 +64,7 @@
 - [x] create docs/ops/S10_02_TASK.md（このチェックリストを反映）
 - [x] append docs/ops/S10_evidence.md に evidence（コマンド + 出力）を追記
   - [x] if docs/ops/S10_evidence.md が無い:
-    - [x] error "S10 evidence missing => STOP (unexpected repo state)"
+    - [ ] error "S10 evidence missing => STOP (unexpected repo state)"
 
 ## 5. Tests / Verification
 
