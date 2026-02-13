@@ -41,10 +41,10 @@ go run ./cmd/prverify
    Compiling tokio-rustls v0.26.4
    Compiling hyper-rustls v0.27.7
    Compiling reqwest v0.12.28
-   Compiling veil-guardian v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-guardian)
-   Compiling veil-core v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-core)
+   Compiling veil-guardian v0.17.0 (<repo_root>/crates/veil-guardian)
+   Compiling veil-core v0.17.0 (<repo_root>/crates/veil-core)
    Compiling git2 v0.20.4
-   Compiling veil-cli v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-cli)
+   Compiling veil-cli v0.17.0 (<repo_root>/crates/veil-cli)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 15.44s
      Running tests/cli_tests.rs (target/debug/deps/cli_tests-878ade359a526a3a)
 
