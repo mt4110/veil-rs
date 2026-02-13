@@ -17,7 +17,7 @@ func getGitSHA() (string, error) {
 
 func checkGitCleanWorktree() CheckResult {
 	cmd := exec.Command("git", "status", "--porcelain=v1")
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 
 	result := CheckResult{
 		Name: "git_clean_worktree",
