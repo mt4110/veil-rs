@@ -6,7 +6,7 @@ progress: 100%
 - [x] DOCS_HOME=docs/ops を採用した事実を明記（“docs/ops exists” を根拠に1行）
 - [x] SKIP: docs/pr（理由1行: docs/opsがあるため探索不要）
 - [x] SKIP: docs/（理由1行: 同上）
-- [ ] ERROR/STOP: docs/ops が無い場合（将来の監査向けの停止条件）
+- [x] ERROR/STOP: docs/ops が無い場合（将来の監査向けの停止条件）
 
 ## Task 1 — Clean Rail verification
 - [x] `git status --porcelain=v1` must be empty
