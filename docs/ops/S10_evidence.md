@@ -1172,3 +1172,55 @@ Exit code: 0
 ```
 -rw-r--r-- 1 masakitakemura staff 59K Feb 13 12:00 .local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
 OK: .local/review-bundles/veil-rs_review_wip_20260213_120042_d795bf977a10.tar.gz
+
+## S10-02 pr-kit dry-run v1 Evidence
+
+Command: `unset GOROOT && go run ./cmd/prkit --dry-run`
+
+Output:
+```json
+{
+  "schema_version": 1,
+  "timestamp_utc": "20260213T044759Z",
+  "mode": "dry-run",
+  "status": "FAIL",
+  "exit_code": 2,
+  "git_sha": "652dfe63a21251c0c3a51bfa2dffb66d5308c264",
+  "tool_versions": [
+    {
+      "name": "go",
+      "version": "go version go1.24.11 darwin/arm64"
+    },
+    {
+      "name": "git",
+      "version": "git version 2.51.2"
+    },
+    {
+      "name": "rustc",
+      "version": "rustc 1.92.0 (ded5c06cf 2025-12-08)"
+    },
+    {
+      "name": "cargo",
+      "version": "cargo 1.92.0 (344c4567c 2025-10-21)"
+    },
+    {
+      "name": "nix",
+      "version": "nix (Nix) 2.32.4"
+    }
+  ],
+  "checks": [
+    {
+      "name": "git_clean_worktree",
+      "status": "FAIL",
+      "details": "?? cmd/prkit/\n?? docs/ops/S10_02_PLAN.md\n?? docs/ops/S10_02_TASK.md\n?? internal/prkit/"
+    }
+  ],
+  "command_list": [
+    {
+      "name": "git_status_porcelain",
+      "cmd": "git status --porcelain=v1"
+    }
+  ],
+  "artifact_hashes": []
+}
+```
