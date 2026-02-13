@@ -163,4 +163,4 @@ PY
 - [x] git commit -m "chore(s10-06): post-merge copilot audit fixes + evidence"
 - [x] git push -u origin "$BR"
 - [x] gh pr create --base main --head "$BR"
-- [ ] paste PR body in veil-rs SOT/証拠スタイル（ガチガチ版）
+- [x] paste PR body in veil-rs SOT/証拠スタイル（ガチガチ版）
