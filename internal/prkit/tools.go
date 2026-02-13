@@ -30,7 +30,7 @@ func collectToolVersions() []ToolVersion {
 func getToolVersion(tool string) (string, error) {
 	_, err := exec.LookPath(tool)
 	if err != nil {
-		return "", fmt.Errorf("not found in PATH")
+		return "", fmt.Errorf("not found in PATH: %w", err)
 	}
 
 	// Most tools support --version, some like go use version
