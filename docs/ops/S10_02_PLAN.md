@@ -28,6 +28,7 @@
 ---
 
 ## Path Pinning (実パス確定の方式)
+> Note: 実装ディレクトリは `cmd/prkit` だが、ユーザー向けのコマンド名は `pr-kit` を予定（kebab-case）。
 
 plan:
 - for candidate in ["cmd/prverify", "cmd/prverify/main.go", "cmd/prverify/*.go"]:

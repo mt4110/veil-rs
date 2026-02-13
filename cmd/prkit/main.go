@@ -24,11 +24,13 @@ func run() error {
 	flag.Parse()
 
 	if !dryRun {
-		return fmt.Errorf("v1 requires --dry-run")
+		_ = prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run"))
+		os.Exit(2)
 	}
 
 	if format != "portable-json" {
-		return fmt.Errorf("unsupported format: %s", format)
+		_ = prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format))
+		os.Exit(2)
 	}
 
 	return prkit.RunDryRun()

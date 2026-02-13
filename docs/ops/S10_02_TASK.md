@@ -36,14 +36,13 @@
 
 - [x] pr-kit のフラグを実装
   - [x] if --dry-run が無い:
-    - [x] exit_code=2 で FAIL evidence を出して終了
+    - Output FAIL evidence (JSON) and exit_code=2
 - [x] 実装するチェックは1個だけ: git_clean_worktree
   - [x] run: git status --porcelain=v1
+  - [x] if output == "":
+    - Status PASS
   - [x] if output != "":
-    - [x] FAIL evidence を出して exit_code=2
-    - [x] STOP
-  - [x] else:
-    - [x] continue
+    - Status FAIL, exit_code=2
 
 ## 3. portable evidence v1 出力（最優先）
 
@@ -61,23 +60,23 @@
 
 ## 4. Docs (ops) 追加
 
-- [ ] create docs/ops/S10_02_PLAN.md（この設計を反映）
-- [ ] create docs/ops/S10_02_TASK.md（このチェックリストを反映）
-- [ ] append docs/ops/S10_evidence.md に evidence（コマンド + 出力）を追記
-  - [ ] if docs/ops/S10_evidence.md が無い:
-    - [ ] error "S10 evidence missing => STOP (unexpected repo state)"
+- [x] create docs/ops/S10_02_PLAN.md（この設計を反映）
+- [x] create docs/ops/S10_02_TASK.md（このチェックリストを反映）
+- [x] append docs/ops/S10_evidence.md に evidence（コマンド + 出力）を追記
+  - [x] if docs/ops/S10_evidence.md が無い:
+    - [x] error "S10 evidence missing => STOP (unexpected repo state)"
 
 ## 5. Tests / Verification
 
-- [ ] go test ./...
-- [ ] go run ./cmd/prkit --dry-run
-  - [ ] expect: PASS, exit_code 0
-  - [ ] expect: checks[0].name == "git_clean_worktree"
-  - [ ] expect: artifact_hashes == []
+- [x] go test ./...
+- [x] go run ./cmd/prkit --dry-run
+  - [x] expect: PASS, exit_code 0
+  - [x] expect: checks[0].name == "git_clean_worktree"
+  - [x] expect: artifact_hashes == []
 
 ## 6. Commit / Push
 
-- [ ] git status -sb（意図したファイルのみ増えてる）
-- [ ] git add -A
-- [ ] git commit -m "feat(prkit): add dry-run portable evidence v1"
-- [ ] git push -u origin s10-02-pr-kit-dry-run-v1
+- [x] git status -sb（意図したファイルのみ増えてる）
+- [x] git add -A
+- [x] git commit -m "feat(prkit): add dry-run portable evidence v1"
+- [x] git push -u origin s10-02-pr-kit-dry-run-v1

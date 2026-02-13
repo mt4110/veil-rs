@@ -48,3 +48,39 @@ func RunDryRun() error {
 
 	return evidence.PrintJSON()
 }
+
+func GenerateFailureEvidence(failureErr error) error {
+	// Initialize evidence with basic defaults
+	evidence := Evidence{
+		SchemaVersion:  1,
+		TimestampUTC:   time.Now().UTC().Format("20060102T150405Z"),
+		Mode:           "preflight", // Distinct mode for boot failures
+		Status:         "FAIL",
+		ExitCode:       2,
+		ArtifactHashes: []string{},
+	}
+
+	// Try to collect Git SHA (best effort)
+	if sha, err := getGitSHA(); err == nil {
+		evidence.GitSHA = sha
+	} else {
+		evidence.GitSHA = "unknown"
+	}
+
+	// Collect Tool Versions (for consistency)
+	evidence.ToolVersions = collectToolVersions()
+
+	// Add the failure as a specific check result
+	evidence.Checks = []CheckResult{
+		{
+			Name:    "cli_bootstrap",
+			Status:  "FAIL",
+			Details: failureErr.Error(),
+		},
+	}
+
+	// Command list might be empty or partial in this case
+	evidence.CommandList = []Command{}
+
+	return evidence.PrintJSON()
+}
