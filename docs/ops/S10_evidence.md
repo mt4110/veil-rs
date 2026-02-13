@@ -1224,3 +1224,55 @@ Output:
   "artifact_hashes": []
 }
 ```
+
+## S10-02 Clean Rail Re-run
+
+Command: `unset GOROOT && go run ./cmd/prkit --dry-run`
+
+Output:
+```json
+{
+  "schema_version": 1,
+  "timestamp_utc": "20260213T051231Z",
+  "mode": "dry-run",
+  "status": "PASS",
+  "exit_code": 0,
+  "git_sha": "fd1e54d1f3dab6ae587bf2427e3e291d03eb4d48",
+  "tool_versions": [
+    {
+      "name": "go",
+      "version": "go version go1.24.11 darwin/arm64"
+    },
+    {
+      "name": "git",
+      "version": "git version 2.51.2"
+    },
+    {
+      "name": "rustc",
+      "version": "rustc 1.92.0 (ded5c06cf 2025-12-08)"
+    },
+    {
+      "name": "cargo",
+      "version": "cargo 1.92.0 (344c4567c 2025-10-21)"
+    },
+    {
+      "name": "nix",
+      "version": "nix (Nix) 2.32.4"
+    }
+  ],
+  "checks": [
+    {
+      "name": "git_clean_worktree",
+      "status": "PASS",
+      "details": "worktree is clean"
+    }
+  ],
+  "command_list": [
+    {
+      "name": "git_status_porcelain",
+      "cmd": "git status --porcelain=v1"
+    }
+  ],
+  "artifact_hashes": []
+}
+```
