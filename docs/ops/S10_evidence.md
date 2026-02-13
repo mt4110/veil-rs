@@ -3,7 +3,7 @@
 > [!NOTE]
 > Initial run (below) was WIP/dirty. See "Clean Rail Re-run" at the bottom for the sterile baseline.
 
-== verify (WIP) ==
+## Verify (WIP)
 # PR verify report
 
 このレポートは `nix run .#prverify` の実行結果です。
