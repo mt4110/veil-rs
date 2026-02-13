@@ -28,3 +28,5 @@ PR59 runbook の表現を技術的に正確化し、`bash -lc` を “subshell�
   - `docs/pr/PR-60-runbook-terminology-fix/plan.md`
   - `docs/pr/PR-60-runbook-terminology-fix/task.md`
 - Latest prverify report: `docs/evidence/prverify/prverify_20260213T000902Z_26bbf7e.md`
+
+Note: prverify was executed with a dirty working tree due to docs-only WIP files; no code changes involved.
