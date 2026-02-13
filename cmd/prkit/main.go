@@ -21,19 +21,23 @@ func run() int {
 	flag.Parse()
 
 	if !dryRun {
-		_ = prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run"))
+		if err := prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run")); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to generate failure evidence: %v\n", err)
+		}
 		return 2
 	}
 
 	if format != "portable-json" {
-		_ = prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format))
+		if err := prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format)); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to generate failure evidence: %v\n", err)
+		}
 		return 2
 	}
 
 	exitCode, err := prkit.RunDryRun()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		return 1 // Fallback generic error code
+		_ = prkit.GenerateFailureEvidence(err)
+		return 2
 	}
 	return exitCode
 }

@@ -15,7 +15,7 @@ func collectToolVersions() []ToolVersion {
 		if err != nil {
 			versions = append(versions, ToolVersion{
 				Name:    tool,
-				Version: fmt.Sprintf("skip %s: %v", tool, err), // 1-line reason
+				Version: fmt.Sprintf("skip: %v", err), // 1-line reason
 			})
 		} else {
 			versions = append(versions, ToolVersion{

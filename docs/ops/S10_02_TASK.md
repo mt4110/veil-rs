@@ -50,7 +50,7 @@
 - [x] tool_versions 収集
   - [x] for tool in [go, git, rustc, cargo, nix]:
     - [x] if tool not found:
-      - [ ] skip "tool_versions:<tool>" reason="not found in PATH"
+      - [ ] record tool_versions entry: name="<tool>", version="", status="skip", reason="not found in PATH"
       - [ ] continue
     - [x] else:
       - [x] capture version string

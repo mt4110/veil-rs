@@ -20,7 +20,7 @@ type Evidence struct {
 
 type ToolVersion struct {
 	Name    string `json:"name"`
-	Version string `json:"version"` // version string or "skip: <reason>"
+	Version string `json:"version"` // version string or "skip <tool>: <reason>"
 }
 
 type CheckResult struct {
