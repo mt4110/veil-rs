@@ -56,39 +56,34 @@ func run() int {
 		return 0
 	}
 
-	if !dryRun {
-		if err := prkit.GenerateFailureEvidence(fmt.Errorf("v1 requires --dry-run")); err != nil {
+	// Normal mode (dry-run or run)
+	if dryRun && runMode {
+		fmt.Fprintln(os.Stderr, "Error: cannot specify both --dry-run and --run")
+		return 2
+	}
+	if !dryRun && !runMode {
+		if err := prkit.GenerateFailureEvidence(fmt.Errorf("must specify either --dry-run, --run, or --sot-new")); err != nil {
 			fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
 		}
 		return 2
 	}
 
-	// Validate flag exclusivity
-	if sotNew {
-		if dryRun || runMode || reviewBundle || outPath != "" {
-			fmt.Fprintln(os.Stderr, "Error: --sot-new cannot be combined with --dry-run, --run, --review-bundle, or --out")
+	// Run mode specific flags
+	if dryRun {
+		if reviewBundle {
+			fmt.Fprintln(os.Stderr, "Error: --review-bundle is only supported in --run mode")
 			return 2
+		}
+		if outPath != "" {
+			fmt.Println("Warning: --out is ignored in --dry-run mode")
 		}
 	} else {
-		// Normal mode (dry-run or run)
-		if dryRun && runMode {
-			fmt.Fprintln(os.Stderr, "Error: cannot specify both --dry-run and --run")
-			return 2
-		}
-		if !dryRun && !runMode {
-			fmt.Fprintln(os.Stderr, "Error: must specify either --dry-run, --run, or --sot-new")
-			return 2
-		}
-
-		// Run mode specific flags
-		if dryRun {
-			if reviewBundle {
-				fmt.Fprintln(os.Stderr, "Error: --review-bundle is only supported in --run mode")
-				return 2
+		// Run mode
+		if outPath == "" {
+			if err := prkit.GenerateFailureEvidence(fmt.Errorf("--out is required in --run mode")); err != nil {
+				fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
 			}
-			if outPath != "" {
-				fmt.Println("Warning: --out is ignored in --dry-run mode")
-			}
+			return 2
 		}
 	}
 
