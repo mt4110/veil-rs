@@ -57,7 +57,7 @@
 - [x] go test ./... (PASS)
 - [x] nix run .#prverify (PASS)
 - [x] Save prverify report:
-  - [x] docs/evidence/prverify/prverify_20260214T115121Z_c0a1a07.md
+  - [x] docs/evidence/prverify/prverify_20260214T115657Z_3bdaede.md
 - [x] Update SOT to reference the evidence file path
 
 ## 6. PR prep (one PR completes S10-08)

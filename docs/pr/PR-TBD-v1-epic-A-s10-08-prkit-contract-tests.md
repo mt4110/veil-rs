@@ -29,7 +29,7 @@ The following behaviors are locked by contract tests:
 - **Stdout**: portable-json if error, otherwise silent/structured.
 
 ## Evidence
-- Report: [docs/evidence/prverify/prverify_20260214T115121Z_c0a1a07.md](../evidence/prverify/prverify_20260214T115121Z_c0a1a07.md)
+- Report: [docs/evidence/prverify/prverify_20260214T115657Z_3bdaede.md](../evidence/prverify/prverify_20260214T115657Z_3bdaede.md)
 - Tests: `go test -count=1 ./cmd/prkit`
 - Verification: `nix run .#prverify`
 
