@@ -26,7 +26,7 @@
   - [ ] `--run` が `DryRun` 前提でブロックされている箇所があれば解除
   - [ ] `--run` と `--dry-run` 同時指定は **エラーで拒否**（相互排他）
 - [ ] 相互排他の負のテスト（両方指定で落ちること）
-  - [ ] `go run ./cmd/prkit --run --dry-run --help && echo "ERROR: expected failure" || echo "OK: rejected conflicting flags"`
+  - [ ] `go run ./cmd/prkit --run --dry-run && echo "ERROR: expected failure" || echo "OK: rejected conflicting flags"`
 
 ## 4. Hardening SOT path（internal/prkit/sot.go）
 - [ ] `internal/prkit/sot.go` を編集：
