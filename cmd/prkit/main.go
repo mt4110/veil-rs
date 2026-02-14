@@ -99,9 +99,8 @@ func Run(argv []string, stdout, stderr io.Writer) int {
 		}
 
 		if err := prkit.ScaffoldSOT(epic, slug, release, apply); err != nil {
-			// scaffold失敗は「実行エラー」なので 1
-			fmt.Fprintf(stderr, "failed to scaffold SOT: %v\n", err)
-			return 1
+			// scaffold失敗は「実行エラー」なので fail() に委譲（JSON + stderr）
+			return fail(fmt.Errorf("failed to scaffold SOT: %w", err))
 		}
 		return 0
 	}

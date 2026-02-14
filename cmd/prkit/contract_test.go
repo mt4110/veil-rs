@@ -90,6 +90,9 @@ func TestContractSOTMissingArgs(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 		t.Errorf("stdout is not valid JSON: %v", err)
 	}
+	if status, ok := result["status"]; !ok || status != "FAIL" {
+		t.Errorf("expected status=FAIL in JSON, got %v", result)
+	}
 
 	// Check human output
 	if !strings.Contains(stderr.String(), "Error: --sot-new requires --epic and --slug") {
