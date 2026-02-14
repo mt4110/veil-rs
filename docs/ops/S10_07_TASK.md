@@ -36,7 +36,7 @@
 - [ ] dry-run で出力確認（※実際のフラグは `--help` の表示に従う）
   - [ ] 例（存在する場合のみ実行）：
     ```bash
-    go run ./cmd/prkit --dry-run --sot-new --epic A --slug test --release v1
+    go run ./cmd/prkit --sot-new --epic A --slug test --release v1
     ```
 - [ ] 出力が repo-relative であることを確認（abs-path が出たら STOP）
 
