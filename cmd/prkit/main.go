@@ -13,10 +13,10 @@ import (
 const program = "prkit"
 
 func main() {
-	os.Exit(run(os.Args[1:]))
+	os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(argv []string) int {
+func Run(argv []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet(program, flag.ContinueOnError)
 
 	// flagパッケージが勝手にstderrに吐くと、stdoutのportable-jsonと混線して地獄になるので握りつぶす。
@@ -56,10 +56,9 @@ func run(argv []string) int {
 	fs.BoolVar(&apply, "apply", false, "Apply SOT scaffolding (write file)")
 
 	usage := func() {
-		w := os.Stderr
-		fmt.Fprintf(w, "Usage of %s:\n", program)
+		fmt.Fprintf(stderr, "Usage of %s:\n", program)
 		// PrintDefaultsはFlagSetのOutputに書くので、一時的にstderrへ向ける
-		fs.SetOutput(w)
+		fs.SetOutput(stderr)
 		fs.PrintDefaults()
 		fs.SetOutput(io.Discard)
 	}
@@ -67,11 +66,11 @@ func run(argv []string) int {
 	fail := func(err error) int {
 		// 人間向けはstderr
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(stderr, err.Error())
 		}
 		// 監査向けはstdout（portable-json）
-		if genErr := prkit.GenerateFailureEvidence(err); genErr != nil {
-			fmt.Fprintf(os.Stderr, "failed to generate failure evidence: %v\n", genErr)
+		if genErr := prkit.GenerateFailureEvidence(err, stdout); genErr != nil {
+			fmt.Fprintf(stderr, "failed to generate failure evidence: %v\n", genErr)
 		}
 		return 2
 	}
@@ -79,7 +78,6 @@ func run(argv []string) int {
 	// Parse
 	if err := fs.Parse(argv); err != nil {
 		// ContinueOnError + io.Discard なので、自前でusageを出す
-		fmt.Fprintln(os.Stderr, err.Error())
 		usage()
 		return fail(err)
 	}
@@ -102,7 +100,7 @@ func run(argv []string) int {
 
 		if err := prkit.ScaffoldSOT(epic, slug, release, apply); err != nil {
 			// scaffold失敗は「実行エラー」なので 1
-			fmt.Fprintf(os.Stderr, "failed to scaffold SOT: %v\n", err)
+			fmt.Fprintf(stderr, "failed to scaffold SOT: %v\n", err)
 			return 1
 		}
 		return 0
@@ -122,7 +120,7 @@ func run(argv []string) int {
 			return fail(errors.New("Error: --review-bundle is only supported in --run mode"))
 		}
 		if outPath != "" {
-			fmt.Fprintln(os.Stderr, "Warning: --out is ignored in --dry-run mode")
+			fmt.Fprintln(stderr, "Warning: --out is ignored in --dry-run mode")
 		}
 	} else {
 		// Run mode
@@ -139,9 +137,9 @@ func run(argv []string) int {
 	var err error
 
 	if dryRun {
-		exitCode, err = prkit.RunDryRun()
+		exitCode, err = prkit.RunDryRun(stdout)
 	} else {
-		exitCode, err = prkit.RunExecuteMode(outPath, reviewBundle)
+		exitCode, err = prkit.RunExecuteMode(outPath, reviewBundle, stdout)
 	}
 
 	if err != nil {

@@ -184,41 +184,55 @@ func main() {
 		}
 	}
 
+	// 2.5) prkit tests (S10-08 gate)
+	{
+		cmdLine := "go test -count=1 ./cmd/prkit"
+		fmt.Printf("==> %s\n", cmdLine)
+		dur, err := runStreaming(root, "go", "test", "-count=1", "./cmd/prkit")
+		steps = append(steps, stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur})
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR: prkit tests failed:", err)
+			fmt.Println()
+			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+			os.Exit(1)
+		}
+	}
+
 	// 3) Dependency Guard
 	{
 		fmt.Println("==> Dependency Guard")
 		start := time.Now()
-		
+
 		// Run cmd/dep-trace
-		// Note: We deliberately use standard go run. 
+		// Note: We deliberately use standard go run.
 		// If GOROOT is messed up (like in local nix shells sometimes), we might need the same workaround as manual testing,
 		// but typically inside `nix run .#prverify`, the environment is cleaner.
 		// However, to be safe and consistent with the user's manual fix:
-		// We'll trust the current environment 'go' but if it fails with version skew, 
+		// We'll trust the current environment 'go' but if it fails with version skew,
 		// it fails safe (as error).
-		
+
 		cmd := exec.Command("go", "run", "./cmd/dep-trace")
 		cmd.Dir = root
-		
+
 		// Capture output to print on failure
 		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
-		
+
 		err := cmd.Run()
 		dur := time.Since(start)
-		
+
 		output := strings.TrimSpace(buf.String())
-		
+
 		steps = append(steps, stepResult{cmdLine: "dep-guard", ok: err == nil, duration: dur})
-		
+
 		if err != nil {
 			fmt.Printf("FAIL: Dependency Guard found issues (or failed to run):\n\n%s\n", output)
 			fmt.Println()
-			
+
 			// Add output to markdown note? Maybe too long.
 			// Just ensure it's in the log (done above).
-			
+
 			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 			os.Exit(1)
 		}
@@ -513,7 +527,6 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 			continue
 		}
 		numStr := rest[:idx]
-
 
 		// Verify digits (stdlib only)
 		// Pure stdlib logic, no regex

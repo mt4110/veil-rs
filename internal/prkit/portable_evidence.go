@@ -3,7 +3,9 @@ package prkit
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"time"
 )
 
 type Evidence struct {
@@ -35,13 +37,15 @@ type Command struct {
 	Cmd  string `json:"cmd"`
 }
 
-func (e *Evidence) PrintJSON() error {
+var Now = time.Now
+
+func (e *Evidence) PrintJSON(w io.Writer) error {
 	b, err := json.MarshalIndent(e, "", "  ")
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(b))
-	return nil
+	_, err = fmt.Fprintln(w, string(b))
+	return err
 }
 
 func (e *Evidence) WriteJSON(path string) error {
