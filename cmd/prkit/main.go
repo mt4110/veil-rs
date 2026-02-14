@@ -17,6 +17,8 @@ func main() {
 }
 
 func Run(argv []string, stdout, stderr io.Writer) int {
+	prkit.ResetTrace()
+
 	// Initialize ExecRunner with RepoRoot
 	if root, err := prkit.FindRepoRoot(); err == nil {
 		prkit.Init(root)

@@ -33,8 +33,15 @@ type CheckResult struct {
 }
 
 type Command struct {
-	Name string `json:"name"`
-	Cmd  string `json:"cmd"`
+	Argv            []string `json:"argv"`
+	CwdRel          string   `json:"cwd_rel,omitempty"`
+	Env             []EnvKV  `json:"env,omitempty"`
+	Stdout          string   `json:"stdout"`
+	Stderr          string   `json:"stderr"`
+	ExitCode        int      `json:"exit_code"`
+	ErrorKind       string   `json:"error_kind,omitempty"`
+	TruncatedStdout bool     `json:"truncated_stdout,omitempty"`
+	TruncatedStderr bool     `json:"truncated_stderr,omitempty"`
 }
 
 var Now = time.Now

@@ -87,11 +87,6 @@ func collectEvidence(mode string) (*Evidence, error) {
 	// Collect Tool Versions
 	evidence.ToolVersions = collectToolVersions()
 
-	// Define Command List (v1 contract)
-	evidence.CommandList = []Command{
-		{Name: "git_status_porcelain", Cmd: "git status --porcelain=v1"},
-	}
-
 	// Run Checks
 	// 1. git_clean_worktree
 	cleanCheck := checkGitCleanWorktree()
@@ -102,6 +97,7 @@ func collectEvidence(mode string) (*Evidence, error) {
 		evidence.ExitCode = 2
 	}
 
+	evidence.CommandList = ExecutionTrace
 	return &evidence, nil
 }
 

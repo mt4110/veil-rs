@@ -64,6 +64,14 @@ type ExecRunner interface {
 // It can be replaced by tests.
 var Runner ExecRunner = &ProdExecRunner{}
 
+// ExecutionTrace records all executed commands.
+var ExecutionTrace []Command
+
+// ResetTrace clears the execution trace.
+func ResetTrace() {
+	ExecutionTrace = nil
+}
+
 // Init initializes the default runner with the repository root.
 func Init(repoRoot string) {
 	Runner = &ProdExecRunner{RepoRoot: repoRoot}
@@ -106,7 +114,23 @@ func (r *ProdExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 
 	err := cmd.Run()
 
-	return r.constructResult(err, ctx, stdoutBuf.Bytes(), stderrBuf.Bytes())
+	res := r.constructResult(err, ctx, stdoutBuf.Bytes(), stderrBuf.Bytes())
+
+	// Record Trace
+	trace := Command{
+		Argv:            spec.Argv,
+		CwdRel:          spec.CwdRel,
+		Env:             spec.EnvKV,
+		Stdout:          res.Stdout,
+		Stderr:          res.Stderr,
+		ExitCode:        res.ExitCode,
+		ErrorKind:       res.ErrorKind,
+		TruncatedStdout: res.TruncatedStdout,
+		TruncatedStderr: res.TruncatedStderr,
+	}
+	ExecutionTrace = append(ExecutionTrace, trace)
+
+	return res
 }
 
 func (r *ProdExecRunner) resolveDir(cmd *exec.Cmd, spec ExecSpec) {
