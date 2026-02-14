@@ -41,7 +41,7 @@
 
 ### 3-A) Absolute path leak in docs
 
-- [x] rg -n --hidden -S '(/[U]sers/|/[h]ome/|[A-Za-z]:\\[^*])' docs -g'*.md' | tee ".local/copilot_audit/abs_path_hits.txt" || true
+- [x] PAT='(/[U]sers/|/[h]ome/|[A-Za-z]:\\[^*])'; rg -n --hidden -S "$PAT" docs -g'*.md' | tee ".local/copilot_audit/abs_path_hits.txt" || true
 - [x] if ".local/copilot_audit/abs_path_hits.txt" is non-empty:
   - [x] mark "remediation required: absolute paths in docs"
 - [x] else:
@@ -85,11 +85,11 @@ PY
 
 ### 3-D) Accidental tracked temp files
 
-- [x] rg -n -S 'pr_body.txt|TODO(TEMP)|scratch' -S . | tee ".local/copilot_audit/tmp_suspects.txt" || true
+- [x] rg -n -S 'pr_body.txt|TODO(TEMP)|scratch' . | tee ".local/copilot_audit/tmp_suspects.txt" || true
 
 ## 4) Baseline verification on main
 
-- [x] command -v nix >/dev/null 2>&1 && nix run .#prverify || true
+- [x] if command -v nix >/dev/null 2>&1; then nix run .#prverify; else echo "skipping baseline verification (nix missing)"; fi
 - [x] if verification FAIL:
   - [x] error "main verification FAIL => STOP (fix before guardrails)"
 
@@ -140,7 +140,7 @@ PY
 
 ## 7) Verification after fixes
 
-- [x] command -v nix >/dev/null 2>&1 && nix run .#prverify || true
+- [x] if command -v nix >/dev/null 2>&1; then nix run .#prverify; else echo "skipping post-fix verification (nix missing)"; fi
 - [x] if FAIL:
   - [x] error "post-fix verification FAIL => STOP"
 
