@@ -40,20 +40,26 @@ func ScaffoldSOT(epic, slug, release string, apply bool) error {
 	content := generateSOTContent(epic, slug, release)
 
 	// 5. Output
+	relPath, relErr := filepath.Rel(repoRoot, path)
+	displayPath := path
+	if relErr == nil {
+		displayPath = relPath
+	}
+
 	if apply {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
 		// Check if exists
 		if _, err := os.Stat(path); err == nil {
-			return fmt.Errorf("file already exists: %s", path)
+			return fmt.Errorf("file already exists: %s", displayPath)
 		}
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			return err
 		}
-		fmt.Printf("Created SOT: %s\n", path)
+		fmt.Printf("Created SOT: %s\n", displayPath)
 	} else {
-		fmt.Printf("Preview SOT: %s\n", path)
+		fmt.Printf("Preview SOT: %s\n", displayPath)
 		fmt.Println("---------------------------------------------------")
 		fmt.Println(content)
 		fmt.Println("---------------------------------------------------")
