@@ -12,7 +12,7 @@ Hardening `pr-kit` for merge readiness by fixing critical execution bugs and enf
 
 ### What
 - **Enable Execution**: Remove the blocking `if !dryRun` check in `main.go`.
-- **Portable Evidence**: Ensure no absolute paths (e.g., `/Users/...`) are leaked in documentation or output.
+- **Portable Evidence**: Ensure no absolute paths (e.g., `<HOME>/...`) are leaked in documentation or output.
 - **SOT Improvements**: Make SOT generator output repository-relative paths.
 
 ### Why

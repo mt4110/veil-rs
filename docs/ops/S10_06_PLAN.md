@@ -46,8 +46,8 @@ plan:
 
 3. run safety checks on changed files
 - checks:
-  - markdown_fence_integrity: count ``` per file; if odd => broken
-  - absolute_path_leak: search "/Users/" "/home/" "C:\" in docs/**/*.md and evidence logs
+  - markdown_fence_integrity: count code-fence markers (three backticks) per file; if odd => broken
+  - absolute_path_leak: search "/Users/" "<HOME>/" "C:\" in docs/**/*.md and evidence logs
   - cwd_dependency: search exec.Command("bash", ...) without cmd.Dir pinned to repo root
   - tmp_files: detect accidental tracked files like pr_body.txt / scratch / .local paths
 - for each check:

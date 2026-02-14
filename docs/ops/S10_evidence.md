@@ -1329,7 +1329,7 @@ Created SOT: <repo_root>/docs/pr/PR-TBD-v0.XX.YY-epic-A-prkit-exec-v1.md
 - PR #64: Refactor RunDryRun to return exit code instead of calling os.Exit (app/copilot-swe-agent)
 
 ### Remediation Actions
-- **Absolute Paths**: Removed absolute Unix paths (e.g., `/Users/.../veil-rs/`) and replaced them with relative paths (`./`) in `docs/ops/S10_evidence.md` and `docs/evidence` logs.
+- **Absolute Paths**: Removed absolute Unix paths (e.g., `<HOME>/.../veil-rs/`) and replaced them with relative paths (`./`) in `docs/ops/S10_evidence.md` and `docs/evidence` logs.
 - **Broken Fences**: Audit (including PR 68 files) found no broken markdown fences in touched files.
 - **CWD Dependencies**: No shell execution found requiring `cmd.Dir` pinning fixes.
 - **Temp Files**: No accidental tracked temp files found.
