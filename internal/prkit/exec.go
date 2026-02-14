@@ -60,6 +60,15 @@ type ExecRunner interface {
 	Run(ctx context.Context, spec ExecSpec) ExecResult
 }
 
+// DefaultRunner is the default runner instance.
+// It can be replaced by tests.
+var Runner ExecRunner = &ProdExecRunner{}
+
+// Init initializes the default runner with the repository root.
+func Init(repoRoot string) {
+	Runner = &ProdExecRunner{RepoRoot: repoRoot}
+}
+
 // ProdExecRunner is the production implementation of ExecRunner.
 // It uses os/exec and enforces hardening rules.
 type ProdExecRunner struct {
@@ -88,75 +97,8 @@ func (r *ProdExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 
-	// Resolve Dir
-	if spec.CwdRel != "" {
-		if r.RepoRoot != "" {
-			cmd.Dir = r.RepoRoot + "/" + spec.CwdRel
-		} else {
-			// Fallback or error? For now, if RepoRoot is missing but CwdRel is allowed, use it as is?
-			// But spec says "repo relative".
-			// If RepoRoot is empty, we tread CwdRel as relative to CWD, which might be dangerous.
-			// Let's assume CwdRel is relative to where we run.
-			cmd.Dir = spec.CwdRel
-		}
-	}
-
-	// Construct Env
-	// We start with a clean env or inherit?
-	// The plan says "EnvKV from spec".
-	// os/exec defaults to os.Environ() if cmd.Env is nil.
-	// To enforce determinism, we should probably start empty or allow-list.
-	// But many tools need PATH, HOME, etc.
-	// For S10-09, let's append to the process env for now to avoid breaking everything,
-	// but mostly rely on what's passed.
-	// Actually, "Invariant-2: evidenceに 非決定性を入れない" implies we record what we pass.
-	// It doesn't strictly forbid inheriting env for the *execution* itself, but for *evidence* we strictly control what we see.
-	// However, "Invariant-2: ... 環境差（巨大env）を混入させない" suggests blocking inheritance might be desired eventually.
-	// For this phase, let's behave like `exec.Command`: inherit if EnvKV is empty?
-	// Plan: "Cmd.Env は spec.EnvKV から構築（順序固定）"
-	// This implies REPLACING the env.
-	// WARNING: If we replace Env entirely, things like `git` might break if they need `HOME` or `PATH`.
-	// Let's stick to: If spec.EnvKV is provided, we merge it? Or we strictly use what is given?
-	// "envは 必要最小（sorted KV slice）で渡す＆記録"
-	// Let's implement: "Use os.Environ() + spec.EnvKV" by default, but maybe we should be strict?
-	// Safe approach: os.Environ() + override.
-	// But `Cmd.Env` reference says: "If Env is nil, the new process uses the current process's environment."
-	// "If Env is non-nil, the new process uses the environment values in Env."
-	// So if we set `cmd.Env`, we MUST provide everything (PATH, etc.).
-	// For now, to be safe and avoid "breaking everything" (Non-goal: functional change),
-	// let's NOT set `cmd.Env` (inherit) unless we explicitly want to isolate.
-	// But wait, the plan says "envは... sorted KV slice で渡す".
-	// If `ExecSpec` has `EnvKV`, we probably want to *add* them.
-	// If we want strict isolation, `ExecSpec` should probably have a flag `CleanEnv bool`.
-	// Given the instructions "shell禁止... cmd/args/cwd/env... evidenceに記録",
-	// the primary goal is RECORDING what we did.
-	// If we inherit env, we can't record the full env (too huge).
-	// So we record "what we added/modified".
-	// Implementation:
-	// cmd.Env = append(os.Environ(), formatEnv(spec.EnvKV)...) -> This duplicates keys.
-	// Determining "effective env" is hard if we just append.
-	// Let's leave `cmd.Env = nil` (inherit) and simply set the add-ons using `cmd.Env = os.Environ() + spec`.
-	// Actually, `exec.Command` checks for duplicates? No, last one wins usually.
-	if len(spec.EnvKV) > 0 {
-		envMap := make(map[string]string)
-		// Load current env first
-		for _, e := range os.Environ() {
-			k, v, _ := strings.Cut(e, "=")
-			envMap[k] = v
-		}
-		// Apply overrides
-		for _, kv := range spec.EnvKV {
-			envMap[kv.Key] = kv.Value
-		}
-		// Convert back to slice and sort
-		// Wait, this is getting expensive and complex for "just running a command".
-		// Simple approach: `cmd.Env = os.Environ()` then append spec.EnvKV.
-		cmd.Env = os.Environ()
-		for _, kv := range spec.EnvKV {
-			cmd.Env = append(cmd.Env, kv.Key+"="+kv.Value)
-		}
-	}
-	// Note: We record `spec.EnvKV` in evidence, NOT `cmd.Env`. This satisfies "EnvKV represents what we explicitly passed".
+	r.resolveDir(cmd, spec)
+	r.constructEnv(cmd, spec)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
@@ -164,11 +106,34 @@ func (r *ProdExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 
 	err := cmd.Run()
 
+	return r.constructResult(err, ctx, stdoutBuf.Bytes(), stderrBuf.Bytes())
+}
+
+func (r *ProdExecRunner) resolveDir(cmd *exec.Cmd, spec ExecSpec) {
+	if spec.CwdRel != "" {
+		if r.RepoRoot != "" {
+			cmd.Dir = r.RepoRoot + "/" + spec.CwdRel
+		} else {
+			cmd.Dir = spec.CwdRel
+		}
+	}
+}
+
+func (r *ProdExecRunner) constructEnv(cmd *exec.Cmd, spec ExecSpec) {
+	if len(spec.EnvKV) > 0 {
+		cmd.Env = os.Environ()
+		for _, kv := range spec.EnvKV {
+			cmd.Env = append(cmd.Env, kv.Key+"="+kv.Value)
+		}
+	}
+}
+
+func (r *ProdExecRunner) constructResult(err error, ctx context.Context, stdout, stderr []byte) ExecResult {
 	res := ExecResult{}
 
 	// Capture Output
-	res.Stdout, res.TruncatedStdout = normalizeOutput(stdoutBuf.Bytes())
-	res.Stderr, res.TruncatedStderr = normalizeOutput(stderrBuf.Bytes())
+	res.Stdout, res.TruncatedStdout = normalizeOutput(stdout)
+	res.Stderr, res.TruncatedStderr = normalizeOutput(stderr)
 
 	// Exit Code & Error Kind
 	if err == nil {

@@ -1,9 +1,9 @@
 package prkit
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,7 +30,7 @@ func ScaffoldSOT(epic, slug, release string, apply bool) error {
 	// 3. Determine SOT path
 	// docs/pr/PR-TBD-<release>-epic-<epic>-<slug>.md
 	filename := fmt.Sprintf("PR-TBD-%s-epic-%s-%s.md", release, epic, slug)
-	repoRoot, err := findRepoRoot()
+	repoRoot, err := FindRepoRoot()
 	if err != nil {
 		return err
 	}
@@ -71,21 +71,14 @@ func ScaffoldSOT(epic, slug, release string, apply bool) error {
 
 func detectRelease() (string, error) {
 	// git describe --tags --match "v*" --abbrev=0
-	cmd := exec.Command("git", "describe", "--tags", "--match", "v*", "--abbrev=0")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
+	spec := ExecSpec{
+		Argv: []string{"git", "describe", "--tags", "--match", "v*", "--abbrev=0"},
 	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func findRepoRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
+	res := Runner.Run(context.Background(), spec)
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("git describe failed: %s", res.Stderr)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(res.Stdout), nil
 }
 
 func generateSOTContent(epic, slug, release string) string {

@@ -1,12 +1,12 @@
 package prkit
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -21,23 +21,29 @@ func generateReviewBundle() (string, error) {
 	// 2. Run the script
 	// MODE=wip bash <script>
 	// Run from repo root to ensure consistent behavior
-	repoRoot, err := findRepoRoot()
-	if err != nil {
-		return "", fmt.Errorf("failed to find repo root: %w", err)
+	// We use ExecRunner which handles CwdRel relative to RepoRoot.
+	// We set CwdRel="." to mean "RepoRoot".
+
+	spec := ExecSpec{
+		Argv:   []string{"bash", scriptPath},
+		CwdRel: ".",
+		EnvKV:  []EnvKV{{Key: "MODE", Value: "wip"}},
+	}
+	res := Runner.Run(context.Background(), spec)
+
+	// output is stdout + stderr?
+	// The original code used CombinedOutput.
+	// ExecResult separates them.
+	// We want to parse stdout for "OK: <path>".
+	// But duplicate stderr for debugging?
+	// For now, let's look at stdout.
+	output := res.Stdout
+	if res.Stderr != "" {
+		output += "\n-- stderr --\n" + res.Stderr
 	}
 
-	cmd := exec.Command("bash", scriptPath)
-	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), "MODE=wip")
-
-	// We need to capture stdout to parse "OK: <path>"
-	// We also want to capture stderr to debug or pass through?
-	// The plan says "parse output to get bundle path".
-	outputBytes, err := cmd.CombinedOutput()
-	output := string(outputBytes)
-
-	if err != nil {
-		return "", fmt.Errorf("review bundle script failed: %w\nOutput:\n%s", err, output)
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("review bundle script failed: %s\nOutput:\n%s", res.ErrorKind, output)
 	}
 
 	// 3. Parse output
@@ -58,9 +64,19 @@ func generateReviewBundle() (string, error) {
 		return "", fmt.Errorf("empty bundle path in review bundle output:\n%s", output)
 	}
 
-	// Adjust bundlePath to be absolute if it's relative, or just trust it?
-	// The script usually prints relative path from repo root.
-	// Let's resolve it relative to repoRoot if it is not absolute.
+	// Adjust bundlePath to be absolute if it's relative
+	// If it's relative, it's relative to CWD? Or RepoRoot?
+	// The script is run from RepoRoot (CwdRel=".").
+	// So output is likely relative to RepoRoot.
+	// We should resolve it against RepoRoot.
+	// But we removed `findRepoRoot` call here.
+	// Use Runner.RepoRoot? But `Runner` is global interface.
+	// We can call FindRepoRoot again or rely on main.go having initialized it?
+	// Since we are inside `prkit`, we can assume `FindRepoRoot` works.
+	repoRoot, err := FindRepoRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve repo root for bundle path: %w", err)
+	}
 	if !filepath.IsAbs(bundlePath) {
 		bundlePath = filepath.Join(repoRoot, bundlePath)
 	}

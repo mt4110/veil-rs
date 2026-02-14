@@ -1,34 +1,41 @@
 package prkit
 
 import (
+	"context"
 	"fmt"
-	"os/exec"
+
 	"strings"
 )
 
 func getGitSHA() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git rev-parse HEAD failed: %v, output: %s", err, strings.TrimSpace(string(out)))
+	spec := ExecSpec{
+		Argv: []string{"git", "rev-parse", "HEAD"},
 	}
-	return strings.TrimSpace(string(out)), nil
+	res := Runner.Run(context.Background(), spec)
+
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("git rev-parse HEAD failed: %s, stderr: %s", res.ErrorKind, strings.TrimSpace(res.Stderr))
+	}
+	return strings.TrimSpace(res.Stdout), nil
 }
 
 func checkGitCleanWorktree() CheckResult {
-	cmd := exec.Command("git", "status", "--porcelain=v1")
-	out, err := cmd.CombinedOutput()
+	spec := ExecSpec{
+		Argv: []string{"git", "status", "--porcelain=v1"},
+	}
+	res := Runner.Run(context.Background(), spec)
 
 	result := CheckResult{
 		Name: "git_clean_worktree",
 	}
 
-	output := strings.TrimSpace(string(out))
-	if err != nil {
+	if res.ExitCode != 0 {
 		result.Status = "FAIL"
-		result.Details = fmt.Sprintf("failed to run git status: %v, output: %s", err, output)
+		result.Details = fmt.Sprintf("failed to run git status: %s, stderr: %s", res.ErrorKind, strings.TrimSpace(res.Stderr))
 		return result
 	}
+
+	output := strings.TrimSpace(res.Stdout)
 	if output == "" {
 		result.Status = "PASS"
 		result.Details = "worktree is clean"

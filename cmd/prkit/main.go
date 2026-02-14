@@ -17,6 +17,14 @@ func main() {
 }
 
 func Run(argv []string, stdout, stderr io.Writer) int {
+	// Initialize ExecRunner with RepoRoot
+	if root, err := prkit.FindRepoRoot(); err == nil {
+		prkit.Init(root)
+	} else {
+		// If we can't find repo root, we proceed with default runner (RepoRoot="").
+		// This allows `prkit --help` or bootstrapping to work outside repo.
+	}
+
 	fs := flag.NewFlagSet(program, flag.ContinueOnError)
 
 	// flagパッケージが勝手にstderrに吐くと、stdoutのportable-jsonと混線して地獄になるので握りつぶす。
