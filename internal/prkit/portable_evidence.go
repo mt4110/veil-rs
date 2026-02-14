@@ -3,6 +3,7 @@ package prkit
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 )
 
 type Evidence struct {
@@ -41,4 +42,12 @@ func (e *Evidence) PrintJSON() error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+func (e *Evidence) WriteJSON(path string) error {
+	b, err := json.MarshalIndent(e, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(b, '\n'), 0644)
 }
