@@ -69,10 +69,10 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
    Compiling hyper-rustls v0.27.7
    Compiling reqwest v0.12.28
    Compiling sqlx-postgres v0.8.6
-   Compiling veil-guardian v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-guardian)
-   Compiling veil-core v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-core)
-   Compiling veil-cli v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-cli)
-   Compiling veil-server v0.17.0 (/Users/masakitakemura/_workspace/veil-rs/crates/veil-server)
+   Compiling veil-guardian v0.17.0 (<repo_root>/crates/veil-guardian)
+   Compiling veil-core v0.17.0 (<repo_root>/crates/veil-core)
+   Compiling veil-cli v0.17.0 (<repo_root>/crates/veil-cli)
+   Compiling veil-server v0.17.0 (<repo_root>/crates/veil-server)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 24.37s
      Running unittests src/main.rs (target/debug/deps/veil-7b4d0451de6f73b2)
 
@@ -1275,4 +1275,46 @@ Output:
   ],
   "artifact_hashes": []
 }
+```
+
+## S10-04 Review Bundle Evidence
+
+Command: `unset GOROOT && go run ./cmd/prkit --run --review-bundle`
+
+Output (partial):
+```json
+{
+  "mode": "run",
+  "status": "FAIL",
+  "exit_code": 2,
+  "artifact_hashes": [
+    "review_bundle:veil-rs_review_wip_20260213_175642_50a51c965f5d.tar.gz:2c501b28f070e088469ab0c14a3c070c036c6924cc77f1468aa3802e6797d07c"
+  ]
+}
+```
+(Note: exit_code 2 is expected due to dirty worktree during development)
+
+## S10-05 SOT Scaffolding Evidence
+
+Command: `unset GOROOT && go run ./cmd/prkit --run --sot-new --epic A --slug prkit-exec-v1 --release v0.XX.YY`
+
+Output:
+```
+Preview SOT: <repo_root>/docs/pr/PR-TBD-v0.XX.YY-epic-A-prkit-exec-v1.md
+---------------------------------------------------
+# [PR-TBD] prkit-exec-v1: prkit-exec-v1
+
+## Meta
+- Epic: A
+- Release: v0.XX.YY
+...
+---------------------------------------------------
+Run with --apply to write file.
+```
+
+Command: `unset GOROOT && go run ./cmd/prkit --run --sot-new --epic A --slug prkit-exec-v1 --release v0.XX.YY --apply`
+
+Output:
+```
+Created SOT: <repo_root>/docs/pr/PR-TBD-v0.XX.YY-epic-A-prkit-exec-v1.md
 ```
