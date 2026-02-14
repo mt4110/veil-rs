@@ -1,29 +1,34 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"veil-rs/internal/prkit"
 )
 
+const program = "prkit"
+
 func main() {
-	os.Exit(run())
+	os.Exit(run(os.Args[1:]))
 }
 
-func run() int {
+func run(argv []string) int {
+	fs := flag.NewFlagSet(program, flag.ContinueOnError)
+
+	// flagパッケージが勝手にstderrに吐くと、stdoutのportable-jsonと混線して地獄になるので握りつぶす。
+	// 使い方/エラー表示は自前で固定出力する。
+	fs.SetOutput(io.Discard)
+
+	// Normal modes
 	var dryRun bool
 	var runMode bool
 	var reviewBundle bool
 	var outPath string
 	var format string
-
-	flag.BoolVar(&dryRun, "dry-run", false, "Enable dry-run mode (output only)")
-	flag.BoolVar(&runMode, "run", false, "Enable execution mode")
-	flag.BoolVar(&reviewBundle, "review-bundle", false, "Generate review bundle (run mode only)")
-	flag.StringVar(&outPath, "out", "", "Output path for evidence (run mode only)")
-	flag.StringVar(&format, "format", "portable-json", "Output format (default: portable-json)")
 
 	// S10-05: SOT scaffolding
 	var sotNew bool
@@ -31,25 +36,72 @@ func run() int {
 	var slug string
 	var release string
 	var apply bool
-	flag.BoolVar(&sotNew, "sot-new", false, "Generate SOT scaffolding")
-	flag.StringVar(&epic, "epic", "", "Epic name (for SOT)")
-	flag.StringVar(&slug, "slug", "", "PR slug (for SOT)")
-	flag.StringVar(&release, "release", "", "Release version (for SOT, optional/autodetect)")
-	flag.BoolVar(&apply, "apply", false, "Apply SOT scaffolding (write file)")
 
-	flag.Parse()
+	// Help (explicit, deterministic)
+	var help bool
 
-	const failGenErr = "failed to generate failure evidence: %v\n"
+	fs.BoolVar(&help, "help", false, "Show help")
+	fs.BoolVar(&help, "h", false, "Show help (shorthand)")
 
-	// Validate flag exclusivity
+	fs.BoolVar(&dryRun, "dry-run", false, "Enable dry-run mode (output only)")
+	fs.BoolVar(&runMode, "run", false, "Enable execution mode")
+	fs.BoolVar(&reviewBundle, "review-bundle", false, "Generate review bundle (run mode only)")
+	fs.StringVar(&outPath, "out", "", "Output path for evidence (run mode only)")
+	fs.StringVar(&format, "format", "portable-json", "Output format (default: portable-json)")
+
+	fs.BoolVar(&sotNew, "sot-new", false, "Generate SOT scaffolding")
+	fs.StringVar(&epic, "epic", "", "Epic name (for SOT)")
+	fs.StringVar(&slug, "slug", "", "PR slug (for SOT)")
+	fs.StringVar(&release, "release", "", "Release version (for SOT, optional/autodetect)")
+	fs.BoolVar(&apply, "apply", false, "Apply SOT scaffolding (write file)")
+
+	usage := func() {
+		w := os.Stderr
+		fmt.Fprintf(w, "Usage of %s:\n", program)
+		// PrintDefaultsはFlagSetのOutputに書くので、一時的にstderrへ向ける
+		fs.SetOutput(w)
+		fs.PrintDefaults()
+		fs.SetOutput(io.Discard)
+	}
+
+	fail := func(err error) int {
+		// 人間向けはstderr
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+		}
+		// 監査向けはstdout（portable-json）
+		if genErr := prkit.GenerateFailureEvidence(err); genErr != nil {
+			fmt.Fprintf(os.Stderr, "failed to generate failure evidence: %v\n", genErr)
+		}
+		return 2
+	}
+
+	// Parse
+	if err := fs.Parse(argv); err != nil {
+		// ContinueOnError + io.Discard なので、自前でusageを出す
+		fmt.Fprintln(os.Stderr, err.Error())
+		usage()
+		return fail(err)
+	}
+
+	// Helpは「即return」。ここが今回の止血ポイント。
+	if help {
+		usage()
+		return 0
+	}
+
+	// Validate flag exclusivity (SOT)
 	if sotNew {
 		if dryRun || runMode || reviewBundle || outPath != "" {
-			fmt.Fprintln(os.Stderr, "Error: --sot-new cannot be combined with --dry-run, --run, --review-bundle, or --out")
-			return 2
+			return fail(errors.New("Error: --sot-new cannot be combined with --dry-run, --run, --review-bundle, or --out"))
 		}
 
-		// SOT scaffolding execution
+		if epic == "" || slug == "" {
+			return fail(errors.New("Error: --sot-new requires --epic and --slug"))
+		}
+
 		if err := prkit.ScaffoldSOT(epic, slug, release, apply); err != nil {
+			// scaffold失敗は「実行エラー」なので 1
 			fmt.Fprintf(os.Stderr, "failed to scaffold SOT: %v\n", err)
 			return 1
 		}
@@ -58,58 +110,42 @@ func run() int {
 
 	// Normal mode (dry-run or run)
 	if dryRun && runMode {
-		fmt.Fprintln(os.Stderr, "Error: cannot specify both --dry-run and --run")
-		return 2
+		return fail(errors.New("Error: cannot specify both --dry-run and --run"))
 	}
 	if !dryRun && !runMode {
-		if err := prkit.GenerateFailureEvidence(fmt.Errorf("must specify either --dry-run, --run, or --sot-new")); err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
-		}
-		return 2
+		return fail(fmt.Errorf("must specify either --dry-run, --run, or --sot-new"))
 	}
 
 	// Run mode specific flags
 	if dryRun {
 		if reviewBundle {
-			fmt.Fprintln(os.Stderr, "Error: --review-bundle is only supported in --run mode")
-			return 2
+			return fail(errors.New("Error: --review-bundle is only supported in --run mode"))
 		}
 		if outPath != "" {
-			fmt.Println("Warning: --out is ignored in --dry-run mode")
+			fmt.Fprintln(os.Stderr, "Warning: --out is ignored in --dry-run mode")
 		}
 	} else {
 		// Run mode
 		if outPath == "" {
-			if err := prkit.GenerateFailureEvidence(fmt.Errorf("--out is required in --run mode")); err != nil {
-				fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
-			}
-			return 2
+			return fail(fmt.Errorf("--out is required in --run mode"))
 		}
 	}
 
 	if format != "portable-json" {
-		if err := prkit.GenerateFailureEvidence(fmt.Errorf("unsupported format: %s", format)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error generating failure evidence: %v\n", err)
-		}
-		return 2
+		return fail(fmt.Errorf("unsupported format: %s", format))
 	}
-
-	// Validation handled above
 
 	var exitCode int
 	var err error
 
 	if dryRun {
-		// Dry-run mode ignores --out
 		exitCode, err = prkit.RunDryRun()
 	} else {
-		// Run mode
 		exitCode, err = prkit.RunExecuteMode(outPath, reviewBundle)
 	}
 
 	if err != nil {
-		_ = prkit.GenerateFailureEvidence(err)
-		return 2
+		return fail(err)
 	}
 	return exitCode
 }
