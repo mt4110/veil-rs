@@ -13,18 +13,24 @@ import (
 const program = "prkit"
 
 func main() {
-	os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr, nil))
 }
 
-func Run(argv []string, stdout, stderr io.Writer) int {
+func Run(argv []string, stdout, stderr io.Writer, runner prkit.ExecRunner) int {
 	prkit.ResetTrace()
 
 	// Initialize ExecRunner with RepoRoot
 	if root, err := prkit.FindRepoRoot(); err == nil {
-		prkit.Init(root)
+		prkit.Init(root, runner)
 	} else {
-		// If we can't find repo root, we proceed with default runner (RepoRoot="").
-		// This allows `prkit --help` or bootstrapping to work outside repo.
+		// If we can't find repo root, we proceed with default runner (RepoRoot="")
+		// UNLESS runner is provided.
+		if runner != nil {
+			prkit.Init("", runner)
+		}
+		// If runner is nil, we rely on implicit default (ProdExecRunner with empty root)
+		// which is what happens if we don't call Init, OR we can explicit Init("", nil).
+		// Existing logic: just skip Init.
 	}
 
 	fs := flag.NewFlagSet(program, flag.ContinueOnError)

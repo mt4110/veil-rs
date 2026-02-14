@@ -24,7 +24,7 @@ func TestContractHelp(t *testing.T) {
 	stderr := new(bytes.Buffer)
 	args := []string{"--help"}
 
-	exitCode := Run(args, stdout, stderr)
+	exitCode := Run(args, stdout, stderr, nil)
 
 	if exitCode != 0 {
 		t.Errorf("expected exit code 0, got %d", exitCode)
@@ -45,7 +45,7 @@ func TestContractUnknownFlag(t *testing.T) {
 	stderr := new(bytes.Buffer)
 	args := []string{"--unknown-flag-for-contract-test"}
 
-	exitCode := Run(args, stdout, stderr)
+	exitCode := Run(args, stdout, stderr, nil)
 
 	if exitCode != 2 {
 		t.Errorf("expected exit code 2, got %d", exitCode)
@@ -79,7 +79,7 @@ func TestContractSOTMissingArgs(t *testing.T) {
 	stderr := new(bytes.Buffer)
 	args := []string{"--sot-new"} // Missing epic/slug
 
-	exitCode := Run(args, stdout, stderr)
+	exitCode := Run(args, stdout, stderr, nil)
 
 	if exitCode != 2 {
 		t.Errorf("expected exit code 2 for missing args, got %d", exitCode)
@@ -97,5 +97,58 @@ func TestContractSOTMissingArgs(t *testing.T) {
 	// Check human output
 	if !strings.Contains(stderr.String(), "Error: --sot-new requires --epic and --slug") {
 		t.Errorf("expected stderr to contain specific error, got: %q", stderr.String())
+	}
+}
+
+func TestExecutionSuccess(t *testing.T) {
+	// Mock runner
+	runner := &prkit.FakeExecRunner{
+		Handler: func(spec prkit.ExecSpec) prkit.ExecResult {
+			// Helper to match logic
+			cmd := ""
+			if len(spec.Argv) > 0 {
+				cmd = strings.Join(spec.Argv, " ")
+			}
+
+			// Handle git status (clean)
+			if strings.Contains(cmd, "git status") {
+				return prkit.ExecResult{ExitCode: 0, Stdout: ""}
+			}
+			// Handle git rev-parse (FindRepoRoot)
+			if strings.Contains(cmd, "git rev-parse --show-toplevel") {
+				return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+			}
+			// Handle tools version checks
+			return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
+		},
+	}
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	// Use dry-run to avoid file writing requirements for --out
+	// But dry-run runs checks too.
+	args := []string{"--dry-run"}
+
+	exitCode := Run(args, stdout, stderr, runner)
+
+	if exitCode != 0 {
+		t.Errorf("expected exit code 0, got %d. stderr: %s", exitCode, stderr.String())
+	}
+
+	// Verify trace is recorded
+	var result map[string]interface{}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Errorf("failed to unmarshal stdout: %v", err)
+	}
+
+	// Check command_list
+	// It should contain our mocked commands
+	if cmds, ok := result["command_list"].([]interface{}); ok {
+		if len(cmds) == 0 {
+			t.Errorf("expected commands in command_list, got empty")
+		}
+		// We could verify details here
+	} else {
+		t.Errorf("command_list missing or not an array")
 	}
 }

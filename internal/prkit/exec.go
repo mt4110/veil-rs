@@ -73,8 +73,13 @@ func ResetTrace() {
 }
 
 // Init initializes the default runner with the repository root.
-func Init(repoRoot string) {
-	Runner = &ProdExecRunner{RepoRoot: repoRoot}
+// If runner is nil, a ProdExecRunner is created.
+func Init(repoRoot string, runner ExecRunner) {
+	if runner != nil {
+		Runner = runner
+	} else {
+		Runner = &ProdExecRunner{RepoRoot: repoRoot}
+	}
 }
 
 // ProdExecRunner is the production implementation of ExecRunner.
