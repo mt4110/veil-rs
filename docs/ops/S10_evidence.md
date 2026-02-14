@@ -1318,3 +1318,23 @@ Output:
 ```
 Created SOT: <repo_root>/docs/pr/PR-TBD-v0.XX.YY-epic-A-prkit-exec-v1.md
 ```
+
+## S10-06 Post-merge Copilot PR Audit Evidence
+
+### Audited PRs (Suspects)
+- PR #68: fix(prkit): improve error diagnostics in git check functions (app/copilot-swe-agent)
+- PR #67: Use CombinedOutput to capture stderr in git status check (app/copilot-swe-agent)
+- PR #66: fix(prkit): wrap exec.LookPath error for actionable debugging (app/copilot-swe-agent)
+- PR #65: fix(prkit): remove redundant tool name from skip message format (app/copilot-swe-agent)
+- PR #64: Refactor RunDryRun to return exit code instead of calling os.Exit (app/copilot-swe-agent)
+
+### Remediation Actions
+- **Absolute Paths**: Removed absolute Unix paths (e.g., `<HOME>/.../veil-rs/`) and replaced them with relative paths (`./`) in `docs/ops/S10_evidence.md` and `docs/evidence` logs.
+- **Broken Fences**: Audit (including PR 68 files) found no broken markdown fences in touched files.
+- **CWD Dependencies**: No shell execution found requiring `cmd.Dir` pinning fixes.
+- **Temp Files**: No accidental tracked temp files found.
+
+### Verification
+**Command**: `nix run .#prverify`
+**Status**: PASS
+**Report**: `.local/prverify/prverify_20260213T104023Z_a7695e1.md`

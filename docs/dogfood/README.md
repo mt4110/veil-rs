@@ -33,3 +33,4 @@ status: failed
 reason: Artifact generation failed or skipped
 remediation: Check workflow logs and run.log
 timestamp: ...
+```
