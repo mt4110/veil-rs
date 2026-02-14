@@ -41,7 +41,7 @@
 
 ### 3-A) Absolute path leak in docs
 
-- [x] rg -n --hidden -S '(/Users/|<HOME>/|[A-Za-z]:\\)' docs -g'*.md' | tee ".local/copilot_audit/abs_path_hits.txt" || true
+- [x] rg -n --hidden -S '(/[U]sers/|/[h]ome/|[A-Za-z]:\\[^*])' docs -g'*.md' | tee ".local/copilot_audit/abs_path_hits.txt" || true
 - [x] if ".local/copilot_audit/abs_path_hits.txt" is non-empty:
   - [x] mark "remediation required: absolute paths in docs"
 - [x] else:
