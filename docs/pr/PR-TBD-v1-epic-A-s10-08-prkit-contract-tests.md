@@ -35,6 +35,6 @@ The following behaviors are locked by contract tests:
 
 ## Changes
 - `cmd/prkit/main.go`: Refactor to `Run(args, stdout, stderr)`
-- `cmd/prkit/main_test.go`: Add contract tests
+- `cmd/prkit/contract_test.go`: Add contract tests
 - `docs/ops/S10_08_PLAN.md`: Plan
 - `docs/ops/S10_08_TASK.md`: Logic
