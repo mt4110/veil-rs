@@ -2,18 +2,18 @@ package prkit
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"time"
 )
 
-func RunDryRun() (int, error) {
+func RunDryRun(stdout io.Writer) (int, error) {
 	evidence, err := collectEvidence("dry-run")
 	if err != nil {
 		return 2, err
 	}
 
-	if err := evidence.PrintJSON(); err != nil {
+	if err := evidence.PrintJSON(stdout); err != nil {
 		return 1, err
 	}
 
@@ -23,7 +23,7 @@ func RunDryRun() (int, error) {
 	return 0, nil
 }
 
-func RunExecuteMode(outPath string, reviewBundle bool) (int, error) {
+func RunExecuteMode(outPath string, reviewBundle bool, stdout io.Writer) (int, error) {
 	evidence, err := collectEvidence("run")
 	if err != nil {
 		return 2, err
@@ -51,7 +51,7 @@ func RunExecuteMode(outPath string, reviewBundle bool) (int, error) {
 			return 1, fmt.Errorf("failed to write evidence to %s: %w", outPath, err)
 		}
 	} else {
-		if err := evidence.PrintJSON(); err != nil {
+		if err := evidence.PrintJSON(stdout); err != nil {
 			return 1, err
 		}
 	}
@@ -66,7 +66,7 @@ func collectEvidence(mode string) (*Evidence, error) {
 	// Initialize evidence
 	evidence := Evidence{
 		SchemaVersion:  1,
-		TimestampUTC:   time.Now().UTC().Format("20060102T150405Z"),
+		TimestampUTC:   Now().UTC().Format("20060102T150405Z"),
 		Mode:           mode,
 		Status:         "PASS",
 		ExitCode:       0,
@@ -105,11 +105,11 @@ func collectEvidence(mode string) (*Evidence, error) {
 	return &evidence, nil
 }
 
-func GenerateFailureEvidence(failureErr error) error {
+func GenerateFailureEvidence(failureErr error, stdout io.Writer) error {
 	// Initialize evidence with basic defaults
 	evidence := Evidence{
 		SchemaVersion:  1,
-		TimestampUTC:   time.Now().UTC().Format("20060102T150405Z"),
+		TimestampUTC:   Now().UTC().Format("20060102T150405Z"),
 		Mode:           "dry-run",
 		Status:         "FAIL",
 		ExitCode:       2,
@@ -138,5 +138,5 @@ func GenerateFailureEvidence(failureErr error) error {
 	// Command list might be empty or partial in this case
 	evidence.CommandList = []Command{}
 
-	return evidence.PrintJSON()
+	return evidence.PrintJSON(stdout)
 }
