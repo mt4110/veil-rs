@@ -6,7 +6,7 @@ This PR consolidates the entry points for PRKit/Rituals to a single contract and
 ## SOT (Source of Truth)
 - Plan: docs/ops/S10_10_PLAN.md
 - Task: docs/ops/S10_10_TASK.md
-- Evidence: [docs/evidence/prverify/prverify_20260215T032304Z_a877429.md](docs/evidence/prverify/prverify_20260215T032304Z_a877429.md)
+- Evidence: [docs/evidence/prverify/prverify_20260215T032428Z_c725312.md)
 
 ## Changes
 - DELEGATE: cmd/prkit/main.go delegates to internal/prkit/Run.

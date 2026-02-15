@@ -23,32 +23,31 @@
 - [x] 07 Tests（fake/stub優先、決定論の観点: TestDeterminism 追加）
 - [x] 08 go test ./... -count=1（PASS証拠）
 - [x] 09 nix run .#prverify（PASS証拠）
-- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T032304Z_a877429.md）
+- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T032428Z_c725312.md）
 - [x] 11 SOT更新（docs/pr/PR-74-v1-epic-A-s10-10-prkit-contract-single-entry.md）
 - [x] 12 PR作成（PR #74）
 - [x] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
 
 ## DoD（最終合格条件）
-review/meta/warnings.txt == empty を最終ゴールにする。
-これが空でない限り “監査ギャップが残存” と見なし、STOP → 原因除去 → 再生成する。
+完了宣言は以下がすべて成立した場合のみ許可する（未達なら error STOP）：
+- review/meta/warnings.txt == empty
+- review/meta/status.txt == empty（seal bundle 作成時点で clean）
+- prverify_20260215T032428Z_c725312.md が存在し、SOT/Task/PR本文が同一パスを指す
+- Unicode gate（changed files）: Bidi controls == 0 AND Unicode Cf == 0（証拠を repo に保存）
 
-## Fixpack-2 (PR #74): Evidence/Bundle/PR入口/Unicode
+## Fixpack-2: Final Alignment & Audit Gate (DoD = warnings=0)
 
-- [ ] FP2-00 Preflight（branch/HEAD確定、git status clean確認）
-- [ ] FP2-01 Untracked除去（prverify_out.txt / test_out.txt を消す。理由ログ残す）
-- [ ] FP2-02 go test（go test ./... -count=1 PASS）
-- [ ] FP2-03 prverify（nix run .#prverify PASS）
-- [x] FP2-04 prverifyファイル実在確認（docs/evidence/prverify/prverify_20260215T032304Z_a877429.md）
-- [ ] FP2-05 SOT Evidenceリンク更新（PR-74 SOT を HEAD の prverify に一致）
-- [ ] FP2-06 Task Evidenceリンク更新（S10_10_TASK を HEAD の prverify に一致）
-- [ ] FP2-07 PR本文更新（SOT/Evidence を HEAD のものに一致）
-- [ ] FP2-08 Review bundle 再生成（ops/ci/review_bundle.sh）
-- [ ] FP2-10 Unicode scan（0件なら docs/evidence/security/unicode_scan_<UTC>_<HEAD7>.md 保存）
-- [ ] FP2-11 PR-TBD 検査（禁止スコープのみ：SOT/Task/PR本文）
-- [ ] FP2-12 Gates再確認（必要なら prverify 再実行、最終整合OK）
-
-## Final Audit Gate: review bundle warnings must be empty
-- [ ] MODE=wip bash ops/ci/review_bundle.sh
-- [ ] latest bundle を特定（ls -t ... | head -n 1）
-- [ ] review/meta/warnings.txt を抽出して空であることを確認
-- [ ] IF 非空 → error STOP（原因を潰して再生成、空になるまで繰り返す）
+- [ ] FP2-01 Preflight: on PR head branch / git status clean / fetch origin
+- [ ] FP2-02 prverify for CURRENT HEAD (go test, nix run .#prverify)
+- [ ] FP2-03 Save prverify under docs/evidence/prverify/prverify_20260215T032428Z_c725312.md
+- [ ] FP2-04 Align pointers: SOT Evidence + Task Evidence -> FP2-03 (no PR-TBD residue)
+- [ ] FP2-05 Unicode gate:
+      - [ ] Identify GitHub-warned file(s)
+      - [ ] Scan for Bidi controls + Unicode Cf
+      - [ ] Evidence: docs/evidence/security/unicode_scan_20260215T084639Z_c725312.md (PASS)
+- [ ] FP2-06 Commit: docs(evidence): seal pointers + unicode evidence + task checkmarks
+- [ ] FP2-07 Push: git push
+- [ ] FP2-08 PR entry: gh pr edit 74 body -> correct SOT/Evidence/Unicode + DoD
+- [ ] FP2-09 Audit seal: MODE=wip bash ops/ci/review_bundle.sh
+- [ ] FP2-10 DoD check: review/meta/warnings.txt == empty (record proof)
+- [ ] FP2-11 Final confirmation: PR page shows updated body + latest evidence links
