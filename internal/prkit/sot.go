@@ -3,13 +3,14 @@ package prkit
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-func ScaffoldSOT(epic, slug, release string, apply bool) error {
+func ScaffoldSOT(w io.Writer, epic, slug, release string, apply bool) error {
 	// 1. Validate inputs
 	if epic == "" {
 		return fmt.Errorf("--epic is required")
@@ -57,13 +58,13 @@ func ScaffoldSOT(epic, slug, release string, apply bool) error {
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			return err
 		}
-		fmt.Printf("Created SOT: %s\n", displayPath)
+		fmt.Fprintf(w, "Created SOT: %s\n", displayPath)
 	} else {
-		fmt.Printf("Preview SOT: %s\n", displayPath)
-		fmt.Println("---------------------------------------------------")
-		fmt.Println(content)
-		fmt.Println("---------------------------------------------------")
-		fmt.Println("Run with --apply to write file.")
+		fmt.Fprintf(w, "Preview SOT: %s\n", displayPath)
+		fmt.Fprintln(w, "---------------------------------------------------")
+		fmt.Fprintln(w, content)
+		fmt.Fprintln(w, "---------------------------------------------------")
+		fmt.Fprintln(w, "Run with --apply to write file.")
 	}
 
 	return nil

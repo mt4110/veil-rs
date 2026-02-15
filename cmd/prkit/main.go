@@ -114,7 +114,7 @@ func Run(argv []string, stdout, stderr io.Writer, runner prkit.ExecRunner) int {
 			return fail(errors.New("Error: --sot-new requires --epic and --slug"))
 		}
 
-		if err := prkit.ScaffoldSOT(epic, slug, release, apply); err != nil {
+		if err := prkit.ScaffoldSOT(stdout, epic, slug, release, apply); err != nil {
 			// scaffold失敗は「実行エラー」なので fail() に委譲（JSON + stderr）
 			return fail(fmt.Errorf("failed to scaffold SOT: %w", err))
 		}

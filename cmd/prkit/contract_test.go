@@ -152,3 +152,40 @@ func TestExecutionSuccess(t *testing.T) {
 		t.Errorf("command_list missing or not an array")
 	}
 }
+
+func TestSingleEntryPoint(t *testing.T) {
+	// 狙い: すべてのCLI操作（help以外）が Run を通り、
+	// かつ内部のオーケストレーションが「同一の契約（Runner/Stdout/Stderr）」に縛られていることを確認する。
+	// ここでは Run を呼んで、想定したシンボルが呼ばれることを間接的に確認するテストケースを集約していく。
+
+	t.Run("SOTScaffoldingThroughRun", func(t *testing.T) {
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+
+		// Mock runner to avoid host dependencies and security violations
+		runner := &prkit.FakeExecRunner{
+			Handler: func(spec prkit.ExecSpec) prkit.ExecResult {
+				cmd := strings.Join(spec.Argv, " ")
+				if strings.Contains(cmd, "git describe") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "v0.1.0"}
+				}
+				if strings.Contains(cmd, "git rev-parse") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+				}
+				// Default mock for tool checks
+				return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
+			},
+		}
+
+		// epic/slugを指定して、Run経由でScaffoldSOTが試行されることを確認。
+		args := []string{"--sot-new", "--epic", "s10", "--slug", "test-sot"}
+
+		exitCode := Run(args, stdout, stderr, runner)
+		if exitCode != 0 {
+			t.Errorf("expected exit code 0, got %d. stderr: %s, stdout: %s", exitCode, stderr.String(), stdout.String())
+		}
+		if !strings.Contains(stdout.String(), "Preview SOT:") {
+			t.Errorf("expected SOT preview in stdout, got: %q. stderr: %q", stdout.String(), stderr.String())
+		}
+	})
+}
