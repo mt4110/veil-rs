@@ -36,7 +36,7 @@ type Command struct {
 	// Key Execution Details
 	Argv     []string `json:"argv"`
 	CwdRel   string   `json:"cwd_rel"`
-	EnvMode  string   `json:"env_mode"`         // "inherit" or "strict"
+	EnvMode  string   `json:"env_mode"`         // "inherit" or "inherit+delta"
 	EnvKV    []string `json:"env_kv,omitempty"` // Environment variable overrides
 	EnvHash  string   `json:"env_hash"`         // Hash of environment variables for determinism
 	ExitCode int      `json:"exit_code"`
