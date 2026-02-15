@@ -23,7 +23,7 @@
 - [x] 07 Tests（fake/stub優先、決定論の観点: TestDeterminism 追加）
 - [x] 08 go test ./... -count=1（PASS証拠）
 - [x] 09 nix run .#prverify（PASS証拠）
-- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T031819Z_25e9229.md）
+- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T031938Z_16ff4b6.md）
 - [x] 11 SOT更新（docs/pr/PR-TBD-v1-epic-A-s10-10-prkit-contract-single-entry.md）
 - [x] 12 PR作成（PR #74）
 - [x] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
