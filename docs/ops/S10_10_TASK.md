@@ -30,12 +30,12 @@
 
 ## Fixpack (PR #74): Evidence/PR entry/Unicode
 
-- [ ] FP-00 Preflight: repo/branch/PR/HEAD 確定
-- [ ] FP-01 Evidence整合: HEADで go test + prverify 再生成
-- [ ] FP-02 Evidence整合: 新prverifyの実在確認 & SOT/Taskへ相対パス反映
-- [ ] FP-03 PR入口整備: PR description を PR-74/SOT/Evidence へ更新
-- [ ] FP-04 Unicode検査: contract_test.go の bidi/control scan 実行
-      - [ ] IF 0件 -> 証拠化（PRコメント or repo evidence）
-      - [ ] ELSE -> 除去コミット -> scan再実行で0件 -> 証拠化
-- [ ] FP-05 Gates: go test ./... -count=1（必要なら prverify 再実行）
-- [ ] FP-06 最終確認: PR-TBD 残骸ゼロ / EvidenceがHEAD一致 / 警告解消
+- [x] FP-00 Preflight: repo/branch/PR/HEAD 確定
+- [x] FP-01 Evidence整合: HEADで go test + prverify 再生成
+- [x] FP-02 Evidence整合: 新prverifyの実在確認 & SOT/Taskへ相対パス反映
+- [x] FP-03 PR入口整備: PR description を PR-74/SOT/Evidence へ更新
+- [x] FP-04 Unicode検査: contract_test.go の bidi/control scan 実行
+      - [x] IF 0件 -> 証拠化（PRコメント or repo evidence）
+      - [x] ELSE -> 除去コミット -> scan再実行で0件 -> 証拠化
+- [x] FP-05 Gates: go test ./... -count=1（必要なら prverify 再実行）
+- [x] FP-06 最終確認: PR-TBD 残骸ゼロ / EvidenceがHEAD一致 / 警告解消
