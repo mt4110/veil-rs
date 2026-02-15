@@ -23,7 +23,7 @@
 - [x] 07 Tests（fake/stub優先、決定論の観点: TestDeterminism 追加）
 - [x] 08 go test ./... -count=1（PASS証拠）
 - [x] 09 nix run .#prverify（PASS証拠）
-- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T031938Z_16ff4b6.md）
+- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T032159Z_e992165.md）
 - [x] 11 SOT更新（docs/pr/PR-74-v1-epic-A-s10-10-prkit-contract-single-entry.md）
 - [x] 12 PR作成（PR #74）
 - [x] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
@@ -38,7 +38,7 @@ review/meta/warnings.txt == empty を最終ゴールにする。
 - [ ] FP2-01 Untracked除去（prverify_out.txt / test_out.txt を消す。理由ログ残す）
 - [ ] FP2-02 go test（go test ./... -count=1 PASS）
 - [ ] FP2-03 prverify（nix run .#prverify PASS）
-- [ ] FP2-04 prverifyファイル実在確認（docs/evidence/prverify/prverify_<UTC>_<HEAD7>.md）
+- [ ] FP2-04 prverifyファイル実在確認（docs/evidence/prverify/prverify_20260215T032159Z_e992165.md）
 - [ ] FP2-05 SOT Evidenceリンク更新（PR-74 SOT を HEAD の prverify に一致）
 - [ ] FP2-06 Task Evidenceリンク更新（S10_10_TASK を HEAD の prverify に一致）
 - [ ] FP2-07 PR本文更新（SOT/Evidence を HEAD のものに一致）
