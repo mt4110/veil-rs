@@ -169,6 +169,9 @@ func (r *ProdExecRunner) resolveDir(specDir string) (string, string, error) {
 		return "", "", fmt.Errorf("ExecSpec.Dir escapes repo root: %s", relDir)
 	}
 
+	if r.RepoRoot == "" {
+		return "", "", fmt.Errorf("ExecRunner RepoRoot is not set; cannot resolve directory %q", relDir)
+	}
 	absDir := filepath.Join(r.RepoRoot, cleanRel)
 	return absDir, cleanRel, nil
 }
