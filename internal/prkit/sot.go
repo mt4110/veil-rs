@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func ScaffoldSOT(w io.Writer, epic, slug, release string, apply bool) error {
@@ -83,11 +82,13 @@ func detectRelease() (string, error) {
 }
 
 func generateSOTContent(epic, slug, release string) string {
-	ts := time.Now().UTC().Format("2006-01-02")
+	ts := Now().UTC().Format("2006-01-02")
 	user := os.Getenv("USER")
 	if user == "" {
 		user = "unknown"
 	}
+	// For determinism in tests, we might want to normalize this.
+	// But since this is a scaffold, we'll keep the logic as-is but ensure Now() is used.
 	return fmt.Sprintf(`# [PR-TBD] %s
 
 ## Meta
