@@ -1,4 +1,4 @@
-# Fix(prkit): Contract Single-Entry & Evidence Convergence (S10-10)
+# [PR-74] Fix(prkit): Contract Single-Entry & Evidence Convergence (S10-10)
 
 ## Overview
 This PR consolidates the entry points for PRKit/Rituals to a single contract and stabilizes evidence generation by neutralizing nondeterministic factors.
