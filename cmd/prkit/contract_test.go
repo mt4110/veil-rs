@@ -189,3 +189,43 @@ func TestSingleEntryPoint(t *testing.T) {
 		}
 	})
 }
+
+func TestDeterminism(t *testing.T) {
+	// 狙い: 同一入力 -> 同一証拠 (JSON) を担保する。
+	// 時刻は init() で固定済みのため、環境や順序が混入しないことを確認。
+
+	args := []string{"--dry-run"}
+
+	runOnce := func() string {
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		runner := &prkit.FakeExecRunner{
+			Handler: func(spec prkit.ExecSpec) prkit.ExecResult {
+				cmd := strings.Join(spec.Argv, " ")
+				if strings.Contains(cmd, "git status") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: ""}
+				}
+				if strings.Contains(cmd, "git rev-parse") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+				}
+				if strings.Contains(cmd, "git rev-list") || strings.Contains(cmd, "git describe") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "mock-sha-or-ver"}
+				}
+				return prkit.ExecResult{ExitCode: 0, Stdout: "const"}
+			},
+		}
+		// ResetTrace is called inside Run
+		exitCode := Run(args, stdout, stderr, runner)
+		if exitCode != 0 {
+			t.Errorf("expected exit code 0, got %d. stderr: %s", exitCode, stderr.String())
+		}
+		return stdout.String()
+	}
+
+	out1 := runOnce()
+	out2 := runOnce()
+
+	if out1 != out2 {
+		t.Errorf("Inconsistent output detected!\nOut1:\n%s\nOut2:\n%s", out1, out2)
+	}
+}
