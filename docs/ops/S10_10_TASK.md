@@ -23,19 +23,32 @@
 - [x] 07 Tests（fake/stub優先、決定論の観点: TestDeterminism 追加）
 - [x] 08 go test ./... -count=1（PASS証拠）
 - [x] 09 nix run .#prverify（PASS証拠）
-- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T030002Z_013a20b.md）
+- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T031819Z_25e9229.md）
 - [x] 11 SOT更新（docs/pr/PR-TBD-v1-epic-A-s10-10-prkit-contract-single-entry.md）
-- [x] 12 PR作成（予定タイトル: fix(prkit): contract single-entry + determinism closure (S10-10)）
+- [x] 12 PR作成（PR #74）
 - [x] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
 
-## Fixpack (PR #74): Evidence/PR entry/Unicode
+## DoD（最終合格条件）
+review/meta/warnings.txt == empty を最終ゴールにする。
+これが空でない限り “監査ギャップが残存” と見なし、STOP → 原因除去 → 再生成する。
 
-- [x] FP-00 Preflight: repo/branch/PR/HEAD 確定
-- [x] FP-01 Evidence整合: HEADで go test + prverify 再生成
-- [x] FP-02 Evidence整合: 新prverifyの実在確認 & SOT/Taskへ相対パス反映
-- [x] FP-03 PR入口整備: PR description を PR-74/SOT/Evidence へ更新
-- [x] FP-04 Unicode検査: contract_test.go の bidi/control scan 実行
-      - [x] IF 0件 -> 証拠化（PRコメント or repo evidence）
-      - [x] ELSE -> 除去コミット -> scan再実行で0件 -> 証拠化
-- [x] FP-05 Gates: go test ./... -count=1（必要なら prverify 再実行）
-- [x] FP-06 最終確認: PR-TBD 残骸ゼロ / EvidenceがHEAD一致 / 警告解消
+## Fixpack-2 (PR #74): Evidence/Bundle/PR入口/Unicode
+
+- [ ] FP2-00 Preflight（branch/HEAD確定、git status clean確認）
+- [ ] FP2-01 Untracked除去（prverify_out.txt / test_out.txt を消す。理由ログ残す）
+- [ ] FP2-02 go test（go test ./... -count=1 PASS）
+- [ ] FP2-03 prverify（nix run .#prverify PASS）
+- [ ] FP2-04 prverifyファイル実在確認（docs/evidence/prverify/prverify_<UTC>_<HEAD7>.md）
+- [ ] FP2-05 SOT Evidenceリンク更新（PR-74 SOT を HEAD の prverify に一致）
+- [ ] FP2-06 Task Evidenceリンク更新（S10_10_TASK を HEAD の prverify に一致）
+- [ ] FP2-07 PR本文更新（SOT/Evidence を HEAD のものに一致）
+- [ ] FP2-08 Review bundle 再生成（ops/ci/review_bundle.sh）
+- [ ] FP2-10 Unicode scan（0件なら docs/evidence/security/unicode_scan_<UTC>_<HEAD7>.md 保存）
+- [ ] FP2-11 PR-TBD 検査（禁止スコープのみ：SOT/Task/PR本文）
+- [ ] FP2-12 Gates再確認（必要なら prverify 再実行、最終整合OK）
+
+## Final Audit Gate: review bundle warnings must be empty
+- [ ] MODE=wip bash ops/ci/review_bundle.sh
+- [ ] latest bundle を特定（ls -t ... | head -n 1）
+- [ ] review/meta/warnings.txt を抽出して空であることを確認
+- [ ] IF 非空 → error STOP（原因を潰して再生成、空になるまで繰り返す）
