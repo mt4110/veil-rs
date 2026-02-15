@@ -33,7 +33,7 @@ PHASE 1: 対象箇所の実パス確定（作り話禁止）
   - docs/pr/PR-TBD-v1-epic-A-s10-09-prkit-exec-hardening.md
   - docs/ops/S10_09_PLAN.md
   - docs/ops/S10_09_TASK.md
-  - docs/evidence/prverify/prverify_<UTC>_<sha>.md
+  - docs/evidence/prverify/prverify_20260215T012259Z_e70ca0f.md
 
 PHASE 2: ExecSpec 契約の一本化（最重要ブロッカー）
 - RULE: ExecSpec は “argvフル” を正とする

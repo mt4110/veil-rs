@@ -22,7 +22,7 @@ prkit の外部コマンド実行を「shell無し・契約明確・portable evi
 - **TimeoutMs を実装（WithTimeout）**
 
 ## Evidence
-- Evidence: `docs/evidence/prverify/prverify_20260215T011224Z_f34d1d9.md`
+- Evidence: `docs/evidence/prverify/prverify_20260215T012259Z_e70ca0f.md`
 
 ## Verification (Local/Hermetic)
 - Hermetic gate: `nix run .#prverify` (PASS)

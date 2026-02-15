@@ -12,7 +12,7 @@
 
 ### 1-A) STOP解除（安全に origin/main へ同期）
 - [ ] git restore --source=origin/main --staged --worktree -- docs/evidence/prverify
-- [ ] git add docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md
+- [ ] git add docs/evidence/prverify/prverify_20260215T012259Z_e70ca0f.md
 - [ ] git diff --name-status origin/main...HEAD -- docs/evidence/prverify | sort
   - [ ] 期待: A が 1本のみ
 
@@ -62,13 +62,13 @@
   - [ ] repoRoot prefix を "<REPO_ROOT>" に置換
   - [ ] evidence に Redactions を残す（何をしたか嘘をつかない）
 - [ ] 監査（evidence / prverify）
-  - [ ] E="docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md"
+  - [ ] E="docs/evidence/prverify/prverify_20260215T012259Z_e70ca0f.md"
   - [ ] rg -n "file:/{3}|/Users/|[A-Za-z]:\\\\" "$E" || true  -> 0件
 
 ## 8) SOT ブロッカー: file URL を相対 backtick に統一
 - [ ] FILE="docs/pr/PR-TBD-v1-epic-A-s10-09-prkit-exec-hardening.md"
 - [ ] rg -n 'file:/{3}' "$FILE" || true
-- [ ] Evidence 行を `docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md` に修正
+- [ ] Evidence 行を `docs/evidence/prverify/prverify_20260215T012259Z_e70ca0f.md` に修正
 - [ ] rg -n 'file:/{3}' "$FILE" || true  -> 0件
 
 ## 9) Gates（clean rail で取る）
