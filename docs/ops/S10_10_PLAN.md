@@ -61,4 +61,55 @@ Pseudo:
 - go test ./... -count=1
 - nix run .#prverify
 - Save prverify report under docs/evidence/prverify/
-- Update SOT with relative paths
+- 
+## S10-10 Fixpack (Post-PR Hardening): Evidence alignment + PR entry + Unicode scan
+
+### Goal
+Close remaining audit gaps:
+- Evidence aligns with PR HEAD commit
+- PR description points to correct SOT/Evidence paths
+- Hidden/bidi unicode warning is verified (0) or fixed with evidence
+
+### Hard Constraints
+- NO FICTION: any path/symbol must be confirmed by rg/ls/test -f before editing docs.
+- Minimal noise: record only necessary outputs as evidence.
+- STOP if scope expands beyond docs/prkit boundary.
+
+### STOP Conditions
+- Cannot identify PR HEAD SHA deterministically -> STOP and resolve branch/PR state first.
+- prverify output does not correspond to HEAD even after rerun -> STOP (investigate prverify generation path).
+- Unicode scan reports non-trivial/uncertain characters that might be intentional -> STOP (manual review required).
+
+### Pseudocode
+1) Preflight
+- Confirm repo clean, branch is PR #74 head branch, get HEAD SHA, get PR number.
+
+2) Evidence Alignment
+- Run go test and prverify on HEAD.
+- Confirm generated prverify filename includes HEAD short SHA and file exists.
+- Update:
+  - docs/pr/PR-74-...md Evidence link (relative path)
+  - docs/ops/S10_10_TASK.md Evidence link (relative path)
+  - (optional) docs/ops/S10_10_PLAN.md note that evidence refreshed for HEAD
+
+3) PR Entry Fix
+- Update PR description to point to:
+  - SOT: docs/pr/PR-74-...md
+  - Evidence: docs/evidence/prverify/prverify_<UTC>_<HEAD7>.md
+- Verify PR description no longer mentions PR-TBD.
+
+4) Unicode Scan & Evidence
+- Scan cmd/prkit/contract_test.go for:
+  - bidi controls (RLO/LRO/isolates)
+  - Cf/Cc control chars (except \n \r \t)
+- Branch:
+  IF scan result == 0:
+    - Add evidence record (PR comment OR repo evidence file) stating scan passed (include command output).
+  ELSE:
+    - Remove offending chars, add commit, rerun scan => must be 0
+    - Add evidence record describing what changed and why
+
+5) Gates
+- go test ./... -count=1
+- (optional) nix run .#prverify if code changed in C3
+- Ensure docs + PR + evidence align

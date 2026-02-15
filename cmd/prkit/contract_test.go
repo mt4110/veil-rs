@@ -11,6 +11,8 @@ import (
 )
 
 // ensure stable output for tests
+const mockRepoRoot = "/tmp/mock/repo"
+
 func init() {
 	// Mock time for deterministic JSON output in tests
 	prkit.Now = func() time.Time {
@@ -116,7 +118,7 @@ func TestExecutionSuccess(t *testing.T) {
 			}
 			// Handle git rev-parse (FindRepoRoot)
 			if strings.Contains(cmd, "git rev-parse --show-toplevel") {
-				return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+				return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
 			}
 			// Handle tools version checks
 			return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
@@ -170,7 +172,7 @@ func TestSingleEntryPoint(t *testing.T) {
 					return prkit.ExecResult{ExitCode: 0, Stdout: "v0.1.0"}
 				}
 				if strings.Contains(cmd, "git rev-parse") {
-					return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+					return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
 				}
 				// Default mock for tool checks
 				return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
@@ -206,7 +208,7 @@ func TestDeterminism(t *testing.T) {
 					return prkit.ExecResult{ExitCode: 0, Stdout: ""}
 				}
 				if strings.Contains(cmd, "git rev-parse") {
-					return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+					return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
 				}
 				if strings.Contains(cmd, "git rev-list") || strings.Contains(cmd, "git describe") {
 					return prkit.ExecResult{ExitCode: 0, Stdout: "mock-sha-or-ver"}

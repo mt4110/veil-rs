@@ -83,22 +83,41 @@ func parseCLIConfig(argv []string) (*cliConfig, *flag.FlagSet, error) {
 
 func validateCLIConfig(conf *cliConfig) error {
 	if conf.sotNew {
-		if conf.dryRun || conf.runMode || conf.reviewBundle || conf.outPath != "" {
-			return errors.New("Error: --sot-new cannot be combined with --dry-run, --run, --review-bundle, or --out")
-		}
-		if conf.epic == "" || conf.slug == "" {
-			return errors.New("Error: --sot-new requires --epic and --slug")
-		}
-		return nil
+		return validateSOTFlags(conf)
 	}
 
+	if err := validateModeExclusivity(conf); err != nil {
+		return err
+	}
+
+	if err := validateFormatAndPaths(conf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateSOTFlags(conf *cliConfig) error {
+	if conf.dryRun || conf.runMode || conf.reviewBundle || conf.outPath != "" {
+		return errors.New("Error: --sot-new cannot be combined with --dry-run, --run, --review-bundle, or --out")
+	}
+	if conf.epic == "" || conf.slug == "" {
+		return errors.New("Error: --sot-new requires --epic and --slug")
+	}
+	return nil
+}
+
+func validateModeExclusivity(conf *cliConfig) error {
 	if conf.dryRun && conf.runMode {
 		return errors.New("Error: cannot specify both --dry-run and --run")
 	}
 	if !conf.dryRun && !conf.runMode {
 		return errors.New("Error: must specify either --dry-run, --run, or --sot-new")
 	}
+	return nil
+}
 
+func validateFormatAndPaths(conf *cliConfig) error {
 	if conf.dryRun {
 		if conf.reviewBundle {
 			return errors.New("Error: --review-bundle is only supported in --run mode")
@@ -112,7 +131,6 @@ func validateCLIConfig(conf *cliConfig) error {
 	if conf.format != "portable-json" {
 		return fmt.Errorf("Error: unsupported format: %s", conf.format)
 	}
-
 	return nil
 }
 
