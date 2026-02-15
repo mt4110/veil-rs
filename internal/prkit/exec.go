@@ -258,12 +258,6 @@ func (r *ProdExecRunner) redact(s string) string {
 	return strings.ReplaceAll(s, r.RepoRoot, "<REPO_ROOT>")
 }
 
-func (r *ProdExecRunner) relPath(path string) string {
-	// Deprecated or used internally?
-	// Replaced by strict Dir logic above.
-	return path
-}
-
 func normalizeOutput(b []byte) string {
 	if !utf8.Valid(b) {
 		s := string(bytes.ToValidUTF8(b, []byte("?")))
