@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -50,10 +51,11 @@ type ExecRunner interface {
 
 // ExecSpec defines the execution specification.
 type ExecSpec struct {
-	Name string   // Command name (e.g., "git")
-	Argv []string // Arguments (renamed from Args to match usage)
-	Dir  string   // Working directory
-	Env  []string // Optional environment variables (KEY=VALUE)
+	Name      string   // Command name (e.g., "git")
+	Argv      []string // Arguments (renamed from Args to match usage)
+	Dir       string   // Working directory
+	Env       []string // Optional environment variables (KEY=VALUE)
+	TimeoutMs int      // Optional timeout in milliseconds
 }
 
 // ExecResult captures the result of an execution.
@@ -93,7 +95,18 @@ func (r *ProdExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 		}
 	}
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	var cancel context.CancelFunc
+	ctxToUse := ctx
+	if spec.TimeoutMs > 0 {
+		var timeoutCtx context.Context
+		timeoutCtx, cancel = context.WithTimeout(ctx, time.Duration(spec.TimeoutMs)*time.Millisecond)
+		ctxToUse = timeoutCtx
+	}
+	if cancel != nil {
+		defer cancel()
+	}
+
+	cmd := exec.CommandContext(ctxToUse, name, args...)
 	cmd.Dir = absDir
 
 	// 3. Resolve Env
@@ -205,6 +218,9 @@ func resolveEnv(specEnv []string) ([]string, string, []string) {
 			parts := strings.SplitN(kv, "=", 2)
 			if len(parts) == 2 {
 				envMap[parts[0]] = parts[1]
+			} else {
+				// Warn on malformed env var (PR Review Feedback)
+				fmt.Fprintf(os.Stderr, "Warning: Ignoring malformed environment variable: %q\n", kv)
 			}
 		}
 

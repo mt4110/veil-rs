@@ -27,6 +27,9 @@ func generateReviewBundle() (string, error) {
 	// 2. Run the script
 	// MODE=wip bash <script>
 	// Run from repo root.
+	// Note: scriptPath is already repo-relative (verified by findReviewBundleScript).
+	// We use Dir="." to execute in the current directory (which is repo root for the tool),
+	// allowing bash to resolve the script path correctly without absolute paths.
 	spec := ExecSpec{
 		Argv: []string{"bash", scriptPath},
 		Dir:  ".",

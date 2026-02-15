@@ -51,6 +51,7 @@ func (f *FakeExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
 		CwdRel:    spec.Dir, // Fake runner just records what was asked
 		EnvMode:   "fake",
 		EnvKV:     spec.Env,
+		EnvHash:   hashEnv(spec.Env),
 		ExitCode:  res.ExitCode,
 		Stdout:    res.Stdout,
 		Stderr:    res.Stderr,
