@@ -1,0 +1,32 @@
+- [x] 00 Preflight（clean rail / branch create / push）
+- [x] 01 S10-10 docs 実在確認（ls docs/ops | rg 'S10_' confirmed files exist）
+- [x] 02 Docs作成/更新（Plan/Task/SOT。file: + // 混入ゼロ確認）
+- [x] 03 Discovery: entry points / contract / evidence の候補抽出
+      - [x] 03.1 候補パス一覧（repo-relative）
+            - cmd/prkit/main.go
+            - internal/prkit/run.go
+            - internal/prkit/sot.go
+            - internal/prkit/exec.go
+            - internal/prkit/portable_evidence.go
+      - [x] 03.2 各候補の実在シンボル（rg 確定済）
+            - cmd/prkit/main.go: Run
+            - internal/prkit/run.go: RunDryRun, RunExecuteMode, collectEvidence, GenerateFailureEvidence
+            - internal/prkit/sot.go: ScaffoldSOT
+            - internal/prkit/exec.go: Init, Run (ProdExecRunner)
+            - internal/prkit/portable_evidence.go: type Evidence
+- [ ] 04 Decide: canonical entry の決定（STOP条件も含めてPlanに明記）
+      - [ ] IF 入口が複数 -> 1つに収束させるルーティング方針を書く
+      - [ ] ELSE -> 契約/決定論の締めだけにスコープを絞る
+- [ ] 05 Implement: contract single-entry 化（最小の面積で）
+      - [ ] cmd 側が薄くなる（薄くできないなら error: 理由を書いてSTOP）
+      - [ ] internal/prkit 側で契約が閉じる（入口が散るなら error）
+- [ ] 06 Determinism: 非決定性の閉鎖
+      - [ ] IF time/env/order が混入 -> 正規化 or 注入（prkit境界内に閉じる）
+      - [ ] ELSE -> skip（理由1行）
+- [ ] 07 Tests（fake/stub優先、決定論の観点）
+- [ ] 08 go test ./... -count=1（PASS証拠）
+- [ ] 09 nix run .#prverify（PASS証拠）
+- [ ] 10 prverifyレポート保存（docs/evidence/prverify/…、相対パス）
+- [ ] 11 SOT更新（SOT/Evidence の相対パス確定）
+- [ ] 12 PR作成（タイトル/SOT/Evidence 明記）
+- [ ] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
