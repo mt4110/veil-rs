@@ -13,10 +13,26 @@ import (
 const program = "prkit"
 
 func main() {
-	os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(Run(os.Args[1:], os.Stdout, os.Stderr, nil))
 }
 
-func Run(argv []string, stdout, stderr io.Writer) int {
+func Run(argv []string, stdout, stderr io.Writer, runner prkit.ExecRunner) int {
+	prkit.ResetTrace()
+
+	// Initialize ExecRunner
+	// If runner is provided (testing), inject it immediately to ensure FindRepoRoot uses it.
+	if runner != nil {
+		prkit.Init("", runner)
+	}
+
+	// Try to find repo root (using whatever Runner is currently set)
+	if root, err := prkit.FindRepoRoot(); err == nil {
+		// Re-init with found root.
+		prkit.Init(root, runner)
+	} else {
+		// If failed to find root, we stick with current runner config.
+	}
+
 	fs := flag.NewFlagSet(program, flag.ContinueOnError)
 
 	// flagパッケージが勝手にstderrに吐くと、stdoutのportable-jsonと混線して地獄になるので握りつぶす。
