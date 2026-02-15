@@ -19,18 +19,18 @@ func main() {
 func Run(argv []string, stdout, stderr io.Writer, runner prkit.ExecRunner) int {
 	prkit.ResetTrace()
 
-	// Initialize ExecRunner with RepoRoot
+	// Initialize ExecRunner
+	// If runner is provided (testing), inject it immediately to ensure FindRepoRoot uses it.
+	if runner != nil {
+		prkit.Init("", runner)
+	}
+
+	// Try to find repo root (using whatever Runner is currently set)
 	if root, err := prkit.FindRepoRoot(); err == nil {
+		// Re-init with found root.
 		prkit.Init(root, runner)
 	} else {
-		// If we can't find repo root, we proceed with default runner (RepoRoot="")
-		// UNLESS runner is provided.
-		if runner != nil {
-			prkit.Init("", runner)
-		}
-		// If runner is nil, we rely on implicit default (ProdExecRunner with empty root)
-		// which is what happens if we don't call Init, OR we can explicit Init("", nil).
-		// Existing logic: just skip Init.
+		// If failed to find root, we stick with current runner config.
 	}
 
 	fs := flag.NewFlagSet(program, flag.ContinueOnError)

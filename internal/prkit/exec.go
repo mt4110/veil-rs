@@ -3,219 +3,285 @@ package prkit
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
-// ExecSpec defines the input for a command execution.
-// It is designed to be deterministic and portable.
-type ExecSpec struct {
-	// Argv is the command and its arguments.
-	// Argv[0] is the command name.
-	// We do not support "shell string" execution.
-	Argv []string
+// Global state for compatibility and trace collection
+var (
+	Runner         ExecRunner
+	ExecutionTrace []Command
+	traceMu        sync.Mutex
+)
 
-	// CwdRel is the working directory relative to the repo root.
-	// If empty, it defaults to the process's current working directory.
-	CwdRel string
-
-	// EnvKV is a sorted list of environment variables.
-	// We do not inherit the parent process's environment by default (except specific allowlist if needed).
-	// In S10-09, we prefer explicit env passing.
-	EnvKV []EnvKV
-
-	// TimeoutMs is the execution timeout in milliseconds.
-	// 0 means no timeout.
-	TimeoutMs int
+func init() {
+	// Ensure Runner is never nil by default
+	Runner = &ProdExecRunner{}
 }
-
-// EnvKV represents a deterministic environment variable.
-type EnvKV struct {
-	Key   string
-	Value string
-}
-
-// ExecResult captures the output of a command execution.
-// It is designed to be deterministic and portable.
-type ExecResult struct {
-	Stdout string
-	Stderr string
-
-	ExitCode int
-
-	TruncatedStdout bool
-	TruncatedStderr bool
-
-	// ErrorKind classifies the failure reason.
-	// "" (success), "exit", "timeout", "spawn", "canceled"
-	ErrorKind string
-}
-
-// ExecRunner is the interface for executing commands.
-// It allows swapping the real runner with a fake one for testing.
-type ExecRunner interface {
-	Run(ctx context.Context, spec ExecSpec) ExecResult
-}
-
-// DefaultRunner is the default runner instance.
-// It can be replaced by tests.
-var Runner ExecRunner = &ProdExecRunner{}
-
-// ExecutionTrace records all executed commands.
-var ExecutionTrace []Command
 
 // ResetTrace clears the execution trace.
 func ResetTrace() {
-	ExecutionTrace = nil
+	traceMu.Lock()
+	defer traceMu.Unlock()
+	ExecutionTrace = []Command{}
 }
 
-// Init initializes the default runner with the repository root.
-// If runner is nil, a ProdExecRunner is created.
-func Init(repoRoot string, runner ExecRunner) {
-	if runner != nil {
-		Runner = runner
+// Init initializes the prkit global state.
+func Init(repoRoot string, r ExecRunner) {
+	if r != nil {
+		Runner = r
 	} else {
 		Runner = &ProdExecRunner{RepoRoot: repoRoot}
 	}
 }
 
+// ExecRunner defines the interface for running external commands.
+type ExecRunner interface {
+	Run(ctx context.Context, spec ExecSpec) ExecResult
+}
+
+// ExecSpec defines the execution specification.
+type ExecSpec struct {
+	Name string   // Command name (e.g., "git")
+	Argv []string // Arguments (renamed from Args to match usage)
+	Dir  string   // Working directory
+	Env  []string // Optional environment variables (KEY=VALUE)
+}
+
+// ExecResult captures the result of an execution.
+type ExecResult struct {
+	Stdout   string
+	Stderr   string
+	ExitCode int
+	Error    error
+	// Helpers for errors
+	ErrorKind string
+}
+
 // ProdExecRunner is the production implementation of ExecRunner.
-// It uses os/exec and enforces hardening rules.
 type ProdExecRunner struct {
-	// RepoRoot is the absolute path to the repository root.
-	// Used to resolve CwdRel.
 	RepoRoot string
 }
 
-const (
-	// MaxOutputBytes is the maximum bytes to capture for stdout/stderr.
-	// Keep it reasonable for evidence JSON.
-	MaxOutputBytes = 32 * 1024 // 32KB
-)
-
+// Run executes the command using os/exec and records evidence.
 func (r *ProdExecRunner) Run(ctx context.Context, spec ExecSpec) ExecResult {
-	if len(spec.Argv) == 0 {
+	// 1. Resolve Name/Argv
+	name, args, err := resolveArgv(spec)
+	if err != nil {
 		return ExecResult{
-			ErrorKind: "spawn",
-			Stderr:    "empty argv",
 			ExitCode:  -1,
+			ErrorKind: "InvalidSpec",
+			Error:     err,
 		}
 	}
 
-	cmdName := spec.Argv[0]
-	cmdArgs := spec.Argv[1:]
+	// 2. Resolve Dir
+	absDir, cleanRel, err := r.resolveDir(spec.Dir)
+	if err != nil {
+		return ExecResult{
+			ExitCode:  -1,
+			ErrorKind: "SecurityViolation",
+			Error:     err,
+		}
+	}
 
-	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = absDir
 
-	r.resolveDir(cmd, spec)
-	r.constructEnv(cmd, spec)
+	// 3. Resolve Env
+	finalEnv, envMode, envOverrides := resolveEnv(spec.Env)
+	cmd.Env = finalEnv
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 
-	err := cmd.Run()
+	start := Now()
+	eErr := cmd.Run()
+	_ = Now().Sub(start)
 
-	res := r.constructResult(err, ctx, stdoutBuf.Bytes(), stderrBuf.Bytes())
-
-	// Record Trace
-	trace := Command{
-		Argv:            spec.Argv,
-		CwdRel:          spec.CwdRel,
-		Env:             spec.EnvKV,
-		Stdout:          res.Stdout,
-		Stderr:          res.Stderr,
-		ExitCode:        res.ExitCode,
-		ErrorKind:       res.ErrorKind,
-		TruncatedStdout: res.TruncatedStdout,
-		TruncatedStderr: res.TruncatedStderr,
+	// Result Construction
+	res := ExecResult{
+		Stdout:   normalizeOutput(stdoutBuf.Bytes()),
+		Stderr:   normalizeOutput(stderrBuf.Bytes()),
+		ExitCode: 0,
+		Error:    eErr,
 	}
-	ExecutionTrace = append(ExecutionTrace, trace)
 
-	return res
-}
-
-func (r *ProdExecRunner) resolveDir(cmd *exec.Cmd, spec ExecSpec) {
-	if spec.CwdRel != "" {
-		if r.RepoRoot != "" {
-			cmd.Dir = r.RepoRoot + "/" + spec.CwdRel
-		} else {
-			cmd.Dir = spec.CwdRel
-		}
-	}
-}
-
-func (r *ProdExecRunner) constructEnv(cmd *exec.Cmd, spec ExecSpec) {
-	if len(spec.EnvKV) > 0 {
-		cmd.Env = os.Environ()
-		for _, kv := range spec.EnvKV {
-			cmd.Env = append(cmd.Env, kv.Key+"="+kv.Value)
-		}
-	}
-}
-
-func (r *ProdExecRunner) constructResult(err error, ctx context.Context, stdout, stderr []byte) ExecResult {
-	res := ExecResult{}
-
-	// Capture Output
-	res.Stdout, res.TruncatedStdout = normalizeOutput(stdout)
-	res.Stderr, res.TruncatedStderr = normalizeOutput(stderr)
-
-	// Exit Code & Error Kind
-	if err == nil {
-		res.ExitCode = 0
-		res.ErrorKind = ""
-	} else {
-		// Try to get exit code
-		if exitErr, ok := err.(*exec.ExitError); ok {
+	if eErr != nil {
+		if exitErr, ok := eErr.(*exec.ExitError); ok {
 			res.ExitCode = exitErr.ExitCode()
-			res.ErrorKind = "exit"
+			res.ErrorKind = "ExitError"
 		} else {
-			// Other errors (spawn, etc.)
-			res.ExitCode = -1
-			res.ErrorKind = "spawn"
-			// Check context errors
-			if ctx.Err() == context.DeadlineExceeded {
-				res.ErrorKind = "timeout"
-			} else if ctx.Err() == context.Canceled {
-				res.ErrorKind = "canceled"
+			res.ExitCode = 1
+			res.ErrorKind = fmt.Sprintf("ExecError: %T", eErr)
+		}
+	}
+
+	// 4. Redaction & Evidence
+	redactedRes, cmdRecord := r.prepareEvidence(res, name, args, cleanRel, envMode, finalEnv, envOverrides)
+
+	traceMu.Lock()
+	ExecutionTrace = append(ExecutionTrace, cmdRecord)
+	traceMu.Unlock()
+
+	return redactedRes
+}
+
+func resolveArgv(spec ExecSpec) (string, []string, error) {
+	if len(spec.Argv) == 0 {
+		return "", nil, fmt.Errorf("ExecSpec.Argv must not be empty (must contain executable name at [0])")
+	}
+
+	if spec.Name != "" {
+		// Legacy/Compat mode: Name is executable, Argv is arguments
+		return spec.Name, spec.Argv, nil
+	}
+	// Standard mode: Argv[0] is executable
+	name := spec.Argv[0]
+	var args []string
+	if len(spec.Argv) > 1 {
+		args = spec.Argv[1:]
+	}
+	return name, args, nil
+}
+
+func (r *ProdExecRunner) resolveDir(specDir string) (string, string, error) {
+	relDir := specDir
+	if relDir == "" {
+		relDir = "."
+	}
+
+	if filepath.IsAbs(relDir) {
+		return "", "", fmt.Errorf("ExecSpec.Dir must be relative to repo root, got absolute path: %s", relDir)
+	}
+
+	cleanRel := filepath.Clean(relDir)
+	if strings.HasPrefix(cleanRel, "..") {
+		return "", "", fmt.Errorf("ExecSpec.Dir escapes repo root: %s", relDir)
+	}
+
+	absDir := filepath.Join(r.RepoRoot, cleanRel)
+	return absDir, cleanRel, nil
+}
+
+func resolveEnv(specEnv []string) ([]string, string, []string) {
+	if len(specEnv) > 0 {
+		// Strict mode? No, plan says "inherit+delta" always unless we want pure strict.
+		// Wait, usage in tools.go or others might rely on strict implementation if previous implementation implied it?
+		// Previous implementation:
+		// if len(spec.Env) > 0 { env = spec.Env; envMode = "strict" } else { env = os.Environ(); envMode = "inherit" }
+		//
+		// New plan (Phase 4):
+		// - RULE: ExecSpec.Env は “差分（override）” として解釈
+		// - 実効 env = inherit_host_env + overrides
+		//
+		// So checking if previous impl used strict is important.
+		// If I change to always inherit, I might break things expecting clean env.
+		// But plan explicitly calls for "env契約の硬化（inherit+delta）".
+		// I will implement "inherit+delta".
+
+		currentEnv := os.Environ()
+		envMap := make(map[string]string)
+		for _, kv := range currentEnv {
+			parts := strings.SplitN(kv, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
 			}
 		}
+
+		for _, kv := range specEnv {
+			parts := strings.SplitN(kv, "=", 2)
+			if len(parts) == 2 {
+				envMap[parts[0]] = parts[1]
+			}
+		}
+
+		finalEnv := make([]string, 0, len(envMap))
+		for k, v := range envMap {
+			finalEnv = append(finalEnv, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(finalEnv)
+
+		// Overrides for recording
+		overrides := make([]string, len(specEnv))
+		copy(overrides, specEnv)
+		sort.Strings(overrides)
+
+		return finalEnv, "inherit+delta", overrides
 	}
 
-	return res
+	// No overrides -> pure inherit
+	env := os.Environ()
+	return env, "inherit", nil
 }
 
-func normalizeOutput(raw []byte) (string, bool) {
-	truncated := false
-	if len(raw) > MaxOutputBytes {
-		raw = raw[:MaxOutputBytes]
-		truncated = true
+func (r *ProdExecRunner) prepareEvidence(res ExecResult, name string, args []string, cleanRel string, envMode string, finalEnv []string, envOverrides []string) (ExecResult, Command) {
+	// Redact stdout/stderr
+	res.Stdout = r.redact(res.Stdout)
+	res.Stderr = r.redact(res.Stderr)
+
+	// Redact Argv
+	fullArgv := append([]string{name}, args...)
+	redactedArgv := make([]string, len(fullArgv))
+	for i, a := range fullArgv {
+		redactedArgv[i] = r.redact(a)
 	}
 
-	// sanitize UTF-8
-	if !utf8.Valid(raw) {
-		// simplistic replacement
-		safe := bytes.ToValidUTF8(raw, []byte("\uFFFD"))
-		raw = safe
+	cmdRecord := Command{
+		Argv:      redactedArgv,
+		CwdRel:    cleanRel,
+		EnvMode:   envMode,
+		EnvHash:   hashEnv(finalEnv),
+		EnvKV:     envOverrides,
+		ExitCode:  res.ExitCode,
+		Stdout:    res.Stdout,
+		Stderr:    res.Stderr,
+		ErrorKind: res.ErrorKind,
 	}
 
-	s := string(raw)
-
-	// Normalize CRLF -> LF
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	// Normalize CR -> LF (rare but possible)
-	s = strings.ReplaceAll(s, "\r", "\n")
-
-	return s, truncated
+	return res, cmdRecord
 }
 
-// SortEnvKV sorts a slice of EnvKV by Key.
-func SortEnvKV(env []EnvKV) {
-	sort.Slice(env, func(i, j int) bool {
-		return env[i].Key < env[j].Key
-	})
+func (r *ProdExecRunner) redact(s string) string {
+	if r.RepoRoot == "" {
+		return s
+	}
+	return strings.ReplaceAll(s, r.RepoRoot, "<REPO_ROOT>")
+}
+
+func (r *ProdExecRunner) relPath(path string) string {
+	// Deprecated or used internally?
+	// Replaced by strict Dir logic above.
+	return path
+}
+
+func normalizeOutput(b []byte) string {
+	if !utf8.Valid(b) {
+		s := string(bytes.ToValidUTF8(b, []byte("?")))
+		return strings.TrimSpace(s)
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func hashEnv(env []string) string {
+	// Create a copy to sort, to avoid mutating the original slice if it's used elsewhere
+	sorted := make([]string, len(env))
+	copy(sorted, env)
+	sort.Strings(sorted)
+
+	h := sha256.New()
+	for _, e := range sorted {
+		h.Write([]byte(e))
+		h.Write([]byte("\n"))
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }

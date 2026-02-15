@@ -12,120 +12,105 @@ import (
 )
 
 func generateReviewBundle() (string, error) {
-	// 1. Find the script
-	scriptPath, err := findReviewBundleScript()
+	// 0. Ensure we know RepoRoot
+	repoRoot, err := FindRepoRoot()
+	if err != nil {
+		return "", fmt.Errorf("failed to find repo root: %w", err)
+	}
+
+	// 1. Find the script (Repo-relative)
+	scriptPath, err := findReviewBundleScript(repoRoot)
 	if err != nil {
 		return "", err
 	}
 
 	// 2. Run the script
 	// MODE=wip bash <script>
-	// Run from repo root to ensure consistent behavior
-	// We use ExecRunner which handles CwdRel relative to RepoRoot.
-	// We set CwdRel="." to mean "RepoRoot".
-
+	// Run from repo root.
 	spec := ExecSpec{
-		Argv:   []string{"bash", scriptPath},
-		CwdRel: ".",
-		EnvKV:  []EnvKV{{Key: "MODE", Value: "wip"}},
+		Argv: []string{"bash", scriptPath},
+		Dir:  ".",
+		Env:  []string{"MODE=wip"},
 	}
 	res := Runner.Run(context.Background(), spec)
 
-	// output is stdout + stderr?
-	// The original code used CombinedOutput.
-	// ExecResult separates them.
-	// We want to parse stdout for "OK: <path>".
-	// But duplicate stderr for debugging?
-	// For now, let's look at stdout.
-	output := res.Stdout
-	if res.Stderr != "" {
-		output += "\n-- stderr --\n" + res.Stderr
-	}
-
+	// 3. Check execution (Fail early if non-zero)
 	if res.ExitCode != 0 {
-		return "", fmt.Errorf("review bundle script failed: %s\nOutput:\n%s", res.ErrorKind, output)
+		return "", fmt.Errorf("review bundle script failed: %s\nStdout:\n%s\nStderr:\n%s",
+			res.ErrorKind, res.Stdout, res.Stderr)
 	}
 
-	// 3. Parse output
+	// 4. Parse stdout (Ignore stderr for parsing)
 	// Expecting *last line* to be "OK: <path>"
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) == 0 {
-		return "", fmt.Errorf("empty output from review bundle script")
-	}
-
-	lastLine := strings.TrimSpace(lines[len(lines)-1])
+	// S10-09: "OK: 行は stdout を後ろから走査して最後の OK: を拾う"
+	lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+	var bundlePath string
 	const okPrefix = "OK: "
-	if !strings.HasPrefix(lastLine, okPrefix) {
-		return "", fmt.Errorf("could not find '%s<path>' in last line of review bundle output:\n%s", okPrefix, output)
+
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, okPrefix) {
+			bundlePath = strings.TrimPrefix(line, okPrefix)
+			break
+		}
 	}
 
-	bundlePath := strings.TrimPrefix(lastLine, okPrefix)
 	if bundlePath == "" {
-		return "", fmt.Errorf("empty bundle path in review bundle output:\n%s", output)
+		return "", fmt.Errorf("could not find '%s<path>' in output:\n%s", okPrefix, res.Stdout)
 	}
 
-	// Adjust bundlePath to be absolute if it's relative
-	// If it's relative, it's relative to CWD? Or RepoRoot?
-	// The script is run from RepoRoot (CwdRel=".").
-	// So output is likely relative to RepoRoot.
-	// We should resolve it against RepoRoot.
-	// But we removed `findRepoRoot` call here.
-	// Use Runner.RepoRoot? But `Runner` is global interface.
-	// We can call FindRepoRoot again or rely on main.go having initialized it?
-	// Since we are inside `prkit`, we can assume `FindRepoRoot` works.
-	repoRoot, err := FindRepoRoot()
+	// 5. Normalization (Repo-relative contract)
+	// If absolute, make it relative to repoRoot
+	if filepath.IsAbs(bundlePath) {
+		rel, err := filepath.Rel(repoRoot, bundlePath)
+		if err == nil {
+			bundlePath = rel
+		}
+		// If fails to relativize, checking existence will handle it?
+		// Plan says: "bundlePath は repo相対で返す（絶対なら Rel(repoRoot, abs)）"
+	}
+
+	// Ensure it is not outside repo (just in case)
+	cleanPath := filepath.Clean(bundlePath)
+	if strings.HasPrefix(cleanPath, "..") {
+		return "", fmt.Errorf("bundle path escapes repo root: %s", bundlePath)
+	}
+	bundlePath = cleanPath
+
+	// 6. Validate existence
+	fullPath := filepath.Join(repoRoot, bundlePath)
+	if _, err := os.Stat(fullPath); err != nil {
+		return "", fmt.Errorf("bundle path reported by script does not exist: %s (abs: %s): %w", bundlePath, fullPath, err)
+	}
+
+	// 7. Compute SHA256
+	sha, err := computeSHA256(fullPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve repo root for bundle path: %w", err)
-	}
-	if !filepath.IsAbs(bundlePath) {
-		bundlePath = filepath.Join(repoRoot, bundlePath)
+		return "", fmt.Errorf("failed to compute sha256 of bundle %s: %w", fullPath, err)
 	}
 
-	// 4. Validate existence
-	if _, err := os.Stat(bundlePath); err != nil {
-		return "", fmt.Errorf("bundle path reported by script does not exist: %s: %w", bundlePath, err)
-	}
-
-	// 5. Compute SHA256
-	sha, err := computeSHA256(bundlePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to compute sha256 of bundle %s: %w", bundlePath, err)
-	}
-
-	// 6. Return formatted string
+	// 8. Return formatted string
 	// Format: "review_bundle:<filename>:<sha256>"
+	// Filename should be base name? The spec usually implies filename.
 	filename := filepath.Base(bundlePath)
 	return fmt.Sprintf("review_bundle:%s:%s", filename, sha), nil
 }
 
-func findReviewBundleScript() (string, error) {
+func findReviewBundleScript(repoRoot string) (string, error) {
 	candidates := []string{
 		"ops/ci/review_bundle.sh",
 		"ops/review_bundle.sh",
 	}
 
-	startDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current working directory: %w", err)
+	// Search relative to repoRoot
+	for _, c := range candidates {
+		fullPath := filepath.Join(repoRoot, c)
+		if _, err := os.Stat(fullPath); err == nil {
+			return c, nil
+		}
 	}
 
-	dir := startDir
-	for {
-		for _, c := range candidates {
-			fullPath := filepath.Join(dir, c)
-			if _, err := os.Stat(fullPath); err == nil {
-				return fullPath, nil
-			}
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	return "", fmt.Errorf("review_bundle script not found in %v (starting from %s)", candidates, startDir)
+	return "", fmt.Errorf("review_bundle script not found in %v (checked in %s)", candidates, repoRoot)
 }
 
 func computeSHA256(path string) (string, error) {

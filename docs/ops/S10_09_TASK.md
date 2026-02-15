@@ -1,82 +1,84 @@
-0. Preflight (Clean rail)
+# S10-09 Fixpack v2 (Audit-Grade)
 
-- [x] cd "$(git rev-parse --show-toplevel)"
-- [x] git status -sb（clean確認）
-- [x] dirtyなら停止：意図変更→別コミット / 不要→restore（復旧後に再確認）
-- [x] git fetch origin --prune
-- [x] git switch main
-- [x] git pull --ff-only
-- [x] git switch -c feature/s10-09-prkit-exec-hardening-v1
-- [x] git push -u origin HEAD
+## 0) Preflight
+- [ ] cd "$(git rev-parse --show-toplevel)"
+- [ ] git fetch origin --prune
+- [ ] git status -sb
+- [ ] git diff --cached --name-status
 
-1. Docs（先に器を固定）
+## 1) STOP: prverify が append-only か（過去証拠を壊さない）
+- [ ] git diff --name-status origin/main...HEAD -- docs/evidence/prverify | sort
+  - [ ] IF D/R/M が出たら -> STOP
 
-- [x] ls -la docs/ops | rg "S10_"
-- [x] docs/ops/S10_09_PLAN.md 作成（このPlanを貼る）
-- [x] docs/ops/S10_09_TASK.md 作成（このTaskを貼る）
-- [x] SOT作成：
-    - [x] docs/pr/PR-TBD-v1-epic-A-s10-09-prkit-exec-hardening.md
-    - [x] Evidence placeholder を先に入れる（後で差し替え）
+### 1-A) STOP解除（安全に origin/main へ同期）
+- [ ] git restore --source=origin/main --staged --worktree -- docs/evidence/prverify
+- [ ] git add docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md
+- [ ] git diff --name-status origin/main...HEAD -- docs/evidence/prverify | sort
+  - [ ] 期待: A が 1本のみ
 
-2. 実装対象の探索（作り話禁止：実パス確定するまで実装禁止）
+## 2) STOP: docs の file URL 根絶（文字列を含めずに検出）
+- [ ] rg -n 'file:/{3}' docs || true
+  - [ ] ヒットがあれば修正 -> 0件になるまで STOP 継続
 
-ここで確定したパスが 唯一の編集対象。以降 “推測で別ファイル触る” は禁止。
+## 3) ブロッカー修正: ExecSpec 契約の一本化（Argvフル）
+- [ ] rg -n 'type ExecSpec|CommandContext\\(|spec\\.Name|spec\\.Argv' internal/prkit -S
 
-- [x] prkit候補探索（広めに見る）
-    - [x] rg -n "prkit" -S cmd internal scripts .github
-- [x] PRKIT_DIR を確定し、Taskに貼る（STOP条件：曖昧なら停止）
-    - PRKIT_DIR = "cmd/prkit"
+### 3-A) 修正対象（確定パス）
+- [ ] internal/prkit/exec.go
+- [ ] internal/prkit/fake_runner.go
+- [ ] internal/prkit/check_git.go
+- [ ] internal/prkit/tools.go
+- [ ] internal/prkit/sot.go
 
-- [x] exec関連の実パス列挙（結果を 保存）
-    - [x] rg -n "os/exec|exec\.Command|exec\.CommandContext|CombinedOutput|([^A-Za-z]Output\()|([^A-Za-z]Run\()|command_list|RunCmd" -S "$PRKIT_DIR" cmd internal
-- [x] EXEC_CALL_SITES を確定（重複排除＋ソート）して Task に貼る
-    - EXEC_CALL_SITES:
-        - internal/prkit/check_git.go
-        - internal/prkit/review_bundle.go
-        - internal/prkit/sot.go
-        - internal/prkit/tools.go
+### 3-B) 実装修正（最低ライン）
+- [ ] ProdExecRunner: 実行名 = (spec.Name が空なら spec.Argv[0])、引数 = spec.Argv[1:]
+- [ ] FakeExecRunner: 記録する Argv 形式を Prod と一致させる
+- [ ] spec.Argv len==0 は error（failure evidence を出す）
 
-- [x] EVIDENCE_SCHEMA_FILES（command_list言及）を確定して貼る
-    - EVIDENCE_SCHEMA_FILES:
-        - internal/prkit/portable_evidence.go
+## 4) cwd 契約（repo相対 + repo外脱出禁止）
+- [ ] internal/prkit/exec.go:
+  - [ ] spec.Dir が空なら "."
+  - [ ] spec.Dir が絶対なら error
+  - [ ] Join(repoRoot, Clean(spec.Dir)) 後、repo外なら error
+  - [ ] evidence.CwdRel は slash 正規化で固定
 
-- [x] STOP判定：波及が大きい（多ディレクトリ/多数ファイル）→ 中央集約のみに縮退（記録追加を後回し）
+## 5) env 契約（inherit+delta）
+- [ ] internal/prkit/exec.go:
+  - [ ] spec.Env は “差分 override” として merge
+  - [ ] evidence.EnvMode = "inherit+delta"
+  - [ ] evidence.EnvKV = override をキーソートで記録
+  - [ ] evidence.EnvHash = 実効 env から決定論ハッシュ
 
-3. Exec hardening（中央集約：単一入口）
+## 6) review_bundle hardening（Getwd廃止 + stderr混線廃止）
+- [ ] internal/prkit/review_bundle.go:
+  - [ ] os.Getwd 依存を 제거（repoRoot 基準で候補探索）
+  - [ ] scriptPath は repo相対で固定
+  - [ ] stdout/stderr を混ぜない（解析は stdout のみ）
+  - [ ] OK: 行は stdout の末尾側から探索（最後の OK: を採用）
+  - [ ] bundlePath は repo相対で返す（絶対なら Rel(repoRoot, abs)）
 
-（編集対象は EXEC_CALL_SITES に限定）
+## 7) portable evidence: 絶対パス redaction（argv + stdout/stderr）
+- [ ] internal/prkit/exec.go:
+  - [ ] repoRoot prefix を "<REPO_ROOT>" に置換
+  - [ ] evidence に Redactions を残す（何をしたか嘘をつかない）
+- [ ] 監査（evidence / prverify）
+  - [ ] E="docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md"
+  - [ ] rg -n "file:/{3}|/Users/|[A-Za-z]:\\\\" "$E" || true  -> 0件
 
-- [ ] shell実行の禁止を確認（sh -c 等があれば除去）
-- [ ] ExecRunner + ExecSpec + ExecResult を導入（errorはResultへ畳む）
-- [ ] stdout/stderr 分離（CombinedOutput は置換対象）
-- [ ] 出力正規化（改行統一/上限/UTF-8確定）を入口で固定
-- [ ] cwdは repo相対で記録（絶対パスをevidenceへ入れない）
-- [ ] envは 必要最小（sorted KV slice）で渡す＆記録
+## 8) SOT ブロッカー: file URL を相対 backtick に統一
+- [ ] FILE="docs/pr/PR-TBD-v1-epic-A-s10-09-prkit-exec-hardening.md"
+- [ ] rg -n 'file:/{3}' "$FILE" || true
+- [ ] Evidence 行を `docs/evidence/prverify/prverify_20260215T001433Z_f34d1d9.md` に修正
+- [ ] rg -n 'file:/{3}' "$FILE" || true  -> 0件
 
-4. command_list（evidenceへ決定論で積む）
-
-- [ ] EVIDENCE_SCHEMA_FILES を読んで “既存schema” に合わせる（増やしすぎ禁止）
-- [ ] command_list へ append（順序契約：呼び出し順固定）
-- [ ] failure/timeout/spawn失敗も必ず1エントリ残す（ErrorKind固定）
-
-5. テスト（実プロセス実行なし）
-
-- [ ] fake/stub runner で success case を作る
-- [ ] fake/stub runner で failure case（exit!=0）を作る
-- [ ] （可能なら）timeout/cancel case を作る
-- [ ] contract: 同一入力→同一evidence（JSON byte一致 or canonical比較）
-
-6. Gates & Evidence
-
+## 9) Gates（clean rail で取る）
+- [ ] git status -sb （dirty なら STOP）
 - [ ] go test ./... -count=1
 - [ ] nix run .#prverify
-- [ ] docs/evidence/prverify/prverify_<UTC>_<sha>.md を保存
-- [ ] SOT の Evidence 行を差し替え
-- [ ] TASK のチェックを埋める
+- [ ] docs/evidence/prverify/prverify_<UTC>_<sha>.md を保存（最終PASS 1本だけ add）
 
-7. Commit & Push
-
+## 10) Commit & Push
 - [ ] git status -sb
-- [ ] git add -A
-- [ ] git commit -m "fix(s10-09): harden prkit exec + deterministic command evidence"
+- [ ] git diff --cached --name-status
+- [ ] git commit -m "fix(s10-09): fixpack v2 (execspec contract + portable evidence + review_bundle hardening)"
 - [ ] git push
