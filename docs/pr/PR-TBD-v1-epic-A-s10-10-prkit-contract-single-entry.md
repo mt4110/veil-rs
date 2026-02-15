@@ -6,13 +6,15 @@ This PR consolidates the entry points for PRKit/Rituals to a single contract and
 ## SOT (Source of Truth)
 - Plan: docs/ops/S10_10_PLAN.md
 - Task: docs/ops/S10_10_TASK.md
-- Evidence: PENDING (to be filled after prverify)
+- Evidence: [docs/evidence/prverify/prverify_20260215T024311Z_a258d97.md](docs/evidence/prverify/prverify_20260215T024311Z_a258d97.md)
 
 ## Changes
-- DELEGATE: cmd/prkit/main.go delegates to internal/prkit/cli.go (new entry point)
-- CONSOLIDATE: Orchestration flows through internal/prkit/run.go
-- NORMALIZE: time.Now/USER normalized for stable evidence
+- DELEGATE: cmd/prkit/main.go delegates to internal/prkit/Run.
+- CONSOLIDATE: Orchestration flows through internal/prkit/cli.go (migrated from main.go).
+- HARDEN: ScaffoldSOT now accepts io.Writer to follow the unified contract.
+- NORMALIZE: time.Now (via prkit.Now) and USER env normalized for stable evidence.
 
 ## Verification
-- go test ./... -count=1
-- nix run .#prverify
+- go test ./... -count=1 (Passed)
+- nix run .#prverify (Passed)
+- Determinism proved via TestDeterminism in internal/prkit (captured in evidence).

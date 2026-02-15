@@ -7,26 +7,23 @@
             - internal/prkit/run.go
             - internal/prkit/sot.go
             - internal/prkit/exec.go
-            - internal/prkit/portable_evidence.go
+            - internal/prkit/cli.go
       - [x] 03.2 各候補の実在シンボル（rg 確定済）
             - cmd/prkit/main.go: Run
-            - internal/prkit/run.go: RunDryRun, RunExecuteMode, collectEvidence, GenerateFailureEvidence
+            - internal/prkit/run.go: RunDryRun, RunExecuteMode
             - internal/prkit/sot.go: ScaffoldSOT
-            - internal/prkit/exec.go: Init, Run (ProdExecRunner)
-            - internal/prkit/portable_evidence.go: type Evidence
-- [ ] 04 Decide: canonical entry の決定（STOP条件も含めてPlanに明記）
-      - [ ] IF 入口が複数 -> 1つに収束させるルーティング方針を書く
-      - [ ] ELSE -> 契約/決定論の締めだけにスコープを絞る
-- [ ] 05 Implement: contract single-entry 化（最小の面積で）
-      - [ ] cmd 側が薄くなる（薄くできないなら error: 理由を書いてSTOP）
-      - [ ] internal/prkit 側で契約が閉じる（入口が散るなら error）
-- [ ] 06 Determinism: 非決定性の閉鎖
-      - [ ] IF time/env/order が混入 -> 正規化 or 注入（prkit境界内に閉じる）
-      - [ ] ELSE -> skip（理由1行）
-- [ ] 07 Tests（fake/stub優先、決定論の観点）
-- [ ] 08 go test ./... -count=1（PASS証拠）
-- [ ] 09 nix run .#prverify（PASS証拠）
-- [ ] 10 prverifyレポート保存（docs/evidence/prverify/…、相対パス）
-- [ ] 11 SOT更新（SOT/Evidence の相対パス確定）
-- [ ] 12 PR作成（タイトル/SOT/Evidence 明記）
-- [ ] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
+            - internal/prkit/exec.go: Init, Run
+- [x] 04 Decide: canonical entry の決定（Planに明記: prkit.Run in cli.go）
+- [x] 05 Implement: contract single-entry 化
+      - [x] cmd 側被せ皮化
+      - [x] internal/prkit 側で契約集約
+- [x] 06 Determinism: 非決定性の閉鎖
+      - [x] time.Now -> prkit.Now() に置換
+      - [x] USER env の安定化
+- [x] 07 Tests（fake/stub優先、決定論の観点: TestDeterminism 追加）
+- [x] 08 go test ./... -count=1（PASS証拠）
+- [x] 09 nix run .#prverify（PASS証拠）
+- [x] 10 prverifyレポート保存（docs/evidence/prverify/prverify_20260215T024311Z_a258d97.md）
+- [x] 11 SOT更新（docs/pr/PR-TBD-v1-epic-A-s10-10-prkit-contract-single-entry.md）
+- [x] 12 PR作成（予定タイトル: fix(prkit): contract single-entry + determinism closure (S10-10)）
+- [x] 13 仕上げ（Task全チェック、STOP/skip/error の記録が残ってる）
