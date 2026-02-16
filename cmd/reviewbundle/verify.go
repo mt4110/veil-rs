@@ -206,6 +206,24 @@ func validateTarIdentity(name string, hdr *tar.Header) error {
 	if hdr.Uname != "" || hdr.Gname != "" {
 		return NewVError(E_IDENTITY, name, fmt.Sprintf("non-empty uname/gname: %q/%q", hdr.Uname, hdr.Gname))
 	}
+
+	// Phase 7.6: Mode Normalization
+	mode := hdr.Mode & 0777
+	switch hdr.Typeflag {
+	case tar.TypeDir:
+		if mode != 0755 {
+			return NewVError(E_IDENTITY, name, fmt.Sprintf("dir mode must be 0755 (got %o)", mode))
+		}
+	case tar.TypeReg:
+		// Check for executable bit in git's bitmask sense
+		// If executable (0755) or regular (0644)
+		if mode != 0644 && mode != 0755 {
+			return NewVError(E_IDENTITY, name, fmt.Sprintf("regular file mode must be 0644 or 0755 (got %o)", mode))
+		}
+	case tar.TypeSymlink:
+		// Symlink mode is NOT validated (Phase 7.6)
+	}
+
 	return nil
 }
 
@@ -227,15 +245,17 @@ func validateTarTime(name string, hdr *tar.Header, seenSec *int64) error {
 func validateTarPAX(name string, hdr *tar.Header) error {
 	if len(hdr.PAXRecords) > 0 {
 		for k := range hdr.PAXRecords {
-			if k != "path" && k != "linkpath" {
-				if k == "mtime" || k == "atime" || k == "ctime" {
-					return NewVError(E_PAX, name, "forbidden PAX time key: "+k)
-				}
-				if strings.HasPrefix(k, "LIBARCHIVE.") || strings.HasPrefix(k, "SCHILY.xattr.") {
-					return NewVError(E_XATTR, name, "xattr/provenance leak: "+k)
-				}
-				return NewVError(E_PAX, name, "forbidden PAX key: "+k)
+			// Phase 4.2: strict allowlist (path/linkpath only)
+			if k == "path" || k == "linkpath" {
+				continue
 			}
+			if k == "mtime" || k == "atime" || k == "ctime" {
+				return NewVError(E_PAX, name, "forbidden PAX time key: "+k)
+			}
+			if strings.HasPrefix(k, "LIBARCHIVE.") || strings.HasPrefix(k, "SCHILY.xattr.") {
+				return NewVError(E_XATTR, name, "xattr/provenance leak: "+k)
+			}
+			return NewVError(E_PAX, name, "forbidden PAX key (not in allowlist): "+k)
 		}
 	}
 	if len(hdr.Xattrs) > 0 {
@@ -286,9 +306,24 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 			strings.HasPrefix(name, DirEvidence)
 
 		if isMeta {
-			content, err := io.ReadAll(tr)
+			// Phase 7.5: 4MB limit for meta/evidence parsing
+			lr := io.LimitReader(tr, 4*1024*1024)
+			content, err := io.ReadAll(lr)
 			if err != nil {
 				return WrapVError(E_GZIP, name, err)
+			}
+			// Check if we hit the limit
+			if int64(len(content)) == 4*1024*1024 {
+				// Peek one byte to see if there's more
+				var b [1]byte
+				n, _ := tr.Read(b[:])
+				if n > 0 {
+					// We truncated. If it's evidence, we marks it as potentially incomplete/invalid for binding
+					// but we keep the truncated content for hash validation if it's already in SHA256SUMS.
+					// Actually, if it's truncated, SHA256 match will fail anyway if we hash the truncated bytes.
+					// The contract says: if >4MB, bound=false.
+					content = append(content, []byte("...[TRUNCATED]")...)
+				}
 			}
 			hash = sha256.Sum256(content)
 
@@ -364,8 +399,9 @@ func validateGzipHeader(rep *VerifyReport) error {
 	if rep.GzipModTime.Unix() != epoch {
 		return NewVError(E_GZIP, "header", fmt.Sprintf("mtime mismatch (header: %d, contract: %d)", rep.GzipModTime.Unix(), epoch))
 	}
-	if rep.GzipOS != 255 && rep.GzipOS != 0 {
-		return NewVError(E_GZIP, "header", fmt.Sprintf("OS byte must be 0 or 255 (got %d)", rep.GzipOS))
+	// Phase 7.2: strictly 255
+	if rep.GzipOS != 255 {
+		return NewVError(E_GZIP, "header", fmt.Sprintf("OS byte must be 255 (got %d)", rep.GzipOS))
 	}
 	if rep.GzipName != "" {
 		return NewVError(E_GZIP, "header", "Name must be empty")

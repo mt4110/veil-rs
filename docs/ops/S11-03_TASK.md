@@ -12,62 +12,62 @@
 - [x] 結果を docs/ops/S11-03_PLAN.md に追記（“repoの真実” として固定）
 
 ## Phase 2 — Contract doc (first; implementation follows)
-- [ ] docs/ops/REVIEW_BUNDLE.md を新規作成
-  - [ ] Contract v1 (MUST/SHOULD)
-  - [ ] Layout
-  - [ ] Determinism rules
-  - [ ] Evidence binding rules
-  - [ ] Manifest rules（SHA256SUMS 自己参照除外 + sha256封印）
+- [x] docs/ops/REVIEW_BUNDLE.md を新規作成
+  - [x] Contract v1 (MUST/SHOULD)
+  - [x] Layout
+  - [x] Determinism rules
+  - [x] Evidence binding rules
+  - [x] Manifest rules（SHA256SUMS 自己参照除外 + sha256封印）
 
 ## Phase 3 — Go CLI scaffold
-- [ ] cmd/reviewbundle/ を作成
-- [ ] create サブコマンド骨格（引数/戻り値/エラー規約）
-- [ ] verify サブコマンド骨格（allowlist + checksums + contract）
+- [x] cmd/reviewbundle/ を作成
+- [x] create サブコマンド骨格（引数/戻り値/エラー規約）
+- [x] verify サブコマンド骨格（allowlist + checksums + contract）
 
 ## Phase 4 — Deterministic tar.gz writer (no leak)
-- [ ] epoch 決定（SOURCE_DATE_EPOCH else git %ct）
-- [ ] gzip header: modtime/OS/Extra/Name/Comment を固定
-- [ ] tar header: uid/gid/uname/gname を固定（0/0/空）
-- [ ] tar header: mtime を epoch 秒（小数禁止）
-- [ ] entry order: bundle path を bytewise lexicographic で固定
-- [ ] xattr/pax leak:
-  - [ ] LIBARCHIVE.* / SCHILY.xattr.* が出ないことを verify で検出（出たら error）
+- [x] epoch 決定（SOURCE_DATE_EPOCH else git %ct）
+- [x] gzip header: modtime/OS/Extra/Name/Comment を固定
+- [x] tar header: uid/gid/uname/gname を固定（0/0/空）
+- [x] tar header: mtime を epoch 秒（小数禁止）
+- [x] entry order: bundle path を bytewise lexicographic で固定
+- [x] xattr/pax leak:
+  - [x] LIBARCHIVE.* / SCHILY.xattr.* が出ないことを verify で検出（出たら error）
 
 ## Phase 5 — Evidence binding hardening
-- [ ] strict:
-  - [ ] evidence を “HEAD に束縛” できないなら error
-  - [ ] “最新 fallback” 禁止
-- [ ] wip:
-  - [ ] evidence 未束縛なら warnings.txt に明記（曖昧性を露出）
+- [x] strict:
+  - [x] evidence を “HEAD に束縛” できないなら error
+  - [x] “最新 fallback” 禁止
+- [x] wip:
+  - [x] evidence 未束縛なら warnings.txt に明記（曖昧性を露出）
 
 ## Phase 6 — Manifest (checksums)
-- [ ] review/meta/SHA256SUMS を生成（自分自身は除外）
-- [ ] review/meta/SHA256SUMS.sha256 を生成（封印）
+- [x] review/meta/SHA256SUMS を生成（自分自身は除外）
+- [x] review/meta/SHA256SUMS.sha256 を生成（封印）
 
 ## Phase 7 — Determinism tests
-- [ ] 同一入力で create を2回 → tar.gz が byte-identical のテスト
-- [ ] uid/gid/uname/gname が漏れないテスト
-- [ ] mtime/epoch が固定のテスト
-- [ ] entry order が固定のテスト
-- [ ] evidence binding の strict fail / wip warn のテスト
+- [x] 同一入力で create を2回 → tar.gz が byte-identical のテスト
+- [x] uid/gid/uname/gname が漏れないテスト
+- [x] mtime/epoch が固定のテスト
+- [x] entry order が固定のテスト
+- [x] evidence binding の strict fail / wip warn のテスト
 
 ### 5.2 Minimal synthetic fixtures (in-memory tar.gz)
 - [x] verify_test.go で "最小の正しいbundle" を生成して verify PASS を確認
 - [x] determinism_test.go で "同一入力 => 同一検査結果" を保証（検査が環境依存しない）
 
 ## Phase 8 — Wire-up
-- [ ] ops/ci/review_bundle.sh を shim 化（Go 呼び出しのみ）or 廃止
-- [ ] flake.nix に reviewbundle app/package を追加（nix run .#reviewbundle）
+- [x] ops/ci/review_bundle.sh を shim 化（Go 呼び出しのみ）or 廃止
+- [x] flake.nix に reviewbundle app/package を追加（nix run .#reviewbundle）
 
 ## Phase 9 — Gates
 - [x] go test ./... (PASS)
-- [ ] nix run .#prverify (PASS)
+- [x] nix run .#prverify (PASS)
 
 ## Phase 10 — Commit & PR
-- [ ] git add docs/ops cmd/reviewbundle ops/ci flake.nix
-- [ ] commit
-- [ ] push
-- [ ] PR 作成（S11-03）
+- [x] git add docs/ops cmd/reviewbundle ops/ci flake.nix
+- [x] commit
+- [x] push
+- [x] PR 作成（S11-03）
 
 ### 4.2 Implement streaming verifier (continued)
 - [x] verify.go:

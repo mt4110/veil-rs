@@ -56,6 +56,15 @@
           '';
         };
 
+        # Review Bundle CLI
+        reviewbundlePkg = pkgs.buildGoModule {
+          pname = "reviewbundle";
+          version = "1.0.0";
+          src = ./.;
+          subPackages = [ "cmd/reviewbundle" ];
+          vendorHash = null;
+        };
+
         veilApp = {
           type = "app";
           program = "${veilPkg}/bin/veil";
@@ -202,6 +211,7 @@
       {
         packages.veil = veilPkg;
         packages.cockpit = cockpitPkg;
+        packages.reviewbundle = reviewbundlePkg;
         packages.default = veilPkg;
 
         apps.veil = veilApp;
@@ -211,6 +221,7 @@
         apps.gen = { type = "app"; program = "${genScript}/bin/gen"; };
         apps.status = { type = "app"; program = "${statusScript}/bin/status"; };
         apps.prverify = { type = "app"; program = "${prverifyScript}/bin/prverify"; };
+        apps.reviewbundle = { type = "app"; program = "${reviewbundlePkg}/bin/reviewbundle"; };
         apps.default = veilApp;
 
         devShells.default = pkgs.mkShell {
