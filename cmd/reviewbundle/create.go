@@ -52,7 +52,7 @@ func CreateBundleUI(mode, outDir string, stdout, stderr io.Writer) error {
 		Mode:            mode,
 		Repo:            "veil-rs", // Canonical
 		EpochSec:        epoch,
-		BaseRef:         "main", // TODO: discover
+		BaseRef:         "main", // Canonical entry
 		HeadSHA:         headSHA,
 		WarningsCount:   0,
 		Evidence: Evidence{

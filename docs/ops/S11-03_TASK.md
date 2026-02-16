@@ -55,6 +55,11 @@
 - [x] verify_test.go で "最小の正しいbundle" を生成して verify PASS を確認
 - [x] determinism_test.go で "同一入力 => 同一検査結果" を保証（検査が環境依存しない）
 
+## Phase 7.5 — Fix known-bad test input (synthetic)
+- [x] TestVerify_FailsOnKnownBadBundle を ForgeBundle で合成
+- [x] .local 依存の排除
+- [x] エラーコードの許容判定（E_PAX, E_XATTR, E_IDENTITY, E_TIME）
+
 ## Phase 8 — Wire-up
 - [x] ops/ci/review_bundle.sh を shim 化（Go 呼び出しのみ）or 廃止
 - [x] flake.nix に reviewbundle app/package を追加（nix run .#reviewbundle）
