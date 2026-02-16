@@ -17,4 +17,4 @@ This PR consolidates the entry points for PRKit/Rituals to a single contract and
 ## Verification
 - go test ./... -count=1 (Passed)
 - nix run .#prverify (Passed)
-- Determinism proved via TestDeterminism in internal/prkit (captured in evidence).
+- Determinism proved via TestDeterminism in cmd/prkit (captured in evidence).
