@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 )
@@ -258,6 +259,27 @@ func main() {
 				de.Print()
 			} else {
 				fmt.Fprintln(os.Stderr, "ERROR: drift check failed:", err)
+			}
+			fmt.Println()
+			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+			os.Exit(1)
+		}
+	}
+
+	// 5) Status Enforcement (S11)
+	{
+		fmt.Println("==> Status Enforcement")
+		start := time.Now()
+		err := validateStatusEnforcement(root)
+		dur := time.Since(start)
+		// We use a simplified cmdLine name for the report
+		steps = append(steps, stepResult{cmdLine: "status-enforcement", ok: err == nil, duration: dur})
+		if err != nil {
+			fmt.Println()
+			if de, ok := err.(*driftError); ok {
+				de.Print()
+			} else {
+				fmt.Fprintln(os.Stderr, "ERROR: status enforcement failed:", err)
 			}
 			fmt.Println()
 			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
@@ -587,4 +609,94 @@ func findSOT(repoFS fs.FS, wantedPR int) (string, error) {
 	}
 
 	return files[0], nil
+}
+
+func validateStatusEnforcement(root string) error {
+	// 1. Identify Branch
+	// Try CI env var first, then git
+	branch := os.Getenv("GITHUB_HEAD_REF")
+	if branch == "" {
+		// Fallback to git
+		cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+		cmd.Dir = root
+		out, err := cmd.Output()
+		if err == nil {
+			branch = strings.TrimSpace(string(out))
+		}
+	}
+
+	// Normalize
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		// If we can't determine branch, we can't enforce S11 rule cleanly.
+		// Fail open or closed?
+		// Plan says: "if branchName does NOT match ^s11-: skip"
+		// If unknown, we assume not S11 to avoid blocking legit workflows?
+		// But "cannot resolve base ref" is an error.
+		// Let's assume if we can't get branch, we skip (or print warning).
+		return nil
+	}
+
+	if !strings.HasPrefix(branch, "s11-") {
+		// Not an S11 branch
+		return nil
+	}
+
+	// 2. Resolve Base Ref
+	baseCandidates := []string{"origin/main", "main"}
+	var baseRef string
+	for _, ref := range baseCandidates {
+		// git rev-parse --verify <ref>
+		cmd := exec.Command("git", "rev-parse", "--verify", ref)
+		cmd.Dir = root
+		if err := cmd.Run(); err == nil {
+			baseRef = ref
+			break
+		}
+	}
+	if baseRef == "" {
+		return fmt.Errorf("cannot resolve base ref; expected origin/main or main")
+	}
+
+	// 3. Compute Diff
+	// git diff --name-only --diff-filter=ACMRT <baseRef>...HEAD
+	cmd := exec.Command("git", "diff", "--name-only", "--diff-filter=ACMRT", baseRef+"...HEAD")
+	cmd.Dir = root
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("cannot compute diff vs base ref %s: %v", baseRef, err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	if output == "" {
+		// No changes vs base
+		return nil
+	}
+
+	files := strings.Split(output, "\n")
+	// Deterministic sort
+	sort.Strings(files)
+
+	// 4. Check for STATUS.md
+	found := false
+	for _, f := range files {
+		f = strings.TrimSpace(f)
+		if f == "docs/ops/STATUS.md" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return &driftError{
+			category: "S11 Discipline",
+			reason:   "S11 requires STATUS.md update, but diff lacks docs/ops/STATUS.md",
+			fixCmd:   "edit docs/ops/STATUS.md to reflect current phase progress",
+			nextCmd:  "commit and re-run prverify",
+		}
+	}
+
+	return nil
 }

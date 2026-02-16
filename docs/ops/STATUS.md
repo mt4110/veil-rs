@@ -19,15 +19,15 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 ## Milestones (S11..S15)
 
-| Phase  | Goal (One-liner)                                 | Progress     | Current (This PR)             |
-| ------ | ------------------------------------------------ | ------------ | ----------------------------- |
-| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 99% (Review) | Create STATUS + S11_PLAN/TASK |
-| S11-01 | TBD (next)                                       | 0%           | -                             |
-| S11-02 | TBD                                              | 0%           | -                             |
-| S12    | TBD                                              | 0%           | -                             |
-| S13    | TBD                                              | 0%           | -                             |
-| S14    | TBD                                              | 0%           | -                             |
-| S15    | TBD                                              | 0%           | -                             |
+| Phase  | Goal (One-liner)                                 | Progress      | Current (This PR) |
+| ------ | ------------------------------------------------ | ------------- | ----------------- |
+| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | S11-01 Planning   |
+| S11-01 | Enforce STATUS.md update (forget -> fail)        | 0%            | S11-01 Start      |
+| S11-02 | TBD                                              | 0%            | -                 |
+| S12    | TBD                                              | 0%            | -                 |
+| S13    | TBD                                              | 0%            | -                 |
+| S14    | TBD                                              | 0%            | -                 |
+| S15    | TBD                                              | 0%            | -                 |
 
 ## Last Updated
 - Date: 2026-02-16 (+0900)
