@@ -61,7 +61,6 @@ Pseudo:
 - go test ./... -count=1
 - nix run .#prverify
 - Save prverify report under docs/evidence/prverify/
-- 
 ## S10-10 Fixpack (Post-PR Hardening): Evidence alignment + PR entry + Unicode scan
 
 ### Goal

@@ -12,7 +12,7 @@ This PR consolidates the entry points for PRKit/Rituals to a single contract and
 - DELEGATE: cmd/prkit/main.go delegates to internal/prkit/Run.
 - CONSOLIDATE: Orchestration flows through internal/prkit/cli.go (migrated from main.go).
 - HARDEN: ScaffoldSOT now accepts io.Writer to follow the unified contract.
-- NORMALIZE: time.Now (via prkit.Now) and USER env normalized for stable evidence.
+- NORMALIZE: time.Now (via prkit.Now) and USER env is read directly (empty → "unknown"); may vary by environment.
 
 ## Verification
 - go test ./... -count=1 (Passed)
