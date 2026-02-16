@@ -24,7 +24,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | S11-01 Planning   |
 | S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | S11-01 Start      |
 | S11-02 | TBD                                              | 0%            | -                 |
-| S11-03 | Review Bundle Go Hardening (deterministic)       | 100%          | [Review]          |
+| S11-03 | Review Bundle Go Hardening (deterministic)       | 99%           | [Review]          |
 | S12    | TBD                                              | 0%            | -                 |
 | S13    | TBD                                              | 0%            | -                 |
 | S14    | TBD                                              | 0%            | -                 |

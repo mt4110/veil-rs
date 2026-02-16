@@ -1,4 +1,4 @@
-# REVIEW BUNDLE CONTRACT v1
+# REVIEW BUNDLE CONTRACT v1.1
 
 ## 1. Mission & Philosophy
 Review Bundle は「監査に耐える契約成果物 (contract artifact)」である。
@@ -31,7 +31,8 @@ Output MUST be reproducible bit-for-bit given the same:
   - Name/Comment = Empty
 - **Tar Header**:
   - MTime = Epoch (matches source)
-  - AccessTime / ChangeTime = Epoch or zero
+  - AccessTime / ChangeTime MUST be zero (epoch 0) or omitted.
+  - PAX atime/ctime/mtime MUST NOT appear in the archive.
 
 ### 3.2. Entry Ordering
 - All entries in the tarball MUST be sorted by their full path in **bytewise lexicographic order**.
@@ -97,4 +98,4 @@ A valid verify run involves:
    - If `mode=strict`, ensure evidence is present.
 
 ## 7. Versioning
-- This document defines Contract Version: `v1`
+- This document defines Contract Version: `v1.1`
