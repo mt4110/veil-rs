@@ -47,7 +47,7 @@ type VerifyReport struct {
 	SHA256SUMS     []byte
 	SHA256SUMSSeal []byte
 	WarningsTxt    []byte
-	EvidenceFiles  [][]byte // buffered evidence content for binding check
+	EvidenceFiles  [][]byte
 
 	// required layout presence
 	HasIndex          bool
@@ -99,7 +99,7 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 	}
 	defer gz.Close()
 
-	// Capture gzip header for post-validation (against epoch)
+	// Capture gzip header
 	rep.GzipModTime = gz.Header.ModTime
 	rep.GzipName = gz.Header.Name
 	rep.GzipComment = gz.Header.Comment
@@ -122,170 +122,318 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 
 		name := hdr.Name
 
-		// 1. Ordering Check (Bytewise Lexicographic)
-		if seenFirst {
-			if name < prevNameCanon {
-				return nil, NewVError(E_ORDER, name, fmt.Sprintf("is not sorted (prev: %s)", prevNameCanon))
-			}
+		if err := validateTarOrder(name, prevNameCanon, seenFirst); err != nil {
+			return nil, err
 		}
 		prevNameCanon = name
 		seenFirst = true
 
-		// 2. Path Safety Check
-		if strings.HasPrefix(name, "/") {
-			return nil, NewVError(E_PATH, name, "absolute path forbidden")
+		if err := validateTarPath(name, hdr.Typeflag); err != nil {
+			return nil, err
 		}
-		if strings.Contains(name, "\x00") {
-			return nil, NewVError(E_PATH, name, "contains NUL char")
+		if err := validateTarType(name, hdr.Typeflag); err != nil {
+			return nil, err
 		}
-		if strings.Contains(name, "\\") {
-			return nil, NewVError(E_PATH, name, "contains backslash")
+		if err := validateTarIdentity(name, hdr); err != nil {
+			return nil, err
 		}
-		clean := path.Clean(name)
-		if clean == ".." || strings.HasPrefix(clean, "../") {
-			return nil, NewVError(E_PATH, name, "parent traversal prohibited")
+		if err := validateTarTime(name, hdr, &seenSec); err != nil {
+			return nil, err
 		}
-		normalized := clean
-		if hdr.Typeflag == tar.TypeDir && !strings.HasSuffix(normalized, "/") {
-			// Allow trailing slash for Dir type, but strictly forbid . / .. / //
-			if name != clean && name != clean+"/" {
-				return nil, NewVError(E_PATH, name, "path not normalized")
-			}
-		} else {
-			if name != clean {
-				return nil, NewVError(E_PATH, name, "path not normalized")
-			}
+		if err := validateTarPAX(name, hdr); err != nil {
+			return nil, err
 		}
 
-		// 3. Type Allowlist
-		switch hdr.Typeflag {
-		case tar.TypeDir, tar.TypeReg, tar.TypeSymlink:
-			// OK
-		default:
-			return nil, NewVError(E_TYPE, name, fmt.Sprintf("forbidden type flag: %c", hdr.Typeflag))
+		updateLayoutPresence(name, hdr, rep)
+
+		if err := processEntryContent(tr, hdr, rep); err != nil {
+			return nil, err
 		}
-
-		// 4. Identity Leak Check
-		if hdr.Uid != 0 || hdr.Gid != 0 {
-			return nil, NewVError(E_IDENTITY, name, fmt.Sprintf("non-zero uid/gid: %d/%d", hdr.Uid, hdr.Gid))
-		}
-		if hdr.Uname != "" || hdr.Gname != "" {
-			return nil, NewVError(E_IDENTITY, name, fmt.Sprintf("non-empty uname/gname: %q/%q", hdr.Uname, hdr.Gname))
-		}
-
-		// 5. Time consistency (epoch check logic)
-		ts := hdr.ModTime
-		if ts.Nanosecond() != 0 {
-			return nil, NewVError(E_TIME, name, "non-zero nanoseconds forbidden")
-		}
-		if seenSec == 0 {
-			seenSec = ts.Unix()
-		} else {
-			if ts.Unix() != seenSec {
-				return nil, NewVError(E_TIME, name, fmt.Sprintf("mtime mismatch (expected %d, got %d)", seenSec, ts.Unix()))
-			}
-		}
-
-		// 6. PAX Header Check (C2: allowlist, forbid time/xattr)
-		if len(hdr.PAXRecords) > 0 {
-			for k := range hdr.PAXRecords {
-				if k != "path" && k != "linkpath" {
-					if k == "mtime" || k == "atime" || k == "ctime" {
-						return nil, NewVError(E_PAX, name, "forbidden PAX time key: "+k)
-					}
-					if strings.HasPrefix(k, "LIBARCHIVE.") || strings.HasPrefix(k, "SCHILY.xattr.") {
-						return nil, NewVError(E_XATTR, name, "xattr/provenance leak: "+k)
-					}
-					return nil, NewVError(E_PAX, name, "forbidden PAX key: "+k)
-				}
-			}
-		}
-		if len(hdr.Xattrs) > 0 {
-			return nil, NewVError(E_XATTR, name, "xattr map present")
-		}
-
-		// 7. Track Required Layout Presence & Evidence
-		switch {
-		case name == "review/INDEX.md":
-			rep.HasIndex = true
-		case name == "review/meta/contract.json":
-			rep.HasContractJSON = true
-		case name == "review/meta/SHA256SUMS":
-			rep.HasSHA256SUMS = true
-		case name == "review/meta/SHA256SUMS.sha256":
-			rep.HasSHA256SUMSSeal = true
-		case name == "review/patch/series.patch":
-			rep.HasSeriesPatch = true
-		case strings.HasPrefix(name, "review/evidence/"):
-			if hdr.Typeflag != tar.TypeDir {
-				rep.EvidencePresent = true
-			}
-		}
-
-		// 8. Compute SHA256 (C2)
-		if hdr.Typeflag == tar.TypeDir {
-			continue
-		}
-
-		var hash [32]byte
-		var content []byte
-		var readErr error
-
-		if hdr.Typeflag == tar.TypeSymlink {
-			data := []byte("symlink\x00" + hdr.Linkname)
-			hash = sha256.Sum256(data)
-
-			if path.IsAbs(hdr.Linkname) || strings.Contains(hdr.Linkname, "..") {
-				return nil, NewVError(E_PATH, name, "unsafe symlink target: "+hdr.Linkname)
-			}
-		} else {
-			isMeta := name == "review/meta/SHA256SUMS" ||
-				name == "review/meta/SHA256SUMS.sha256" ||
-				name == "review/meta/contract.json" ||
-				name == "review/meta/warnings.txt" ||
-				strings.HasPrefix(name, "review/evidence/")
-
-			if isMeta {
-				content, readErr = io.ReadAll(tr)
-				if readErr != nil {
-					return nil, WrapVError(E_GZIP, name, readErr)
-				}
-				hash = sha256.Sum256(content)
-
-				switch name {
-				case "review/meta/SHA256SUMS":
-					rep.SHA256SUMS = content
-				case "review/meta/SHA256SUMS.sha256":
-					rep.SHA256SUMSSeal = content
-				case "review/meta/contract.json":
-					c, err := ParseContractJSON(content)
-					if err != nil {
-						return nil, err
-					}
-					rep.Contract = c
-				case "review/meta/warnings.txt":
-					rep.WarningsTxt = content
-				default:
-					if strings.HasPrefix(name, "review/evidence/") {
-						rep.EvidenceFiles = append(rep.EvidenceFiles, content)
-					}
-				}
-			} else {
-				h := sha256.New()
-				if _, err := io.Copy(h, tr); err != nil {
-					return nil, WrapVError(E_GZIP, name, err)
-				}
-				copy(hash[:], h.Sum(nil))
-			}
-		}
-
-		rep.ComputedSHA256[name] = hash
 	}
 
 	return rep, nil
 }
 
+func validateTarOrder(name, prev string, seenFirst bool) error {
+	if seenFirst && name < prev {
+		return NewVError(E_ORDER, name, fmt.Sprintf("is not sorted (prev: %s)", prev))
+	}
+	return nil
+}
+
+func validateTarPath(name string, typeFlag byte) error {
+	if strings.HasPrefix(name, "/") {
+		return NewVError(E_PATH, name, "absolute path forbidden")
+	}
+	if strings.Contains(name, "\x00") {
+		return NewVError(E_PATH, name, "contains NUL char")
+	}
+	if strings.Contains(name, "\\") {
+		return NewVError(E_PATH, name, "contains backslash")
+	}
+	clean := path.Clean(name)
+	if clean == ".." || strings.HasPrefix(clean, "../") {
+		return NewVError(E_PATH, name, "parent traversal prohibited")
+	}
+
+	// Normalize check
+	normalized := clean
+	if typeFlag == tar.TypeDir && !strings.HasSuffix(normalized, "/") {
+		if name != clean && name != clean+"/" {
+			return NewVError(E_PATH, name, "path not normalized")
+		}
+	} else {
+		if name != clean {
+			return NewVError(E_PATH, name, "path not normalized")
+		}
+	}
+	return nil
+}
+
+func validateTarType(name string, flag byte) error {
+	switch flag {
+	case tar.TypeDir, tar.TypeReg, tar.TypeSymlink:
+		return nil
+	default:
+		return NewVError(E_TYPE, name, fmt.Sprintf("forbidden type flag: %c", flag))
+	}
+}
+
+func validateTarIdentity(name string, hdr *tar.Header) error {
+	if hdr.Uid != 0 || hdr.Gid != 0 {
+		return NewVError(E_IDENTITY, name, fmt.Sprintf("non-zero uid/gid: %d/%d", hdr.Uid, hdr.Gid))
+	}
+	if hdr.Uname != "" || hdr.Gname != "" {
+		return NewVError(E_IDENTITY, name, fmt.Sprintf("non-empty uname/gname: %q/%q", hdr.Uname, hdr.Gname))
+	}
+	return nil
+}
+
+func validateTarTime(name string, hdr *tar.Header, seenSec *int64) error {
+	ts := hdr.ModTime
+	if ts.Nanosecond() != 0 {
+		return NewVError(E_TIME, name, "non-zero nanoseconds forbidden")
+	}
+	if *seenSec == 0 {
+		*seenSec = ts.Unix()
+	} else {
+		if ts.Unix() != *seenSec {
+			return NewVError(E_TIME, name, fmt.Sprintf("mtime mismatch (expected %d, got %d)", *seenSec, ts.Unix()))
+		}
+	}
+	return nil
+}
+
+func validateTarPAX(name string, hdr *tar.Header) error {
+	if len(hdr.PAXRecords) > 0 {
+		for k := range hdr.PAXRecords {
+			if k != "path" && k != "linkpath" {
+				if k == "mtime" || k == "atime" || k == "ctime" {
+					return NewVError(E_PAX, name, "forbidden PAX time key: "+k)
+				}
+				if strings.HasPrefix(k, "LIBARCHIVE.") || strings.HasPrefix(k, "SCHILY.xattr.") {
+					return NewVError(E_XATTR, name, "xattr/provenance leak: "+k)
+				}
+				return NewVError(E_PAX, name, "forbidden PAX key: "+k)
+			}
+		}
+	}
+	if len(hdr.Xattrs) > 0 {
+		return NewVError(E_XATTR, name, "xattr map present")
+	}
+	return nil
+}
+
+func updateLayoutPresence(name string, hdr *tar.Header, rep *VerifyReport) {
+	switch {
+	case name == PathIndex:
+		rep.HasIndex = true
+	case name == PathContract:
+		rep.HasContractJSON = true
+	case name == PathSHA256SUMS:
+		rep.HasSHA256SUMS = true
+	case name == PathSHA256SUMSSeal:
+		rep.HasSHA256SUMSSeal = true
+	case name == PathSeriesPatch:
+		rep.HasSeriesPatch = true
+	case strings.HasPrefix(name, DirEvidence):
+		if hdr.Typeflag != tar.TypeDir {
+			rep.EvidencePresent = true
+		}
+	}
+}
+
+func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) error {
+	if hdr.Typeflag == tar.TypeDir {
+		return nil
+	}
+
+	name := hdr.Name
+	var hash [32]byte
+
+	if hdr.Typeflag == tar.TypeSymlink {
+		if path.IsAbs(hdr.Linkname) || strings.Contains(hdr.Linkname, "..") {
+			return NewVError(E_PATH, name, "unsafe symlink target: "+hdr.Linkname)
+		}
+		data := []byte("symlink\x00" + hdr.Linkname)
+		hash = sha256.Sum256(data)
+	} else {
+		// Regular file
+		isMeta := name == PathSHA256SUMS ||
+			name == PathSHA256SUMSSeal ||
+			name == PathContract ||
+			name == PathWarnings ||
+			strings.HasPrefix(name, DirEvidence)
+
+		if isMeta {
+			content, err := io.ReadAll(tr)
+			if err != nil {
+				return WrapVError(E_GZIP, name, err)
+			}
+			hash = sha256.Sum256(content)
+
+			if err := storeMetaContent(name, content, rep); err != nil {
+				return err
+			}
+		} else {
+			h := sha256.New()
+			if _, err := io.Copy(h, tr); err != nil {
+				return WrapVError(E_GZIP, name, err)
+			}
+			copy(hash[:], h.Sum(nil))
+		}
+	}
+
+	rep.ComputedSHA256[name] = hash
+	return nil
+}
+
+func storeMetaContent(name string, content []byte, rep *VerifyReport) error {
+	switch name {
+	case PathSHA256SUMS:
+		rep.SHA256SUMS = content
+	case PathSHA256SUMSSeal:
+		rep.SHA256SUMSSeal = content
+	case PathContract:
+		c, err := ParseContractJSON(content)
+		if err != nil {
+			return err
+		}
+		rep.Contract = c
+	case PathWarnings:
+		rep.WarningsTxt = content
+	default:
+		if strings.HasPrefix(name, DirEvidence) {
+			rep.EvidenceFiles = append(rep.EvidenceFiles, content)
+		}
+	}
+	return nil
+}
+
 func verifyPostConditions(rep *VerifyReport) error {
-	// TODO: implement C3
+	if err := validateContractAndEpoch(rep); err != nil {
+		return err
+	}
+	if err := validateGzipHeader(rep); err != nil {
+		return err
+	}
+	if err := validateLayout(rep); err != nil {
+		return err
+	}
+	if err := validateManifest(rep); err != nil {
+		return err
+	}
+	if err := validateEvidenceBinding(rep); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateContractAndEpoch(rep *VerifyReport) error {
+	if !rep.HasContractJSON {
+		return NewVError(E_LAYOUT, PathContract, "missing essential metadata")
+	}
+	if rep.Contract == nil {
+		return NewVError(E_CONTRACT, PathContract, "failed to parse")
+	}
+	return ValidateContractV11(rep.Contract)
+}
+
+func validateGzipHeader(rep *VerifyReport) error {
+	epoch := rep.Contract.EpochSec
+	if rep.GzipModTime.Unix() != epoch {
+		return NewVError(E_GZIP, "header", fmt.Sprintf("mtime mismatch (header: %d, contract: %d)", rep.GzipModTime.Unix(), epoch))
+	}
+	if rep.GzipOS != 255 && rep.GzipOS != 0 {
+		return NewVError(E_GZIP, "header", fmt.Sprintf("OS byte must be 0 or 255 (got %d)", rep.GzipOS))
+	}
+	if rep.GzipName != "" {
+		return NewVError(E_GZIP, "header", "Name must be empty")
+	}
+	if rep.GzipComment != "" {
+		return NewVError(E_GZIP, "header", "Comment must be empty")
+	}
+	if len(rep.GzipExtra) > 0 {
+		return NewVError(E_GZIP, "header", "Extra data must be empty")
+	}
+	return nil
+}
+
+func validateLayout(rep *VerifyReport) error {
+	if !rep.HasIndex {
+		return NewVError(E_LAYOUT, PathIndex, "missing")
+	}
+	if !rep.HasSHA256SUMS {
+		return NewVError(E_LAYOUT, PathSHA256SUMS, "missing")
+	}
+	if !rep.HasSHA256SUMSSeal {
+		return NewVError(E_LAYOUT, PathSHA256SUMSSeal, "missing")
+	}
+	if !rep.HasSeriesPatch {
+		return NewVError(E_LAYOUT, PathSeriesPatch, "missing")
+	}
+	if !rep.EvidencePresent && rep.Contract.Evidence.Required {
+		return NewVError(E_EVIDENCE, DirEvidence, "required but missing")
+	}
+	return nil
+}
+
+func validateManifest(rep *VerifyReport) error {
+	checksums, err := ParseSHA256SUMS(rep.SHA256SUMS)
+	if err != nil {
+		return err
+	}
+	if err := VerifySHA256SUMSSeal(rep.SHA256SUMS, rep.SHA256SUMSSeal); err != nil {
+		return err
+	}
+	return VerifyChecksumCompleteness(checksums, rep.ComputedSHA256)
+}
+
+func validateEvidenceBinding(rep *VerifyReport) error {
+	mode := rep.Contract.Mode
+	headSHA := rep.Contract.HeadSHA
+
+	if mode == ModeStrict {
+		if !rep.EvidencePresent {
+			return NewVError(E_EVIDENCE, "strict_mode", "evidence files required in strict mode")
+		}
+		bound := false
+		for _, content := range rep.EvidenceFiles {
+			if strings.Contains(string(content), headSHA) {
+				bound = true
+				break
+			}
+		}
+		if !bound {
+			return NewVError(E_EVIDENCE, "binding", fmt.Sprintf("no evidence file contains HEAD SHA %s", headSHA))
+		}
+		rep.EvidenceBoundToHead = true
+	} else if mode == ModeWIP {
+		if rep.Contract.WarningsCount > 0 {
+			if len(rep.WarningsTxt) == 0 {
+				return NewVError(E_LAYOUT, PathWarnings, "missing (warnings_count > 0)")
+			}
+		}
+	}
 	return nil
 }
