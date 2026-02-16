@@ -13,7 +13,8 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
   - If a PR touches phase scope, it MUST update this board in the same PR.
 - Percent is human-reported but must be consistent:
   - 0% = not started
-  - 1-99% = in progress
+  - 1-98% = in progress
+  - 99% = Review (DoD: PR open, CI pass)
   - 100% = merged to main (or otherwise declared complete with evidence)
 
 ## Milestones (S11..S15)
@@ -32,7 +33,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-16 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/evidence/prverify/prverify_20260216T083602Z_3ac3954.md
+- Evidence: docs/evidence/prverify/prverify_20260216T085628Z_93bd2c3.md
 
 ## Update Checklist (for every PR)
 - [ ] Update the Progress % and Current (This PR) row(s)

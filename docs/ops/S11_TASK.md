@@ -2,7 +2,7 @@
 
 ## Progress
 - S10: 100%
-- S11-00: 0% -> 100% (when merged)
+- S11-00: 0% -> 99% (Review) -> 100% (Merged)
 
 ## Task (Deterministic Order)
 
@@ -25,7 +25,7 @@
 - [ ] Ensure files are tracked (single output: list tracked)
   - `bash -lc 'cd "$(git rev-parse --show-toplevel)" && git ls-files docs/ops/STATUS.md docs/ops/S11_PLAN.md docs/ops/S11_TASK.md'`
 - [ ] Ensure STATUS contains S11..S15 rows (single output: rg hits)
-  - `bash -lc 'cd "$(git rev-parse --show-toplevel)" && rg -n "^\| S11-00|^\| S12|^\| S13|^\| S14|^\| S15" docs/ops/STATUS.md'`
+  - `bash -lc 'cd "$(git rev-parse --show-toplevel)" && rg -n "^\| S11-|^\| S12|^\| S13|^\| S14|^\| S15" docs/ops/STATUS.md'`
 
 ### 4) Gates (use canonical project gate)
 - [ ] Gate: prverify (single result: PASS/FAIL)
