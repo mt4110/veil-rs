@@ -86,7 +86,7 @@
 - [x] cd "$(git rev-parse --show-toplevel)"
 - [x] git status -sb
 - [x] if docs/pr/ に新規 SOT が無い:
-  - [x] veil sot new --epic A --slug prkit-dry-run-v1
+  - [x] Manual: Create docs/pr/PR-TBD-epic-A-slug-prkit-dry-run-v1.md
 - [x] edit: 生成された docs/pr/PR-*.md にガチガチ本文を貼る
 - [x] git add docs/pr
 - [x] git commit -m "docs(pr63): add SOT"

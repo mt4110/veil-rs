@@ -10,10 +10,10 @@ title: UX Improvements for SOT (Templates & CI)
 ---
 
 ## Overview
-Improve SOT friction by updating PR templates to use `veil sot new` and making CI SOT checks helpful with actionable error messages.
+Improve SOT friction by updating PR templates.
 
 ## Goals
-- [x] Update PR templates to recommend `veil sot new`
+- [x] Update PR templates to recommend manual SOT creation
 - [x] Update `docs/pr/README.md`
 - [x] Implement helpful CI SOT check (`pr_sot_guard.yml`)
 - [x] Use SHA-based comparison in CI for stability
@@ -24,7 +24,7 @@ Improve SOT friction by updating PR templates to use `veil sot new` and making C
 
 ## Design
 ### PR Templates
-Replaced `cat` instructions with `veil sot new ...` in:
+Replaced `cat` instructions with manual steps in:
 - `00_default.md`
 - `10_epic.md`
 - `20_release.md`
@@ -36,7 +36,7 @@ New workflow `.github/workflows/pr_sot_guard.yml`:
 - Compares `base_sha` vs `head_sha`.
 - Filters out `docs/` and `.github/` changes.
 - Fails if code changes exist but no SOT in `docs/pr/` is part of the diff.
-- Error message provides copy-pasteable `veil sot new` command.
+- Error message provides copy-pasteable manual creation instructions.
 
 ## Verification
 - [x] `cargo test -p veil-cli` (Existing)

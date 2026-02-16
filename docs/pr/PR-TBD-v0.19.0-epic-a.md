@@ -19,7 +19,7 @@ commit: 61392d06c2297c7feac4c271411d55732f807713
 
 ## Design
 ### CLI
-- Command: `veil sot new ...`
+- Command: Manual creation
 - Output path: `docs/pr/...`
 
 ### Files / Formats
@@ -27,7 +27,7 @@ commit: 61392d06c2297c7feac4c271411d55732f807713
 
 ## Verification
 - [ ] `cargo test -p veil-cli`
-- [ ] Manual: `veil sot new --dry-run ...`
+- [ ] Manual: Create SOT file
 
 ## Risks / Rollback
 - Risks:
