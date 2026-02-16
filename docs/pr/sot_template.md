@@ -1,8 +1,8 @@
-# [LEGACY] Use `veil sot new` instead
+# SOT Template
 # PR-TBD-<release>-epic-<epic>[-<slug>]: [Title]
 
 > This file is kept for historical reference.
-> For new work, run `veil sot new ...` which generates a SOT with consistent naming + metadata.
+> For new work, copy this to `docs/pr/PR-<NUMBER>-<slug>.md`.
 
 ## Why (Background)
 - Why now? What pain does this solve?

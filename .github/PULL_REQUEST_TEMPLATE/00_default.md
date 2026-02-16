@@ -8,12 +8,12 @@
 - docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
 
 <!--
-Run this command in your terminal to create the SOT file:
-
-# v0.19.0+
-veil sot new --epic <A|B|...> --slug <short>
-
-# Then copy-paste the output block here (it prints the exact "### SOT" section).
+Manual SOT creation:
+1) Create a SOT file under `docs/pr/`:
+   - `docs/pr/PR-<PR_NUMBER>-<slug>.md`
+2) Fill standard sections:
+   - SOT / What / Verification / Evidence
+3) Commit + push, then rerun the gate (CI / prverify).
 -->
 
 # Changes
