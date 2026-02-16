@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -46,6 +47,7 @@ type VerifyReport struct {
 	SHA256SUMS     []byte
 	SHA256SUMSSeal []byte
 	WarningsTxt    []byte
+	EvidenceFiles  [][]byte // buffered evidence content for binding check
 
 	// required layout presence
 	HasIndex          bool
@@ -121,8 +123,6 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 		name := hdr.Name
 
 		// 1. Ordering Check (Bytewise Lexicographic)
-		// Directories in tar usually end with /, but sorting must be on full path
-		// We use raw name for sorting check as per contract
 		if seenFirst {
 			if name < prevNameCanon {
 				return nil, NewVError(E_ORDER, name, fmt.Sprintf("is not sorted (prev: %s)", prevNameCanon))
@@ -141,25 +141,13 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 		if strings.Contains(name, "\\") {
 			return nil, NewVError(E_PATH, name, "contains backslash")
 		}
-		// Clean check: path.Clean should match raw path (modulo trailing slash for dir)
 		clean := path.Clean(name)
 		if clean == ".." || strings.HasPrefix(clean, "../") {
 			return nil, NewVError(E_PATH, name, "parent traversal prohibited")
 		}
-		// Normalize for comparison: remove trailing slash if present in name but not clean
-		// (tar dirs SHOULD have trailing slash, but path.Clean removes it)
-		// We check if Clean(name) is essentially the same structure.
-		// Strict check: contract says "Clean(path) == path" (normalized)
-		// If name has trailing slash, Clean removes it.
-		// We allow trailing slash for Directory type only, but internal segments must be clean.
 		normalized := clean
 		if hdr.Typeflag == tar.TypeDir && !strings.HasSuffix(normalized, "/") {
-			// append slash for comparison if original had it?
-			// Actually, contract 3.1 says "Clean(path) == path".
-			// Standard tar usage often has trailing slash for dirs.
-			// Let's interpret "Clean(path) == path" as "no . or .. or //".
-			// If we strict compare name to clean, we forbid trailing slash on dirs.
-			// Let's relax slightly to allow trailing slash on Dir type, but strictly forbid . / .. / //
+			// Allow trailing slash for Dir type, but strictly forbid . / .. / //
 			if name != clean && name != clean+"/" {
 				return nil, NewVError(E_PATH, name, "path not normalized")
 			}
@@ -186,8 +174,6 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 		}
 
 		// 5. Time consistency (epoch check logic)
-		// We don't know epoch yet (in C1), but we can enforce consistency:
-		// All entries must have nanos=0 and same integer seconds.
 		ts := hdr.ModTime
 		if ts.Nanosecond() != 0 {
 			return nil, NewVError(E_TIME, name, "non-zero nanoseconds forbidden")
@@ -200,7 +186,100 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 			}
 		}
 
-		// C2/C3 logic placeholders (Stream scan continues)
+		// 6. PAX Header Check (C2: allowlist, forbid time/xattr)
+		if len(hdr.PAXRecords) > 0 {
+			for k := range hdr.PAXRecords {
+				if k != "path" && k != "linkpath" {
+					if k == "mtime" || k == "atime" || k == "ctime" {
+						return nil, NewVError(E_PAX, name, "forbidden PAX time key: "+k)
+					}
+					if strings.HasPrefix(k, "LIBARCHIVE.") || strings.HasPrefix(k, "SCHILY.xattr.") {
+						return nil, NewVError(E_XATTR, name, "xattr/provenance leak: "+k)
+					}
+					return nil, NewVError(E_PAX, name, "forbidden PAX key: "+k)
+				}
+			}
+		}
+		if len(hdr.Xattrs) > 0 {
+			return nil, NewVError(E_XATTR, name, "xattr map present")
+		}
+
+		// 7. Track Required Layout Presence & Evidence
+		switch {
+		case name == "review/INDEX.md":
+			rep.HasIndex = true
+		case name == "review/meta/contract.json":
+			rep.HasContractJSON = true
+		case name == "review/meta/SHA256SUMS":
+			rep.HasSHA256SUMS = true
+		case name == "review/meta/SHA256SUMS.sha256":
+			rep.HasSHA256SUMSSeal = true
+		case name == "review/patch/series.patch":
+			rep.HasSeriesPatch = true
+		case strings.HasPrefix(name, "review/evidence/"):
+			if hdr.Typeflag != tar.TypeDir {
+				rep.EvidencePresent = true
+			}
+		}
+
+		// 8. Compute SHA256 (C2)
+		if hdr.Typeflag == tar.TypeDir {
+			continue
+		}
+
+		var hash [32]byte
+		var content []byte
+		var readErr error
+
+		if hdr.Typeflag == tar.TypeSymlink {
+			data := []byte("symlink\x00" + hdr.Linkname)
+			hash = sha256.Sum256(data)
+
+			if path.IsAbs(hdr.Linkname) || strings.Contains(hdr.Linkname, "..") {
+				return nil, NewVError(E_PATH, name, "unsafe symlink target: "+hdr.Linkname)
+			}
+		} else {
+			isMeta := name == "review/meta/SHA256SUMS" ||
+				name == "review/meta/SHA256SUMS.sha256" ||
+				name == "review/meta/contract.json" ||
+				name == "review/meta/warnings.txt" ||
+				strings.HasPrefix(name, "review/evidence/")
+
+			if isMeta {
+				content, readErr = io.ReadAll(tr)
+				if readErr != nil {
+					return nil, WrapVError(E_GZIP, name, readErr)
+				}
+				hash = sha256.Sum256(content)
+
+				switch name {
+				case "review/meta/SHA256SUMS":
+					rep.SHA256SUMS = content
+				case "review/meta/SHA256SUMS.sha256":
+					rep.SHA256SUMSSeal = content
+				case "review/meta/contract.json":
+					c, err := ParseContractJSON(content)
+					if err != nil {
+						return nil, err
+					}
+					rep.Contract = c
+				case "review/meta/warnings.txt":
+					rep.WarningsTxt = content
+				default:
+					if strings.HasPrefix(name, "review/evidence/") {
+						rep.EvidenceFiles = append(rep.EvidenceFiles, content)
+					}
+				}
+			} else {
+				h := sha256.New()
+				if _, err := io.Copy(h, tr); err != nil {
+					return nil, WrapVError(E_GZIP, name, err)
+				}
+				copy(hash[:], h.Sum(nil))
+			}
+		}
+
+		rep.ComputedSHA256[name] = hash
 	}
 
 	return rep, nil
