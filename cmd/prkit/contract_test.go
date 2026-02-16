@@ -171,8 +171,13 @@ func TestSingleEntryPoint(t *testing.T) {
 				if strings.Contains(cmd, "git describe") {
 					return prkit.ExecResult{ExitCode: 0, Stdout: "v0.1.0"}
 				}
-				if strings.Contains(cmd, "git rev-parse") {
+				if strings.Contains(cmd, "git rev-parse --show-toplevel") {
+					// Simulate repo root path
 					return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
+				}
+				if strings.Contains(cmd, "git rev-parse HEAD") {
+					// Simulate a stable commit SHA
+					return prkit.ExecResult{ExitCode: 0, Stdout: "0123456789abcdef0123456789abcdef01234567"}
 				}
 				// Default mock for tool checks
 				return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
