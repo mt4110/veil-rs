@@ -61,9 +61,7 @@ if [ "$MODE" = "clean" ]; then
 fi
 
 head12="$(git -C "$toplevel" rev-parse --short=12 HEAD)"
-head12="$(git -C "$toplevel" rev-parse --short=12 HEAD)"
 head7="$(git -C "$toplevel" rev-parse --short=7 HEAD)"
-
 # Anchor (last non-doc commit) for evidence stability
 anchor_sha="$(git -C "$toplevel" log -1 --format=%H -- . ':(exclude)docs/**' 2>/dev/null || git -C "$toplevel" rev-parse HEAD)"
 anchor7="$(printf "%s" "$anchor_sha" | cut -c1-7)"
