@@ -11,6 +11,8 @@ import (
 )
 
 // ensure stable output for tests
+const mockRepoRoot = "/tmp/mock/repo"
+
 func init() {
 	// Mock time for deterministic JSON output in tests
 	prkit.Now = func() time.Time {
@@ -116,7 +118,7 @@ func TestExecutionSuccess(t *testing.T) {
 			}
 			// Handle git rev-parse (FindRepoRoot)
 			if strings.Contains(cmd, "git rev-parse --show-toplevel") {
-				return prkit.ExecResult{ExitCode: 0, Stdout: "/tmp/mock/repo"}
+				return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
 			}
 			// Handle tools version checks
 			return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
@@ -150,5 +152,87 @@ func TestExecutionSuccess(t *testing.T) {
 		// We could verify details here
 	} else {
 		t.Errorf("command_list missing or not an array")
+	}
+}
+
+func TestSingleEntryPoint(t *testing.T) {
+	// 狙い: すべてのCLI操作（help以外）が Run を通り、
+	// かつ内部のオーケストレーションが「同一の契約（Runner/Stdout/Stderr）」に縛られていることを確認する。
+	// ここでは Run を呼んで、想定したシンボルが呼ばれることを間接的に確認するテストケースを集約していく。
+
+	t.Run("SOTScaffoldingThroughRun", func(t *testing.T) {
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+
+		// Mock runner to avoid host dependencies and security violations
+		runner := &prkit.FakeExecRunner{
+			Handler: func(spec prkit.ExecSpec) prkit.ExecResult {
+				cmd := strings.Join(spec.Argv, " ")
+				if strings.Contains(cmd, "git describe") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "v0.1.0"}
+				}
+				if strings.Contains(cmd, "git rev-parse --show-toplevel") {
+					// Simulate repo root path
+					return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
+				}
+				if strings.Contains(cmd, "git rev-parse HEAD") {
+					// Simulate a stable commit SHA
+					return prkit.ExecResult{ExitCode: 0, Stdout: "0123456789abcdef0123456789abcdef01234567"}
+				}
+				// Default mock for tool checks
+				return prkit.ExecResult{ExitCode: 0, Stdout: "mock-version"}
+			},
+		}
+
+		// epic/slugを指定して、Run経由でScaffoldSOTが試行されることを確認。
+		args := []string{"--sot-new", "--epic", "s10", "--slug", "test-sot"}
+
+		exitCode := Run(args, stdout, stderr, runner)
+		if exitCode != 0 {
+			t.Errorf("expected exit code 0, got %d. stderr: %s, stdout: %s", exitCode, stderr.String(), stdout.String())
+		}
+		if !strings.Contains(stdout.String(), "Preview SOT:") {
+			t.Errorf("expected SOT preview in stdout, got: %q. stderr: %q", stdout.String(), stderr.String())
+		}
+	})
+}
+
+func TestDeterminism(t *testing.T) {
+	// 狙い: 同一入力 -> 同一証拠 (JSON) を担保する。
+	// 時刻は init() で固定済みのため、環境や順序が混入しないことを確認。
+
+	args := []string{"--dry-run"}
+
+	runOnce := func() string {
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		runner := &prkit.FakeExecRunner{
+			Handler: func(spec prkit.ExecSpec) prkit.ExecResult {
+				cmd := strings.Join(spec.Argv, " ")
+				if strings.Contains(cmd, "git status") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: ""}
+				}
+				if strings.Contains(cmd, "git rev-parse") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: mockRepoRoot}
+				}
+				if strings.Contains(cmd, "git rev-list") || strings.Contains(cmd, "git describe") {
+					return prkit.ExecResult{ExitCode: 0, Stdout: "mock-sha-or-ver"}
+				}
+				return prkit.ExecResult{ExitCode: 0, Stdout: "const"}
+			},
+		}
+		// ResetTrace is called inside Run
+		exitCode := Run(args, stdout, stderr, runner)
+		if exitCode != 0 {
+			t.Errorf("expected exit code 0, got %d. stderr: %s", exitCode, stderr.String())
+		}
+		return stdout.String()
+	}
+
+	out1 := runOnce()
+	out2 := runOnce()
+
+	if out1 != out2 {
+		t.Errorf("Inconsistent output detected!\nOut1:\n%s\nOut2:\n%s", out1, out2)
 	}
 }

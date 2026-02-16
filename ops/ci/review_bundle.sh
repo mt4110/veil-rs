@@ -62,6 +62,9 @@ fi
 
 head12="$(git -C "$toplevel" rev-parse --short=12 HEAD)"
 head7="$(git -C "$toplevel" rev-parse --short=7 HEAD)"
+# Anchor (last non-doc commit) for evidence stability
+anchor_sha="$(git -C "$toplevel" log -1 --format=%H -- . ':(exclude)docs/**' 2>/dev/null || git -C "$toplevel" rev-parse HEAD)"
+anchor7="$(printf "%s" "$anchor_sha" | cut -c1-7)"
 
 # Resolve base (fallback chain)
 if git -C "$toplevel" rev-parse --verify -q "$BASE_REF" >/dev/null; then
@@ -201,7 +204,8 @@ if [ -n "${EVIDENCE_FILE:-}" ]; then
   fi
 else
   ev=$(
-    ls -1t "$toplevel/.local/prverify"/prverify_*_"${head12}".md 2>/dev/null | head -n 1 \
+    ls -1t "$toplevel/.local/prverify"/prverify_*_"${anchor7}".md 2>/dev/null | head -n 1 \
+    || ls -1t "$toplevel/.local/prverify"/prverify_*_"${head12}".md 2>/dev/null | head -n 1 \
     || ls -1t "$toplevel/.local/prverify"/prverify_*_"${head7}".md 2>/dev/null | head -n 1 \
     || true
   )
@@ -209,7 +213,7 @@ else
   if [ -z "${ev:-}" ]; then
     ev="$(ls -1t "$toplevel/.local/prverify"/prverify_*.md 2>/dev/null | head -n 1 || true)"
     if [ -n "${ev:-}" ]; then
-      echo "WARN: No prverify log found for HEAD (${head12}); included latest: $(basename "$ev")" >> "$root/meta/warnings.txt"
+      echo "WARN: No prverify log found for ANCHOR (${anchor7}) or HEAD (${head12}); included latest: $(basename "$ev")" >> "$root/meta/warnings.txt"
     fi
   fi
 
