@@ -30,8 +30,9 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 ## Last Updated
 - Date: 2026-02-16 (+0900)
-- By: @mt4110 (Agent: Antigravity)
-- Evidence: docs/evidence/prverify/prverify_20260216T083111Z_9f8ba2e.md
+- By: @mt4110
+- Agent: @antigravity
+- Evidence: docs/evidence/prverify/prverify_20260216T083602Z_3ac3954.md
 
 ## Update Checklist (for every PR)
 - [ ] Update the Progress % and Current (This PR) row(s)
