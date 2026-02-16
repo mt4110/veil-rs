@@ -113,3 +113,35 @@ Close remaining audit gaps:
 - go test ./... -count=1
 - (optional) nix run .#prverify if code changed in C3
 - Ensure docs + PR + evidence align
+
+## Fixpack-2 v3: Anchor-Based Absolute Audit Seal (The Final Stop)
+
+### Core Rules (Anti-Loop)
+1. **R0: Stdout Standardization**: All steps output ONLY `OK: ...` or `ERR: ...`. Raw logs go to `.local/fp2/*.log`.
+2. **R1: Timeboxing**: Commands have fixed timeouts (STOP if exceeded).
+3. **R2: Evidence Anchor**: Evidence links to `EVIDENCE_ANCHOR` (last non-doc commit), not HEAD. This breaks the infinite loop.
+
+### DoD (Final Gates)
+- `review/meta/warnings.txt` == empty
+- `review/meta/status.txt` == empty (clean at seal time)
+- `prverify_*_<ANCHOR7>.md` exists
+- SOT / Task / PR Body point to valid `prverify_*_<ANCHOR7>.md`
+- Unicode evidence (changed files) shows Bidi+Cf=0
+- **STOP** if any "ERR:" or TIMEBOX_STOP occurs.
+
+### Definition of ANCHOR
+- `ANCHOR_SHA`: `git log -1 --format=%H -- . ':(exclude)docs/**'`
+- If listing fails, fallback to HEAD (but implies docs-only loop risk).
+
+### Execution Sequence (Fixed)
+FP2-00 Setup (.local/fp2)
+FP2-01 Define ANCHOR7
+FP2-02 Fix review_bundle.sh (Anchor Logic)
+FP2-03 C1 Commit (Non-Docs): "fix(review-bundle): anchor prverify to last non-doc commit"
+FP2-04 Gen Evidence (for ANCHOR7)
+FP2-05 Align Pointers (SOT/Task/PR -> ANCHOR7)
+FP2-06 Unicode Gate (Changed files only)
+FP2-07 C2 Commit (Docs-Only): "docs(s10-10): seal pointers via anchor-sha DoD"
+FP2-08 Push
+FP2-09 Audit Seal (Quiet Bundle)
+FP2-10 DoD Verification (Quiet Check)
