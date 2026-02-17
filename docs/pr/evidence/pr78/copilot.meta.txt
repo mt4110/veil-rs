@@ -1,0 +1,25 @@
+# Copilot Evidence Meta (PR #78)
+
+PR: https://github.com/mt4110/veil-rs/pull/78
+CapturedAtUTC: 2026-02-17T04:21:38Z
+HeadSHA: 747868daceec7a08b759679d74b86eabe3cc528b
+GitStatusPorcelain: 
+ M docs/pr/PR-TBD-v0.22.0-epic-A-pr78-s11-03-reviewbundle.md
+?? docs/evidence/prverify/prverify_20260216T140225Z_4039a3e.md
+?? docs/pr/evidence/pr78/copilot.meta.txt
+?? head_sha.txt
+?? repo_name.txt
+
+GHVersion: gh version 2.83.2 (nixpkgs)
+JQVersion: jq-1.7.1-apple
+
+## Source Queries
+- pulls comments:
+  gh api repos/mt4110/veil-rs/pulls/78/comments
+- pull reviews:
+  gh api repos/mt4110/veil-rs/pulls/78/reviews
+- issue comments:
+  gh api repos/mt4110/veil-rs/issues/78/comments
+
+## Transform
+- jq -s ... (see task history)
