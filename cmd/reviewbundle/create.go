@@ -136,6 +136,11 @@ func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
 	cj, _ := json.MarshalIndent(c, "", "  ")
 	files[PathContract] = cj
 
+	// C4: Contract: if warnings_count > 0, warnings.txt MUST exist.
+	if c.WarningsCount > 0 {
+		files[PathWarnings] = []byte(fmt.Sprintf("warnings_count=%d\n", c.WarningsCount))
+	}
+
 	// 2. Generate SHA256SUMS (C6)
 	var manifestKeys []string
 	for k := range files {
