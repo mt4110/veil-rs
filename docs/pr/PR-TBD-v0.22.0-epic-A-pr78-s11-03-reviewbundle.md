@@ -34,14 +34,3 @@
 - Why: Determinism tests rely on a base ref (format-patch base); default checkout may not include origin/main.
 - Note: This is an operational patch; S11-04 hermetic refactor is the structural fix.
 
-## Post-Fix Notes (C0/C1)
-
-### C0: SOT hygiene
-- Removed duplicate "Copilot Evidence" block (single canonical block only).
-
-### C1: CI stabilization (hotfix)
-- Added a CI step to `git fetch origin main` so status-enforcement/drift comparisons can rely on `origin/main`.
-
-## Gates
-- `nix run .#prverify` (PASS)
-
