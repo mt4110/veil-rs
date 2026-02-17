@@ -71,14 +71,9 @@ func VerifySHA256SUMSSeal(sums []byte, seal []byte) error {
 		return NewVError(E_SHA256, "SHA256SUMS.sha256", "must contain exactly one line")
 	}
 
-	if lines[0].Path != "review/meta/SHA256SUMS" {
-		// Tolerable? Standard sha256sum output includes filename.
-		// Contract says "review/meta/SHA256SUMS" is the name.
-		// If generated from root, it might be that.
-		// Let's enforce it matches.
-		if !strings.HasSuffix(lines[0].Path, "SHA256SUMS") {
-			return NewVError(E_SHA256, "SHA256SUMS.sha256", "unexpected filename in seal: "+lines[0].Path)
-		}
+	// C1: Strict seal path validation
+	if lines[0].Path != "review/meta/SHA256SUMS" && lines[0].Path != "SHA256SUMS" {
+		return NewVError(E_SHA256, "SHA256SUMS.sha256", "unexpected filename in seal: "+lines[0].Path)
 	}
 
 	if lines[0].Sum != actualHash {
