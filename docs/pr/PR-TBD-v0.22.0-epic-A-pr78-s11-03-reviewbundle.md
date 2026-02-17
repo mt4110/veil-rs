@@ -12,44 +12,24 @@
 ## Verification
 - nix run .#prverify (PASS)
 
-## Copilot Review Evidence (Captured)
-
-This PR includes a machine-captured snapshot of Copilot review output for auditability and reviewer convenience.
-
-- Source: GitHub API via `gh api` (REST)
-- PR: #78
-- Bound to PR Head SHA: (see meta file)
+## Copilot Review Evidence
 - Artifacts:
   - docs/pr/evidence/pr78/copilot.json
-  - docs/pr/evidence/pr78/copilot.meta.txt
   - docs/pr/evidence/pr78/copilot.sha256
-  - docs/pr/evidence/pr78/copilot.raw/ (raw API captures)
+  - docs/pr/evidence/pr78/copilot.meta.txt
+- Source: GitHub API via `gh api` (REST)
+- Bound to PR Head SHA: (see meta file)
 
-### Local Verification (Human)
-- Inspect Copilot-only items:
-  - `jq '.items_copilot[] | {kind,at,author,path,line}' docs/pr/evidence/pr78/copilot.json`
-- Integrity check:
-  - `shasum -a 256 docs/pr/evidence/pr78/copilot.json` (or `sha256sum`)
-  - Compare with `docs/pr/evidence/pr78/copilot.sha256`
+## Post-Fix Notes (C0/C1)
 
+### C0: Copilot Evidence block dedupe
+- Action: Removed duplicate Copilot evidence section to keep SOT single-source and reviewable.
+- Result: One canonical Copilot evidence block remains, pointing to:
+  - docs/pr/evidence/pr78/copilot.json
+  - docs/pr/evidence/pr78/copilot.sha256
+  - docs/pr/evidence/pr78/copilot.meta.txt
 
-## Copilot Review Evidence (PR #78)
-
-### Stored Artifacts
-- docs/pr/evidence/pr78/copilot.json
-- docs/pr/evidence/pr78/copilot.sha256
-- docs/pr/evidence/pr78/copilot.meta.txt
-
-### Capture Contract
-- Purpose: Preserve Copilot review feedback as tamper-evident evidence for PR review/audit.
-- Tamper-evidence:
-  - copilot.sha256 binds the exact bytes of copilot.json.
-  - copilot.meta.txt records capture command, PR HEAD SHA, timestamp, and tool versions.
-
-### Notes / Triage
-- MUST (PR #78 scope):
-  - Fixpack: create must emit warnings.txt when warnings_count > 0 (contract compliance).
-  - Any doc inconsistency that impacts audit reading (duplicate sections / numbering).
-- DEFER (S11-04+):
-  - Hermetic determinism tests (synthetic git repo) to remove dependency on fetched base refs.
-  - Repo-agnostic knobs (BASE_REF, repo name) if/when we generalize beyond veil-rs.
+### C1: CI fetch origin/main (temporary stabilization)
+- Action: Added a dedicated `git fetch origin main` step before `nix run .#go-test`.
+- Why: Determinism tests rely on a base ref (format-patch base); default checkout may not include origin/main.
+- Note: This is an operational patch; S11-04 hermetic refactor is the structural fix.
