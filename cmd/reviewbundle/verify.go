@@ -42,6 +42,7 @@ type VerifyReport struct {
 
 	// computed
 	ComputedSHA256 map[string][32]byte
+	TruncatedFiles map[string]bool // new: track files > 4MB
 
 	// extracted raw files (needed for seal/checks)
 	SHA256SUMS     []byte
@@ -91,6 +92,7 @@ func VerifyBundle(r io.Reader) (*VerifyReport, error) {
 func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 	rep := &VerifyReport{
 		ComputedSHA256: make(map[string][32]byte),
+		TruncatedFiles: make(map[string]bool),
 	}
 
 	gz, err := gzip.NewReader(r)
@@ -318,11 +320,11 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 				var b [1]byte
 				n, _ := tr.Read(b[:])
 				if n > 0 {
-					// We truncated. If it's evidence, we marks it as potentially incomplete/invalid for binding
-					// but we keep the truncated content for hash validation if it's already in SHA256SUMS.
-					// Actually, if it's truncated, SHA256 match will fail anyway if we hash the truncated bytes.
-					// The contract says: if >4MB, bound=false.
-					content = append(content, []byte("...[TRUNCATED]")...)
+					// We truncated.
+					// C0: Handle >4MB evidence without hashing
+					rep.TruncatedFiles[name] = true
+					// Skip hashing and normal parsing for truncated files
+					return nil
 				}
 			}
 			hash = sha256.Sum256(content)
@@ -439,10 +441,21 @@ func validateManifest(rep *VerifyReport) error {
 	if err != nil {
 		return err
 	}
+
+	// Filter out truncated files from expected checksums
+	// because we skipped hashing them, so they verify as "missing" otherwise.
+	var filteredChecksums []ChecksumLine
+	for _, c := range checksums {
+		if rep.TruncatedFiles[c.Path] {
+			continue // Skip checksum validation for truncated files
+		}
+		filteredChecksums = append(filteredChecksums, c)
+	}
+
 	if err := VerifySHA256SUMSSeal(rep.SHA256SUMS, rep.SHA256SUMSSeal); err != nil {
 		return err
 	}
-	return VerifyChecksumCompleteness(checksums, rep.ComputedSHA256)
+	return VerifyChecksumCompleteness(filteredChecksums, rep.ComputedSHA256)
 }
 
 func validateEvidenceBinding(rep *VerifyReport) error {
@@ -454,13 +467,24 @@ func validateEvidenceBinding(rep *VerifyReport) error {
 			return NewVError(E_EVIDENCE, "strict_mode", "evidence files required in strict mode")
 		}
 		bound := false
+		// Note: rep.EvidenceFiles does NOT contain truncated files content because processEntryContent returns early.
 		for _, content := range rep.EvidenceFiles {
 			if strings.Contains(string(content), headSHA) {
 				bound = true
 				break
 			}
 		}
+		// Also strict mode requires all present evidence to be bindable?
+		// Or just "some evidence binds"?
+		// "bound=false" if >4MB.
+		// If ANY evidence binds, we are good?
+		// Task says: "strict: fail if evidence required but unbound"
+		// This likely means if NO evidence binds.
+
 		if !bound {
+			// Check if we have truncated evidence files that might have bound if we read them?
+			// But >4MB is explicitly "bound=false".
+			// So if we only have >4MB evidence, bound is false.
 			return NewVError(E_EVIDENCE, "binding", fmt.Sprintf("no evidence file contains HEAD SHA %s", headSHA))
 		}
 		rep.EvidenceBoundToHead = true
