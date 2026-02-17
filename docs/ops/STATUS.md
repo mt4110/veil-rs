@@ -21,21 +21,22 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 | Phase  | Goal (One-liner)                                 | Progress      | Current (This PR) |
 | ------ | ------------------------------------------------ | ------------- | ----------------- |
-| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -                 |
-| S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -                 |
-| S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -                 |
-| S11-03 | Review Bundle Go Hardening (deterministic)       | 99% (Review)  | S11-04 Hermetic   |
-| S11-04 | Hermetic Determinism Tests                       | 99% (Review)  | -                 |
-| S12    | TBD                                              | 0%            | -                 |
-| S13    | TBD                                              | 0%            | -                 |
-| S14    | TBD                                              | 0%            | -                 |
-| S15    | TBD                                              | 0%            | -                 |
+| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -               |
+| S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -               |
+| S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -               |
+| S11-03 | Review Bundle Go Hardening (deterministic)       | 100% (Merged) | -               |
+| S11-04 | Hermetic Determinism Tests                       | 100% (Merged) | -               |
+| S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 99% (Review)  | S11-05 Closeout |
+| S12    | TBD                                              | 0%            | -               |
+| S13    | TBD                                              | 0%            | -               |
+| S14    | TBD                                              | 0%            | -               |
+| S15    | TBD                                              | 0%            | -               |
 
 ## Last Updated
 - Date: 2026-02-17 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/evidence/prverify/prverify_20260217T053000Z_hermetic.md
+- Evidence: docs/evidence/prverify/prverify_20260217T085024Z_12b08ca.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)
