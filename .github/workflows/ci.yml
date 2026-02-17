@@ -54,6 +54,12 @@ jobs:
           fetch-tags: true
           clean: true
       - uses: cachix/install-nix-action@v27
+      - name: Fetch base branch (origin/main) for format-patch based tests
+        run: |
+          echo "INFO: fetching origin/main (shallow) to satisfy base-ref dependent tests"
+          git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main || true
+          git show --no-patch --oneline origin/main 2>/dev/null || true
+
       - run: nix develop -c go test ./...
 
   msrv:
@@ -139,12 +145,12 @@ jobs:
 
       - name: Install sqlx-cli (Robust)
         run: |
-           bash ops/ci/install_sqlx_cli.sh
+          bash ops/ci/install_sqlx_cli.sh
 
-           if [ ! -s .local/ci/sqlx_cli_install.log ]; then
-             echo "Error: installation log missing or empty."
-             exit 1
-           fi
+          if [ ! -s .local/ci/sqlx_cli_install.log ]; then
+            echo "Error: installation log missing or empty."
+            exit 1
+          fi
 
       - name: Check SQLx Prepare
         run: |
