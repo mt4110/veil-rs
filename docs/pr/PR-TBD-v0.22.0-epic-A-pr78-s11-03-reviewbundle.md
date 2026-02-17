@@ -32,22 +32,24 @@ This PR includes a machine-captured snapshot of Copilot review output for audita
   - `shasum -a 256 docs/pr/evidence/pr78/copilot.json` (or `sha256sum`)
   - Compare with `docs/pr/evidence/pr78/copilot.sha256`
 
-## Copilot Review Evidence (Captured)
 
-This PR includes a machine-captured snapshot of Copilot review output for auditability and reviewer convenience.
+## Copilot Review Evidence (PR #78)
 
-- Source: GitHub API via `gh api` (REST)
-- PR: #78
-- Bound to PR Head SHA: (see meta file)
-- Artifacts:
-  - docs/pr/evidence/pr78/copilot.json
-  - docs/pr/evidence/pr78/copilot.meta.txt
-  - docs/pr/evidence/pr78/copilot.sha256
-  - docs/pr/evidence/pr78/copilot.raw/ (raw API captures)
+### Stored Artifacts
+- docs/pr/evidence/pr78/copilot.json
+- docs/pr/evidence/pr78/copilot.sha256
+- docs/pr/evidence/pr78/copilot.meta.txt
 
-### Local Verification (Human)
-- Inspect Copilot-only items:
-  - `jq '.items_copilot[] | {kind,at,author,path,line}' docs/pr/evidence/pr78/copilot.json`
-- Integrity check:
-  - `shasum -a 256 docs/pr/evidence/pr78/copilot.json` (or `sha256sum`)
-  - Compare with `docs/pr/evidence/pr78/copilot.sha256`
+### Capture Contract
+- Purpose: Preserve Copilot review feedback as tamper-evident evidence for PR review/audit.
+- Tamper-evidence:
+  - copilot.sha256 binds the exact bytes of copilot.json.
+  - copilot.meta.txt records capture command, PR HEAD SHA, timestamp, and tool versions.
+
+### Notes / Triage
+- MUST (PR #78 scope):
+  - Fixpack: create must emit warnings.txt when warnings_count > 0 (contract compliance).
+  - Any doc inconsistency that impacts audit reading (duplicate sections / numbering).
+- DEFER (S11-04+):
+  - Hermetic determinism tests (synthetic git repo) to remove dependency on fetched base refs.
+  - Repo-agnostic knobs (BASE_REF, repo name) if/when we generalize beyond veil-rs.
