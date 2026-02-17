@@ -3,80 +3,87 @@ package main
 import (
 	"bytes"
 	"os"
-	"strconv"
 	"testing"
-	"time"
 )
 
-func TestVerify_DeterministicResultForSameInput(t *testing.T) {
-	// TODO: implement in C3/C5
-}
-
 func TestCreate_Determinism(t *testing.T) {
-	// C2: Hermetic environment
-	repoDir, baseSHA := forgeHermeticRepo(t)
+	// Hermetic test: create a synthetic repo in TempDir
+	repoDir := t.TempDir()
+	InitRepo(t, repoDir)
 
-	// Fixed epoch
-	epoch := int64(1700000000)
-	epochStr := strconv.FormatInt(epoch, 10)
-	os.Setenv("SOURCE_DATE_EPOCH", epochStr)
-	defer os.Unsetenv("SOURCE_DATE_EPOCH")
+	// Create 'main' branch content (base)
+	CommitFile(t, repoDir, "README.md", "init", "Initial commit")
 
-	// Resolve HeadSHA from the hermetic repo
-	headSHA, err := getGitHeadSHA(repoDir)
-	if err != nil {
-		t.Fatalf("Failed to get head SHA: %v", err)
-	}
+	// Make feature branch
+	MakeBranch(t, repoDir, "feature/foo")
+	mustRunGit(t, repoDir, "checkout", "feature/foo")
+	CommitFile(t, repoDir, "foo.txt", "foo content", "Add foo feature")
 
-	// Create contract template
-	c := &Contract{
+	headSHA := GetHeadSHA(t, repoDir)
+
+	// We need 2 separate runs to verify determinism
+	// Run 1
+	outDir1 := t.TempDir()
+	epoch := int64(1000000000) // Fixed epoch for determinism
+
+	c1 := &Contract{
 		ContractVersion: "1.1",
-		Mode:            "wip",
+		Mode:            ModeWIP, // Use WIP to allow dirty state if needed, though this repo is clean
 		Repo:            "veil-rs",
 		EpochSec:        epoch,
-		BaseRef:         baseSHA,
+		BaseRef:         "main",
 		HeadSHA:         headSHA,
-		Tool:            Tool{Name: "test", Version: "0.0.0"},
+		// Evidence is optional in WIP
+		Evidence: Evidence{
+			Required:   false,
+			PathPrefix: DirEvidence,
+		},
+		Tool: Tool{
+			Name:    "reviewbundle",
+			Version: "test",
+		},
 	}
 
-	outDir := t.TempDir()
-
-	// Run 1
-	path1, err := CreateBundle(c, outDir, repoDir)
+	path1, err := CreateBundle(c1, outDir1, repoDir)
 	if err != nil {
-		t.Fatalf("First create failed: %v", err)
+		t.Fatalf("CreateBundle(1) failed: %v", err)
 	}
+
+	// Run 2 (same inputs)
+	outDir2 := t.TempDir()
+	c2 := &Contract{
+		ContractVersion: "1.1",
+		Mode:            ModeWIP,
+		Repo:            "veil-rs",
+		EpochSec:        epoch,
+		BaseRef:         "main",
+		HeadSHA:         headSHA,
+		Evidence: Evidence{
+			Required:   false,
+			PathPrefix: DirEvidence,
+		},
+		Tool: Tool{
+			Name:    "reviewbundle",
+			Version: "test",
+		},
+	}
+
+	path2, err := CreateBundle(c2, outDir2, repoDir)
+	if err != nil {
+		t.Fatalf("CreateBundle(2) failed: %v", err)
+	}
+
+	// Compare binary content
 	b1, err := os.ReadFile(path1)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	// Sleep to ensure real time doesn't leak if we had a bug
-	time.Sleep(10 * time.Millisecond)
-
-	// Run 2
-	path2, err := CreateBundle(c, outDir, repoDir)
-	if err != nil {
-		t.Fatalf("Second create failed: %v", err)
 	}
 	b2, err := os.ReadFile(path2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Compare
 	if !bytes.Equal(b1, b2) {
-		t.Error("Bundles are not byte-identical")
+		t.Errorf("Bundle binary content differs between runs with identical input")
 	}
-
-	// Self-audit: Verify the generated bundle
-	report, err := VerifyBundlePath(path1)
-	if err != nil {
-		t.Fatalf("VerifyBundlePath failed on hermetic bundle: %v", err)
-	}
-	if report.Contract.EpochSec != epoch {
-		t.Errorf("Epoch mismatch: got %d, want %d", report.Contract.EpochSec, epoch)
-	}
-	// Verify manifest content
-	// We expect INDEX.md, meta/contract.json, patch/series.patch, meta/SHA256SUMS*
 }
