@@ -14,6 +14,8 @@ import (
 func InitRepo(t *testing.T, dir string) {
 	t.Helper()
 	mustRunGit(t, dir, "init")
+	// Deterministic: force branch name to main (CI git config may default to master)
+	mustRunGit(t, dir, "branch", "-M", "main")
 	mustRunGit(t, dir, "config", "user.name", "Test User")
 	mustRunGit(t, dir, "config", "user.email", "test@example.com")
 	mustRunGit(t, dir, "config", "init.defaultBranch", "main")
