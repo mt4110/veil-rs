@@ -11,4 +11,4 @@ OUT_DIR="${OUT_DIR:-.local/review-bundles}"
 export GOTOOLCHAIN=local
 
 echo "Shimming to reviewbundle (Go)..."
-exec go run ./cmd/reviewbundle create
+exec go run ./cmd/reviewbundle create --mode="$MODE" --out-dir="$OUT_DIR"
