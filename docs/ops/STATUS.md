@@ -21,9 +21,10 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 | Phase  | Goal (One-liner)                                 | Progress      | Current (This PR) |
 | ------ | ------------------------------------------------ | ------------- | ----------------- |
-| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | S11-01 Planning   |
+| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -                 |
 | S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -                 |
-| S11-02 | SOT guidance truth (stopless design)             | 0%            | S11-02 Planning   |
+| S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -                 |
+| S11-03 | Review Bundle Go Hardening (deterministic)       | 99%           | [Review]          |
 | S12    | TBD                                              | 0%            | -                 |
 | S13    | TBD                                              | 0%            | -                 |
 | S14    | TBD                                              | 0%            | -                 |
@@ -33,10 +34,10 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-16 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/evidence/prverify/prverify_20260216T100922Z_ebec5cd.md
+- Evidence: docs/evidence/prverify/prverify_20260216T110132Z_9863b52.md
+
 
 ## Update Checklist (for every PR)
 - [ ] Update the Progress % and Current (This PR) row(s)
 - [ ] Update "Last Updated" (Date, By, Evidence)
 - [ ] Ensure row order is unchanged
-

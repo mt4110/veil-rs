@@ -6,12 +6,12 @@
 
 ### crate: veil-cli
 
-#### [MODIFY] [cli.rs](file:///Users/masakitakemura/_workspace/veil-rs/crates/veil-cli/src/cli.rs)
+#### [MODIFY] [cli.rs](crates/veil-cli/src/cli.rs)
 - Add global flags to `Cli` struct:
     - `--no-color`: Disable colored output.
     - `--quiet`: Suppress non-essential output (logs, progress).
 
-#### [MODIFY] [main.rs](file:///Users/masakitakemura/_workspace/veil-rs/crates/veil-cli/src/main.rs)
+#### [MODIFY] [main.rs](crates/veil-cli/src/main.rs)
 - **Warning/Error Handling**:
     - If `--quiet` is set, set `RUST_LOG=error` (unless overridden) and disable progress bars.
 - **Color Handling**:

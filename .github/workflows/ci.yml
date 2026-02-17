@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Ensure no .sh files
         run: |
           # CI scripts in ops/ci/ are allowed as an exception.
@@ -52,13 +54,21 @@ jobs:
           fetch-tags: true
           clean: true
       - uses: cachix/install-nix-action@v27
-      - run: nix run .#go-test
+      - name: Fetch base branch (origin/main) for format-patch based tests
+        run: |
+          echo "INFO: fetching origin/main (shallow) to satisfy base-ref dependent tests"
+          git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main || true
+          git show --no-patch --oneline origin/main 2>/dev/null || true
+
+      - run: nix develop -c go test ./...
 
   msrv:
     name: MSRV (1.92.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install MSRV
         uses: dtolnay/rust-toolchain@master
         with:
@@ -84,6 +94,8 @@ jobs:
       CARGO_HTTP_TIMEOUT: "600"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create CI Artifact Dir
         run: |
           mkdir -p .local/ci
@@ -133,12 +145,12 @@ jobs:
 
       - name: Install sqlx-cli (Robust)
         run: |
-           bash ops/ci/install_sqlx_cli.sh
+          bash ops/ci/install_sqlx_cli.sh
 
-           if [ ! -s .local/ci/sqlx_cli_install.log ]; then
-             echo "Error: installation log missing or empty."
-             exit 1
-           fi
+          if [ ! -s .local/ci/sqlx_cli_install.log ]; then
+            echo "Error: installation log missing or empty."
+            exit 1
+          fi
 
       - name: Check SQLx Prepare
         run: |
