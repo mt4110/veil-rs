@@ -26,7 +26,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -               |
 | S11-03 | Review Bundle Go Hardening (deterministic)       | 100% (Merged) | -               |
 | S11-04 | Hermetic Determinism Tests                       | 100% (Merged) | -               |
-| S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 60% (WIP)     | S11-05 Closeout |
+| S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 99% (Review)  | S11-05 Closeout |
 | S12    | TBD                                              | 0%            | -               |
 | S13    | TBD                                              | 0%            | -               |
 | S14    | TBD                                              | 0%            | -               |
