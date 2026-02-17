@@ -5,11 +5,11 @@
 - Deliverables:
   - docs/ops/STATUS.md
   - docs/pr/PR-80-s11-05-reviewbundle-closeout.md
-  - docs/evidence/prverify/prverify_<FILL_AFTER_RUN>.md
+  - docs/evidence/prverify/prverify_20260217T085024Z_12b08ca.md
   - (optional) docs/ops/S11-05_PLAN.md / docs/ops/S11-05_TASK.md
 
 ## Evidence
-- prverify: docs/evidence/prverify/prverify_<FILL_AFTER_RUN>.md
+- prverify: docs/evidence/prverify/prverify_20260217T085024Z_12b08ca.md
 
 ## Verification
 - go test ./...  (PASS expected; judge by output text)
