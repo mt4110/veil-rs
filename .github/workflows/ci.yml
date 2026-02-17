@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Ensure no .sh files
         run: |
           # CI scripts in ops/ci/ are allowed as an exception.
@@ -52,13 +54,15 @@ jobs:
           fetch-tags: true
           clean: true
       - uses: cachix/install-nix-action@v27
-      - run: nix run .#go-test
+      - run: nix develop -c go test ./...
 
   msrv:
     name: MSRV (1.92.0)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install MSRV
         uses: dtolnay/rust-toolchain@master
         with:
@@ -84,6 +88,8 @@ jobs:
       CARGO_HTTP_TIMEOUT: "600"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Create CI Artifact Dir
         run: |
           mkdir -p .local/ci
