@@ -37,7 +37,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		// TODO: flags for mode/out-dir
 		mode := "wip"
 		outDir := ".local/review-bundles"
-		if err := CreateBundleUI(mode, outDir, stdout, stderr); err != nil {
+		if err := CreateBundleUI(mode, outDir, "", stdout, stderr); err != nil {
 			fmt.Fprintln(stderr, err.Error())
 			return 1
 		}

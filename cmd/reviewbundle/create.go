@@ -16,13 +16,13 @@ import (
 	"time"
 )
 
-func CreateBundleUI(mode, outDir string, stdout, stderr io.Writer) error {
-	epoch, err := ComputeEpochSec()
+func CreateBundleUI(mode, outDir, repoDir string, stdout, stderr io.Writer) error {
+	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
 	}
 
-	headSHA, err := getGitHeadSHA()
+	headSHA, err := getGitHeadSHA(repoDir)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func CreateBundleUI(mode, outDir string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "Creating bundle (mode=%s, epoch=%d, head=%s)\n", mode, epoch, headSHA[:12])
 
 	// C4: Pre-checks
-	isDirty, err := isGitDirty()
+	isDirty, err := isGitDirty(repoDir)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func CreateBundleUI(mode, outDir string, stdout, stderr io.Writer) error {
 	}
 
 	// C5/C6: Actual bundle generation
-	path, err := CreateBundle(contract, outDir)
+	path, err := CreateBundle(contract, outDir, repoDir)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func CreateBundleUI(mode, outDir string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-func CreateBundle(c *Contract, outDir string) (string, error) {
+func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", WrapVError(E_PATH, outDir, err)
 	}
@@ -113,14 +113,14 @@ func CreateBundle(c *Contract, outDir string) (string, error) {
 	files[PathIndex] = []byte(fmt.Sprintf("# Review Bundle\n\nMode: %s\nEpoch: %d\nHead: %s\n", c.Mode, c.EpochSec, c.HeadSHA))
 
 	// patch/series.patch
-	patch, err := getGitPatch(c.BaseRef, c.HeadSHA)
+	patch, err := getGitPatch(c.BaseRef, c.HeadSHA, repoDir)
 	if err != nil {
 		return "", err
 	}
 	files[PathSeriesPatch] = patch
 
 	// Evidence (Phase 7.5/8/9)
-	bound, evFiles, err := collectEvidence(c.HeadSHA)
+	bound, evFiles, err := collectEvidence(c.HeadSHA, repoDir)
 	if err != nil {
 		return "", err
 	}
@@ -206,15 +206,19 @@ func CreateBundle(c *Contract, outDir string) (string, error) {
 	return outPath, nil
 }
 
-func getGitPatch(base, head string) ([]byte, error) {
-	out, err := exec.Command("git", "format-patch", "--stdout", base+".."+head).Output()
+func getGitPatch(base, head, repoDir string) ([]byte, error) {
+	cmd := exec.Command("git", "format-patch", "--stdout", base+".."+head)
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return nil, WrapVError(E_CONTRACT, "git format-patch", err)
 	}
 	return out, nil
 }
 
-func ComputeEpochSec() (int64, error) {
+func ComputeEpochSec(repoDir string) (int64, error) {
 	if s := os.Getenv("SOURCE_DATE_EPOCH"); s != "" {
 		sec, err := strconv.ParseInt(s, 10, 64)
 		if err == nil {
@@ -223,7 +227,11 @@ func ComputeEpochSec() (int64, error) {
 	}
 
 	// Fallback to git show -s --format=%ct HEAD
-	out, err := exec.Command("git", "show", "-s", "--format=%ct", "HEAD").Output()
+	cmd := exec.Command("git", "show", "-s", "--format=%ct", "HEAD")
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return 0, WrapVError(E_CONTRACT, "git", err)
 	}
@@ -234,16 +242,24 @@ func ComputeEpochSec() (int64, error) {
 	return sec, nil
 }
 
-func getGitHeadSHA() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+func getGitHeadSHA(repoDir string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return "", WrapVError(E_CONTRACT, "git rev-parse", err)
 	}
 	return strings.TrimSpace(string(out)), nil
 }
 
-func collectEvidence(headSHA string) (bool, map[string][]byte, error) {
+func collectEvidence(headSHA, repoDir string) (bool, map[string][]byte, error) {
 	evDir := "docs/evidence/prverify"
+	if repoDir != "" {
+		evDir = filepath.Join(repoDir, evDir)
+	}
+
 	entries, err := os.ReadDir(evDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -281,8 +297,12 @@ func collectEvidence(headSHA string) (bool, map[string][]byte, error) {
 	return bound, files, nil
 }
 
-func isGitDirty() (bool, error) {
-	out, err := exec.Command("git", "status", "--porcelain").Output()
+func isGitDirty(repoDir string) (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return false, WrapVError(E_CONTRACT, "git status", err)
 	}
