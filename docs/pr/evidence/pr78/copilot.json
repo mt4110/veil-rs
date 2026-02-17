@@ -1,0 +1,317 @@
+{
+  "pull_review_comments": [
+    {
+      "kind": "pulls/comments",
+      "id": 2812644092,
+      "created_at": "2026-02-16T14:15:25Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": null,
+      "body": "The git command concatenates user-controlled input (base and head) directly into the command without validation. While git itself will reject malicious input, this could lead to command injection if base contains special characters. Consider validating that base and head match expected ref patterns (e.g., alphanumeric, /, -, _) before using them in command construction."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644121,
+      "created_at": "2026-02-16T14:15:26Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": null,
+      "body": "The 4MB limit check has a logic flaw. After detecting truncation (n > 0 after reading 4MB), the code appends a \"[TRUNCATED]\" marker to the content. However, this modified content is then used to compute the SHA256 hash, which will never match the hash in SHA256SUMS (which was calculated from the original full content). This will cause validation to fail even though the issue is the file size, not corruption. Consider either: (1) failing immediately on oversized files with a clear E_LAYOUT error, or (2) skipping hash validation for truncated files and marking them specially in the report.\n```suggestion\n\t\t\t\t\t// The file exceeds the 4MB limit; treat this as a layout error rather than\n\t\t\t\t\t// hashing modified (truncated) content that cannot match SHA256SUMS.\n\t\t\t\t\treturn NewVError(E_LAYOUT, name, \"meta/evidence file exceeds 4MB limit\")\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644150,
+      "created_at": "2026-02-16T14:15:26Z",
+      "user": "Copilot",
+      "path": "docs/evidence/prverify/prverify_20260216T133450Z_2c3b223.md",
+      "line": null,
+      "body": "Two evidence files show \"signal: interrupt\" at the end, indicating the prverify process was interrupted before completion. These appear to be incomplete test runs that should not be committed as evidence. Consider removing prverify_20260216T133450Z_2c3b223.md and prverify_20260216T131734Z_bc52b29.md, keeping only the complete evidence file (prverify_20260216T140128Z_2546018.md).\n```suggestion\nsignal: interrupt (prverify run interrupted; this report is incomplete and must not be used as evidence)\n\n**Note:** The `prverify` execution corresponding to this file was interrupted before completion.\nA later run produced a complete report, which should be used instead of this incomplete log.\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644173,
+      "created_at": "2026-02-16T14:15:26Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 55,
+      "body": "The BaseRef is hardcoded as \"main\" instead of using the BASE_REF environment variable or accepting it as a parameter. This breaks backward compatibility with the legacy script which supported BASE_REF customization (defaulting to \"origin/main\"). Consider reading from environment or accepting as a parameter.\n```suggestion\n\tbaseRef := os.Getenv(\"BASE_REF\")\n\tif baseRef == \"\" {\n\t\tbaseRef = \"origin/main\"\n\t}\n\n\tcontract := &Contract{\n\t\tContractVersion: \"1.1\",\n\t\tMode:            mode,\n\t\tRepo:            \"veil-rs\", // Canonical\n\t\tEpochSec:        epoch,\n\t\tBaseRef:         baseRef,\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644198,
+      "created_at": "2026-02-16T14:15:27Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 90,
+      "body": "The filename generation uses a fixed project name \"veil-rs\" instead of deriving it from the repository. This should use a dynamically determined project slug to maintain the \"repo-agnostic\" property. The legacy script computed this from the git toplevel directory basename."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644225,
+      "created_at": "2026-02-16T14:15:27Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": null,
+      "body": "The git command is executed without error output being captured. If the patch generation fails, the error message from git will not be included in the VError detail, making it harder to debug. Consider using CombinedOutput() instead of Output() to capture stderr.\n```suggestion\n\tout, err := exec.Command(\"git\", \"format-patch\", \"--stdout\", base+\"..\"+head).CombinedOutput()\n\tif err != nil {\n\t\tdetail := fmt.Sprintf(\"git format-patch %s..%s: %s\", base, head, strings.TrimSpace(string(out)))\n\t\treturn nil, WrapVError(E_CONTRACT, detail, err)\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644254,
+      "created_at": "2026-02-16T14:15:27Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/determinism_test.go",
+      "line": null,
+      "body": "The test ignores the error from getGitHeadSHA. If the function fails, headSHA will be an empty string, which will cause the test to create invalid bundles. Add error handling to skip or fail the test gracefully if git operations fail.\n```suggestion\n\theadSHA, err := getGitHeadSHA()\n\tif err != nil {\n\t\tt.Fatalf(\"failed to get git HEAD SHA: %v\", err)\n\t}\n\tif headSHA == \"\" {\n\t\tt.Fatalf(\"failed to get git HEAD SHA: got empty SHA\")\n\t}\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644276,
+      "created_at": "2026-02-16T14:15:27Z",
+      "user": "Copilot",
+      "path": "docs/ops/REVIEW_BUNDLE.md",
+      "line": 101,
+      "body": "The documentation title uses \"v1.1\" but the final line uses backticks around \"v1.1\" which will render as code formatting. For consistency with the title, remove the backticks to render it as plain text: \"This document defines Contract Version: v1.1\"\n```suggestion\n- This document defines Contract Version: v1.1\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644294,
+      "created_at": "2026-02-16T14:15:28Z",
+      "user": "Copilot",
+      "path": "docs/ops/REVIEW_BUNDLE.md",
+      "line": 67,
+      "body": "Section 4 \"Checksumming Rules\" appears twice - once for checksumming rules and once for evidence binding. The second section 4 should be renumbered to section 5, and all subsequent sections should be renumbered accordingly (current sections 5, 6, 7 should become 6, 7, 8)."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644316,
+      "created_at": "2026-02-16T14:15:28Z",
+      "user": "Copilot",
+      "path": "docs/ops/STATUS.md",
+      "line": null,
+      "body": "The Evidence field references \"prverify_20260216T133450Z_2c3b223.md\", but this file shows \"signal: interrupt\" indicating an incomplete test run. The STATUS.md should reference the complete evidence file \"prverify_20260216T140128Z_2546018.md\" instead.\n```suggestion\n- Evidence: docs/evidence/prverify/prverify_20260216T140128Z_2546018.md\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644339,
+      "created_at": "2026-02-16T14:15:28Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/determinism_test.go",
+      "line": null,
+      "body": "The test ignores errors from os.ReadFile. If the file read fails, b1 or b2 will be nil and the comparison will incorrectly pass (both nil). Add error handling to fail the test if ReadFile returns an error."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644372,
+      "created_at": "2026-02-16T14:15:29Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/checksums.go",
+      "line": null,
+      "body": "The suffix check for \"SHA256SUMS\" is too permissive. It will accept paths like \"review/meta/BADSHA256SUMS\" or \"FAKESUMS/SHA256SUMS\" when the exact path should be \"review/meta/SHA256SUMS\". Consider using exact path comparison or checking that the path ends with \"/SHA256SUMS\" to prevent accepting malformed seal files.\n```suggestion\n\tif lines[0].Path != \"review/meta/SHA256SUMS\" && lines[0].Path != \"SHA256SUMS\" {\n\t\t// Standard sha256sum output includes the filename.\n\t\t// Contract says \"review/meta/SHA256SUMS\" is the name.\n\t\t// If generated from the bundle root, it might just be \"SHA256SUMS\".\n\t\t// Enforce that the seal refers exactly to one of these expected names.\n\t\treturn NewVError(E_SHA256, \"SHA256SUMS.sha256\", \"unexpected filename in seal: \"+lines[0].Path)\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644397,
+      "created_at": "2026-02-16T14:15:29Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/main.go",
+      "line": 71,
+      "body": "The create command hardcodes mode as \"wip\" and outDir as \".local/review-bundles\", ignoring environment variables MODE and OUT_DIR that were supported by the legacy bash script. This breaks backward compatibility. Consider reading these from environment variables or adding command-line flags to maintain compatibility."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644423,
+      "created_at": "2026-02-16T14:15:29Z",
+      "user": "Copilot",
+      "path": "flake.nix",
+      "line": 65,
+      "body": "The buildGoModule is missing a go.mod file check. With vendorHash = null, the build expects vendored dependencies or no dependencies. However, the codebase has a go.mod with dependencies (go-toml). Consider either: (1) setting vendorHash to a proper hash value, or (2) using vendorHash = lib.fakeSha256 initially to get the correct hash from the build error, then updating with the real hash."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644451,
+      "created_at": "2026-02-16T14:15:29Z",
+      "user": "Copilot",
+      "path": "ops/ci/review_bundle.sh",
+      "line": null,
+      "body": "The shim script uses \"MODE=wip\" as default, but does not pass the MODE environment variable to the Go implementation. The Go create command hardcodes mode as \"wip\" in main.go. This means the legacy MODE=clean usage will be ignored. Consider reading the MODE environment variable and passing it as a flag to the Go command to maintain backward compatibility.\n```suggestion\nexec go run ./cmd/reviewbundle create --mode=\"${MODE}\"\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644480,
+      "created_at": "2026-02-16T14:15:30Z",
+      "user": "Copilot",
+      "path": "ops/ci/review_bundle.sh",
+      "line": 11,
+      "body": "The GOTOOLCHAIN=local setting may cause issues if the system doesn't have Go 1.24 installed (which doesn't exist). This setting prevents automatic Go toolchain downloads. Since Go 1.24.11 doesn't exist, this will likely fail. Consider either removing this line or using GOTOOLCHAIN=auto with a valid Go version.\n```suggestion\n# Use the Go toolchain specified by the module (allow automatic downloads)\nexport GOTOOLCHAIN=auto\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644496,
+      "created_at": "2026-02-16T14:15:30Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 53,
+      "body": "The repository name is hardcoded as \"veil-rs\" instead of being dynamically determined from the git repository. This breaks the \"repo-agnostic\" design mentioned in the PR description and the original bash script comment. Consider using git config to get the repository URL or name, or accept it as a parameter."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2812644521,
+      "created_at": "2026-02-16T14:15:30Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": 191,
+      "body": "There's a logic error in the path normalization check. For directories, the condition checks if name doesn't equal either clean or clean+\"/\", but then only returns an error if neither matches. This is confusing and may not work as intended. The logic should be simplified: for directories, name should equal either clean or clean+\"/\". For files, name should equal clean."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584607,
+      "created_at": "2026-02-17T01:32:00Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 72,
+      "body": "In WIP mode, `WarningsCount` is incremented when the repo is dirty, but the bundle generator never writes `review/meta/warnings.txt`. The verifier later requires `warnings.txt` when `warnings_count > 0`, so creating a bundle from a dirty tree will fail the self-audit and prevent the main WIP use-case.\n\nWrite `review/meta/warnings.txt` into the bundle (even if empty), and when `WarningsCount > 0` ensure the file content explains the warning(s) and matches the count."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584614,
+      "created_at": "2026-02-17T01:32:00Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 121,
+      "body": "The bundle currently omits `review/files/**` snapshots entirely; it only includes INDEX, contract, patch, checksums, and evidence. This conflicts with the contract doc (layout lists `review/files/**`) and also reduces reviewer utility compared to the legacy script.\n\nEither add the `review/files/**` snapshot generation (ideally from git blobs for strict determinism), or adjust the contract/layout to make file snapshots optional and update verification accordingly."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584621,
+      "created_at": "2026-02-17T01:32:01Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 226,
+      "body": "`ComputeEpochSec` silently ignores an invalid `SOURCE_DATE_EPOCH` value and falls back to `git show`. Per the determinism contract, if the env var is set it should be the epoch source; falling back can make builds unexpectedly non-reproducible.\n\nReturn an error when `SOURCE_DATE_EPOCH` is set but unparsable (or at least emit a warning and fail in strict mode).\n```suggestion\n\t\tif err != nil {\n\t\t\treturn 0, WrapVError(E_CONTRACT, \"invalid SOURCE_DATE_EPOCH\", err)\n\t\t}\n\t\treturn sec, nil\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584629,
+      "created_at": "2026-02-17T01:32:01Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 193,
+      "body": "`tw.Close()`, `gw.Close()`, and `f.Close()` are called explicitly here while also being deferred earlier, and the explicit close errors are ignored. Since tar/gzip `Close()` is where trailers are written, ignoring errors can produce a corrupted archive that only fails later.\n\nPrefer a single close path that checks and returns `Close()` errors (and remove the redundant defers or explicit calls).\n```suggestion\n\tif err := tw.Close(); err != nil {\n\t\treturn \"\", WrapVError(E_GZIP, tmpPath, err)\n\t}\n\tif err := gw.Close(); err != nil {\n\t\treturn \"\", WrapVError(E_GZIP, tmpPath, err)\n\t}\n\tif err := f.Close(); err != nil {\n\t\treturn \"\", WrapVError(E_PATH, tmpPath, err)\n\t}\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584635,
+      "created_at": "2026-02-17T01:32:01Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": 243,
+      "body": "`validateTarTime` enforces that all tar entry mtimes are identical, but it never checks that the mtime matches the contract epoch (`contract.epoch_sec`). This allows bundles to pass verification even if tar header mtimes disagree with the declared epoch, which violates the contract.\n\nCompare each entry’s `hdr.ModTime.Unix()` (or the first-seen value) against `rep.Contract.EpochSec` during verification.\n```suggestion\nfunc validateTarTime(name string, hdr *tar.Header, seenSec *int64, epochSec int64) error {\n\tts := hdr.ModTime\n\tif ts.Nanosecond() != 0 {\n\t\treturn NewVError(E_TIME, name, \"non-zero nanoseconds forbidden\")\n\t}\n\n\tentrySec := ts.Unix()\n\n\t// If a contract epoch is provided, enforce that the entry mtime matches it.\n\tif epochSec != 0 && entrySec != epochSec {\n\t\treturn NewVError(\n\t\t\tE_TIME,\n\t\t\tname,\n\t\t\tfmt.Sprintf(\"mtime mismatch with contract epoch (expected %d, got %d)\", epochSec, entrySec),\n\t\t)\n\t}\n\n\t// Preserve invariant that all entries share the same mtime.\n\tif *seenSec == 0 {\n\t\tif epochSec != 0 {\n\t\t\t*seenSec = epochSec\n\t\t} else {\n\t\t\t*seenSec = entrySec\n\t\t}\n\t} else {\n\t\tif entrySec != *seenSec {\n\t\t\treturn NewVError(\n\t\t\t\tE_TIME,\n\t\t\t\tname,\n\t\t\t\tfmt.Sprintf(\"mtime mismatch (expected %d, got %d)\", *seenSec, entrySec),\n\t\t\t)\n\t\t}\n\t}\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584642,
+      "created_at": "2026-02-17T01:32:01Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": 341,
+      "body": "For meta/evidence entries you hash only the first 4MB (`io.LimitReader`) and, if truncated, you even mutate the captured content by appending `...[TRUNCATED]`. This makes `ComputedSHA256` differ from the actual file bytes in the tar stream, causing checksum verification to fail for any meta/evidence file >4MB.\n\nHash should always be computed over the full tar entry bytes (streaming), while separately capturing at most N bytes for parsing/binding decisions."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584649,
+      "created_at": "2026-02-17T01:32:01Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": 297,
+      "body": "`strings.Contains(hdr.Linkname, \"..\")` treats any `..` substring as unsafe. This can reject non-traversal symlink targets such as `file..bak`.\n\nConsider applying the same normalization logic as regular paths (`path.Clean`, then reject `..` or `../` prefixes) instead of substring matching.\n```suggestion\n\t\ttarget := path.Clean(hdr.Linkname)\n\t\tif path.IsAbs(target) || target == \"..\" || strings.HasPrefix(target, \"../\") {\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584663,
+      "created_at": "2026-02-17T01:32:02Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/verify.go",
+      "line": 489,
+      "body": "Strict evidence binding currently searches evidence *contents* for the full 40-char HEAD SHA. The repo’s prverify evidence uses short SHAs (e.g., `git sha: 2546018`) and filename suffixes, so strict-mode bundles will fail verification even when the correct evidence is present.\n\nBind/verify using a stable marker that exists in evidence (e.g., match `head_sha[:7]`/`[:12]` against the evidence filename or the `git sha:` line), and consider encoding whatever binding rule you choose into `contract.json` so verify can be purely contract-driven."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584671,
+      "created_at": "2026-02-17T01:32:02Z",
+      "user": "Copilot",
+      "path": "docs/ops/REVIEW_BUNDLE.md",
+      "line": 68,
+      "body": "Section numbering is inconsistent: both “Checksumming Rules” and “Evidence Binding” are labeled as `## 4.`. This makes the contract harder to reference unambiguously.\n\nRenumber the Evidence Binding section (and subsequent headings) to keep the document structure consistent."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584679,
+      "created_at": "2026-02-17T01:32:02Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/create.go",
+      "line": 294,
+      "body": "`collectEvidence` tries to determine binding by searching the evidence file contents for the full 40-char `headSHA`. The committed prverify evidence files in this repo use short SHAs (e.g., `git sha: 2546018`), so `BoundToHead` will almost never become true.\n\nBinding should be derived from a stable marker that actually exists in evidence (e.g., the filename suffix `_xxxxxxx.md`, or matching `git sha:` against `headSHA[:7]`/`[:12]`)."
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584696,
+      "created_at": "2026-02-17T01:32:02Z",
+      "user": "Copilot",
+      "path": "flake.nix",
+      "line": 65,
+      "body": "`vendorHash = null` will make `pkgs.buildGoModule` fail for `reviewbundle` because the module has external dependencies (see `go.mod`), so `nix run .#reviewbundle` / `nix build .#reviewbundle` won’t work as declared.\n\nPin the correct `vendorHash` (run a build once to get the suggested hash) so the flake package/app is actually buildable and reproducible.\n```suggestion\n          # TODO: replace this placeholder with the hash suggested by `nix build .#reviewbundle`\n          vendorHash = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\";\n```"
+    },
+    {
+      "kind": "pulls/comments",
+      "id": 2814584710,
+      "created_at": "2026-02-17T01:32:02Z",
+      "user": "Copilot",
+      "path": "cmd/reviewbundle/main.go",
+      "line": 68,
+      "body": "The `create` command ignores both CLI args and the legacy environment variables (mode/out dir/repo dir are hardcoded). This prevents `ops/ci/review_bundle.sh` from actually “translating legacy env vars” as claimed, and makes the CLI difficult to use non-interactively.\n\nAdd flag parsing (or env var support) for `--mode` and `--out-dir` at minimum, and pass `repoDir` explicitly when running outside the repo root."
+    }
+  ],
+  "pull_reviews": [
+    {
+      "kind": "pulls/reviews",
+      "id": 3808873517,
+      "submitted_at": "2026-02-16T14:15:30Z",
+      "user": "copilot-pull-request-reviewer[bot]",
+      "state": "COMMENTED",
+      "body": "## Pull request overview\n\nThis PR introduces a Go implementation of the review bundle CLI tool to replace the legacy bash script, implementing deterministic tar.gz creation with strict security controls and contract verification. The implementation aims to create audit-ready contract artifacts with no host information leakage, enforcing reproducible builds and evidence binding.\n\n**Changes:**\n- Introduces Go CLI tool (`cmd/reviewbundle`) with `create` and `verify` subcommands implementing deterministic bundle generation and contract enforcement\n- Replaces bash implementation with a shim that calls the Go tool, maintaining the same interface\n- Adds comprehensive contract documentation (REVIEW_BUNDLE.md) specifying determinism rules, evidence binding, and manifest requirements\n\n### Reviewed changes\n\nCopilot reviewed 21 out of 21 changed files in this pull request and generated 18 comments.\n\n<details>\n<summary>Show a summary per file</summary>\n\n| File | Description |\r\n| ---- | ----------- |\r\n| ops/ci/review_bundle.sh | Shimmed to call Go implementation instead of containing full bash logic |\r\n| mise.toml | Specifies Go 1.24.11 version requirement |\r\n| implementation_plan.md | Fixed file path references from absolute to relative |\r\n| flake.nix | Added reviewbundle package and app configuration for Nix |\r\n| docs/ops/STATUS.md | Updated progress tracking and evidence reference |\r\n| docs/ops/S11-03_TASK.md | Task completion checklist for the implementation |\r\n| docs/ops/S11-03_PLAN.md | Detailed implementation plan and contract specification |\r\n| docs/ops/REVIEW_BUNDLE.md | Contract v1.1 specification with determinism and security rules |\r\n| docs/evidence/prverify/*.md | Three prverify evidence files, two incomplete |\r\n| cmd/reviewbundle/main.go | CLI entry point with command routing |\r\n| cmd/reviewbundle/create.go | Bundle creation with epoch calculation and evidence collection |\r\n| cmd/reviewbundle/verify.go | Streaming verifier with contract enforcement |\r\n| cmd/reviewbundle/verify_test.go | Synthetic bundle tests for contract violations |\r\n| cmd/reviewbundle/determinism_test.go | Byte-identical reproducibility tests |\r\n| cmd/reviewbundle/errors.go | Error code definitions and VError type |\r\n| cmd/reviewbundle/contract.go | Contract JSON parsing and validation |\r\n| cmd/reviewbundle/consts.go | Path constants for contract layout |\r\n| cmd/reviewbundle/checksums.go | SHA256SUMS parsing and manifest verification |\n</details>\n\n\n\n\n\n\n---\n\n💡 <a href=\"/mt4110/veil-rs/new/main/.github/instructions?filename=*.instructions.md\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href=\"https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Learn how to get started</a>."
+    },
+    {
+      "kind": "pulls/reviews",
+      "id": 3811169344,
+      "submitted_at": "2026-02-17T01:32:02Z",
+      "user": "copilot-pull-request-reviewer[bot]",
+      "state": "COMMENTED",
+      "body": "## Pull request overview\n\nCopilot reviewed 25 out of 25 changed files in this pull request and generated 13 comments.\n\n\n\n\n\n---\n\n💡 <a href=\"/mt4110/veil-rs/new/main/.github/instructions?filename=*.instructions.md\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href=\"https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Learn how to get started</a>."
+    },
+    {
+      "kind": "pulls/reviews",
+      "id": 3811199286,
+      "submitted_at": "2026-02-17T01:43:16Z",
+      "user": "copilot-pull-request-reviewer[bot]",
+      "state": "COMMENTED",
+      "body": "## Pull request overview\n\nCopilot reviewed 25 out of 25 changed files in this pull request and generated 7 comments.\n\n\n\n\n\n---\n\n💡 <a href=\"/mt4110/veil-rs/new/main/.github/instructions?filename=*.instructions.md\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href=\"https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Learn how to get started</a>."
+    },
+    {
+      "kind": "pulls/reviews",
+      "id": 3811566549,
+      "submitted_at": "2026-02-17T04:10:43Z",
+      "user": "copilot-pull-request-reviewer[bot]",
+      "state": "COMMENTED",
+      "body": "## Pull request overview\n\nCopilot reviewed 25 out of 25 changed files in this pull request and generated 8 comments.\n\n\n\n\n\n---\n\n💡 <a href=\"/mt4110/veil-rs/new/main/.github/instructions?filename=*.instructions.md\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Add Copilot custom instructions</a> for smarter, more guided reviews. <a href=\"https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot\" class=\"Link--inTextBlock\" target=\"_blank\" rel=\"noopener noreferrer\">Learn how to get started</a>."
+    }
+  ],
+  "issue_comments": [
+    {
+      "kind": "issues/comments",
+      "id": 3908678412,
+      "created_at": "2026-02-16T14:05:40Z",
+      "user": "chatgpt-codex-connector[bot]",
+      "body": "You have reached your Codex usage limits for code reviews. You can see your limits in the [Codex usage dashboard](https://chatgpt.com/codex/settings/usage).\nTo continue using code reviews, you can upgrade your account or add credits to your account and enable them for code reviews in your [settings](https://chatgpt.com/codex/settings/code-review)."
+    }
+  ]
+}
