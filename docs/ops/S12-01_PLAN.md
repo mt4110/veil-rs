@@ -9,27 +9,57 @@ Kill “green-on-broken” in verification paths by turning invariants into test
 - Lock behavior with regression tests
 - Prove via deterministic gates (CI-readable)
 
-## Invariants (must be TRUE)
-- If any required artifact is missing or malformed => verification MUST fail (not warn)
-- If any checksum/signature/key policy is violated => MUST fail
-- Verification output is deterministic (order/time/path independent as much as possible)
-- UX: errors are explainable and stable enough for tests
+## Invariants v1 (Law = Fixed by Tests)
+
+### I. Format Invariants (deterministic tar.gz)
+*VerifyBundle already implements this; clarify as spec.*
+- **Tar Entry Order**: Dictionary order (deterministic).
+- **Path Safety**: No absolute paths, no `..` traversal, no `NUL`, no `\` separators.
+- **Type Constraints**: `dir`, `reg`, `symlink` only. Other Typeflags MUST FAIL.
+- **Ownership/Permission Normalization**:
+  - `uid`/`gid` = 0
+  - `uname`/`gname` = "" (empty)
+  - `dir` = 0755
+  - `file` = 0644 or 0755 (others MUST FAIL)
+- **Time Normalization**:
+  - `mtime` precision = 1 second (`nsec`=0).
+  - All entries MUST have identical `mtime`.
+- **No PAX/xattr**: `LIBARCHIVE.*` or `SCHILY.xattr.*` headers MUST FAIL (leakage).
+- **Gzip Header Invariants**:
+  - `mtime` = contract epoch
+  - `OS` byte = 255
+  - `Name`/`Comment`/`Extra` = empty
+
+### II. Layout Invariants (Required Files)
+- **Mandatory**: `index`, `contract.json`, `SHA256SUMS`, `SHA256SUMS.seal`, `series.patch`.
+- **Conditional**: `warnings.txt` required if `warnings_count > 0`.
+- **Strict Mode**: `evidence/` directory content is REQUIRED.
+
+### III. Manifest Invariants (Checksum & Seal)
+- `SHA256SUMS.seal` MUST correctly verify `SHA256SUMS` (detect tampering).
+- Entries in `SHA256SUMS` MUST exist and match the calculated SHA.
+- **Exception**: Meta/Evidence files > 4MB are "excluded from analysis/hashing" (cannot be used for chain).
+
+### IV. Evidence Binding Invariants (The King of S12-01 A)
+- **Strict Requirement**: `evidence` existence is not enough. It MUST **bind** to the current commit.
+- **Binding Rule**: Evidence content MUST contain the **40-char HEAD SHA** (matching `contract.head_sha`).
+- **Chain Unification**:
+  - `prverify` MUST output 40-char SHA (previously 12-char).
+  - `reviewbundle` strict verification MUST fail if 40-char SHA is missing in evidence.
 
 ## Plan (pseudo-code)
 try:
-  inventory current verify routes
-  for each route:
-    define must-fail cases
-    define must-pass cases
-  implement minimal checker that enforces invariants
-  add tests:
-    - pass fixtures
-    - tamper fixtures (checksum/signature/key)
-  add gates:
-    - go test ./...
-    - prverify (if available)
+  1. Unify Chain:
+     - prverify: `git rev-parse HEAD` (40-char)
+     - reviewbundle: verify strict requires 40-char SHA in evidence
+  2. Implement Invariants v1 Tests:
+     - Add `cmd/reviewbundle/verify_*_test.go`
+     - Test: strict + no evidence => E_EVIDENCE
+     - Test: strict + evidence no SHA40 => E_EVIDENCE(binding)
+     - Test: strict + evidence has SHA40 => PASS
+     - Test: >4MB evidence => Unbindable => FAIL
 catch:
-  error: stop and document the mismatch between spec and implementation
+  error: stop and document mismatch
 
 ## Stop Conditions
 - Behavior change without tests => STOP
