@@ -1,67 +1,67 @@
-# S12-01 PLAN — A: Verify Chain v1 (implementation)
+# S12-01 PLAN — strict evidence binding: allow local prverify evidence
 
-## Goal (1-line)
-Kill “green-on-broken” in verification paths by turning invariants into tests + gates.
+## Goal
+`go run ./cmd/reviewbundle create --mode strict` が、
+- git repo を汚さず（cleanのまま）
+- bundle 内 `review/evidence/` に **HEAD SHA を含む証拠（prverifyレポート）** を同梱でき、
+- self-audit / verify を PASS できるようにする。
 
-## Scope (v1)
-- Define verification invariants (spec = law)
-- Implement the smallest enforcement unit
-- Lock behavior with regression tests
-- Prove via deterministic gates (CI-readable)
+## Observed Failure (SOT)
+- strict create:
+  - E_EVIDENCE: binding no evidence file contains HEAD SHA ...
+- strict create after copying report into docs/evidence:
+  - E_CONTRACT: git repository is dirty (prohibited in strict mode)
+- verify on a “dead tar”:
+  - E_EVIDENCE ...
 
-## Invariants v1 (Law = Fixed by Tests)
+## Root Cause
+- `create(strict)` が evidence を repo 内 `docs/evidence/prverify/` からのみ収集している。
+- 最新 prverify レポートは `.local/prverify/` にあるため、bundle evidence に入らず E_EVIDENCE。
+- repo 内へコピーすると untracked が増えて strict の clean 制約で E_CONTRACT。
 
-### I. Format Invariants (deterministic tar.gz)
-*VerifyBundle already implements this; clarify as spec.*
-- **Tar Entry Order**: Dictionary order (deterministic).
-- **Path Safety**: No absolute paths, no `..` traversal, no `NUL`, no `\` separators.
-- **Type Constraints**: `dir`, `reg`, `symlink` only. Other Typeflags MUST FAIL.
-- **Ownership/Permission Normalization**:
-  - `uid`/`gid` = 0
-  - `uname`/`gname` = "" (empty)
-  - `dir` = 0755
-  - `file` = 0644 or 0755 (others MUST FAIL)
-- **Time Normalization**:
-  - `mtime` precision = 1 second (`nsec`=0).
-  - All entries MUST have identical `mtime`.
-- **No PAX/xattr**: `LIBARCHIVE.*` or `SCHILY.xattr.*` headers MUST FAIL (leakage).
-- **Gzip Header Invariants**:
-  - `mtime` = contract epoch
-  - `OS` byte = 255
-  - `Name`/`Comment`/`Extra` = empty
+## Contract (New / Canonical)
+- strict create は evidence として次を扱う：
+  1) repo evidence: `docs/evidence/prverify/*.md`（従来通り、履歴）
+  2) local evidence: `.local/prverify/prverify_*.md` のうち **HEAD SHA を含む最新1件**
+- local evidence を見つけられない場合は、bundle 作成を中断し、
+  - operator 向けに “prverify を実行せよ” を明示する。
+- self-audit 失敗時に “死体tar” を残さない：
+  - `*.tmp` に書く → self-audit PASS → 最終ファイル名へ rename
 
-### II. Layout Invariants (Required Files)
-- **Mandatory**: `index`, `contract.json`, `SHA256SUMS`, `SHA256SUMS.seal`, `series.patch`.
-- **Conditional**: `warnings.txt` required if `warnings_count > 0`.
-- **Strict Mode**: `evidence/` directory content is REQUIRED.
+## Non-goals
+- verify 側の契約（「bundle内 evidence のどれかに HEAD SHA がある」）は変更しない。
+- CI の設計全体を変えない（このフェーズでは strict evidence の供給経路だけ直す）。
 
-### III. Manifest Invariants (Checksum & Seal)
-- `SHA256SUMS.seal` MUST correctly verify `SHA256SUMS` (detect tampering).
-- Entries in `SHA256SUMS` MUST exist and match the calculated SHA.
-- **Exception**: Meta/Evidence files > 4MB are "excluded from analysis/hashing" (cannot be used for chain).
-
-### IV. Evidence Binding Invariants (The King of S12-01 A)
-- **Strict Requirement**: `evidence` existence is not enough. It MUST **bind** to the current commit.
-- **Binding Rule**: Evidence content MUST contain the **40-char HEAD SHA** (matching `contract.head_sha`).
-- **Chain Unification**:
-  - `prverify` MUST output 40-char SHA (previously 12-char).
-  - `reviewbundle` strict verification MUST fail if 40-char SHA is missing in evidence.
-
-## Plan (pseudo-code)
-try:
-  1. Unify Chain:
-     - prverify: `git rev-parse HEAD` (40-char)
-     - reviewbundle: verify strict requires 40-char SHA in evidence
-  2. Implement Invariants v1 Tests:
-     - Add `cmd/reviewbundle/verify_*_test.go`
-     - Test: strict + no evidence => E_EVIDENCE
-     - Test: strict + evidence no SHA40 => E_EVIDENCE(binding)
-     - Test: strict + evidence has SHA40 => PASS
-     - Test: >4MB evidence => Unbindable => FAIL
-catch:
-  error: stop and document mismatch
+## Implementation Outline (Pseudo)
+- Inputs:
+  - head = git rev-parse HEAD (full SHA)
+- Find local prverify report:
+  - for p in recent `.local/prverify/prverify_*.md` (newest first, limit N):
+      - read file (replace errors)
+      - if head in txt: select p; break
+      - else continue
+  - if not found:
+      - print ERROR: no local prverify contains HEAD
+      - stop (do not emit final tar)
+- Bundle assembly:
+  - include repo evidence dir as before
+  - include selected local prverify as:
+    - `review/evidence/prverify/<basename>`
+- Atomic write:
+  - write to `...tar.gz.tmp`
+  - run self-audit against tmp
+  - if PASS: rename tmp → final
+  - else: keep tmp only in temp dir or remove it (policy)
 
 ## Stop Conditions
-- Behavior change without tests => STOP
-- New policy without a checker/gate => STOP
-- Any path that can silently accept invalid input => STOP
+- Cannot locate code references for evidence collection / strict contract -> stop and record rg outputs.
+- local prverify report not found for HEAD -> stop, instruct operator to run `nix run .#prverify`.
+- self-audit fails -> stop and keep artifacts isolated under `.local/archive/...`.
+
+## Evidence Strategy
+- Evidence of fix:
+  - unit tests for evidence selection + bundling
+  - local run:
+    - `nix run .#prverify` (to generate `.local/prverify/prverify_*_HEAD.md`)
+    - `go run ./cmd/reviewbundle create --mode strict ...` (PASS)
+    - `go run ./cmd/reviewbundle verify <bundle>` (PASS)
