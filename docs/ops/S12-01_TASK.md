@@ -28,26 +28,29 @@
 
 ## E) Docs
 - [x] Update: `docs/ops/S12-01_PLAN.md`（デッドロック背景 + local-first + tmp self-audit を明記）
-- [ ] Update: `docs/ops/S12-01_TASK.md`（operator 手順も local-first に統一）
+- [x] Update: `docs/ops/S12-01_TASK.md`（operator 手順も local-first に統一）
 
 ## F) Manual Integration (heavy; split)
 ### F1) generate evidence
-- [ ] `nix run .#prverify`
-- [ ] `ls -lt .local/prverify | sed -n '1,30p'`
-- [ ] `git rev-parse HEAD`
+- [x] `nix run .#prverify`
+- [x] `ls -lt .local/prverify | sed -n '1,30p'`
+- [x] `git rev-parse HEAD`
 
 ### F2) strict create
-- [ ] `go run ./cmd/reviewbundle create --mode strict --out-dir .local/review-bundles`
-- [ ] `ls -lt .local/review-bundles | sed -n '1,20p'`
+- [x] `go run ./cmd/reviewbundle create --mode strict --out-dir .local/review-bundles`
+- [x] `ls -lt .local/review-bundles | sed -n '1,20p'`
 
 ### F3) strict verify
-- [ ] `BUNDLE_STRICT="$(ls -t .local/review-bundles/*_strict_*.tar.gz | head -n 1)"; echo "BUNDLE_STRICT=$BUNDLE_STRICT"`
-- [ ] `go run ./cmd/reviewbundle verify "$BUNDLE_STRICT"`
+- [x] `BUNDLE_STRICT="$(ls -t .local/review-bundles/*_strict_*.tar.gz | head -n 1)"; echo "BUNDLE_STRICT=$BUNDLE_STRICT"`
+- [x] `go run ./cmd/reviewbundle verify "$BUNDLE_STRICT"`
 
 ### F4) evidence inside tar (cheap)
-- [ ] `tar -tzf "$BUNDLE_STRICT" | rg 'review/evidence/prverify/prverify_.*\.md'`
+- [x] `tar -tzf "$BUNDLE_STRICT" | rg 'review/evidence/prverify/prverify_.*\.md'`
 
 ## G) STATUS
-- [ ] Update: `docs/ops/STATUS.md`
+- [x] Update: `docs/ops/STATUS.md`
   - S12-01 row: `99% (Review)`（PR open + CI pass + 手元の F が PASS になったら）
   - Last Updated のみ更新（テーブル順固定）
+
+## H) Closeout
+- [x] Add `scripts/verify_strict.py` (Ritual Capsule)

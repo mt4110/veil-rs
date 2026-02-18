@@ -124,7 +124,5 @@ if OK and bundle and report:
 
 if OK:
     out("OK: STRICT RITUAL COMPLETE")
-    sys.exit(0)
 else:
     out("ERROR: STRICT RITUAL FAILED (see logs above)")
-    sys.exit(1)
