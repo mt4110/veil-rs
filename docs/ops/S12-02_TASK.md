@@ -29,23 +29,22 @@
     - `python3 - <<'PY'
 from pathlib import Path
 
-def patch_status():
-    p = Path("docs/ops/STATUS.md")
-    try:
-        txt = p.read_text(encoding="utf-8")
-    except Exception as e:
-        print(f"ERROR: read failed: {e}")
-        return
+p = Path("docs/ops/STATUS.md")
+want_evidence = "docs/evidence/ops/obs_20260218_s12-02.md"
 
-    if not txt:
-        print("ERROR: empty STATUS.md")
-        return
+try:
+    txt = p.read_text(encoding="utf-8")
+except Exception as e:
+    print(f"ERROR: read failed: {e}")
+    txt = ""
 
+if not txt:
+    print("ERROR: empty STATUS.md")
+else:
     lines = txt.splitlines(True)
-    changed = False
+    changed = [False]
 
     def patch_row(prefix, new_progress=None, new_current=None):
-        nonlocal changed
         for i, ln in enumerate(lines):
             if ln.startswith(prefix):
                 parts = ln.split("|")
@@ -55,31 +54,33 @@ def patch_status():
                     if new_current is not None:
                         parts[4] = f" {new_current} "
                     lines[i] = "|".join(parts)
-                    changed = True
+                    changed[0] = True
                     print(f"OK: patched {prefix.strip()} line {i+1}")
                 else:
                     print(f"ERROR: unexpected table format for {prefix.strip()}")
                 return
         print(f"ERROR: row not found: {prefix.strip()}")
 
-    # rows
     patch_row("| S12-01 ", new_progress="100% (Merged)", new_current="-")
     patch_row("| S12-02 ", new_progress="1% (WIP)", new_current="S12-02: Closeout + ritual spec (zsh-safe)")
 
-    # Last Updated (Evidence is the important one)
-    want = "docs/evidence/ops/obs_20260218_s12-02.md"
+    # sync Last Updated Evidence
+    hit = False
     for i, ln in enumerate(lines):
         if ln.startswith("- Evidence: "):
-            new = f"- Evidence: {want}\n"
+            hit = True
+            new = f"- Evidence: {want_evidence}\n"
             if ln != new:
                 lines[i] = new
-                changed = True
+                changed[0] = True
                 print("OK: updated Last Updated Evidence")
+            else:
+                print("SKIP: Last Updated Evidence already synced")
             break
-    else:
-        print("ERROR: Last Updated Evidence line not found")
+    if not hit:
+        print("ERROR: Evidence line not found under Last Updated")
 
-    if changed:
+    if changed[0]:
         try:
             p.write_text("".join(lines), encoding="utf-8")
             print("OK: wrote docs/ops/STATUS.md")
@@ -87,11 +88,6 @@ def patch_status():
             print(f"ERROR: write failed: {e}")
     else:
         print("SKIP: no changes applied")
-
-try:
-    patch_status()
-except Exception as e:
-    print(f"ERROR: exception: {e}")
 PY`
 
 ## 4) Ritual spec: zsh-safe observation (NO glob)
