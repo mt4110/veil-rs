@@ -152,7 +152,7 @@ func main() {
 
 	rustcV := runCapture(root, "rustc", "-V")
 	cargoV := runCapture(root, "cargo", "-V")
-	gitSHA := runCapture(root, "git", "rev-parse", "--short=12", "HEAD")
+	gitSHA := runCapture(root, "git", "rev-parse", "HEAD")
 	gitDirty := runCapture(root, "git", "status", "--porcelain")
 
 	steps := []stepResult{}
