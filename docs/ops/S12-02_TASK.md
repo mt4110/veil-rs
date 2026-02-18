@@ -29,20 +29,21 @@
     - `python3 - <<'PY'
 from pathlib import Path
 
-p = Path("docs/ops/STATUS.md")
-try:
-    txt = p.read_text(encoding="utf-8")
-except Exception as e:
-    print(f"ERROR: read failed: {e}")
-    txt = ""
+def patch_status():
+    p = Path("docs/ops/STATUS.md")
+    try:
+        txt = p.read_text(encoding="utf-8")
+    except Exception as e:
+        print(f"ERROR: read failed: {e}")
+        return
 
-if not txt:
-    print("ERROR: empty STATUS.md")
-else:
+    if not txt:
+        print("ERROR: empty STATUS.md")
+        return
+
     lines = txt.splitlines(True)
     changed = False
 
-    # Update row helpers (minimal edits only)
     def patch_row(prefix, new_progress=None, new_current=None):
         nonlocal changed
         for i, ln in enumerate(lines):
@@ -61,17 +62,22 @@ else:
                 return
         print(f"ERROR: row not found: {prefix.strip()}")
 
+    # rows
     patch_row("| S12-01 ", new_progress="100% (Merged)", new_current="-")
     patch_row("| S12-02 ", new_progress="1% (WIP)", new_current="S12-02: Closeout + ritual spec (zsh-safe)")
 
-    # Last Updated: best-effort replace only the Date line (keep others if you want)
+    # Last Updated (Evidence is the important one)
+    want = "docs/evidence/ops/obs_20260218_s12-02.md"
     for i, ln in enumerate(lines):
-        if ln.startswith("- Date: "):
-            # Keep timezone convention (+0900) and update manually after run if needed
-            lines[i] = "- Date: 2026-02-18 (+0900)\n"
-            changed = True
-            print("OK: updated Last Updated Date")
+        if ln.startswith("- Evidence: "):
+            new = f"- Evidence: {want}\n"
+            if ln != new:
+                lines[i] = new
+                changed = True
+                print("OK: updated Last Updated Evidence")
             break
+    else:
+        print("ERROR: Last Updated Evidence line not found")
 
     if changed:
         try:
@@ -81,6 +87,11 @@ else:
             print(f"ERROR: write failed: {e}")
     else:
         print("SKIP: no changes applied")
+
+try:
+    patch_status()
+except Exception as e:
+    print(f"ERROR: exception: {e}")
 PY`
 
 ## 4) Ritual spec: zsh-safe observation (NO glob)
@@ -100,6 +111,13 @@ PY`
     - `git log --oneline -n 12`
     - `rg -n "^\| S12-01 |^\| S12-02 " docs/ops/STATUS.md`
     - `rg -n "^Last Updated:" -n docs/ops/STATUS.md`
+
+## Ritual (optional): strict bundle is HEAD-bound
+- Rule: commit -> prverify -> strict create (otherwise strict is expected to fail)
+- Heavy step is ONLY prverify; run it alone when CPU is safe.
+- If prverify report for current HEAD is missing, write:
+  - ERROR: missing prverify for HEAD (run nix run .#prverify on this HEAD)
+  - and SKIP strict create
 
 ## 6) Gates (keep light; no heavy required)
 - [ ] `rg -n "S12-02" docs/ops/S12-02_PLAN.md docs/ops/S12-02_TASK.md 2>/dev/null || true`
