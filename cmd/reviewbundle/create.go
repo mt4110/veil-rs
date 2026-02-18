@@ -197,15 +197,15 @@ func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
 	gw.Close()
 	f.Close()
 
-	if err := os.Rename(tmpPath, outPath); err != nil {
-		return "", WrapVError(E_PATH, outPath, err)
+	// 4. Self-Audit (C6) - Verify atomic temp file
+	_, err = VerifyBundlePath(tmpPath)
+	if err != nil {
+		// Verification failed on tmp file.
+		return tmpPath, fmt.Errorf("self-audit failed for %s: %w", tmpPath, err)
 	}
 
-	// 4. Self-Audit (C6)
-	_, err = VerifyBundlePath(outPath)
-	if err != nil {
-		// If verification fails, we keep the broken bundle for inspection but return error
-		return outPath, fmt.Errorf("self-audit failed for %s: %w", outPath, err)
+	if err := os.Rename(tmpPath, outPath); err != nil {
+		return "", WrapVError(E_PATH, outPath, err)
 	}
 
 	return outPath, nil
@@ -260,43 +260,96 @@ func getGitHeadSHA(repoDir string) (string, error) {
 }
 
 func collectEvidence(headSHA, repoDir string) (bool, map[string][]byte, error) {
-	evDir := "docs/evidence/prverify"
-	if repoDir != "" {
-		evDir = filepath.Join(repoDir, evDir)
-	}
-
-	entries, err := os.ReadDir(evDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil, nil
-		}
-		return false, nil, WrapVError(E_PATH, evDir, err)
-	}
-
 	files := make(map[string][]byte)
 	bound := false
 
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), "prverify_") || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		path := filepath.Join(evDir, e.Name())
-		content, err := os.ReadFile(path)
+	// Helper to process directory
+	processDir := func(dir string, isLocal bool) error {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
-			return false, nil, WrapVError(E_PATH, path, err)
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return WrapVError(E_PATH, dir, err)
 		}
 
-		// Bundle path: review/evidence/prverify/prverify_...
-		bundlePath := filepath.Join(DirEvidence, "prverify", e.Name())
-		files[bundlePath] = content
+		// Sort entries for determinism (repo evidence) or priority (local evidence)
+		// Local: newest first to find best specific match
+		// Repo: alphabetical for consistency (though map iteration order is random, bundle creation sorts keys)
+		if isLocal {
+			sort.Slice(entries, func(i, j int) bool {
+				// We want newest first, but os.ReadDir returns DirEntry without ModTime directly in struct (need Info)
+				// Actually filenames have timestamp: prverify_YYYYMMDDTHHMMSSZ_...
+				// So just sorting by name DESC works for timestamp
+				return entries[i].Name() > entries[j].Name()
+			})
+		}
 
-		// Phase 7.5: 4MB limit check for binding
-		if len(content) > 4*1024*1024 {
-			continue // Too big to trust for binding
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasPrefix(e.Name(), "prverify_") || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+
+			// For local evidence, we only pick ONE: the newest one that binds to HEAD.
+			// If we already bound, skip others?
+			// The requirement: "local evidence... newest 1" (implied: that matches)
+			// "local evidence: .local/prverify/prverify_*.md のうち HEAD SHA を含む最新1件"
+			if isLocal && bound {
+				continue
+			}
+
+			path := filepath.Join(dir, e.Name())
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return WrapVError(E_PATH, path, err)
+			}
+
+			// Phase 7.5: 4MB limit check for binding
+			isTooBig := len(content) > 4*1024*1024
+			containsHead := !isTooBig && strings.Contains(string(content), headSHA)
+
+			if isLocal {
+				// Local rule: only include if it binds to HEAD
+				if !containsHead {
+					continue
+				}
+				// Found newest binding local evidence!
+				// Include it.
+			}
+
+			// Bundle path: review/evidence/prverify/prverify_...
+			bundlePath := filepath.Join(DirEvidence, "prverify", e.Name())
+			files[bundlePath] = content
+
+			if containsHead {
+				bound = true
+			}
 		}
-		if strings.Contains(string(content), headSHA) {
-			bound = true
-		}
+		return nil
+	}
+
+	// 1. Repo evidence (docs/evidence/prverify)
+	repoEvDir := "docs/evidence/prverify"
+	if repoDir != "" {
+		repoEvDir = filepath.Join(repoDir, repoEvDir)
+	}
+	if err := processDir(repoEvDir, false); err != nil {
+		return false, nil, err
+	}
+
+	// 2. Local evidence (.local/prverify) - ONLY if not already bound?
+	// The requirement implies finding a local one if needed.
+	// Actually, strict mode MIGHT fail if repo evidence doesn't bind.
+	// So we should always search local if strict? Or just always search?
+	// The plan says: "strict create は evidence として次を扱う... 2) local evidence"
+	// It doesn't strictly say "only if repo fails", but implies extending scope.
+	// Safe to always search local for a HEAD match.
+	localEvDir := ".local/prverify"
+	if repoDir != "" {
+		localEvDir = filepath.Join(repoDir, localEvDir)
+	}
+	if err := processDir(localEvDir, true); err != nil {
+		return false, nil, err
 	}
 
 	return bound, files, nil
