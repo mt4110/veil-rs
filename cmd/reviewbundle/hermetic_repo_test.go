@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,4 +91,102 @@ func TestForge_Smoke(t *testing.T) {
 	if !strings.Contains(string(out), "head commit") {
 		t.Error("head commit missing")
 	}
+}
+
+func TestCreate_StrictLocalEvidence(t *testing.T) {
+	// 1. Setup Repo
+	repoDir, _ := forgeHermeticRepo(t)
+
+	// helper to run git inside repo
+	gitEnv := []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + repoDir,
+		"XDG_CONFIG_HOME=" + repoDir,
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_TERMINAL_PROMPT=0",
+		"TZ=UTC",
+		"LC_ALL=C",
+		"GIT_AUTHOR_NAME=ci",
+		"GIT_AUTHOR_EMAIL=ci@example.invalid",
+		"GIT_AUTHOR_DATE=1700000000 +0000",
+		"GIT_COMMITTER_NAME=ci",
+		"GIT_COMMITTER_EMAIL=ci@example.invalid",
+		"GIT_COMMITTER_DATE=1700000000 +0000",
+	}
+
+	execGit := func(args ...string) string {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repoDir
+		cmd.Env = gitEnv
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v failed: %v\nOutput: %s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	ignorePath := filepath.Join(repoDir, ".gitignore")
+	if err := os.WriteFile(ignorePath, []byte(".local/\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	execGit("add", ".gitignore")
+	execGit("commit", "-m", "ignore .local")
+	headSHA := execGit("rev-parse", "HEAD")
+
+	// 3. Create .local/prverify with matching SHA
+	localEvDir := filepath.Join(repoDir, ".local", "prverify")
+	if err := os.MkdirAll(localEvDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create older non-matching evidence
+	oldReport := filepath.Join(localEvDir, "prverify_20250101T000000Z_aaaaaaa.md")
+	if err := os.WriteFile(oldReport, []byte("old report sans sha"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create newer matching evidence
+	newReport := filepath.Join(localEvDir, "prverify_20260218T120000Z_bbbbbbb.md")
+	// Must contain full SHA
+	reportContent := fmt.Sprintf("# Report\n\n- head_sha: %s\n", headSHA)
+	if err := os.WriteFile(newReport, []byte(reportContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// 4. Create Bundle (Strict)
+	c := &Contract{
+		ContractVersion: "1.1",
+		Mode:            "strict",
+		Repo:            "veil-rs",
+		EpochSec:        1700000000,
+		BaseRef:         "main", // assume main exists
+		HeadSHA:         headSHA,
+		Evidence: Evidence{
+			Required:   true,
+			PathPrefix: "review/evidence/",
+		},
+		Tool: Tool{Name: "test", Version: "0.0.0"},
+	}
+
+	outDir := t.TempDir()
+	bundlePath, err := CreateBundle(c, outDir, repoDir)
+	if err != nil {
+		t.Fatalf("CreateBundle failed: %v", err)
+	}
+
+	// 5. Verify Bundle Contains Evidence (via VerifyBundlePath)
+	rep, err := VerifyBundlePath(bundlePath)
+	if err != nil {
+		t.Fatalf("VerifyBundlePath failed: %v", err)
+	}
+	if !rep.EvidenceBoundToHead {
+		t.Error("EvidenceBoundToHead is false, expected true")
+	}
+	if !rep.EvidencePresent {
+		t.Error("EvidencePresent is false, expected true")
+	}
+	// Check if correct file name is included?
+	// VerifyReport doesn't expose file list easily in public struct except via ComputedSHA256 keys or EvidenceFiles contents.
+	// We trust EvidenceBoundToHead=true implies it found the SHA.
 }
