@@ -1,65 +1,53 @@
-# S12-01 TASK — strict evidence binding: allow local prverify evidence
+# S12-01 TASK — Strict Evidence Binding (Local-first)
 
-> Rule: heavy tasks are split. No fail-fast shell flags. One step = one observation.
+## A) Path Confirmation (cheap)
+- [x] `git ls-files | rg '^cmd/reviewbundle/(create\.go|main\.go|verify_binding_test\.go|hermetic_repo_test\.go)$'`
+- [x] `git ls-files | rg '^docs/ops/(S12-01_PLAN\.md|S12-01_TASK\.md|STATUS\.md)$'`
 
-## A) Preflight / cleanup (repo must be clean for strict)
-- [ ] `cd "$(git rev-parse --show-toplevel)"`
-- [ ] `git status -sb`
-- [ ] If untracked exists under `docs/evidence/prverify/` (copied report), isolate it:
-  - [ ] `mkdir -p .local/archive/prverify/20260218`
-  - [ ] `ls -la docs/evidence/prverify | sed -n '1,40p'`
-  - [ ] `cp -p docs/evidence/prverify/prverify_20260218T025648Z_756866a.md .local/archive/prverify/20260218/`
-  - [ ] `rm -f docs/evidence/prverify/prverify_20260218T025648Z_756866a.md`
-  - [ ] `git status -sb`
+## B) Implement (code)
+### B1) strict evidence: local-first
+- [x] Edit: `cmd/reviewbundle/create.go`
+  - strict の evidence 探索で `.local/prverify/` を優先
+  - `prverify_*.md` を対象に HEAD(64hex) を含む最初の“最新”を採用
+  - 見つからない場合は `E_EVIDENCE`（`nix run .#prverify` を促す）
 
-## B) Path capture (real file paths; paste outputs into PR)
-- [ ] Locate evidence collection paths:
-  - [ ] `rg -n "docs/evidence/prverify|review/evidence/prverify|E_EVIDENCE" -S .`
-- [ ] Locate strict clean check:
-  - [ ] `rg -n "repository is dirty|E_CONTRACT|git status|--porcelain" -S .`
-- [ ] Locate where tar entries are written for evidence:
-  - [ ] `rg -n "review/evidence|evidence/prverify|tar\\.|archive/tar" -S .`
-- [ ] Record the exact file paths that must be edited (SOT: real paths only).
+### B2) no dead tar
+- [x] Edit: `cmd/reviewbundle/create.go`
+  - tar は tmp に作る
+  - tmp を self-audit / verify して PASS なら rename
+  - FAIL なら tmp を削除（死体tar禁止）
 
-## C) Implement: include local prverify evidence in strict bundle
-- [ ] Edit the file(s) identified in B) so that strict create also:
-  - [ ] scans `.local/prverify/prverify_*.md` newest-first (limit N)
-  - [ ] selects the newest file containing full HEAD SHA
-  - [ ] includes it into tar at `review/evidence/prverify/<basename>`
-- [ ] Implement atomic write:
-  - [ ] write tar to `*.tmp`
-  - [ ] self-audit against tmp
-  - [ ] rename tmp → final on PASS
-  - [ ] ensure failure does not leave a final-named tar behind
+## C) Tests (light)
+- [x] Add/Update: `cmd/reviewbundle/hermetic_repo_test.go`
+  - TestCreate_StrictLocalEvidence（hermetic repo + .local/prverify を偽造して strict 成功を保証）
+- [x] Keep: `cmd/reviewbundle/verify_binding_test.go`
+  - verify の厳格条件（HEAD 含有）を維持する
 
-## D) Tests (small, local-only)
-- [ ] Update/add unit tests to cover:
-  - [ ] strict bundle passes when `.local/prverify` has a report containing HEAD SHA
-  - [ ] strict bundle fails with a clear message when not found
-  - [ ] (optional) dead-tar prevention: final file name not created on failure
-- [ ] Run only the smallest Go test scope first:
-  - [ ] `go test -count=1 ./cmd/reviewbundle -run Test -v`
+## D) Unit Gate
+- [x] `go test ./cmd/reviewbundle`
 
-## E) Local evidence generation (one step)
+## E) Docs
+- [x] Update: `docs/ops/S12-01_PLAN.md`（デッドロック背景 + local-first + tmp self-audit を明記）
+- [ ] Update: `docs/ops/S12-01_TASK.md`（operator 手順も local-first に統一）
+
+## F) Manual Integration (heavy; split)
+### F1) generate evidence
 - [ ] `nix run .#prverify`
-- [ ] Confirm the report exists:
-  - [ ] `ls -lt .local/prverify | sed -n '1,30p'`
-  - [ ] `git rev-parse HEAD`
+- [ ] `ls -lt .local/prverify | sed -n '1,30p'`
+- [ ] `git rev-parse HEAD`
 
-## F) Strict bundle create + verify (two steps)
-- [ ] Create:
-  - [ ] `go run ./cmd/reviewbundle create --mode strict --out-dir .local/review-bundles`
-- [ ] Verify:
-  - [ ] `ls -lt .local/review-bundles | sed -n '1,30p'`
-  - [ ] `BUNDLE_STRICT="$(ls -t .local/review-bundles/*_strict_*.tar.gz | head -n 1)"; echo "$BUNDLE_STRICT"`
-  - [ ] `go run ./cmd/reviewbundle verify "$BUNDLE_STRICT"`
+### F2) strict create
+- [ ] `go run ./cmd/reviewbundle create --mode strict --out-dir .local/review-bundles`
+- [ ] `ls -lt .local/review-bundles | sed -n '1,20p'`
 
-## G) Evidence inspection (cheap)
-- [ ] Confirm the local prverify report is inside the tar:
-  - [ ] `tar -tzf "$BUNDLE_STRICT" | rg "review/evidence/prverify/prverify_.*756866a\\.md"`
-- [ ] Confirm self-audit / verify output says PASS.
+### F3) strict verify
+- [ ] `BUNDLE_STRICT="$(ls -t .local/review-bundles/*_strict_*.tar.gz | head -n 1)"; echo "BUNDLE_STRICT=$BUNDLE_STRICT"`
+- [ ] `go run ./cmd/reviewbundle verify "$BUNDLE_STRICT"`
 
-## H) Docs / STATUS
-- [ ] Update `docs/ops/STATUS.md` row for S12-01:
-  - [ ] set progress to `99% (Review)` when PR open + CI pass
-  - [ ] update Last Updated timestamp only
+### F4) evidence inside tar (cheap)
+- [ ] `tar -tzf "$BUNDLE_STRICT" | rg 'review/evidence/prverify/prverify_.*\.md'`
+
+## G) STATUS
+- [ ] Update: `docs/ops/STATUS.md`
+  - S12-01 row: `99% (Review)`（PR open + CI pass + 手元の F が PASS になったら）
+  - Last Updated のみ更新（テーブル順固定）

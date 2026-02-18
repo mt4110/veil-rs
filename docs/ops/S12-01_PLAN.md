@@ -1,4 +1,4 @@
-# S12-01 PLAN — strict evidence binding: allow local prverify evidence
+# S12-01 PLAN — Strict Evidence Binding (Local-first, No-Dirty)
 
 ## Goal
 `go run ./cmd/reviewbundle create --mode strict` が、
@@ -6,62 +6,53 @@
 - bundle 内 `review/evidence/` に **HEAD SHA を含む証拠（prverifyレポート）** を同梱でき、
 - self-audit / verify を PASS できるようにする。
 
-## Observed Failure (SOT)
-- strict create:
-  - E_EVIDENCE: binding no evidence file contains HEAD SHA ...
-- strict create after copying report into docs/evidence:
-  - E_CONTRACT: git repository is dirty (prohibited in strict mode)
-- verify on a “dead tar”:
-  - E_EVIDENCE ...
+## Background / Problem
+現状の strict は次の契約を同時に満たそうとして詰む：
+1. (A) strict は git clean を要求（untracked も禁止）
+2. (B) strict は bundle 内 evidence が HEAD(64hex) を含むことを要求
+3. (C) evidence を repo 配下（例: `docs/evidence/...`）へコピーすると untracked が生え、(A) で失敗
 
-## Root Cause
-- `create(strict)` が evidence を repo 内 `docs/evidence/prverify/` からのみ収集している。
-- 最新 prverify レポートは `.local/prverify/` にあるため、bundle evidence に入らず E_EVIDENCE。
-- repo 内へコピーすると untracked が増えて strict の clean 制約で E_CONTRACT。
+結果：`E_EVIDENCE` / `E_CONTRACT` のデッドロックが発生する。
+さらに、self-audit が失敗しても tar が残り、次の検証を汚す（“死体tar”）。
 
-## Contract (New / Canonical)
-- strict create は evidence として次を扱う：
-  1) repo evidence: `docs/evidence/prverify/*.md`（従来通り、履歴）
-  2) local evidence: `.local/prverify/prverify_*.md` のうち **HEAD SHA を含む最新1件**
-- local evidence を見つけられない場合は、bundle 作成を中断し、
-  - operator 向けに “prverify を実行せよ” を明示する。
-- self-audit 失敗時に “死体tar” を残さない：
-  - `*.tmp` に書く → self-audit PASS → 最終ファイル名へ rename
+## Non-Negotiable Contracts
+- strict は `git status --porcelain` が空（tracked/untracked なし）であること。
+- strict は bundle 内 evidence が HEAD(64hex) を含むこと。
+- strict の成功要件は repo を汚さずに上記を満たすこと。
+- 失敗時に “死体tar” を残さない（tmp で止める）。
 
-## Non-goals
-- verify 側の契約（「bundle内 evidence のどれかに HEAD SHA がある」）は変更しない。
-- CI の設計全体を変えない（このフェーズでは strict evidence の供給経路だけ直す）。
+## Design
 
-## Implementation Outline (Pseudo)
-- Inputs:
-  - head = git rev-parse HEAD (full SHA)
-- Find local prverify report:
-  - for p in recent `.local/prverify/prverify_*.md` (newest first, limit N):
-      - read file (replace errors)
-      - if head in txt: select p; break
-      - else continue
-  - if not found:
-      - print ERROR: no local prverify contains HEAD
-      - stop (do not emit final tar)
-- Bundle assembly:
-  - include repo evidence dir as before
-  - include selected local prverify as:
-    - `review/evidence/prverify/<basename>`
-- Atomic write:
-  - write to `...tar.gz.tmp`
-  - run self-audit against tmp
-  - if PASS: rename tmp → final
-  - else: keep tmp only in temp dir or remove it (policy)
+### Evidence Sourcing (strict)
+strict の evidence 探索は次の順で行う：
+1. `.local/prverify/`（ローカル実行 `nix run .#prverify` の出力）
+2. 既存の repo evidence パス（互換のため）
 
-## Stop Conditions
-- Cannot locate code references for evidence collection / strict contract -> stop and record rg outputs.
-- local prverify report not found for HEAD -> stop, instruct operator to run `nix run .#prverify`.
-- self-audit fails -> stop and keep artifacts isolated under `.local/archive/...`.
+探索条件：
+- 対象ファイル：`prverify_*.md`
+- 判定：ファイル内容に HEAD(64hex) が文字列として含まれること
+- 複数候補がある場合：最新を選ぶ（できればファイル名の timestamp 順で決定）
+- 見つからない場合：
+  - `E_EVIDENCE` を返し、オペレータに `nix run .#prverify` を促すメッセージを出す。
 
-## Evidence Strategy
-- Evidence of fix:
-  - unit tests for evidence selection + bundling
-  - local run:
-    - `nix run .#prverify` (to generate `.local/prverify/prverify_*_HEAD.md`)
-    - `go run ./cmd/reviewbundle create --mode strict ...` (PASS)
-    - `go run ./cmd/reviewbundle verify <bundle>` (PASS)
+### Bundle Creation (no dead tar)
+- 出力は `outDir` 配下に tmp ファイルとして作る（同一FS上）
+- tmp に対して self-audit / verify を実施
+- PASS のときだけ `os.Rename(tmp, final)`（atomic）
+- FAIL の場合は tmp を削除して終了（死体tarを残さない）
+
+## Acceptance Criteria
+### Unit:
+- `go test ./cmd/reviewbundle` が PASS
+- `TestCreate_StrictLocalEvidence` が PASS（strict が `.local/prverify` を拾う）
+- 既存 verify/binding の厳格さは維持される（テストで保証）
+
+### Manual Integration (operator):
+- repo clean を確認
+- `nix run .#prverify` を実行（`.local/prverify/` に HEAD 含む report 生成）
+- `go run ./cmd/reviewbundle create --mode strict ...`
+- `go run ./cmd/reviewbundle verify <bundle>`
+- tar 内に `review/evidence/prverify/prverify_*.md` が入っており、内容が HEAD を含む
+
+## Rollback
+この PR の merge commit（または squash commit）を revert する。
