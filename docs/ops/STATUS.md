@@ -27,7 +27,8 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S11-03 | Review Bundle Go Hardening (deterministic)       | 100% (Merged) | -                 |
 | S11-04 | Hermetic Determinism Tests                       | 100% (Merged) | -                 |
 | S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 100% (Merged) | -                 |
-| S12    | TBD                                              | 1% (WIP)      | S12-00 Kickoff    |
+| S12-00    | TBD                                              |  100% (Merged) |  - |
+| S12-01    | TBD                                              |  1% (WIP) |  S12-01 A: Verify Chain v1 |
 | S13    | TBD                                              | 0%            | -                 |
 | S14    | TBD                                              | 0%            | -                 |
 | S15    | TBD                                              | 0%            | -                 |
