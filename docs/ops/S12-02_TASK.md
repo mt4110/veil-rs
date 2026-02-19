@@ -108,12 +108,17 @@ PY`
     - `rg -n "^\| S12-01 |^\| S12-02 " docs/ops/STATUS.md`
     - `rg -n "^Last Updated:" -n docs/ops/STATUS.md`
 
-## Ritual (optional): strict bundle is HEAD-bound
-- Rule: commit -> prverify -> strict create (otherwise strict is expected to fail)
-- Heavy step is ONLY prverify; run it alone when CPU is safe.
-- If prverify report for current HEAD is missing, write:
-  - ERROR: missing prverify for HEAD (run nix run .#prverify on this HEAD)
-  - and SKIP strict create
+## Ritual (Canonical): Strict Ritual Capsule
+- **Goal**: Create a strict review bundle bound to HEAD, ensuring evidence exists.
+- **Command**:
+  - `go run ./cmd/reviewbundle create --mode strict --heavy=auto --autocommit --message "docs(ops): strict ritual" --out-dir .local/review-bundles`
+- **Behavior**:
+  - **Auto-Commit**: If dirty, commits with provided message (requires staged changes or will fail safe).
+  - **Evidence**: Automatically finds newest `prverify_*.md` containing HEAD SHA.
+  - **Heavy**: If evidence missing, runs `prverify` (heavy) automatically, then retries.
+  - **Output**: Returns `OK`, `ERROR`, or `SKIP`. Process does not exit with code 1 unless compilation fails, allowing "stopless" chaining.
+- **Zsh-Safe Observation**:
+  - `find .local/review-bundles -maxdepth 1 -type f -name 'veil-rs_review_strict_*.tar.gz' -print | sort | tail -n 1`
 
 ## 6) Gates (keep light; no heavy required)
 - [ ] `rg -n "S12-02" docs/ops/S12-02_PLAN.md docs/ops/S12-02_TASK.md 2>/dev/null || true`
