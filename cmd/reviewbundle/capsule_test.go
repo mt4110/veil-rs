@@ -13,7 +13,9 @@ func TestCapsule_StrictRitual(t *testing.T) {
 	// Helper to create hermetic repo
 	repoDir, _ := forgeHermeticRepo(t)
 	// Add .gitignore for .local
-	os.WriteFile(filepath.Join(repoDir, ".gitignore"), []byte(".local/\n"), 0644)
+	if err := os.WriteFile(filepath.Join(repoDir, ".gitignore"), []byte(".local/\n"), 0644); err != nil {
+		t.Fatalf("failed to write .gitignore: %v", err)
+	}
 	mustRunGit(t, repoDir, "add", ".gitignore")
 	mustRunGit(t, repoDir, "commit", "-m", "ignore .local")
 	headSHA := GetHeadSHA(t, repoDir)
@@ -49,7 +51,9 @@ func TestCapsule_StrictRitual(t *testing.T) {
 		evDir := filepath.Join(repoDir, ".local", "prverify")
 		os.MkdirAll(evDir, 0755)
 		evFile := filepath.Join(evDir, fmt.Sprintf("prverify_20240101_%s.md", headSHA))
-		os.WriteFile(evFile, []byte("Report with "+headSHA), 0644)
+		if err := os.WriteFile(evFile, []byte("Report with "+headSHA), 0644); err != nil {
+			t.Fatalf("failed to write evidence file: %v", err)
+		}
 
 		stdout, _ := runCapsule("never", false, "")
 		if !strings.Contains(stdout, "OK: evidence_report=") {
@@ -62,7 +66,9 @@ func TestCapsule_StrictRitual(t *testing.T) {
 
 	t.Run("Dirty_NoAutocommit_Skips", func(t *testing.T) {
 		// Make dirty
-		os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty"), 0644)
+		if err := os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty"), 0644); err != nil {
+			t.Fatalf("failed to write dirty.txt: %v", err)
+		}
 		// Don't stage
 		// Wait, dirty check uses `git status --porcelain`. Untracked files counts as dirty?
 		// Usually yes.
@@ -98,7 +104,9 @@ func TestCapsule_StrictRitual(t *testing.T) {
 		// Let's make it modified (not untracked) to trigger `hasUnstaged`.
 		mustRunGit(t, repoDir, "add", "dirty.txt")
 		mustRunGit(t, repoDir, "commit", "-m", "clean state")
-		os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty modified"), 0644)
+		if err := os.WriteFile(filepath.Join(repoDir, "dirty.txt"), []byte("dirty modified"), 0644); err != nil {
+			t.Fatalf("failed to update dirty.txt: %v", err)
+		}
 
 		_, stderr = runCapsule("never", true, "wip")
 		if !strings.Contains(stderr, "ERROR: unstaged changes exist") {
