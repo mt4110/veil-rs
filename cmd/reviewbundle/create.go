@@ -16,7 +16,12 @@ import (
 	"time"
 )
 
-func CreateBundleUI(mode, outDir, repoDir string, stdout, stderr io.Writer) error {
+func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+	// S12-03: Strict Ritual Capsule
+	if mode == ModeStrict {
+		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, stdout, stderr)
+	}
+
 	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
@@ -36,9 +41,10 @@ func CreateBundleUI(mode, outDir, repoDir string, stdout, stderr io.Writer) erro
 	}
 
 	if mode == ModeStrict {
-		if isDirty {
-			return NewVError(E_CONTRACT, "git", "repository is dirty (prohibited in strict mode)")
-		}
+		// This block is now handled by strictCreateCapsule
+		// if isDirty {
+		// 	return NewVError(E_CONTRACT, "git", "repository is dirty (prohibited in strict mode)")
+		// }
 		// Evidence check will come in C5/C6
 	} else if mode == ModeWIP {
 		if isDirty {
@@ -56,7 +62,7 @@ func CreateBundleUI(mode, outDir, repoDir string, stdout, stderr io.Writer) erro
 		HeadSHA:         headSHA,
 		WarningsCount:   0,
 		Evidence: Evidence{
-			Required:    mode == ModeStrict,
+			Required:    false,
 			Present:     false,
 			BoundToHead: false,
 			PathPrefix:  DirEvidence,
@@ -79,6 +85,242 @@ func CreateBundleUI(mode, outDir, repoDir string, stdout, stderr io.Writer) erro
 
 	fmt.Fprintf(stdout, "Bundle created: %s\n", path)
 	return nil
+}
+
+// strictCreateCapsule implements the S12-03 strict ritual.
+func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+	// A: Preflight & Dirty Check
+	headSHA, err := getGitHeadSHA(repoDir)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "OK: HEAD_START=%s\n", headSHA)
+
+	isDirty, err := isGitDirty(repoDir)
+	if err != nil {
+		return err
+	}
+
+	if isDirty {
+		fmt.Fprintln(stdout, "INFO: repo dirty")
+		if !autocommit {
+			fmt.Fprintln(stderr, "ERROR: repo dirty; commit first OR pass --autocommit --message")
+			fmt.Fprintln(stdout, "SKIP: strict create (dirty)")
+			return nil // Intentionally nil return to avoid exit code 1, but stop process
+		}
+		if message == "" {
+			fmt.Fprintln(stderr, "ERROR: --autocommit requires --message")
+			fmt.Fprintln(stdout, "SKIP: strict create (missing message)")
+			return nil
+		}
+		// Commit
+		// Check for unstaged?
+		// "unstaged changes exist" -> ERROR
+		// "staged changes missing" -> ERROR
+		// We need to check porcelain status in detail.
+		// For now, let's implement the basic git commit wrapper.
+		// NOTE: Protocol says: "unstaged changes exist -> ERROR" (don't auto add)
+		// "staged missing -> ERROR" (don't empty commit)
+		// Let's rely on git commit failing if nothing staged, but we should check unstaged.
+		hasUnstaged, err := hasUnstagedChanges(repoDir)
+		if err != nil {
+			return err
+		}
+		if hasUnstaged {
+			fmt.Fprintln(stderr, "ERROR: unstaged changes exist; stage explicitly")
+			fmt.Fprintln(stdout, "SKIP: strict create (unstaged)")
+			return nil
+		}
+
+		// Try commit
+		if err := gitCommit(repoDir, message); err != nil {
+			// This likely means nothing to commit
+			fmt.Fprintf(stderr, "ERROR: commit failed (nothing staged?): %v\n", err)
+			fmt.Fprintln(stdout, "SKIP: strict create (commit failed)")
+			return nil
+		}
+		// Update HEAD
+		headSHA, err = getGitHeadSHA(repoDir)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "OK: committed; HEAD_NOW=%s\n", headSHA)
+	} else {
+		fmt.Fprintln(stdout, "OK: repo clean")
+	}
+
+	// B: Evidence Resolver
+	evidenceDirs := []string{".local/prverify", "docs/evidence/prverify"}
+	if repoDir != "" {
+		for i, d := range evidenceDirs {
+			evidenceDirs[i] = filepath.Join(repoDir, d)
+		}
+	}
+
+	resolveEvidence := func() (string, error) {
+		for _, dir := range evidenceDirs {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				continue
+			}
+			// Sort newest first
+			sort.Slice(entries, func(i, j int) bool {
+				return entries[i].Name() > entries[j].Name()
+			})
+			for _, e := range entries {
+				if strings.HasPrefix(e.Name(), "prverify_") && strings.HasSuffix(e.Name(), ".md") {
+					path := filepath.Join(dir, e.Name())
+					content, err := os.ReadFile(path)
+					if err != nil {
+						continue
+					}
+					if strings.Contains(string(content), headSHA) {
+						return path, nil
+					}
+				}
+			}
+		}
+		return "", nil
+	}
+
+	reportPath, _ := resolveEvidence()
+	if reportPath != "" {
+		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
+	} else {
+		fmt.Fprintln(stdout, "INFO: evidence for HEAD not found")
+		if heavy == "never" {
+			fmt.Fprintln(stderr, "ERROR: missing prverify for HEAD; heavy=never")
+			fmt.Fprintln(stdout, "SKIP: strict create (no evidence)")
+			return nil
+		}
+
+		// Heavy step
+		fmt.Fprintln(stdout, "INFO: run prverify (heavy)")
+		if err := runPrverify(repoDir); err != nil {
+			fmt.Fprintf(stderr, "ERROR: prverify failed: %v\n", err)
+			fmt.Fprintln(stdout, "SKIP: strict create (prverify failed)")
+			return nil
+		}
+
+		// Check head drift
+		newHead, err := getGitHeadSHA(repoDir)
+		if err != nil {
+			return err
+		}
+		if newHead != headSHA {
+			fmt.Fprintln(stderr, "ERROR: HEAD changed during prverify; rerun ritual")
+			fmt.Fprintln(stdout, "SKIP: strict create (HEAD drift)")
+			return nil
+		}
+
+		// Re-resolve
+		reportPath, _ = resolveEvidence()
+		if reportPath == "" {
+			fmt.Fprintln(stderr, "ERROR: prverify completed but report still missing HEAD")
+			fmt.Fprintln(stdout, "SKIP: strict create (no head evidence)")
+			return nil
+		}
+		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
+	}
+
+	// C: Delegate to CreateBundle
+	// We construct contract manually here because CreateBundle logic expects to FIND evidence itself?
+	// Actually `collectEvidence` in CreateBundle searches again.
+	// But `strictCreateCapsule` ensures it EXISTS.
+	// We should just call `CreateBundle` with ModeStrict, and it will call `collectEvidence`.
+	// Since we verified evidence exists and matches HEAD, `collectEvidence` should find it.
+	// HOWEVER, `collectEvidence` might find *other* evidence if we are not careful about `repoDir`.
+	// But `collectEvidence` searches the same dirs.
+	// So we can just proceed.
+
+	epoch, err := ComputeEpochSec(repoDir)
+	if err != nil {
+		return err
+	}
+
+	contract := &Contract{
+		ContractVersion: "1.1",
+		Mode:            ModeStrict,
+		Repo:            "veil-rs",
+		EpochSec:        epoch,
+		BaseRef:         "main",
+		HeadSHA:         headSHA,
+		// Evidence fields will be filled by CreateBundle -> collectEvidence
+		Evidence: Evidence{
+			Required:   true,
+			Present:    false,
+			PathPrefix: DirEvidence,
+		},
+		Tool: Tool{
+			Name:    "reviewbundle",
+			Version: "1.0.0",
+		},
+	}
+
+	path, err := CreateBundle(contract, outDir, repoDir)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Bundle created: %s\n", path)
+	fmt.Fprintln(stdout, "OK: strict bundle created")
+
+	return nil
+}
+
+func hasUnstagedChanges(repoDir string) (bool, error) {
+	// git diff --name-only (if output not empty, unstaged changes)
+	cmd := exec.Command("git", "diff", "--name-only")
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		return false, err
+	}
+	return len(strings.TrimSpace(string(out))) > 0, nil
+}
+
+func gitCommit(repoDir, message string) error {
+	// If git identity is missing (common in CI runners), make this commit hermetic.
+	nameCmd := exec.Command("git", "config", "--get", "user.name")
+	nameCmd.Dir = repoDir
+	nameOut, _ := nameCmd.Output()
+
+	emailCmd := exec.Command("git", "config", "--get", "user.email")
+	emailCmd.Dir = repoDir
+	emailOut, _ := emailCmd.Output()
+
+	name := strings.TrimSpace(string(nameOut))
+	email := strings.TrimSpace(string(emailOut))
+
+	args := []string{"commit", "-m", message}
+	if name == "" || email == "" {
+		args = []string{
+			"-c", "user.name=veil-ci",
+			"-c", "user.email=veil-ci@example.invalid",
+			"-c", "commit.gpgSign=false",
+			"commit", "-m", message,
+		}
+	}
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git commit failed: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+func runPrverify(repoDir string) error {
+	// nix run .#prverify
+	cmd := exec.Command("nix", "run", ".#prverify")
+	if repoDir != "" {
+		cmd.Dir = repoDir
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {

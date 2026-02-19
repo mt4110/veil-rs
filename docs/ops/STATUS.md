@@ -19,25 +19,31 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 ## Milestones (S11..S15)
 
-| Phase  | Goal (One-liner)                                 | Progress      | Current (This PR)       |
-| ------ | ------------------------------------------------ | ------------- | ----------------------- |
-| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -                       |
-| S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -                       |
-| S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -                       |
-| S11-03 | Review Bundle Go Hardening (deterministic)       | 100% (Merged) | -                       |
-| S11-04 | Hermetic Determinism Tests                       | 100% (Merged) | -                       |
-| S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 100% (Merged) | -                       |
-| S12-00 | TBD                                              | 100% (Merged) | -                       |
-| S12-01 | TBD                                              | 99% (Review)  | S12-01: Verify Chain v1 |
-| S13    | TBD                                              | 0%            | -                       |
-| S14    | TBD                                              | 0%            | -                       |
-| S15    | TBD                                              | 0%            | -                       |
+| Phase  | Goal (One-liner)                                 | Progress      | Current (This PR)                |
+| ------ | ------------------------------------------------ | ------------- | -------------------------------- |
+| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -                                |
+| S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -                                |
+| Phase  | Goal (One-liner)                                 | Progress      | Current (This PR)                |
+| ------ | ------------------------------------------------ | ------------- | -------------------------------- |
+| S11-00 | Kickoff: pin roadmap/progress board in STATUS.md | 100% (Merged) | -                                |
+| S11-01 | Enforce STATUS.md update (forget -> fail)        | 100% (Merged) | -                                |
+| S11-02 | SOT guidance truth (stopless design)             | 100% (Merged) | -                                |
+| S11-03 | Review Bundle Go Hardening (deterministic)       | 100% (Merged) | -                                |
+| S11-04 | Hermetic Determinism Tests                       | 100% (Merged) | -                                |
+| S11-05 | Closeout: mark S11-03/04 merged + fresh prverify | 100% (Merged) | -                                |
+| S12-00 | TBD                                              | 100% (Merged) | -                                |
+| S12-01 | TBD                                              | 100% (Merged) | -                                |
+| S12-02 | Closeout + ritual spec (zsh-safe)                | 100% (Merged) | -                                |
+| S12-03 | Strict Ritual Capsule (commit+prverify+strict)   | 1% (WIP)      | S12-03: Implement strict capsule |
+| S13    | TBD                                              | 0%            | -                                |
+| S14    | TBD                                              | 0%            | -                                |
+| S15    | TBD                                              | 0%            | -                                |
 
 ## Last Updated
 - Date: 2026-02-18 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/evidence/prverify/prverify_20260217T085024Z_12b08ca.md
+- Evidence: docs/evidence/ops/obs_20260218_s12-02.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)

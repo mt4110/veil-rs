@@ -40,6 +40,10 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		modeFlag := fs.String("mode", "", "Bundle mode (strict|wip)")
 		outDirFlag := fs.String("out-dir", "", "Output directory")
 
+		heavyFlag := fs.String("heavy", "auto", "Heavy verification mode (auto|never|force)")
+		autoCommitFlag := fs.Bool("autocommit", false, "Automatically commit if dirty")
+		messageFlag := fs.String("message", "", "Commit message (required if autocommit is true)")
+
 		if err := fs.Parse(argv[2:]); err != nil {
 			// flag.ContinueOnError means parsing error returns error but doesn't exit.
 			// However, NewFlagSet implicitly prints usage on error if we don't suppress it?
@@ -64,7 +68,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		}
 
 		// C2: flags/env for create mode+outdir
-		if err := CreateBundleUI(mode, outDir, "", stdout, stderr); err != nil {
+		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, stdout, stderr); err != nil {
 			fmt.Fprintln(stderr, err.Error())
 			return 1
 		}
@@ -83,4 +87,7 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  create         Create a new review bundle")
 	fmt.Fprintln(w, "    --mode     strict|wip (env: MODE, default: wip)")
 	fmt.Fprintln(w, "    --out-dir  Path (env: OUT_DIR, default: .local/review-bundles)")
+	fmt.Fprintln(w, "    --heavy    auto|never|force (default: auto)")
+	fmt.Fprintln(w, "    --autocommit  (bool) Automatically commit if dirty")
+	fmt.Fprintln(w, "    --message  Commit message (required if autocommit is true)")
 }
