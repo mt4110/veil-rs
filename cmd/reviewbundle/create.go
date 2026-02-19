@@ -281,17 +281,33 @@ func hasUnstagedChanges(repoDir string) (bool, error) {
 }
 
 func gitCommit(repoDir, message string) error {
-	cmd := exec.Command("git", "commit", "-m", message)
-	if repoDir != "" {
-		cmd.Dir = repoDir
+	// If git identity is missing (common in CI runners), make this commit hermetic.
+	nameCmd := exec.Command("git", "config", "--get", "user.name")
+	nameCmd.Dir = repoDir
+	nameOut, _ := nameCmd.Output()
+
+	emailCmd := exec.Command("git", "config", "--get", "user.email")
+	emailCmd.Dir = repoDir
+	emailOut, _ := emailCmd.Output()
+
+	name := strings.TrimSpace(string(nameOut))
+	email := strings.TrimSpace(string(emailOut))
+
+	args := []string{"commit", "-m", message}
+	if name == "" || email == "" {
+		args = []string{
+			"-c", "user.name=veil-ci",
+			"-c", "user.email=veil-ci@example.invalid",
+			"-c", "commit.gpgSign=false",
+			"commit", "-m", message,
+		}
 	}
-	// We want stdout/stderr to be captured or pipe?
-	// For capsule, we might want to hide it unless error?
-	// But user might want to see.
-	// Let's capture output and return error with it.
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, string(out))
+		return fmt.Errorf("git commit failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
 }
