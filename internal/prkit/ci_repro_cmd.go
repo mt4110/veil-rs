@@ -47,7 +47,7 @@ func runCIRepro(argv []string, stdout, stderr io.Writer, runner ExecRunner) int 
 			cleanRes := checkGitCleanWorktree()
 			if cleanRes.Status == "PASS" {
 				gi.TreeStatus = "CLEAN"
-			} else if strings.HasPrefix(cleanRes.Details, "failed to run") {
+			} else if cleanRes.Status == "ERROR" {
 				fmt.Fprintf(stderr, "OK: gitprobe helper checkGitCleanWorktree failed: %s\n", cleanRes.Details)
 				gi.TreeStatus = "UNKNOWN"
 			} else {
@@ -67,6 +67,17 @@ func runCIRepro(argv []string, stdout, stderr io.Writer, runner ExecRunner) int 
 			}
 			if res.Stderr != "" {
 				b.WriteString(res.Stderr + "\n")
+			}
+			if res.Error != nil || res.ExitCode != 0 {
+				if res.ExitCode != 0 {
+					fmt.Fprintf(b, "exit code: %d\n", res.ExitCode)
+				}
+				if res.Error != nil {
+					fmt.Fprintf(b, "error: %v\n", res.Error)
+				}
+				if res.ErrorKind != "" {
+					fmt.Fprintf(b, "error kind: %s\n", res.ErrorKind)
+				}
 			}
 			_ = cirepro.WriteFileAtomic(logFile, []byte(b.String()), 0o644)
 			return res.ExitCode, res.Error
