@@ -30,7 +30,7 @@
 - [x] 軽いテスト（パッケージ限定）
 - [x] 重いテスト（最後に1回だけ）
 - [x] nix run .#prverify
-- [ ] clean tree 確認 → strict reviewbundle create（最後に1回）
-- [ ] docs/pr のSOT文書を実値で更新（PR番号、SHA、証拠パス、bundle sha256）
-- [ ] docs/ops/STATUS.md 更新（S12-05 99% Review + Evidence）
-- [ ] OK: phase=end
+- [x] clean tree 確認 → strict reviewbundle create（最後に1回）
+- [x] docs/pr のSOT文書を実値で更新（PR番号、SHA、証拠パス、bundle sha256）
+- [x] docs/ops/STATUS.md 更新（S12-05 99% Review + Evidence）
+- [x] OK: phase=end

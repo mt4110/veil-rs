@@ -5,30 +5,18 @@
 - Repo: veil-rs
 - Phase: S12-05 (CI Repro Runner Alignment)
 - Branch: HEAD
-- Head: b83ef211a129cf768248b1c0247c60302b75eec2
+- Head: 73255f2239307ff56514f684adbc807caef97c21
 - Board: docs/ops/STATUS.md
 - Ops evidence: docs/evidence/ops/obs_20260222_s12-05.md
 
 ## What
 - Refactored `ci-repro` logic to use the `prkit` `ExecRunner` contract (`Runner.Run`) and DI for core side-effects.
-- Re-use `check_git` helpers for deterministic git status checks in `ci-repro`.
-- Add `FindRepoRoot()` bootstrap command to decouple early path finding from strict global Runner context.
-- Update `ci-repro` test suites to utilize DI pattern safely rather than mutating package-level variables.
-
-## Run Instructions (ci-repro via prkit runner)
-- Representative run: `go run ./cmd/prkit ci-repro run --run-id smoke`
-- Step-by-step: `go run ./cmd/prkit ci-repro step <subcommand>`
-
-## Verification
-Local (representative):
-- `nix develop -c go test ./...` : PASS
-- `nix run .#prverify` : PASS
 - `go run ./cmd/prkit ci-repro run --run-id smoke` : PASS (No SecurityViolation/panic, output correctly logged).
 
 ## Evidence
-- prverify report: `.local/prverify/prverify_20260223T015249Z_b83ef21.md`
-- reviewbundle strict: `.local/review-bundles/veil-rs_review_strict_19800101_000000_b83ef211a129.tar.gz`
-- strict sha256: `48b6fa208069fbb92b758c44eba68001808e15b173b052ec4c4bdaf142f42dbc`
+- prverify report: `.local/prverify/prverify_20260223T033834Z_73255f2.md`
+- reviewbundle strict: `.local/review-bundles/veil-rs_review_strict_19800101_000000_73255f223930.tar.gz`
+- strict sha256: `a06f01e6f20600414bacf4ff096d8bb6cfdcb0b9e7eb7f6cfe80467a80cf4b6a`
 - ci-repro output: `.local/obs/s12-05_20260222T005352Z/final_cirepro_run.log`
 
 ## Rollback
