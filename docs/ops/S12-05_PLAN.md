@@ -46,3 +46,80 @@ Align ci-repro to prkit runner + DI conventions, as cleanup-only (no feature exp
 - `nix run .#prverify` PASS (or documented SKIP with reason if not available in env)
 - ci-repro representative run(s) produce expected outputs
 - STATUS.md updated and consistent
+
+---
+
+# Phase 2: Copilot Review Fixups
+
+## Goal
+Copilotレビュー2件を回収し、S12-05（ci-repro runner/DI整列）のPRを 最終マージ可能状態へ戻す。
+「止まらない」＝「勝手に進めない」。STOPフラグで次工程をSKIPする。
+
+## Non-Goal
+- 仕様追加（レビュー指摘の解消に必要な最小変更のみ）
+- 重い検証（cargo test全走など）を何回も回さない（最後に1回）
+
+## Pseudocode
+```python
+STOP = 0
+OBS = ".local/obs/s12-05_copilot_<UTC>"
+
+try:
+  repo_root = git rev-parse --show-toplevel
+  if repo_root is empty:
+    print ERROR; STOP=1
+
+  if STOP==0:
+    pr_number = (env PR) else gh pr view --json number
+    if pr_number empty:
+      print ERROR; STOP=1
+
+  if STOP==0:
+    # 1) Copilotレビュー採取（軽い）
+    fetch review comments json -> OBS/reviews_*.json
+    extract copilot-only summary -> OBS/copilot_summary.md
+    if summary has 0 items:
+      print SKIP (no copilot comments) ; STOP=1  # 嘘を付かない
+
+  if STOP==0:
+    # 2) 指摘を分類（死角の可視化）
+    for each comment in copilot_summary:
+      if type == "typo/docs":
+        queue docs fixes
+      else if type == "correctness/safety":
+        queue code fixes (smallest)
+      else if type == "determinism/DI/runner contract":
+        queue contract fixes (smallest)
+      else:
+        queue "needs-human-judgement" with rationale
+      continue
+
+  if STOP==0:
+    # 3) 実装修正（小さく、確実に）
+    apply fixes one-by-one
+    after each logical group:
+      gofmt (targeted files only)
+      run LIGHT tests (package-level)
+      if LIGHT tests show failure:
+        print ERROR; STOP=1  # 次へ進まない（止まらないが、進めない）
+
+  if STOP==0:
+    # 4) 重い検証は最後に1回（CPU事故防止）
+    run nix run .#prverify  (single shot)
+    parse output for PASS line
+    if not PASS:
+      print ERROR; STOP=1
+
+  if STOP==0:
+    # 5) 証拠更新
+    update docs/pr/PR-<PR>-s12-05-*.md with:
+      - head sha
+      - prverify report path
+      - reviewbundle strict filename + sha256
+    update docs/ops/STATUS.md (S12-05: 99% Review + evidence pointer)
+
+  print OK: phase=end
+except Exception:
+  print ERROR: unexpected (do not exit)
+  print OK: phase=end
+```
