@@ -56,15 +56,15 @@ func normalizeToFourRows(all []StepDef, got []StepResult) []StepResult {
 	return out
 }
 
-// runCommandToLog executes argv and writes output to logFile.
-// Tests swap runToLogFn to avoid calling this.
-func runCommandToLog(argv []string, logFile string) (int, error) {
+// DefaultRunToLog executes argv and writes output to logFile.
+// Can be used as a fallback for Deps.RunToLog.
+func DefaultRunToLog(argv []string, logFile string) (int, error) {
 	if len(argv) == 0 {
-		_ = writeFileAtomic(logFile, []byte("ERROR: empty argv\n"), 0o644)
+		_ = WriteFileAtomic(logFile, []byte("ERROR: empty argv\n"), 0o644)
 		return 1, nil
 	}
 	if _, err := exec.LookPath(argv[0]); err != nil {
-		_ = writeFileAtomic(logFile, []byte("ERROR: command not found: "+argv[0]+"\n"), 0o644)
+		_ = WriteFileAtomic(logFile, []byte("ERROR: command not found: "+argv[0]+"\n"), 0o644)
 		return 127, nil
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
@@ -72,7 +72,7 @@ func runCommandToLog(argv []string, logFile string) (int, error) {
 	b.WriteString("cmd: " + strings.Join(argv, " ") + "\n")
 	out, runErr := cmd.CombinedOutput()
 	b.Write(out)
-	_ = writeFileAtomic(logFile, []byte(b.String()), 0o644)
+	_ = WriteFileAtomic(logFile, []byte(b.String()), 0o644)
 	if runErr != nil {
 		if ee, ok := runErr.(*exec.ExitError); ok {
 			return ee.ExitCode(), nil

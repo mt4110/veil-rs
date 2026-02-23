@@ -13,9 +13,9 @@ type GitInfo struct {
 	TreeStatus string // CLEAN, DIRTY, or UNKNOWN
 }
 
-// probeGit probes git state via exec.Command.
-// Never panics or exits. Tests swap probeGitFn in cirepro.go.
-func probeGit() GitInfo {
+// DefaultGitProbe probes git state via exec.Command.
+// Never panics or exits.
+func DefaultGitProbe() GitInfo {
 	gi := GitInfo{TreeStatus: "UNKNOWN"}
 
 	if _, err := exec.LookPath("git"); err != nil {

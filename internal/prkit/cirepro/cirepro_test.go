@@ -5,24 +5,32 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func defaultTestDeps(gi GitInfo, runToLog func(argv []string, logFile string) (int, error)) Deps {
+	return Deps{
+		NowUTC:          func() time.Time { return time.Now().UTC() },
+		Getenv:          os.Getenv,
+		MkdirAll:        os.MkdirAll,
+		WriteFileAtomic: WriteFileAtomic,
+		ProbeGit:        func() GitInfo { return gi },
+		RunToLog:        runToLog,
+	}
+}
 
 func TestRunIDFixedProducesFixedFilenames(t *testing.T) {
 	tmp := t.TempDir()
 
-	oldProbe := probeGitFn
-	oldRun := runToLogFn
-	probeGitFn = func() GitInfo {
-		return GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "CLEAN"}
-	}
-	runToLogFn = func(argv []string, logFile string) (int, error) {
-		_ = writeFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
+	gi := GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "CLEAN"}
+	runToLog := func(argv []string, logFile string) (int, error) {
+		_ = WriteFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
 		return 0, nil
 	}
-	t.Cleanup(func() { probeGitFn = oldProbe; runToLogFn = oldRun })
+	deps := defaultTestDeps(gi, runToLog)
 
 	cfg := Config{OutDir: tmp, RunID: "fixed", WithStrict: false, Command: []string{"ci-repro", "run", "--run-id", "fixed"}}
-	res := Run(cfg, os.Stdout, os.Stderr)
+	res := Run(cfg, deps, os.Stdout, os.Stderr)
 
 	if !strings.Contains(filepath.Base(res.SummaryPath), "ci_fixed_summary.md") {
 		t.Fatalf("summary path not fixed: %s", res.SummaryPath)
@@ -38,21 +46,17 @@ func TestRunIDFixedProducesFixedFilenames(t *testing.T) {
 func TestDirtyTreeSkipsPrverifyAndStrict(t *testing.T) {
 	tmp := t.TempDir()
 
-	oldProbe := probeGitFn
-	oldRun := runToLogFn
-	probeGitFn = func() GitInfo {
-		return GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "DIRTY"}
-	}
+	gi := GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "DIRTY"}
 	calls := 0
-	runToLogFn = func(argv []string, logFile string) (int, error) {
+	runToLog := func(argv []string, logFile string) (int, error) {
 		calls++
-		_ = writeFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
+		_ = WriteFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
 		return 0, nil
 	}
-	t.Cleanup(func() { probeGitFn = oldProbe; runToLogFn = oldRun })
+	deps := defaultTestDeps(gi, runToLog)
 
 	cfg := Config{OutDir: tmp, RunID: "fixed", WithStrict: true}
-	res := Run(cfg, os.Stdout, os.Stderr)
+	res := Run(cfg, deps, os.Stdout, os.Stderr)
 
 	// go-test should run; prverify/strict should SKIP
 	if calls != 1 {
@@ -71,20 +75,16 @@ func TestDirtyTreeSkipsPrverifyAndStrict(t *testing.T) {
 func TestSkipWritesLogWithReason(t *testing.T) {
 	tmp := t.TempDir()
 
-	oldProbe := probeGitFn
-	oldRun := runToLogFn
-	probeGitFn = func() GitInfo {
-		return GitInfo{SHA: "abc", SHA7: "abc1234", TreeStatus: "CLEAN"}
-	}
-	runToLogFn = func(argv []string, logFile string) (int, error) {
-		_ = writeFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
+	gi := GitInfo{SHA: "abc", SHA7: "abc1234", TreeStatus: "CLEAN"}
+	runToLog := func(argv []string, logFile string) (int, error) {
+		_ = WriteFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
 		return 0, nil
 	}
-	t.Cleanup(func() { probeGitFn = oldProbe; runToLogFn = oldRun })
+	deps := defaultTestDeps(gi, runToLog)
 
 	// Run without --with-strict => strict steps get SKIP log
 	cfg := Config{OutDir: tmp, RunID: "fixed", WithStrict: false}
-	res := Run(cfg, os.Stdout, os.Stderr)
+	res := Run(cfg, deps, os.Stdout, os.Stderr)
 
 	for _, r := range res.StepResults {
 		if r.Name == "strict-create" {
@@ -109,19 +109,15 @@ func TestSkipWritesLogWithReason(t *testing.T) {
 func TestRepoMissingSummaryStillWritten(t *testing.T) {
 	tmp := t.TempDir()
 
-	oldProbe := probeGitFn
-	oldRun := runToLogFn
-	probeGitFn = func() GitInfo {
-		return GitInfo{TreeStatus: "UNKNOWN"} // no repo root
-	}
-	runToLogFn = func(argv []string, logFile string) (int, error) {
-		_ = writeFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
+	gi := GitInfo{TreeStatus: "UNKNOWN"} // no repo root
+	runToLog := func(argv []string, logFile string) (int, error) {
+		_ = WriteFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
 		return 0, nil
 	}
-	t.Cleanup(func() { probeGitFn = oldProbe; runToLogFn = oldRun })
+	deps := defaultTestDeps(gi, runToLog)
 
 	cfg := Config{OutDir: tmp, RunID: "fixed"}
-	res := Run(cfg, os.Stdout, os.Stderr)
+	res := Run(cfg, deps, os.Stdout, os.Stderr)
 
 	if _, err := os.Stat(res.SummaryPath); err != nil {
 		t.Fatalf("summary missing when repo unknown: %v", err)
@@ -140,19 +136,15 @@ func TestRepoMissingSummaryStillWritten(t *testing.T) {
 func TestSummaryFormatStability(t *testing.T) {
 	tmp := t.TempDir()
 
-	oldProbe := probeGitFn
-	oldRun := runToLogFn
-	probeGitFn = func() GitInfo {
-		return GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "CLEAN"}
-	}
-	runToLogFn = func(argv []string, logFile string) (int, error) {
-		_ = writeFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
+	gi := GitInfo{SHA: "deadbeef", SHA7: "deadbee", TreeStatus: "CLEAN"}
+	runToLog := func(argv []string, logFile string) (int, error) {
+		_ = WriteFileAtomic(logFile, []byte("OK: fake\n"), 0o644)
 		return 0, nil
 	}
-	t.Cleanup(func() { probeGitFn = oldProbe; runToLogFn = oldRun })
+	deps := defaultTestDeps(gi, runToLog)
 
 	cfg := Config{OutDir: tmp, RunID: "fixed", Command: []string{"ci-repro", "run"}}
-	res := Run(cfg, os.Stdout, os.Stderr)
+	res := Run(cfg, deps, os.Stdout, os.Stderr)
 
 	data, err := os.ReadFile(res.SummaryPath)
 	if err != nil {

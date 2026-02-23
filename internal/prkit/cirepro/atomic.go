@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 )
 
-// writeFileAtomic writes data to path via temp file + rename.
+// WriteFileAtomic writes data to path via temp file + rename.
 // Ensures no partial files are observed by concurrent readers.
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
