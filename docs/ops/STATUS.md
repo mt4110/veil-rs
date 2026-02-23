@@ -41,7 +41,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-23 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: .local/prverify/prverify_20260223T033834Z_73255f2.md
+- Evidence: docs/pr/PR-86-s12-05-cirepro-runner.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)

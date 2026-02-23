@@ -5,7 +5,7 @@
 - Repo: veil-rs
 - Phase: S12-05 (CI Repro Runner Alignment)
 - Branch: HEAD
-- Head: 73255f2239307ff56514f684adbc807caef97c21
+- Head: 81d7289d58a1fd3e5ead98242e893c209c49d662
 - Board: docs/ops/STATUS.md
 - Ops evidence: docs/evidence/ops/obs_20260222_s12-05.md
 
@@ -14,9 +14,9 @@
 - `go run ./cmd/prkit ci-repro run --run-id smoke` : PASS (No SecurityViolation/panic, output correctly logged).
 
 ## Evidence
-- prverify report: `.local/prverify/prverify_20260223T033834Z_73255f2.md`
-- reviewbundle strict: `.local/review-bundles/veil-rs_review_strict_19800101_000000_73255f223930.tar.gz`
-- strict sha256: `a06f01e6f20600414bacf4ff096d8bb6cfdcb0b9e7eb7f6cfe80467a80cf4b6a`
+- prverify report: `.local/prverify/prverify_20260223T035800Z_81d7289.md`
+- reviewbundle strict: `.local/review-bundles/veil-rs_review_strict_19800101_000000_81d7289d58a1.tar.gz`
+- strict sha256: `63faffa82602b5faa632e63e7e165d5960633db79c39761a0cc9c99523c277ac`
 - ci-repro output: `.local/obs/s12-05_20260222T005352Z/final_cirepro_run.log`
 
 ## Rollback
