@@ -7,8 +7,10 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -146,7 +148,22 @@ func (e *driftError) Print() {
 func main() {
 	smokeOnly := flag.Bool("smoke-only", false, "run only the P0 CLI smoke suite (trycmd)")
 	wantedPR := flag.Int("wanted-pr", 0, "prefer docs/pr/PR-<N>-*.md when selecting SOT (0 = auto)")
+	mode := flag.String("mode", "full", "run mode (full, local-fast)")
+	parallel := flag.Int("parallel", 1, "number of parallel jobs (default 1, max 2)")
+	cacheDir := flag.String("cache-dir", ".local/cache", "cache directory")
 	flag.Parse()
+
+	if *parallel > 2 {
+		fmt.Fprintf(os.Stderr, "ERROR: parallel_too_high capped_to=2\n")
+		*parallel = 2
+	}
+
+	tsUTC := time.Now().UTC().Format("20060102T150405Z")
+	obsDir := fmt.Sprintf(".local/obs/s12-05-5_prverify_%s", tsUTC)
+	os.MkdirAll(obsDir, 0755)
+
+	fmt.Printf("OK: obs_dir=%s\n", obsDir)
+	fmt.Printf("OK: mode=%s parallel=%d\n", *mode, *parallel)
 
 	root := bestEffortRepoRoot()
 
@@ -155,104 +172,192 @@ func main() {
 	gitSHA := runCapture(root, "git", "rev-parse", "HEAD")
 	gitDirty := runCapture(root, "git", "status", "--porcelain")
 
-	steps := []stepResult{}
+	// 2. resolve_base
+	baseSHA := ""
+	if *mode == "local-fast" {
+		baseSHA = runCapture(root, "git", "merge-base", "HEAD", "origin/main")
+		if baseSHA == "" {
+			baseSHA = runCapture(root, "git", "merge-base", "HEAD", "main")
+		}
+		if baseSHA == "" {
+			fmt.Fprintf(os.Stderr, "ERROR: base_sha=missing fallback=full\n")
+			*mode = "full"
+		} else {
+			fmt.Printf("OK: base_sha=%s\n", baseSHA)
+		}
+	}
 
-	// 1) P0 smoke suite
-	{
+	// 3. classify_changes
+	touchGo, touchRust, touchOther := false, false, false
+	skipHeavy := false
+	if *mode == "local-fast" && baseSHA != "" {
+		out, err := exec.Command("git", "diff", "--name-only", baseSHA+"..HEAD").Output()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: diff_failed fallback=full\n")
+			*mode = "full"
+		} else {
+			files := strings.Split(strings.TrimSpace(string(out)), "\n")
+			if string(out) == "" {
+				files = []string{}
+			}
+			touchDocs := false
+			for _, f := range files {
+				if f == "" {
+					continue
+				}
+				if strings.HasSuffix(f, ".go") || f == "go.mod" || f == "go.sum" {
+					touchGo = true
+				} else if strings.HasSuffix(f, ".rs") || f == "Cargo.toml" || f == "Cargo.lock" || strings.HasPrefix(f, "rust-toolchain") || strings.HasPrefix(f, ".cargo/") {
+					touchRust = true
+				} else if strings.HasPrefix(f, "docs/") || strings.HasSuffix(f, ".md") {
+					touchDocs = true
+				} else if strings.HasSuffix(f, ".nix") || f == "flake.lock" {
+					touchOther = true
+				} else {
+					touchOther = true
+				}
+			}
+
+			fmt.Printf("OK: touch_go=%v touch_rust=%v touch_docs=%v touch_other=%v\n", touchGo, touchRust, touchDocs, touchOther)
+
+			if touchOther {
+				fmt.Fprintf(os.Stderr, "ERROR: unknown_changes fallback=full\n")
+				*mode = "full"
+			} else if !touchGo && !touchRust && touchDocs {
+				skipHeavy = true
+			}
+		}
+	}
+
+	// 4. caching checks
+	if *mode == "local-fast" || *mode == "full" {
+		absCache, _ := filepath.Abs(*cacheDir)
+		if absCache == "" {
+			absCache = *cacheDir
+		}
+		os.MkdirAll(absCache, 0755)
+
+		goCacheDir := filepath.Join(absCache, "go-build")
+		cargoCacheDir := filepath.Join(absCache, "cargo-target")
+
+		os.MkdirAll(goCacheDir, 0755)
+		os.MkdirAll(cargoCacheDir, 0755)
+
+		os.Setenv("GOCACHE", goCacheDir)
+		os.Setenv("CARGO_TARGET_DIR", cargoCacheDir)
+		fmt.Printf("OK: cache_go=%s cache_rust=%s\n", goCacheDir, cargoCacheDir)
+	}
+
+	var mu sync.Mutex
+	var steps []stepResult
+	var hasError bool
+
+	addStep := func(s stepResult) {
+		mu.Lock()
+		defer mu.Unlock()
+		steps = append(steps, s)
+	}
+
+	reportFail := func(s stepResult) {
+		mu.Lock()
+		defer mu.Unlock()
+		hasError = true
+		steps = append(steps, s)
+	}
+
+	runRustChecks := func() {
+		if *mode == "local-fast" && !touchRust && !skipHeavy {
+			fmt.Println("SKIP: rust checks (reason: touch_rust=false)")
+			addStep(stepResult{cmdLine: "cargo checks (skip)", ok: true, duration: 0})
+			return
+		}
+		if *mode == "local-fast" && skipHeavy {
+			fmt.Println("SKIP: rust checks (reason: docs_only)")
+			addStep(stepResult{cmdLine: "cargo checks (skip)", ok: true, duration: 0})
+			return
+		}
+
+		// 1) P0 smoke suite
 		cmdLine := "cargo test -p veil-cli --test cli_tests"
 		fmt.Printf("==> %s\n", cmdLine)
 		dur, err := runStreaming(root, "cargo", "test", "-p", "veil-cli", "--test", "cli_tests")
-		steps = append(steps, stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur})
+		res := stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "ERROR: smoke suite failed:", err)
-			fmt.Println()
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+			reportFail(res)
+			return
+		}
+		addStep(res)
+
+		// 2) Workspace tests
+		if !*smokeOnly {
+			cmdLine = "cargo test --workspace"
+			fmt.Printf("==> %s\n", cmdLine)
+			dur, err = runStreaming(root, "cargo", "test", "--workspace")
+			res = stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "ERROR: workspace tests failed:", err)
+				reportFail(res)
+				return
+			}
+			addStep(res)
 		}
 	}
 
-	// 2) Workspace tests (optional)
-	if !*smokeOnly {
-		cmdLine := "cargo test --workspace"
-		fmt.Printf("==> %s\n", cmdLine)
-		dur, err := runStreaming(root, "cargo", "test", "--workspace")
-		steps = append(steps, stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur})
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "ERROR: workspace tests failed:", err)
-			fmt.Println()
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+	runGoChecks := func() {
+		if *mode == "local-fast" && !touchGo && !skipHeavy {
+			fmt.Println("SKIP: go checks (reason: touch_go=false)")
+			addStep(stepResult{cmdLine: "go checks (skip)", ok: true, duration: 0})
+			return
 		}
-	}
+		if *mode == "local-fast" && skipHeavy {
+			fmt.Println("SKIP: go checks (reason: docs_only)")
+			addStep(stepResult{cmdLine: "go checks (skip)", ok: true, duration: 0})
+			return
+		}
 
-	// 2.5) prkit tests (S10-08 gate)
-	{
+		// 2.5) prkit tests
 		cmdLine := "go test -count=1 ./cmd/prkit"
 		fmt.Printf("==> %s\n", cmdLine)
 		dur, err := runStreaming(root, "go", "test", "-count=1", "./cmd/prkit")
-		steps = append(steps, stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur})
+		res := stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "ERROR: prkit tests failed:", err)
-			fmt.Println()
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+			reportFail(res)
+			return
 		}
-	}
+		addStep(res)
 
-	// 3) Dependency Guard
-	{
+		// 3) Dependency Guard
 		fmt.Println("==> Dependency Guard")
 		start := time.Now()
-
-		// Run cmd/dep-trace
-		// Note: We deliberately use standard go run.
-		// If GOROOT is messed up (like in local nix shells sometimes), we might need the same workaround as manual testing,
-		// but typically inside `nix run .#prverify`, the environment is cleaner.
-		// However, to be safe and consistent with the user's manual fix:
-		// We'll trust the current environment 'go' but if it fails with version skew,
-		// it fails safe (as error).
-
 		cmd := exec.Command("go", "run", "./cmd/dep-trace")
 		cmd.Dir = root
-
-		// Capture output to print on failure
 		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
-
-		err := cmd.Run()
-		dur := time.Since(start)
-
+		err = cmd.Run()
+		dur = time.Since(start)
 		output := strings.TrimSpace(buf.String())
-
-		steps = append(steps, stepResult{cmdLine: "dep-guard", ok: err == nil, duration: dur})
-
+		res = stepResult{cmdLine: "dep-guard", ok: err == nil, duration: dur}
 		if err != nil {
-			fmt.Printf("FAIL: Dependency Guard found issues (or failed to run):\n\n%s\n", output)
-			fmt.Println()
-
-			// Add output to markdown note? Maybe too long.
-			// Just ensure it's in the log (done above).
-
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+			fmt.Printf("FAIL: Dependency Guard found issues (or failed to run):\n\n%s\n\n", output)
+			reportFail(res)
+			return
 		}
+		addStep(res)
 	}
 
-	// 4) Drift Check (Consistency between CI, Docs, and SOT)
-	{
+	fastChecks := func() {
+		// 4) Drift Check
 		fmt.Println("==> Drift Check")
 		start := time.Now()
 		repoFS := os.DirFS(root)
-
-		// Critical: Normalize "Today" to Midnight UTC for deterministic behavior.
-		// Do not use time.Now() inside validation logic.
 		now := time.Now().UTC()
 		utcToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-
 		err := validateDrift(repoFS, *wantedPR, utcToday)
 		dur := time.Since(start)
-		steps = append(steps, stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur})
+		res := stepResult{cmdLine: "drift-check", ok: err == nil, duration: dur}
 		if err != nil {
 			fmt.Println()
 			if de, ok := err.(*driftError); ok {
@@ -261,19 +366,17 @@ func main() {
 				fmt.Fprintln(os.Stderr, "ERROR: drift check failed:", err)
 			}
 			fmt.Println()
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+			reportFail(res)
+		} else {
+			addStep(res)
 		}
-	}
 
-	// 5) Status Enforcement (S11)
-	{
+		// 5) Status Enforcement
 		fmt.Println("==> Status Enforcement")
-		start := time.Now()
-		err := validateStatusEnforcement(root)
-		dur := time.Since(start)
-		// We use a simplified cmdLine name for the report
-		steps = append(steps, stepResult{cmdLine: "status-enforcement", ok: err == nil, duration: dur})
+		start = time.Now()
+		err = validateStatusEnforcement(root)
+		dur = time.Since(start)
+		res = stepResult{cmdLine: "status-enforcement", ok: err == nil, duration: dur}
 		if err != nil {
 			fmt.Println()
 			if de, ok := err.(*driftError); ok {
@@ -282,13 +385,57 @@ func main() {
 				fmt.Fprintln(os.Stderr, "ERROR: status enforcement failed:", err)
 			}
 			fmt.Println()
-			fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
-			os.Exit(1)
+			reportFail(res)
+		} else {
+			addStep(res)
 		}
 	}
 
+	if *parallel == 2 {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			runRustChecks()
+		}()
+		go func() {
+			defer wg.Done()
+			runGoChecks()
+		}()
+		wg.Wait()
+		fastChecks()
+	} else {
+		runRustChecks()
+		if !hasError {
+			runGoChecks()
+		}
+		if !hasError {
+			fastChecks()
+		}
+	}
+
+	obsFile := filepath.Join(obsDir, "step_durations.txt")
+	var fObs *os.File
+	if f, err := os.OpenFile(obsFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		fObs = f
+	}
+
+	for _, s := range steps {
+		if fObs != nil {
+			fmt.Fprintf(fObs, "OK: step=%q duration=%s\n", s.cmdLine, fmtDur(s.duration))
+		}
+	}
+	if fObs != nil {
+		fObs.Close()
+	}
+	fmt.Printf("OK: phase=end stop=0\n")
+
 	fmt.Println()
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
+
+	if hasError {
+		os.Exit(1)
+	}
 }
 
 func validateDrift(repoFS fs.FS, wantedPR int, utcToday time.Time) error {
