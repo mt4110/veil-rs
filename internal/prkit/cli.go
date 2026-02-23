@@ -23,11 +23,6 @@ type cliConfig struct {
 
 // Run is the canonical entry point for the prkit CLI logic.
 func Run(argv []string, stdout, stderr io.Writer, runner ExecRunner) int {
-	// ci-repro subcommand routing (stopless)
-	if len(argv) > 0 && argv[0] == "ci-repro" {
-		return runCIRepro(argv[1:], stdout, stderr)
-	}
-
 	ResetTrace()
 
 	// Initialize ExecRunner
@@ -38,6 +33,11 @@ func Run(argv []string, stdout, stderr io.Writer, runner ExecRunner) int {
 	// Try to find repo root
 	if root, err := FindRepoRoot(); err == nil {
 		Init(root, runner)
+	}
+
+	// ci-repro subcommand routing (stopless)
+	if len(argv) > 0 && argv[0] == "ci-repro" {
+		return runCIRepro(argv[1:], stdout, stderr, Runner)
 	}
 
 	conf, fs, err := parseCLIConfig(argv)

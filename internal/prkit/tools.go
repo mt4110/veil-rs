@@ -56,16 +56,12 @@ func getToolVersion(tool string) (string, error) {
 
 // FindRepoRoot returns the absolute path to the repository root.
 func FindRepoRoot() (string, error) {
-	// git rev-parse --show-toplevel
-	spec := ExecSpec{
-		Argv: []string{"git", "rev-parse", "--show-toplevel"},
+	// We use exec.Command directly because Runner might not have RepoRoot
+	// initialized yet, and strict Runner now requires RepoRoot to be set.
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to find repo root: %v, output: %s", err, string(out))
 	}
-	// Note: We use the *current* executor state. If Init() hasn't been called,
-	// RepoRoot is empty, so this runs in CWD. This is correct for bootstrapping.
-	res := Runner.Run(context.Background(), spec)
-
-	if res.ExitCode != 0 {
-		return "", fmt.Errorf("failed to find repo root: %s", res.Stderr)
-	}
-	return strings.TrimSpace(res.Stdout), nil
+	return strings.TrimSpace(string(out)), nil
 }

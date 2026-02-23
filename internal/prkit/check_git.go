@@ -30,7 +30,7 @@ func checkGitCleanWorktree() CheckResult {
 	}
 
 	if res.ExitCode != 0 {
-		result.Status = "FAIL"
+		result.Status = "ERROR"
 		result.Details = fmt.Sprintf("failed to run git status: %s, stderr: %s", res.ErrorKind, strings.TrimSpace(res.Stderr))
 		return result
 	}

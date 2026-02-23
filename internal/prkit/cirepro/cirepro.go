@@ -26,34 +26,35 @@ type Result struct {
 	Notes              []string
 }
 
-// nowUTC is swappable for tests.
-var nowUTC = func() time.Time { return time.Now().UTC() }
-
-// probeGitFn is swappable for tests (avoids calling exec.Command in tests).
-var probeGitFn = probeGit
-
-// runToLogFn is swappable for tests (avoids calling external commands).
-var runToLogFn = runCommandToLog
+// Deps provides injected dependencies to avoid side-effects in core logic.
+type Deps struct {
+	NowUTC          func() time.Time
+	Getenv          func(key string) string
+	MkdirAll        func(path string, perm os.FileMode) error
+	WriteFileAtomic func(filename string, data []byte, perm os.FileMode) error
+	ProbeGit        func() GitInfo
+	RunToLog        func(argv []string, logFile string) (int, error)
+}
 
 // Run executes all steps in staged order (stopless).
-func Run(cfg Config, stdout, stderr io.Writer) Result {
-	return run(cfg, "", stdout, stderr)
+func Run(cfg Config, deps Deps, stdout, stderr io.Writer) Result {
+	return run(cfg, deps, "", stdout, stderr)
 }
 
 // RunStep executes a single named step (stopless).
-func RunStep(cfg Config, stepName string, stdout, stderr io.Writer) Result {
-	return run(cfg, stepName, stdout, stderr)
+func RunStep(cfg Config, deps Deps, stepName string, stdout, stderr io.Writer) Result {
+	return run(cfg, deps, stepName, stdout, stderr)
 }
 
-func run(cfg Config, onlyStep string, stdout, stderr io.Writer) Result {
+func run(cfg Config, deps Deps, onlyStep string, stdout, stderr io.Writer) Result {
 	outDir := strings.TrimSpace(cfg.OutDir)
 	if outDir == "" {
 		outDir = ".local/obs"
 	}
-	_ = os.MkdirAll(outDir, 0o755)
+	_ = deps.MkdirAll(outDir, 0o755)
 
-	ts := nowUTC().Format("20060102T150405Z")
-	gi := probeGitFn()
+	ts := deps.NowUTC().Format("20060102T150405Z")
+	gi := deps.ProbeGit()
 
 	runID := strings.TrimSpace(cfg.RunID)
 	if runID == "" {
@@ -90,36 +91,36 @@ func run(cfg Config, onlyStep string, stdout, stderr io.Writer) Result {
 
 	// Always write STATUS snapshot (even if git probe failed)
 	snap := buildStatusSnapshot(ts, runID, gi, gi.RepoRoot)
-	_ = writeFileAtomic(snapshotPath, []byte(snap), 0o644)
+	_ = deps.WriteFileAtomic(snapshotPath, []byte(snap), 0o644)
 
 	prevError := false
 
 	for _, step := range selected {
 		// In "run" mode: strict steps require --with-strict
 		if onlyStep == "" && isStrictStep(step.Name) && !cfg.WithStrict {
-			r := stepSkipped(step, "SKIP: strict steps require --with-strict")
+			r := stepSkipped(deps, step, "SKIP: strict steps require --with-strict")
 			res.StepResults = append(res.StepResults, r)
 			continue
 		}
 
 		// Blocked by previous ERROR
 		if prevError {
-			r := stepSkipped(step, "SKIP: blocked by previous ERROR")
+			r := stepSkipped(deps, step, "SKIP: blocked by previous ERROR")
 			res.StepResults = append(res.StepResults, r)
 			continue
 		}
 
 		// DIRTY tree => skip prverify & strict (go-test is OK)
 		if gi.TreeStatus == "DIRTY" && (step.Name == "prverify" || isStrictStep(step.Name)) {
-			r := stepSkipped(step, "SKIP: git_tree=DIRTY blocks prverify/strict")
+			r := stepSkipped(deps, step, "SKIP: git_tree=DIRTY blocks prverify/strict")
 			res.StepResults = append(res.StepResults, r)
 			continue
 		}
 
 		// Execute step
-		started := nowUTC()
-		code, runErr := runToLogFn(step.CmdArgv, step.LogFile)
-		ended := nowUTC()
+		started := deps.NowUTC()
+		code, runErr := deps.RunToLog(step.CmdArgv, step.LogFile)
+		ended := deps.NowUTC()
 
 		r := StepResult{
 			Index:      step.Index,
@@ -146,7 +147,7 @@ func run(cfg Config, onlyStep string, stdout, stderr io.Writer) Result {
 
 	// Write summary (always, even on failure)
 	sum := renderSummary(ts, runID, gi, outDir, cfg.Command, full, res.Overall, summaryPath, snapshotPath)
-	_ = writeFileAtomic(summaryPath, []byte(sum), 0o644)
+	_ = deps.WriteFileAtomic(summaryPath, []byte(sum), 0o644)
 
 	return Result{
 		Overall:            res.Overall,
@@ -161,8 +162,8 @@ func isStrictStep(name string) bool {
 	return name == "strict-create" || name == "strict-verify"
 }
 
-func stepSkipped(step StepDef, reason string) StepResult {
-	_ = writeFileAtomic(step.LogFile, []byte(reason+"\ncmd: "+strings.Join(step.CmdArgv, " ")+"\n"), 0o644)
+func stepSkipped(deps Deps, step StepDef, reason string) StepResult {
+	_ = deps.WriteFileAtomic(step.LogFile, []byte(reason+"\ncmd: "+strings.Join(step.CmdArgv, " ")+"\n"), 0o644)
 	return StepResult{
 		Index: step.Index, Name: step.Name, Status: "SKIP",
 		StartedUTC: "-", EndedUTC: "-", DurationMs: -1,
