@@ -67,3 +67,5 @@ crates/veil-cli/.veil/
 /prkit
 /prverify
 /veil
+/reviewbundle
+/localgc

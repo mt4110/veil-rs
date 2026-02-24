@@ -72,11 +72,9 @@ func TestChainViolationYieldsStop1(t *testing.T) {
 	}
 }
 
-// TestChainSuccessYieldsStop0 verifies that a hypothetical valid verify
-// path doesn't accidentally emit stop=1.
-// Uses only the verify-argument-missing code path with correct args to show
-// that stop=0 path is reachable (unit-level).
-func TestChainSuccessYieldsStop0(t *testing.T) {
+// TestChainStopValuesMutuallyExclusive verifies that stop=0 and stop=1
+// never appear in the same output (mutual exclusivity invariant).
+func TestChainStopValuesMutuallyExclusive(t *testing.T) {
 	// We can't easily create a valid bundle in a unit test,
 	// but we can verify that the run() with "create" help path exits 0.
 	// For the stop=0 path, we rely on contract_law_test.go TestVerify_StoplessOutput.
