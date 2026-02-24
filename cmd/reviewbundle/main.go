@@ -23,15 +23,23 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		if len(argv) < 3 {
 			fmt.Fprintln(stderr, "error: verify requires bundle path")
 			usage(stderr)
-			return 1
+			fmt.Fprintln(stdout, "ERROR: verify_args_missing")
+			fmt.Fprintln(stdout, "OK: phase=end stop=1")
+			return 0 // stopless: always exit 0
 		}
-		path := argv[2]
-		report, err := VerifyBundlePath(path)
+		bundlePath := argv[2]
+		report, err := VerifyBundlePath(bundlePath)
 		if err != nil {
+			fmt.Fprintf(stdout, "ERROR: verify_failed path=%s detail=%s\n", bundlePath, err.Error())
 			fmt.Fprintln(stderr, err.Error())
-			return 1
+			fmt.Fprintln(stdout, "OK: phase=end stop=1")
+			return 0 // stopless: always exit 0
 		}
-		fmt.Fprintf(stdout, "PASS: %s (mode=%s, epoch=%d)\n", path, report.Contract.Mode, report.Contract.EpochSec)
+		fmt.Fprintf(stdout, "OK: contract=%s mode=%s head=%s epoch=%d\n",
+			report.Contract.ContractVersion, report.Contract.Mode,
+			report.Contract.HeadSHA[:12], report.Contract.EpochSec)
+		fmt.Fprintf(stdout, "PASS: bundle verified path=%s\n", bundlePath)
+		fmt.Fprintln(stdout, "OK: phase=end stop=0")
 		return 0
 
 	case "create":
