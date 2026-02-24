@@ -53,6 +53,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		heavyFlag := fs.String("heavy", "auto", "Heavy verification mode (auto|never|force)")
 		autoCommitFlag := fs.Bool("autocommit", false, "Automatically commit if dirty")
 		messageFlag := fs.String("message", "", "Commit message (required if autocommit is true)")
+		evidenceReportFlag := fs.String("evidence-report", "", "Explicit path to evidence report (optional)")
 
 		if err := fs.Parse(argv[2:]); err != nil {
 			// flag.ContinueOnError means parsing error returns error but doesn't exit.
@@ -78,10 +79,12 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		}
 
 		// C2: flags/env for create mode+outdir
-		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, stdout, stderr); err != nil {
-			fmt.Fprintln(stderr, err.Error())
-			return 1
+		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, *evidenceReportFlag, stdout, stderr); err != nil {
+			fmt.Fprintf(stdout, "ERROR: create_failed detail=%s\n", err.Error())
+			fmt.Fprintln(stdout, "OK: phase=end stop=1")
+			return 0 // stopless: always exit 0
 		}
+		fmt.Fprintln(stdout, "OK: phase=end stop=0")
 		return 0
 
 	default:
@@ -101,5 +104,6 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "    --out-dir  Path (env: OUT_DIR, default: .local/review-bundles)")
 	fmt.Fprintln(w, "    --heavy    auto|never|force (default: auto)")
 	fmt.Fprintln(w, "    --autocommit  (bool) Automatically commit if dirty")
-	fmt.Fprintln(w, "    --message  Commit message (required if autocommit is true)")
+	fmt.Fprintln(w, "    --message     Commit message (required if autocommit is true)")
+	fmt.Fprintln(w, "    --evidence-report Path (Optional explicit evidence)")
 }

@@ -16,10 +16,10 @@ import (
 	"time"
 )
 
-func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, message, evidenceReport string, stdout, stderr io.Writer) error {
 	// S12-03: Strict Ritual Capsule
 	if mode == ModeStrict {
-		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, stdout, stderr)
+		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, evidenceReport, stdout, stderr)
 	}
 
 	epoch, err := ComputeEpochSec(repoDir)
@@ -88,7 +88,7 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 }
 
 // strictCreateCapsule implements the S12-03 strict ritual.
-func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message, evidenceReport string, stdout, stderr io.Writer) error {
 	// A: Preflight & Dirty Check
 	headSHA, err := getGitHeadSHA(repoDir)
 	if err != nil {
@@ -104,40 +104,27 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 	if isDirty {
 		fmt.Fprintln(stdout, "INFO: repo dirty")
 		if !autocommit {
-			fmt.Fprintln(stderr, "ERROR: repo dirty; commit first OR pass --autocommit --message")
 			fmt.Fprintln(stdout, "SKIP: strict create (dirty)")
-			return nil // Intentionally nil return to avoid exit code 1, but stop process
+			return fmt.Errorf("repo dirty; commit first OR pass --autocommit --message")
 		}
 		if message == "" {
-			fmt.Fprintln(stderr, "ERROR: --autocommit requires --message")
 			fmt.Fprintln(stdout, "SKIP: strict create (missing message)")
-			return nil
+			return fmt.Errorf("--autocommit requires --message")
 		}
-		// Commit
-		// Check for unstaged?
-		// "unstaged changes exist" -> ERROR
-		// "staged changes missing" -> ERROR
-		// We need to check porcelain status in detail.
-		// For now, let's implement the basic git commit wrapper.
-		// NOTE: Protocol says: "unstaged changes exist -> ERROR" (don't auto add)
-		// "staged missing -> ERROR" (don't empty commit)
-		// Let's rely on git commit failing if nothing staged, but we should check unstaged.
+
 		hasUnstaged, err := hasUnstagedChanges(repoDir)
 		if err != nil {
 			return err
 		}
 		if hasUnstaged {
-			fmt.Fprintln(stderr, "ERROR: unstaged changes exist; stage explicitly")
 			fmt.Fprintln(stdout, "SKIP: strict create (unstaged)")
-			return nil
+			return fmt.Errorf("unstaged changes exist; stage explicitly")
 		}
 
 		// Try commit
 		if err := gitCommit(repoDir, message); err != nil {
-			// This likely means nothing to commit
-			fmt.Fprintf(stderr, "ERROR: commit failed (nothing staged?): %v\n", err)
 			fmt.Fprintln(stdout, "SKIP: strict create (commit failed)")
-			return nil
+			return fmt.Errorf("commit failed (nothing staged?): %w", err)
 		}
 		// Update HEAD
 		headSHA, err = getGitHeadSHA(repoDir)
@@ -150,89 +137,84 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 	}
 
 	// B: Evidence Resolver
-	evidenceDirs := []string{".local/prverify", "docs/evidence/prverify"}
-	if repoDir != "" {
-		for i, d := range evidenceDirs {
-			evidenceDirs[i] = filepath.Join(repoDir, d)
+	resolveEvidence := func() (string, bool) {
+		// 1. Explicit Priority
+		if evidenceReport != "" {
+			fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
+			content, err := os.ReadFile(evidenceReport)
+			if err != nil {
+				fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", evidenceReport, err)
+				return "", false
+			}
+			// 12-char prefix match
+			prefix := headSHA
+			if len(prefix) > 12 {
+				prefix = prefix[:12]
+			}
+			if strings.Contains(string(content), prefix) {
+				fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
+				return evidenceReport, true
+			}
+			fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", evidenceReport, prefix)
+			return "", false
 		}
-	}
 
-	resolveEvidence := func() (string, error) {
+		// 2. Auto-detect (Light)
+		evidenceDirs := []string{".local/prverify", "docs/evidence/prverify"}
+		if repoDir != "" {
+			for i, d := range evidenceDirs {
+				evidenceDirs[i] = filepath.Join(repoDir, d)
+			}
+		}
+
+		prefix := headSHA
+		if len(prefix) > 12 {
+			prefix = prefix[:12]
+		}
+
 		for _, dir := range evidenceDirs {
 			entries, err := os.ReadDir(dir)
 			if err != nil {
 				continue
 			}
-			// Sort newest first
+			// Sort newest first (timestamp DESC)
 			sort.Slice(entries, func(i, j int) bool {
 				return entries[i].Name() > entries[j].Name()
 			})
+
 			for _, e := range entries {
-				if strings.HasPrefix(e.Name(), "prverify_") && strings.HasSuffix(e.Name(), ".md") {
-					path := filepath.Join(dir, e.Name())
-					content, err := os.ReadFile(path)
-					if err != nil {
-						continue
-					}
-					if strings.Contains(string(content), headSHA) {
-						return path, nil
-					}
+				if e.IsDir() || !strings.HasPrefix(e.Name(), "prverify_") || !strings.HasSuffix(e.Name(), ".md") {
+					continue
+				}
+
+				path := filepath.Join(dir, e.Name())
+				// optimization: check filename first
+				if strings.Contains(e.Name(), prefix) {
+					fmt.Fprintf(stdout, "OK: evidence_candidate=%s (filename match)\n", path)
+					return path, true
+				}
+
+				// check content
+				content, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				if strings.Contains(string(content), prefix) {
+					fmt.Fprintf(stdout, "OK: evidence_candidate=%s (content match)\n", path)
+					return path, true
 				}
 			}
 		}
-		return "", nil
+		return "", false
 	}
 
-	reportPath, _ := resolveEvidence()
-	if reportPath != "" {
-		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
-	} else {
-		fmt.Fprintln(stdout, "INFO: evidence for HEAD not found")
-		if heavy == "never" {
-			fmt.Fprintln(stderr, "ERROR: missing prverify for HEAD; heavy=never")
-			fmt.Fprintln(stdout, "SKIP: strict create (no evidence)")
-			return nil
-		}
-
-		// Heavy step
-		fmt.Fprintln(stdout, "INFO: run prverify (heavy)")
-		if err := runPrverify(repoDir); err != nil {
-			fmt.Fprintf(stderr, "ERROR: prverify failed: %v\n", err)
-			fmt.Fprintln(stdout, "SKIP: strict create (prverify failed)")
-			return nil
-		}
-
-		// Check head drift
-		newHead, err := getGitHeadSHA(repoDir)
-		if err != nil {
-			return err
-		}
-		if newHead != headSHA {
-			fmt.Fprintln(stderr, "ERROR: HEAD changed during prverify; rerun ritual")
-			fmt.Fprintln(stdout, "SKIP: strict create (HEAD drift)")
-			return nil
-		}
-
-		// Re-resolve
-		reportPath, _ = resolveEvidence()
-		if reportPath == "" {
-			fmt.Fprintln(stderr, "ERROR: prverify completed but report still missing HEAD")
-			fmt.Fprintln(stdout, "SKIP: strict create (no head evidence)")
-			return nil
-		}
-		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
+	reportPath, ok := resolveEvidence()
+	if !ok {
+		return fmt.Errorf("evidence_required mode=strict")
 	}
+	fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
 
 	// C: Delegate to CreateBundle
-	// We construct contract manually here because CreateBundle logic expects to FIND evidence itself?
-	// Actually `collectEvidence` in CreateBundle searches again.
-	// But `strictCreateCapsule` ensures it EXISTS.
-	// We should just call `CreateBundle` with ModeStrict, and it will call `collectEvidence`.
-	// Since we verified evidence exists and matches HEAD, `collectEvidence` should find it.
-	// HOWEVER, `collectEvidence` might find *other* evidence if we are not careful about `repoDir`.
-	// But `collectEvidence` searches the same dirs.
-	// So we can just proceed.
-
 	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
@@ -245,7 +227,6 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		EpochSec:        epoch,
 		BaseRef:         "main",
 		HeadSHA:         headSHA,
-		// Evidence fields will be filled by CreateBundle -> collectEvidence
 		Evidence: Evidence{
 			Required:   true,
 			Present:    false,
