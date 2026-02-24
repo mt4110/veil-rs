@@ -24,15 +24,16 @@
 ## Artifacts / Contract
 ### Evidence selection contract (v1)
 Input:
-- `--evidence-report <path>` が指定されれば最優先（存在/読取チェック）
+- `--evidence-report <path>` が指定されれば最優先。**読取失敗または SHA不一致（12桁prefix）時は、modeに関わらず即座に stop=1 とし、auto-detect へのフォールバックを禁止する。**
 - 未指定なら auto-detect を試す
 
 Auto-detect (light):
 1) `.local/prverify/` および `docs/evidence/prverify/` 配下の `prverify_*.md` を列挙
 2) まず “HEAD sha をファイル名に含むもの” を候補化（あれば優先）
-3) 同率なら **辞書順で最大**（timestamp 形式を想定）を選ぶ
-4) 無ければ “prverify_*.md 全体” から辞書順最大を選ぶ
-5) 選定理由を INFO で 1行固定（監査ログ）
+3) 候補の内容に HEAD sha（12桁prefix）が含まれること（content match）を最終保証とする
+4) 同率なら **辞書順で最大**（timestamp 形式を想定）を選ぶ
+5) 無ければ “prverify_*.md 全体” から辞書順最大を選ぶ
+6) 選定理由を INFO で 1行固定（監査ログ）
 
 Strict behavior:
 - evidence が確定できない → `ERROR: evidence_required mode=strict` + `stop=1`
