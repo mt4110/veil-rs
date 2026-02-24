@@ -44,7 +44,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-24 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/pr/PR-TBD-s12-06a-verify-chain.md
+- Evidence: docs/pr/PR-91-s12-06a-verify-chain.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)

@@ -1,4 +1,4 @@
-# PR-TBD — S12-06A: verify chain hardening（検証連鎖の完全整流）
+# PR-91 — S12-06A: verify chain hardening（検証連鎖の完全整流）
 
 ## SOT
 
