@@ -486,6 +486,14 @@ func validateCI(repoFS fs.FS) error {
 		fix    string
 	}{
 		{
+			name:  "S12-07: SOT doc naming guard (docs/pr + STATUS evidence)",
+			check: s12_07_guard_docs_pr,
+		},
+		{
+			name:  "S12-07: stdout ongoing audit (python entrypoints require OK: phase=end)",
+			check: s12_07_guard_stdout_audit,
+		},
+		{
 			"Install Script",
 			func(s string) bool { return strings.Contains(s, "ops/ci/install_sqlx_cli.sh") },
 			"CI must use ops/ci/install_sqlx_cli.sh",

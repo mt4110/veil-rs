@@ -1,4 +1,4 @@
-# PR-TBD — S12-06B: pack contract を"法律"にする
+# PR-89 — S12-06B: pack contract を"法律"にする
 
 ## SOT
 
