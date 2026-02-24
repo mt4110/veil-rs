@@ -35,7 +35,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S12-05   | CI repro cleanup (runner alignment)                 | 100% (Merged) | -                            |
 | S12-05.5 | speed up local prverify (safe parallel + caching)   | 100% (Merged) | -                            |
 | S12-05.6 | prverify stopless hardening (no os.Exit + bugfixes) | 100% (Merged) | -                            |
-| S12-06   | TBD (theme: B=pack contract / C=local gc / A=chain) | 99% (Review)  | S12-06C: local durability GC |
+| S12-06   | TBD (theme: B=pack contract / C=local gc / A=chain) | 99% (Review)  | S12-06A: verify chain hardening |
 | S13      | TBD                                                 | 0%            | -                            |
 | S14      | TBD                                                 | 0%            | -                            |
 | S15      | TBD                                                 | 0%            | -                            |
@@ -44,7 +44,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-24 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/pr/PR-90-s12-06c-local-gc.md
+- Evidence: docs/pr/PR-TBD-s12-06a-verify-chain.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)

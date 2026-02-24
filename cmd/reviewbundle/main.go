@@ -14,7 +14,9 @@ func main() {
 func run(argv []string, stdout, stderr io.Writer) int {
 	if len(argv) < 2 {
 		usage(stderr)
-		return 1
+		fmt.Fprintln(stdout, "ERROR: missing_command")
+		fmt.Fprintln(stdout, "OK: phase=end stop=1")
+		return 0 // stopless: always exit 0
 	}
 
 	cmd := argv[1]
@@ -84,7 +86,9 @@ func run(argv []string, stdout, stderr io.Writer) int {
 
 	default:
 		usage(stderr)
-		return 1
+		fmt.Fprintf(stdout, "ERROR: unknown_command cmd=%s\n", cmd)
+		fmt.Fprintln(stdout, "OK: phase=end stop=1")
+		return 0 // stopless: always exit 0
 	}
 }
 
