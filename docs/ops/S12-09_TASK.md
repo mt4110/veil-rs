@@ -14,28 +14,28 @@
   - [x] docs/ops/S12-09_TASK.md を作成（本ファイル）
   - [x] docs/ops/STATUS.md を更新：S12-09 を 1% (WIP) で追加、Evidence=docs/ops/S12-09_PLAN.md
 
-- [ ] 3) Implement (light)
+- [x] 3) Implement (light)
   - [x] reviewbundle に --evidence-report <path> を追加
   - [x] auto-detect: .local/prverify/ および docs/evidence/prverify/ から prverify_*.md を探索
-  - [ ] (優先) ファイル名に HEAD sha を含む候補 → 辞書順最大を採用
-  - [ ] (fallback) 全候補から辞書順最大を採用
-  - [ ] INFO で「選定理由」と「採用パス」を1行固定
-  - [ ] strict: evidence が確定できない場合
-    - [ ] ERROR: evidence_required mode=strict を出す
-    - [ ] stop=1 を立てる
-    - [ ] strict tarball を生成しない（不生成が真実）
-  - [ ] wip: evidence optional 維持（無い場合は INFO のみ）
+  - [x] (優先) ファイル名に HEAD sha を含む候補 → 辞書順最大を採用
+  - [x] (fallback) 全候補から辞書順最大を採用
+  - [x] INFO で「選定理由」と「採用パス」を1行固定
+  - [x] strict: evidence が見つからない場合
+    - [x] ERROR: evidence_required mode=strict を出す
+    - [x] stop=1 を立てる
+    - [x] strict tarball を生成しない（不生成が真実）
+  - [x] wip: evidence optional 維持（無い場合は INFO のみ）
 
-- [ ] 4) Tests (split; CPU守る)
-  - [ ] ターゲット限定で go test（go test ./... 禁止）
-  - [ ] 例: GOMAXPROCS=2 go test ./cmd/reviewbundle -p 1 -count=1
+- [x] 4) Tests (split; CPU守る)
+  - [x] ターゲット限定で go test（go test ./... 禁止）
+  - [x] 例: GOMAXPROCS=2 go test ./cmd/reviewbundle -p 1 -count=1
 
-- [ ] 5) Minimal verify (split)
-  - [ ] ケースA: evidence present
-    - [ ] go run ./cmd/reviewbundle create --mode strict --evidence-report <path> → OK & tarball生成
-  - [ ] ケースB: evidence missing
-    - [ ] go run ./cmd/reviewbundle create --mode strict → ERROR & stop=1 & tarball不生成
-  - [ ] stdout contract: OK: phase=end stop=<0|1> を必ず含む
+- [x] 5) Minimal verify (split)
+  - [x] ケースA: evidence present
+    - [x] go run ./cmd/reviewbundle create --mode strict --evidence-report <path> → OK & tarball生成
+  - [x] ケースB: evidence missing
+    - [x] go run ./cmd/reviewbundle create --mode strict → ERROR & stop=1 & tarball不生成
+  - [x] stdout contract: OK: phase=end stop=<0|1> を必ず含む
 
 - [ ] 6) Commit / Push / PR (light)
   - [ ] commit
