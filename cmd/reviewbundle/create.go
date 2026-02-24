@@ -314,13 +314,29 @@ func gitCommit(repoDir, message string) error {
 
 func runPrverify(repoDir string) error {
 	// nix run .#prverify
+	// Note: prverify is stopless (always exits 0). Check stop value from stdout.
 	cmd := exec.Command("nix", "run", ".#prverify")
 	if repoDir != "" {
 		cmd.Dir = repoDir
 	}
-	cmd.Stdout = os.Stdout
+	var buf strings.Builder
+	// Tee stdout to both os.Stdout (live) and buf (for parsing)
+	cmd.Stdout = io.MultiWriter(os.Stdout, &buf)
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		// Unexpected: process failure unrelated to checks (e.g., nix not found)
+		return fmt.Errorf("prverify process error: %w", err)
+	}
+	out := buf.String()
+	// Parse stop value from output (stopless design: do NOT use exit code)
+	if strings.Contains(out, "OK: phase=end stop=0") {
+		return nil
+	}
+	if strings.Contains(out, "OK: phase=end stop=") {
+		return fmt.Errorf("prverify reported stop=1 (checks failed)")
+	}
+	// phase=end not found — something went wrong
+	return fmt.Errorf("prverify did not emit OK: phase=end (incomplete run)")
 }
 
 func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {

@@ -128,6 +128,9 @@ func (e *driftError) Print() {
 		nextCmd = "nix run .#prverify"
 	}
 
+	// Canonical stdout line (machine-parseable)
+	fmt.Printf("ERROR: drift_detected category=%s\n", e.category)
+
 	// Plain text output (no ANSI) - strictly for NO_COLOR or just cleaner logs
 	if os.Getenv("NO_COLOR") != "" {
 		fmt.Fprintf(os.Stderr, "Reason: %s\n", e.reason)
@@ -154,6 +157,7 @@ func main() {
 	flag.Parse()
 
 	if *parallel > 2 {
+		fmt.Println("ERROR: parallel_too_high capped_to=2")
 		fmt.Fprintf(os.Stderr, "ERROR: parallel_too_high capped_to=2\n")
 		*parallel = 2
 	}
@@ -180,6 +184,7 @@ func main() {
 			baseSHA = runCapture(root, "git", "merge-base", "HEAD", "main")
 		}
 		if baseSHA == "" {
+			fmt.Println("ERROR: base_sha=missing fallback=full")
 			fmt.Fprintf(os.Stderr, "ERROR: base_sha=missing fallback=full\n")
 			*mode = "full"
 		} else {
@@ -193,6 +198,7 @@ func main() {
 	if *mode == "local-fast" && baseSHA != "" {
 		out, err := exec.Command("git", "diff", "--name-only", baseSHA+"..HEAD").Output()
 		if err != nil {
+			fmt.Println("ERROR: diff_failed fallback=full")
 			fmt.Fprintf(os.Stderr, "ERROR: diff_failed fallback=full\n")
 			*mode = "full"
 		} else {
@@ -221,6 +227,7 @@ func main() {
 			fmt.Printf("OK: touch_go=%v touch_rust=%v touch_docs=%v touch_other=%v\n", touchGo, touchRust, touchDocs, touchOther)
 
 			if touchOther {
+				fmt.Println("ERROR: unknown_changes fallback=full")
 				fmt.Fprintf(os.Stderr, "ERROR: unknown_changes fallback=full\n")
 				*mode = "full"
 			} else if !touchGo && !touchRust && touchDocs {
@@ -283,6 +290,7 @@ func main() {
 		dur, err := runStreaming(root, "cargo", "test", "-p", "veil-cli", "--test", "cli_tests")
 		res := stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
 		if err != nil {
+			fmt.Println("ERROR: smoke suite failed:", err)
 			fmt.Fprintln(os.Stderr, "ERROR: smoke suite failed:", err)
 			reportFail(res)
 			return
@@ -296,6 +304,7 @@ func main() {
 			dur, err = runStreaming(root, "cargo", "test", "--workspace")
 			res = stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
 			if err != nil {
+				fmt.Println("ERROR: workspace tests failed:", err)
 				fmt.Fprintln(os.Stderr, "ERROR: workspace tests failed:", err)
 				reportFail(res)
 				return
@@ -322,6 +331,7 @@ func main() {
 		dur, err := runStreaming(root, "go", "test", "-count=1", "./cmd/prkit")
 		res := stepResult{cmdLine: cmdLine, ok: err == nil, duration: dur}
 		if err != nil {
+			fmt.Println("ERROR: prkit tests failed:", err)
 			fmt.Fprintln(os.Stderr, "ERROR: prkit tests failed:", err)
 			reportFail(res)
 			return
@@ -363,6 +373,7 @@ func main() {
 			if de, ok := err.(*driftError); ok {
 				de.Print()
 			} else {
+				fmt.Println("ERROR: drift check failed:", err)
 				fmt.Fprintln(os.Stderr, "ERROR: drift check failed:", err)
 			}
 			fmt.Println()
@@ -382,6 +393,7 @@ func main() {
 			if de, ok := err.(*driftError); ok {
 				de.Print()
 			} else {
+				fmt.Println("ERROR: status enforcement failed:", err)
 				fmt.Fprintln(os.Stderr, "ERROR: status enforcement failed:", err)
 			}
 			fmt.Println()
@@ -428,13 +440,17 @@ func main() {
 	if fObs != nil {
 		fObs.Close()
 	}
-	fmt.Printf("OK: phase=end stop=0\n")
+	stopVal := 0
+	if hasError {
+		stopVal = 1
+	}
+	fmt.Printf("OK: phase=end stop=%d\n", stopVal)
 
 	fmt.Println()
 	fmt.Print(renderMarkdown(rustcV, cargoV, gitSHA, gitDirty, steps))
 
-	if hasError {
-		os.Exit(1)
+	if !hasError {
+		fmt.Println("PASS: All checks passed.")
 	}
 }
 
