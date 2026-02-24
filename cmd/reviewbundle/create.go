@@ -22,6 +22,18 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, evidenceReport, stdout, stderr)
 	}
 
+	// S12-09 Refinement: Harden explicit evidence even for WIP mode
+	if evidenceReport != "" {
+		fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
+		headSHA, err := getGitHeadSHA(repoDir)
+		if err != nil {
+			return err
+		}
+		if ok := validateExplicitEvidence(evidenceReport, headSHA, stdout, stderr); !ok {
+			return fmt.Errorf("explicit_evidence_failed mode=%s", mode)
+		}
+	}
+
 	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
@@ -78,7 +90,7 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 	}
 
 	// C5/C6: Actual bundle generation
-	path, err := CreateBundle(contract, outDir, repoDir)
+	path, err := CreateBundle(contract, outDir, repoDir, evidenceReport)
 	if err != nil {
 		return err
 	}
@@ -141,22 +153,10 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		// 1. Explicit Priority
 		if evidenceReport != "" {
 			fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
-			content, err := os.ReadFile(evidenceReport)
-			if err != nil {
-				fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", evidenceReport, err)
+			if ok := validateExplicitEvidence(evidenceReport, headSHA, stdout, stderr); !ok {
 				return "", false
 			}
-			// 12-char prefix match
-			prefix := headSHA
-			if len(prefix) > 12 {
-				prefix = prefix[:12]
-			}
-			if strings.Contains(string(content), prefix) {
-				fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
-				return evidenceReport, true
-			}
-			fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", evidenceReport, prefix)
-			return "", false
+			return evidenceReport, true
 		}
 
 		// 2. Auto-detect (Light)
@@ -238,7 +238,7 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		},
 	}
 
-	path, err := CreateBundle(contract, outDir, repoDir)
+	path, err := CreateBundle(contract, outDir, repoDir, reportPath)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func runPrverify(repoDir string) error {
 	return fmt.Errorf("prverify did not emit OK: phase=end (incomplete run)")
 }
 
-func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
+func CreateBundle(c *Contract, outDir, repoDir string, explicitPath string) (string, error) {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", WrapVError(E_PATH, outDir, err)
 	}
@@ -359,7 +359,7 @@ func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
 	files[PathSeriesPatch] = patch
 
 	// Evidence (Phase 7.5/8/9)
-	bound, evFiles, err := collectEvidence(c.HeadSHA, repoDir)
+	bound, evFiles, err := collectEvidence(c.HeadSHA, repoDir, explicitPath)
 	if err != nil {
 		return "", err
 	}
@@ -498,9 +498,28 @@ func getGitHeadSHA(repoDir string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func collectEvidence(headSHA, repoDir string) (bool, map[string][]byte, error) {
+func collectEvidence(headSHA, repoDir string, explicitPath string) (bool, map[string][]byte, error) {
 	files := make(map[string][]byte)
 	bound := false
+
+	// S12-09: Explicit override
+	if explicitPath != "" {
+		content, err := os.ReadFile(explicitPath)
+		if err != nil {
+			return false, nil, WrapVError(E_PATH, explicitPath, err)
+		}
+		bundlePath := filepath.Join(DirEvidence, "prverify", filepath.Base(explicitPath))
+		files[bundlePath] = content
+
+		prefix := headSHA
+		if len(prefix) > 12 {
+			prefix = prefix[:12]
+		}
+		if strings.Contains(string(content), prefix) {
+			bound = true
+		}
+		return bound, files, nil
+	}
 
 	// Helper to process directory
 	processDir := func(dir string, isLocal bool) error {
@@ -604,4 +623,23 @@ func isGitDirty(repoDir string) (bool, error) {
 		return false, WrapVError(E_CONTRACT, "git status", err)
 	}
 	return len(strings.TrimSpace(string(out))) > 0, nil
+}
+
+func validateExplicitEvidence(path, headSHA string, stdout, stderr io.Writer) bool {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", path, err)
+		return false
+	}
+	// 12-char prefix match
+	prefix := headSHA
+	if len(prefix) > 12 {
+		prefix = prefix[:12]
+	}
+	if strings.Contains(string(content), prefix) {
+		fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
+		return true
+	}
+	fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", path, prefix)
+	return false
 }
