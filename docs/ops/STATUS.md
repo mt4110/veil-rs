@@ -19,32 +19,32 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 
 ## Milestones (S11..S15)
 
-| Phase    | Goal (One-liner)                                    | Progress      | Current (This PR)          |
-| -------- | --------------------------------------------------- | ------------- | -------------------------- |
-| S11-00   | Kickoff: pin roadmap/progress board in STATUS.md    | 100% (Merged) | -                          |
-| S11-01   | Enforce STATUS.md update (forget -> fail)           | 100% (Merged) | -                          |
-| S11-02   | SOT guidance truth (stopless design)                | 100% (Merged) | -                          |
-| S11-03   | Review Bundle Go Hardening (deterministic)          | 100% (Merged) | -                          |
-| S11-04   | Hermetic Determinism Tests                          | 100% (Merged) | -                          |
-| S11-05   | Closeout: mark S11-03/04 merged + fresh prverify    | 100% (Merged) | -                          |
-| S12-00   | TBD                                                 | 100% (Merged) | -                          |
-| S12-01   | TBD                                                 | 100% (Merged) | -                          |
-| S12-02   | Closeout + ritual spec (zsh-safe)                   | 100% (Merged) | -                          |
-| S12-03   | Strict Ritual Capsule (commit+prverify+strict)      | 100% (Merged) | -                          |
-| S12-04   | CI repro ritual capsule (prkit ci-repro)            | 100% (Merged) | -                          |
-| S12-05   | CI repro cleanup (runner alignment)                 | 100% (Merged) | -                          |
-| S12-05.5 | speed up local prverify (safe parallel + caching)   | 100% (Merged) | -                          |
-| S12-05.6 | prverify stopless hardening (no os.Exit + bugfixes) | 100% (Merged) | -                          |
-| S12-06   | TBD (theme: B=pack contract / C=local gc / A=chain) | 99% (Review)  | S12-06B: pack contract law |
-| S13      | TBD                                                 | 0%            | -                          |
-| S14      | TBD                                                 | 0%            | -                          |
-| S15      | TBD                                                 | 0%            | -                          |
+| Phase    | Goal (One-liner)                                    | Progress      | Current (This PR)            |
+| -------- | --------------------------------------------------- | ------------- | ---------------------------- |
+| S11-00   | Kickoff: pin roadmap/progress board in STATUS.md    | 100% (Merged) | -                            |
+| S11-01   | Enforce STATUS.md update (forget -> fail)           | 100% (Merged) | -                            |
+| S11-02   | SOT guidance truth (stopless design)                | 100% (Merged) | -                            |
+| S11-03   | Review Bundle Go Hardening (deterministic)          | 100% (Merged) | -                            |
+| S11-04   | Hermetic Determinism Tests                          | 100% (Merged) | -                            |
+| S11-05   | Closeout: mark S11-03/04 merged + fresh prverify    | 100% (Merged) | -                            |
+| S12-00   | TBD                                                 | 100% (Merged) | -                            |
+| S12-01   | TBD                                                 | 100% (Merged) | -                            |
+| S12-02   | Closeout + ritual spec (zsh-safe)                   | 100% (Merged) | -                            |
+| S12-03   | Strict Ritual Capsule (commit+prverify+strict)      | 100% (Merged) | -                            |
+| S12-04   | CI repro ritual capsule (prkit ci-repro)            | 100% (Merged) | -                            |
+| S12-05   | CI repro cleanup (runner alignment)                 | 100% (Merged) | -                            |
+| S12-05.5 | speed up local prverify (safe parallel + caching)   | 100% (Merged) | -                            |
+| S12-05.6 | prverify stopless hardening (no os.Exit + bugfixes) | 100% (Merged) | -                            |
+| S12-06   | TBD (theme: B=pack contract / C=local gc / A=chain) | 99% (Review)  | S12-06C: local durability GC |
+| S13      | TBD                                                 | 0%            | -                            |
+| S14      | TBD                                                 | 0%            | -                            |
+| S15      | TBD                                                 | 0%            | -                            |
 
 ## Last Updated
 - Date: 2026-02-24 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/pr/PR-89-s12-06b-pack-contract-law.md
+- Evidence: docs/pr/PR-90-s12-06c-local-gc.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)
