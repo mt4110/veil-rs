@@ -16,10 +16,10 @@ import (
 	"time"
 )
 
-func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, message, evidenceReport string, stdout, stderr io.Writer) error {
 	// S12-03: Strict Ritual Capsule
 	if mode == ModeStrict {
-		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, stdout, stderr)
+		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, evidenceReport, stdout, stderr)
 	}
 
 	epoch, err := ComputeEpochSec(repoDir)
@@ -88,7 +88,7 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 }
 
 // strictCreateCapsule implements the S12-03 strict ritual.
-func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message string, stdout, stderr io.Writer) error {
+func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message, evidenceReport string, stdout, stderr io.Writer) error {
 	// A: Preflight & Dirty Check
 	headSHA, err := getGitHeadSHA(repoDir)
 	if err != nil {
@@ -150,78 +150,83 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 	}
 
 	// B: Evidence Resolver
-	evidenceDirs := []string{".local/prverify", "docs/evidence/prverify"}
-	if repoDir != "" {
-		for i, d := range evidenceDirs {
-			evidenceDirs[i] = filepath.Join(repoDir, d)
+	resolveEvidence := func() (string, bool) {
+		// 1. Explicit Priority
+		if evidenceReport != "" {
+			fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
+			content, err := os.ReadFile(evidenceReport)
+			if err != nil {
+				fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", evidenceReport, err)
+				return "", false
+			}
+			// 12-char prefix match
+			prefix := headSHA
+			if len(prefix) > 12 {
+				prefix = prefix[:12]
+			}
+			if strings.Contains(string(content), prefix) {
+				fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
+				return evidenceReport, true
+			}
+			fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", evidenceReport, prefix)
+			return "", false
 		}
-	}
 
-	resolveEvidence := func() (string, error) {
+		// 2. Auto-detect (Light)
+		evidenceDirs := []string{".local/prverify", "docs/evidence/prverify"}
+		if repoDir != "" {
+			for i, d := range evidenceDirs {
+				evidenceDirs[i] = filepath.Join(repoDir, d)
+			}
+		}
+
+		prefix := headSHA
+		if len(prefix) > 12 {
+			prefix = prefix[:12]
+		}
+
 		for _, dir := range evidenceDirs {
 			entries, err := os.ReadDir(dir)
 			if err != nil {
 				continue
 			}
-			// Sort newest first
+			// Sort newest first (timestamp DESC)
 			sort.Slice(entries, func(i, j int) bool {
 				return entries[i].Name() > entries[j].Name()
 			})
+
 			for _, e := range entries {
-				if strings.HasPrefix(e.Name(), "prverify_") && strings.HasSuffix(e.Name(), ".md") {
-					path := filepath.Join(dir, e.Name())
-					content, err := os.ReadFile(path)
-					if err != nil {
-						continue
-					}
-					if strings.Contains(string(content), headSHA) {
-						return path, nil
-					}
+				if e.IsDir() || !strings.HasPrefix(e.Name(), "prverify_") || !strings.HasSuffix(e.Name(), ".md") {
+					continue
+				}
+
+				path := filepath.Join(dir, e.Name())
+				// optimization: check filename first
+				if strings.Contains(e.Name(), prefix) {
+					fmt.Fprintf(stdout, "OK: evidence_candidate=%s (filename match)\n", path)
+					return path, true
+				}
+
+				// check content
+				content, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+				if strings.Contains(string(content), prefix) {
+					fmt.Fprintf(stdout, "OK: evidence_candidate=%s (content match)\n", path)
+					return path, true
 				}
 			}
 		}
-		return "", nil
+		return "", false
 	}
 
-	reportPath, _ := resolveEvidence()
-	if reportPath != "" {
-		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
-	} else {
-		fmt.Fprintln(stdout, "INFO: evidence for HEAD not found")
-		if heavy == "never" {
-			fmt.Fprintln(stderr, "ERROR: missing prverify for HEAD; heavy=never")
-			fmt.Fprintln(stdout, "SKIP: strict create (no evidence)")
-			return nil
-		}
-
-		// Heavy step
-		fmt.Fprintln(stdout, "INFO: run prverify (heavy)")
-		if err := runPrverify(repoDir); err != nil {
-			fmt.Fprintf(stderr, "ERROR: prverify failed: %v\n", err)
-			fmt.Fprintln(stdout, "SKIP: strict create (prverify failed)")
-			return nil
-		}
-
-		// Check head drift
-		newHead, err := getGitHeadSHA(repoDir)
-		if err != nil {
-			return err
-		}
-		if newHead != headSHA {
-			fmt.Fprintln(stderr, "ERROR: HEAD changed during prverify; rerun ritual")
-			fmt.Fprintln(stdout, "SKIP: strict create (HEAD drift)")
-			return nil
-		}
-
-		// Re-resolve
-		reportPath, _ = resolveEvidence()
-		if reportPath == "" {
-			fmt.Fprintln(stderr, "ERROR: prverify completed but report still missing HEAD")
-			fmt.Fprintln(stdout, "SKIP: strict create (no head evidence)")
-			return nil
-		}
-		fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
+	reportPath, ok := resolveEvidence()
+	if !ok {
+		fmt.Fprintln(stdout, "ERROR: evidence_required mode=strict")
+		return nil // stopless: return nil to avoid Exit(1) in main, handle via stdout
 	}
+	fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
 
 	// C: Delegate to CreateBundle
 	// We construct contract manually here because CreateBundle logic expects to FIND evidence itself?
