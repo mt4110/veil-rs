@@ -43,7 +43,7 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 - Date: 2026-02-24 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/ops/S12-05-6_PLAN.md
+- Evidence: docs/pr/PR-88-s12-05-6-prverify-stopless.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)

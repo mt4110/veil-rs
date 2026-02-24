@@ -128,6 +128,9 @@ func (e *driftError) Print() {
 		nextCmd = "nix run .#prverify"
 	}
 
+	// Canonical stdout line (machine-parseable)
+	fmt.Printf("ERROR: drift_detected category=%s\n", e.category)
+
 	// Plain text output (no ANSI) - strictly for NO_COLOR or just cleaner logs
 	if os.Getenv("NO_COLOR") != "" {
 		fmt.Fprintf(os.Stderr, "Reason: %s\n", e.reason)

@@ -169,7 +169,7 @@
 
               write_header
 
-              rc3=0
+              prverify_out=""
 
               # Drift Check (Go)
               # This tool also runs the necessary smoke tests internally.
@@ -184,15 +184,25 @@
 
                 echo "## Drift Check (Go)"
                 echo '```'
-                go run ./cmd/prverify "$@" 2>&1
-                rc3=$?
+                prverify_out="$(go run ./cmd/prverify "$@" 2>&1)"
+                # Always echo captured output (both to terminal and report via tee above)
+                echo "$prverify_out"
                 echo '```'
-                echo ""
-                echo "- exit_code: $rc3"
                 echo ""
               }
 
-              if [ "$rc3" -ne 0 ]; then
+              # Parse stop value from stdout (stopless design: do NOT use exit code)
+              stop_val="1"
+              if echo "$prverify_out" | grep -qF "OK: phase=end stop=0"; then
+                stop_val="0"
+              elif echo "$prverify_out" | grep -qF "OK: phase=end stop="; then
+                stop_val="$(echo "$prverify_out" | grep -oE 'stop=[0-9]+' | tail -1 | cut -d= -f2)"
+              fi
+
+              echo "- stop_val: $stop_val"
+              echo ""
+
+              if [ "$stop_val" -ne 0 ]; then
                 echo "FAIL: prverify components drift or fail."
               else
                 echo "PASS: All checks passed."
@@ -201,7 +211,7 @@
               echo "---"
               echo "report: $report"
 
-              if [ "$rc3" -ne 0 ]; then exit "$rc3"; fi
+              if [ "$stop_val" -ne 0 ]; then exit "$stop_val"; fi
               exit 0
           '';
         };
