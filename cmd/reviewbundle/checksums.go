@@ -30,6 +30,20 @@ func ParseSHA256SUMS(b []byte) ([]ChecksumLine, error) {
 		sumHex := parts[0]
 		path := parts[1]
 
+		// 2.3 path 安全性
+		if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
+			return nil, NewVError(E_PATH, path, "absolute path forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+		}
+		if strings.Contains(path, "../") || strings.HasSuffix(path, "/..") || path == ".." {
+			return nil, NewVError(E_PATH, path, "parent traversal forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+		}
+		if len(path) >= 2 && path[1] == ':' && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) {
+			return nil, NewVError(E_PATH, path, "OS drive expression forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+		}
+		if path != "SHA256SUMS" && !strings.HasPrefix(path, "review/") {
+			return nil, NewVError(E_PATH, path, "path must be within review/ directory").WithReason("evidence_forbidden")
+		}
+
 		sum, err := ParseSHA256HexLine([]byte(sumHex))
 		if err != nil {
 			return nil, NewVError(E_SHA256, "SHA256SUMS", "invalid hex: "+sumHex)
@@ -77,7 +91,7 @@ func VerifySHA256SUMSSeal(sums []byte, seal []byte) error {
 	}
 
 	if lines[0].Sum != actualHash {
-		return NewVError(E_SHA256, "SHA256SUMS.sha256", "seal mismatch (integrity violation)")
+		return NewVError(E_SEAL, "SHA256SUMS.sha256", "seal mismatch (integrity violation)").WithReason("seal_broken")
 	}
 
 	return nil
@@ -91,10 +105,10 @@ func VerifyChecksumCompleteness(expected []ChecksumLine, computed map[string][32
 		expectedMap[exp.Path] = true
 		comp, ok := computed[exp.Path]
 		if !ok {
-			return NewVError(E_SHA256, exp.Path, "missing in bundle but present in manifest")
+			return NewVError(E_MISSING, exp.Path, "missing in bundle but present in manifest").WithReason("missing_file")
 		}
 		if comp != exp.Sum {
-			return NewVError(E_SHA256, exp.Path, fmt.Sprintf("checksum mismatch\nwant: %x\ngot:  %x", exp.Sum, comp))
+			return NewVError(E_SHA256, exp.Path, fmt.Sprintf("checksum mismatch\nwant: %x\ngot:  %x", exp.Sum, comp)).WithReason("sha_mismatch")
 		}
 	}
 
@@ -106,7 +120,7 @@ func VerifyChecksumCompleteness(expected []ChecksumLine, computed map[string][32
 			continue
 		}
 		if !expectedMap[path] {
-			return NewVError(E_SHA256, path, "present in bundle but missing in manifest")
+			return NewVError(E_EXTRA, path, "present in bundle but missing in manifest").WithReason("extra_file")
 		}
 	}
 	return nil

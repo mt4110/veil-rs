@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 			return 0 // stopless: always exit 0
 		}
 		bundlePath := argv[2]
-		report, err := VerifyBundlePath(bundlePath)
+		report, err := VerifyBundlePath(bundlePath, DefaultVerifyOptions)
 		if err != nil {
 			fmt.Fprintf(stdout, "ERROR: verify_failed path=%s detail=%s\n", bundlePath, err.Error())
 			fmt.Fprintln(stderr, err.Error())
@@ -80,10 +81,15 @@ func run(argv []string, stdout, stderr io.Writer) int {
 
 		// C2: flags/env for create mode+outdir
 		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, *evidenceReportFlag, stdout, stderr); err != nil {
-			fmt.Fprintf(stdout, "ERROR: create_failed detail=%s\n", err.Error())
+			if strings.Contains(err.Error(), "create_generated_invalid_bundle") {
+				fmt.Fprintf(stdout, "ERROR: create_generated_invalid_bundle detail=%s stop=1\n", err.Error())
+			} else {
+				fmt.Fprintf(stdout, "ERROR: create_failed detail=%s\n", err.Error())
+			}
 			fmt.Fprintln(stdout, "OK: phase=end stop=1")
 			return 0 // stopless: always exit 0
 		}
+		fmt.Fprintln(stdout, "OK: create stop=0")
 		fmt.Fprintln(stdout, "OK: phase=end stop=0")
 		return 0
 

@@ -37,8 +37,26 @@ type Tool struct {
 	Build   string `json:"build,omitempty"`
 }
 
+type VerifyOptions struct {
+	BudgetBytes  int64
+	BudgetFiles  int
+	EvidenceScan bool
+}
+
+// DefaultVerifyOptions provides standard limits: 100MB, 10,000 files, and active evidence scanning.
+var DefaultVerifyOptions = VerifyOptions{
+	BudgetBytes:  100 * 1024 * 1024,
+	BudgetFiles:  10000,
+	EvidenceScan: true,
+}
+
 type VerifyReport struct {
 	Contract *Contract
+	Opts     *VerifyOptions
+
+	// budget tracking
+	UsedBytes int64
+	UsedFiles int
 
 	// computed
 	ComputedSHA256 map[string][32]byte
@@ -69,17 +87,17 @@ type VerifyReport struct {
 	GzipOS      byte
 }
 
-func VerifyBundlePath(path string) (*VerifyReport, error) {
+func VerifyBundlePath(path string, opts VerifyOptions) (*VerifyReport, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, WrapVError(E_PATH, path, err)
 	}
 	defer f.Close()
-	return VerifyBundle(f)
+	return VerifyBundle(f, opts)
 }
 
-func VerifyBundle(r io.Reader) (*VerifyReport, error) {
-	rep, err := verifyReportFromStream(r)
+func VerifyBundle(r io.Reader, opts VerifyOptions) (*VerifyReport, error) {
+	rep, err := verifyReportFromStream(r, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -89,8 +107,9 @@ func VerifyBundle(r io.Reader) (*VerifyReport, error) {
 	return rep, nil
 }
 
-func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
+func verifyReportFromStream(r io.Reader, opts VerifyOptions) (*VerifyReport, error) {
 	rep := &VerifyReport{
+		Opts:           &opts,
 		ComputedSHA256: make(map[string][32]byte),
 		TruncatedFiles: make(map[string]bool),
 	}
@@ -123,6 +142,13 @@ func verifyReportFromStream(r io.Reader) (*VerifyReport, error) {
 		}
 
 		name := hdr.Name
+
+		if rep.Opts.BudgetFiles > 0 {
+			rep.UsedFiles++
+			if rep.UsedFiles > rep.Opts.BudgetFiles {
+				return nil, NewVError(E_BUDGET, name, "file count exceeds budget").WithReason("budget_exceeded")
+			}
+		}
 
 		if err := validateTarOrder(name, prevNameCanon, seenFirst); err != nil {
 			return nil, err
@@ -314,19 +340,39 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 			if err != nil {
 				return WrapVError(E_GZIP, name, err)
 			}
+
+			// Account for read bytes in budget (Codex P1 feedback)
+			rep.UsedBytes += int64(len(content))
+			if rep.Opts.BudgetBytes > 0 && rep.UsedBytes > rep.Opts.BudgetBytes {
+				return NewVError(E_BUDGET, name, "byte count exceeds budget").WithReason("budget_exceeded")
+			}
+
 			// Check if we hit the limit
 			if int64(len(content)) == 4*1024*1024 {
 				// Peek one byte to see if there's more
 				var b [1]byte
 				n, _ := tr.Read(b[:])
 				if n > 0 {
-					// We truncated.
-					// C0: Handle >4MB evidence without hashing
 					rep.TruncatedFiles[name] = true
-					// Skip hashing and normal parsing for truncated files
+
+					// Phase 7.7: Evidence scanning even for truncated files (Codex P2 feedback)
+					if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
+						if err := scanEvidenceContent(name, content); err != nil {
+							return err
+						}
+					}
+
 					return nil
 				}
 			}
+
+			// Phase 7.7: Evidence scanning (normal files)
+			if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
+				if err := scanEvidenceContent(name, content); err != nil {
+					return err
+				}
+			}
+
 			hash = sha256.Sum256(content)
 
 			if err := storeMetaContent(name, content, rep); err != nil {
@@ -334,8 +380,22 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 			}
 		} else {
 			h := sha256.New()
-			if _, err := io.Copy(h, tr); err != nil {
-				return WrapVError(E_GZIP, name, err)
+			buf := make([]byte, 32*1024)
+			for {
+				n, readErr := tr.Read(buf)
+				if n > 0 {
+					rep.UsedBytes += int64(n)
+					if rep.Opts.BudgetBytes > 0 && rep.UsedBytes > rep.Opts.BudgetBytes {
+						return NewVError(E_BUDGET, name, "byte count exceeds budget").WithReason("budget_exceeded")
+					}
+					h.Write(buf[:n])
+				}
+				if readErr != nil {
+					if readErr == io.EOF {
+						break
+					}
+					return WrapVError(E_GZIP, name, readErr)
+				}
 			}
 			copy(hash[:], h.Sum(nil))
 		}
