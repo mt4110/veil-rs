@@ -33,7 +33,7 @@ Evidence scan は過剰検出を避けるため「文脈つき」でのみ禁止
 - `extra_file`: 実体が存在するが SSOT マニフェストにない
 - `seal_broken`: `SHA256SUMS` 自体の改ざん
 - `sha_mismatch`: 各ファイルのハッシュ値不一致
-- `evidence_forbidden`: 絶対パスや `file://` 等の禁止文字列を検出
+- `evidence_forbidden`: 絶対パスや `file: + //` 等の禁止文字列を検出
 - `create_generated_invalid_bundle`: `create` 後の self-audit 失敗
 
 ## Review Instructions

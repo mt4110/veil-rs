@@ -40,7 +40,7 @@ func ParseSHA256SUMS(b []byte) ([]ChecksumLine, error) {
 		if len(path) >= 2 && path[1] == ':' {
 			return nil, NewVError(E_PATH, path, "OS drive expression forbidden in SHA256SUMS").WithReason("evidence_forbidden")
 		}
-		if !strings.HasPrefix(path, "review/") {
+		if path != "SHA256SUMS" && !strings.HasPrefix(path, "review/") {
 			return nil, NewVError(E_PATH, path, "path must be within review/ directory").WithReason("evidence_forbidden")
 		}
 

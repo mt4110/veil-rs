@@ -340,6 +340,13 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 			if err != nil {
 				return WrapVError(E_GZIP, name, err)
 			}
+
+			// Account for read bytes in budget (Codex P1 feedback)
+			rep.UsedBytes += int64(len(content))
+			if rep.Opts.BudgetBytes > 0 && rep.UsedBytes > rep.Opts.BudgetBytes {
+				return NewVError(E_BUDGET, name, "byte count exceeds budget").WithReason("budget_exceeded")
+			}
+
 			// Check if we hit the limit
 			if int64(len(content)) == 4*1024*1024 {
 				// Peek one byte to see if there's more
@@ -347,11 +354,19 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 				n, _ := tr.Read(b[:])
 				if n > 0 {
 					rep.TruncatedFiles[name] = true
+
+					// Phase 7.7: Evidence scanning even for truncated files (Codex P2 feedback)
+					if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
+						if err := scanEvidenceContent(name, content); err != nil {
+							return err
+						}
+					}
+
 					return nil
 				}
 			}
 
-			// Phase 7.7: Evidence scanning
+			// Phase 7.7: Evidence scanning (normal files)
 			if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
 				if err := scanEvidenceContent(name, content); err != nil {
 					return err
