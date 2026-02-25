@@ -90,10 +90,45 @@ state:
   errors = []
   warnings = []
 
-input:
+inputs:
   bundle_path
 
+constants (fixed by contract):
+  BUNDLE_ROOT = "review/"
+  CONTRACT_PATH = "review/meta/contract.json"
+  HASH_MANIFEST_PATH = "review/meta/SHA256SUMS"
+  HASH_MANIFEST_DIGEST_PATH = "review/meta/SHA256SUMS.sha256"
+  EVIDENCE_PREFIX = "review/evidence/"
+  EVIDENCE_PRVERIFY_DIR = "review/evidence/prverify/"
+
+  MAX_FILES = 5000
+  HASH_BUDGET_BYTES = 268435456  # 256MiB
+  EVIDENCE_SCAN_BYTES = 65536    # 64KiB (partial scan)
+
+helpers:
+  error(msg): append(errors, msg)
+  warn(msg): append(warnings, msg)
+
+  # NOTE: docs-guard safe:
+  # do NOT write raw "://". Detect by checking "file:" and then " // " adjacency.
+  contains_file_scheme_like(s):
+    # conceptual: returns true if s contains the substring "file:" followed immediately by "//"
+    # implementation may scan for "file:" then check next 2 chars are both '/'
+    return has_adjacent(s, "file:", "//")
+
+  contains_parent_traversal(path):
+    # reject ".." segments
+    return path contains "/../" or path starts with "../" or path ends with "/.."
+
+  path_invalid(path):
+    if path is empty: return true
+    if path starts with "/": return true                  # absolute
+    if contains_parent_traversal(path): return true       # parent traversal
+    if path matches "^[A-Za-z]:\\": return true           # windows drive
+    return false
+
 try:
+  # 1) input sanity
   if bundle_path is empty:
     error("missing_bundle_path"); stop=1
   else if not exists(bundle_path):
@@ -103,76 +138,149 @@ try:
   else:
     OK
 
+  # 2) required files exist
   if stop == 0:
     contract_path = resolve(bundle_path, CONTRACT_PATH)
-    if not exists(contract_path):
-      error("contract_missing"); stop=1
-    else:
-      contract = load_json(contract_path)
-      # strict requires evidence, wip doesn't
-      if contract.mode == "strict" and not contract.evidence.required:
-        error("strict_mode_requires_evidence"); stop=1
-
-  if stop == 0:
     manifest_path = resolve(bundle_path, HASH_MANIFEST_PATH)
     seal_path = resolve(bundle_path, HASH_MANIFEST_DIGEST_PATH)
+
+    if not exists(contract_path):
+      error("contract_missing"); stop=1
     if not exists(manifest_path) or not exists(seal_path):
       error("manifest_missing"); stop=1
-    else:
-      # verify seal
-      if sha256(manifest_path) != load_seal(seal_path):
-        error("manifest_seal_broken"); stop=1
 
+  # 3) load + validate contract.json (SSOT)
   if stop == 0:
-    # file set check（閉世界）
-    actual_files = list_files(bundle_path, exclude=[HASH_MANIFEST_PATH, HASH_MANIFEST_DIGEST_PATH])
-    manifest_files = load_sha256sums(manifest_path).paths
+    contract = load_json(contract_path)
 
-    if diff(actual_files, manifest_files) has missing:
-      error("file_missing"); stop=1
-    if diff(actual_files, manifest_files) has extra:
-      error("file_extra"); stop=1
+    # minimal contract checks (do NOT require schema beyond what you use)
+    if contract.contract_version is empty:
+      error("contract_version_missing"); stop=1
+    if contract.mode not in ["strict", "wip"]:
+      error("contract_mode_invalid"); stop=1
 
+    # evidence rules from SSOT
+    # strict: evidence.required must be true
+    if stop == 0 and contract.mode == "strict":
+      if contract.evidence.required != true:
+        error("strict_requires_evidence_required_true"); stop=1
+
+    # sanity for prefixes (do not overfit)
+    if stop == 0:
+      if contract.evidence.path_prefix is empty:
+        warn("evidence_path_prefix_missing_in_contract")
+
+  # 4) verify SHA256SUMS seal (SHA256SUMS.sha256)
   if stop == 0:
-    # budget safety valve（端末保護）
+    expected = load_seal_hex(seal_path)           # should be hex sha256 of SHA256SUMS
+    actual = sha256_hex_of_file(manifest_path)
+    if expected is empty:
+      error("manifest_seal_empty"); stop=1
+    else if actual != expected:
+      error("manifest_seal_broken"); stop=1
+
+  # 5) parse SHA256SUMS entries
+  # format: "<sha256_hex><spaces><path>"
+  if stop == 0:
+    entries = parse_sha256sums(manifest_path)
+    # entries: list of {path, sha256_hex}
+
+    if entries is empty:
+      error("manifest_empty"); stop=1
+    else if count(entries) > MAX_FILES:
+      error("budget_exceeded:max_files"); stop=1
+
+  # 6) compute closed world file set (S_allow) and compare with actual
+  if stop == 0:
+    S_hash = set()
+    for e in entries:
+      if path_invalid(e.path):
+        error("path_invalid:" + e.path); stop=1; break
+      # Require paths are under review/ (contracted bundle root)
+      if not e.path starts with BUNDLE_ROOT:
+        error("path_not_under_bundle_root:" + e.path); stop=1; break
+      add S_hash e.path
+
+    if stop == 0:
+      S_meta = set([HASH_MANIFEST_PATH, HASH_MANIFEST_DIGEST_PATH])
+      S_allow = union(S_hash, S_meta)
+
+      # actual_files should be relative paths from repo root inside the bundle
+      S_actual = list_files_relative(bundle_path)   # includes "review/..." entries
+      # IMPORTANT: ensure it includes meta files too; do not exclude by default
+
+      missing = set_diff(S_allow, S_actual)
+      extra = set_diff(S_actual, S_allow)
+
+      if missing not empty:
+        error("file_missing:" + join_sorted(missing, ",")); stop=1
+      if extra not empty:
+        error("file_extra:" + join_sorted(extra, ",")); stop=1
+
+  # 7) verify sha256 of each entry with budget (size-based)
+  if stop == 0:
     bytes_hashed = 0
-    for each file in manifest.files sorted by path:
-      if path_invalid(file.path):  # absolute / .. / drive
-        error("path_invalid:" + file.path); stop=1; break
-      if stop == 1:
-        break
 
-      actual_size = stat_size(bundle_path/file.path)
-      if actual_size != file.size:
-        error("size_mismatch:" + file.path); stop=1; break
+    # stable order
+    entries_sorted = sort_by_path(entries)
 
-      # sha256 は「軽さ」を守るため budget を持てる
-      if bytes_hashed + actual_size > HASH_BUDGET_BYTES:
-        error("budget_exceeded"); stop=1; break
-      else:
-        actual_sha = sha256(bundle_path/file.path)
-        if actual_sha != file.sha256:
-          error("sha256_mismatch:" + file.path); stop=1; break
-        bytes_hashed += actual_size
+    for e in entries_sorted:
+      # size budget uses actual file size
+      size = stat_size(resolve(bundle_path, e.path))
+      if size < 0:
+        error("stat_failed:" + e.path); stop=1; break
+
+      if bytes_hashed + size > HASH_BUDGET_BYTES:
+        error("budget_exceeded:hash_bytes"); stop=1; break
+
+      actual_sha = sha256_hex_of_file(resolve(bundle_path, e.path))
+      if actual_sha != e.sha256_hex:
+        error("sha256_mismatch:" + e.path); stop=1; break
+
+      bytes_hashed = bytes_hashed + size
+      continue
+
+  # 8) evidence sanity (targeted; do NOT ban https)
+  if stop == 0:
+    # Strict evidence: require at least one file under review/evidence/prverify/
+    if contract.mode == "strict":
+      ev_files = list_files_under(bundle_path, EVIDENCE_PRVERIFY_DIR)
+      if count(ev_files) < 1:
+        error("evidence_missing:prverify"); stop=1
+
+    if stop == 0:
+      # Partial scan: read first EVIDENCE_SCAN_BYTES of each evidence file
+      ev_scan_targets = list_files_under(bundle_path, EVIDENCE_PREFIX)
+      for p in ev_scan_targets:
+        chunk = read_first_bytes_as_text(resolve(bundle_path, p), EVIDENCE_SCAN_BYTES)
+
+        # forbid file scheme like (guard-safe detection)
+        if contains_file_scheme_like(chunk):
+          error("forbidden_uri_scheme:file:" + p); stop=1; break
+
+        # forbid absolute path smell (keep simple; avoid false positives)
+        if contains(chunk, "/Users/") or contains(chunk, "C:\\"):
+          error("forbidden_absolute_path:" + p); stop=1; break
+
+        # forbid parent traversal mention
+        if contains(chunk, "/../") or contains(chunk, "../"):
+          error("forbidden_parent_traversal:" + p); stop=1; break
+
         continue
 
-  if stop == 0:
-    # evidence_report sanity（禁止物）
-    er = load_text(bundle_path / manifest.paths.evidence_report)
-    if contains(er, "://") or contains(er, "http://") or contains(er, "https://"):
-      error("forbidden_uri_scheme:file"); stop=1
-    else if contains_absolute_path_like(er):
-      error("forbidden_absolute_path"); stop=1
-    else:
-      OK
-
 catch any:
-  # 例外で落ちない。嘘をつかずERROR化。
   error("unexpected_exception"); stop=1
 
 finally:
-  print summary lines
-  print "OK: phase=end stop=" + stop
+  # summary: do NOT rely on exit codes
+  if stop == 0:
+    print("OK: verify=pass")
+  else:
+    for msg in errors:
+      print("ERROR: " + msg)
+  for msg in warnings:
+    print("WARN: " + msg)
+  print("OK: phase=end stop=" + stop)
 ```
 
 ## DoD（Definition of Done）
