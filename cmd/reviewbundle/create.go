@@ -22,6 +22,18 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 		return strictCreateCapsule(outDir, repoDir, heavy, autocommit, message, evidenceReport, stdout, stderr)
 	}
 
+	// S12-09 Refinement: Harden explicit evidence even for WIP mode
+	if evidenceReport != "" {
+		fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
+		headSHA, err := getGitHeadSHA(repoDir)
+		if err != nil {
+			return err
+		}
+		if ok := validateExplicitEvidence(evidenceReport, headSHA, stdout, stderr); !ok {
+			return fmt.Errorf("explicit_evidence_failed mode=%s", mode)
+		}
+	}
+
 	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
@@ -78,7 +90,7 @@ func CreateBundleUI(mode, outDir, repoDir, heavy string, autocommit bool, messag
 	}
 
 	// C5/C6: Actual bundle generation
-	path, err := CreateBundle(contract, outDir, repoDir)
+	path, err := CreateBundle(contract, outDir, repoDir, evidenceReport)
 	if err != nil {
 		return err
 	}
@@ -104,40 +116,27 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 	if isDirty {
 		fmt.Fprintln(stdout, "INFO: repo dirty")
 		if !autocommit {
-			fmt.Fprintln(stderr, "ERROR: repo dirty; commit first OR pass --autocommit --message")
 			fmt.Fprintln(stdout, "SKIP: strict create (dirty)")
-			return nil // Intentionally nil return to avoid exit code 1, but stop process
+			return fmt.Errorf("repo dirty; commit first OR pass --autocommit --message")
 		}
 		if message == "" {
-			fmt.Fprintln(stderr, "ERROR: --autocommit requires --message")
 			fmt.Fprintln(stdout, "SKIP: strict create (missing message)")
-			return nil
+			return fmt.Errorf("--autocommit requires --message")
 		}
-		// Commit
-		// Check for unstaged?
-		// "unstaged changes exist" -> ERROR
-		// "staged changes missing" -> ERROR
-		// We need to check porcelain status in detail.
-		// For now, let's implement the basic git commit wrapper.
-		// NOTE: Protocol says: "unstaged changes exist -> ERROR" (don't auto add)
-		// "staged missing -> ERROR" (don't empty commit)
-		// Let's rely on git commit failing if nothing staged, but we should check unstaged.
+
 		hasUnstaged, err := hasUnstagedChanges(repoDir)
 		if err != nil {
 			return err
 		}
 		if hasUnstaged {
-			fmt.Fprintln(stderr, "ERROR: unstaged changes exist; stage explicitly")
 			fmt.Fprintln(stdout, "SKIP: strict create (unstaged)")
-			return nil
+			return fmt.Errorf("unstaged changes exist; stage explicitly")
 		}
 
 		// Try commit
 		if err := gitCommit(repoDir, message); err != nil {
-			// This likely means nothing to commit
-			fmt.Fprintf(stderr, "ERROR: commit failed (nothing staged?): %v\n", err)
 			fmt.Fprintln(stdout, "SKIP: strict create (commit failed)")
-			return nil
+			return fmt.Errorf("commit failed (nothing staged?): %w", err)
 		}
 		// Update HEAD
 		headSHA, err = getGitHeadSHA(repoDir)
@@ -154,22 +153,10 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		// 1. Explicit Priority
 		if evidenceReport != "" {
 			fmt.Fprintf(stdout, "OK: explicit_evidence=%s\n", evidenceReport)
-			content, err := os.ReadFile(evidenceReport)
-			if err != nil {
-				fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", evidenceReport, err)
+			if ok := validateExplicitEvidence(evidenceReport, headSHA, stdout, stderr); !ok {
 				return "", false
 			}
-			// 12-char prefix match
-			prefix := headSHA
-			if len(prefix) > 12 {
-				prefix = prefix[:12]
-			}
-			if strings.Contains(string(content), prefix) {
-				fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
-				return evidenceReport, true
-			}
-			fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", evidenceReport, prefix)
-			return "", false
+			return evidenceReport, true
 		}
 
 		// 2. Auto-detect (Light)
@@ -223,21 +210,11 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 
 	reportPath, ok := resolveEvidence()
 	if !ok {
-		fmt.Fprintln(stdout, "ERROR: evidence_required mode=strict")
-		return nil // stopless: return nil to avoid Exit(1) in main, handle via stdout
+		return fmt.Errorf("evidence_required mode=strict")
 	}
 	fmt.Fprintf(stdout, "OK: evidence_report=%s\n", reportPath)
 
 	// C: Delegate to CreateBundle
-	// We construct contract manually here because CreateBundle logic expects to FIND evidence itself?
-	// Actually `collectEvidence` in CreateBundle searches again.
-	// But `strictCreateCapsule` ensures it EXISTS.
-	// We should just call `CreateBundle` with ModeStrict, and it will call `collectEvidence`.
-	// Since we verified evidence exists and matches HEAD, `collectEvidence` should find it.
-	// HOWEVER, `collectEvidence` might find *other* evidence if we are not careful about `repoDir`.
-	// But `collectEvidence` searches the same dirs.
-	// So we can just proceed.
-
 	epoch, err := ComputeEpochSec(repoDir)
 	if err != nil {
 		return err
@@ -250,7 +227,6 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		EpochSec:        epoch,
 		BaseRef:         "main",
 		HeadSHA:         headSHA,
-		// Evidence fields will be filled by CreateBundle -> collectEvidence
 		Evidence: Evidence{
 			Required:   true,
 			Present:    false,
@@ -262,7 +238,7 @@ func strictCreateCapsule(outDir, repoDir, heavy string, autocommit bool, message
 		},
 	}
 
-	path, err := CreateBundle(contract, outDir, repoDir)
+	path, err := CreateBundle(contract, outDir, repoDir, reportPath)
 	if err != nil {
 		return err
 	}
@@ -344,7 +320,7 @@ func runPrverify(repoDir string) error {
 	return fmt.Errorf("prverify did not emit OK: phase=end (incomplete run)")
 }
 
-func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
+func CreateBundle(c *Contract, outDir, repoDir string, explicitPath string) (string, error) {
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", WrapVError(E_PATH, outDir, err)
 	}
@@ -383,7 +359,7 @@ func CreateBundle(c *Contract, outDir, repoDir string) (string, error) {
 	files[PathSeriesPatch] = patch
 
 	// Evidence (Phase 7.5/8/9)
-	bound, evFiles, err := collectEvidence(c.HeadSHA, repoDir)
+	bound, evFiles, err := collectEvidence(c.HeadSHA, repoDir, explicitPath)
 	if err != nil {
 		return "", err
 	}
@@ -522,9 +498,28 @@ func getGitHeadSHA(repoDir string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func collectEvidence(headSHA, repoDir string) (bool, map[string][]byte, error) {
+func collectEvidence(headSHA, repoDir string, explicitPath string) (bool, map[string][]byte, error) {
 	files := make(map[string][]byte)
 	bound := false
+
+	// S12-09: Explicit override
+	if explicitPath != "" {
+		content, err := os.ReadFile(explicitPath)
+		if err != nil {
+			return false, nil, WrapVError(E_PATH, explicitPath, err)
+		}
+		bundlePath := filepath.Join(DirEvidence, "prverify", filepath.Base(explicitPath))
+		files[bundlePath] = content
+
+		prefix := headSHA
+		if len(prefix) > 12 {
+			prefix = prefix[:12]
+		}
+		if strings.Contains(string(content), prefix) {
+			bound = true
+		}
+		return bound, files, nil
+	}
 
 	// Helper to process directory
 	processDir := func(dir string, isLocal bool) error {
@@ -628,4 +623,23 @@ func isGitDirty(repoDir string) (bool, error) {
 		return false, WrapVError(E_CONTRACT, "git status", err)
 	}
 	return len(strings.TrimSpace(string(out))) > 0, nil
+}
+
+func validateExplicitEvidence(path, headSHA string, stdout, stderr io.Writer) bool {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "ERROR: cannot read explicit evidence path=%s err=%v\n", path, err)
+		return false
+	}
+	// 12-char prefix match
+	prefix := headSHA
+	if len(prefix) > 12 {
+		prefix = prefix[:12]
+	}
+	if strings.Contains(string(content), prefix) {
+		fmt.Fprintln(stdout, "OK: evidence_sha_match (explicit)")
+		return true
+	}
+	fmt.Fprintf(stderr, "ERROR: explicit evidence SHA mismatch path=%s head_prefix=%s\n", path, prefix)
+	return false
 }

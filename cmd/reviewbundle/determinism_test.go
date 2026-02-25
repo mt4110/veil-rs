@@ -44,7 +44,7 @@ func TestCreate_Determinism(t *testing.T) {
 		},
 	}
 
-	path1, err := CreateBundle(c1, outDir1, repoDir)
+	path1, err := CreateBundle(c1, outDir1, repoDir, "")
 	if err != nil {
 		t.Fatalf("CreateBundle(1) failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestCreate_Determinism(t *testing.T) {
 		},
 	}
 
-	path2, err := CreateBundle(c2, outDir2, repoDir)
+	path2, err := CreateBundle(c2, outDir2, repoDir, "")
 	if err != nil {
 		t.Fatalf("CreateBundle(2) failed: %v", err)
 	}

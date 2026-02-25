@@ -170,7 +170,7 @@ func TestCreate_StrictLocalEvidence(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	bundlePath, err := CreateBundle(c, outDir, repoDir)
+	bundlePath, err := CreateBundle(c, outDir, repoDir, "")
 	if err != nil {
 		t.Fatalf("CreateBundle failed: %v", err)
 	}

@@ -49,11 +49,11 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		fs.SetOutput(stderr)
 		modeFlag := fs.String("mode", "", "Bundle mode (strict|wip)")
 		outDirFlag := fs.String("out-dir", "", "Output directory")
-		evidenceReportFlag := fs.String("evidence-report", "", "Explicit evidence report path (bypass auto-detect)")
 
 		heavyFlag := fs.String("heavy", "auto", "Heavy verification mode (auto|never|force)")
 		autoCommitFlag := fs.Bool("autocommit", false, "Automatically commit if dirty")
 		messageFlag := fs.String("message", "", "Commit message (required if autocommit is true)")
+		evidenceReportFlag := fs.String("evidence-report", "", "Explicit path to evidence report (optional)")
 
 		if err := fs.Parse(argv[2:]); err != nil {
 			// flag.ContinueOnError means parsing error returns error but doesn't exit.
@@ -80,7 +80,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 
 		// C2: flags/env for create mode+outdir
 		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, *evidenceReportFlag, stdout, stderr); err != nil {
-			fmt.Fprintln(stderr, err.Error())
+			fmt.Fprintf(stdout, "ERROR: create_failed detail=%s\n", err.Error())
 			fmt.Fprintln(stdout, "OK: phase=end stop=1")
 			return 0 // stopless: always exit 0
 		}
@@ -102,8 +102,8 @@ func usage(w io.Writer) {
 	fmt.Fprintln(w, "  create         Create a new review bundle")
 	fmt.Fprintln(w, "    --mode     strict|wip (env: MODE, default: wip)")
 	fmt.Fprintln(w, "    --out-dir  Path (env: OUT_DIR, default: .local/review-bundles)")
-	fmt.Fprintln(w, "    --evidence-report Path (explicit evidence report)")
 	fmt.Fprintln(w, "    --heavy    auto|never|force (default: auto)")
 	fmt.Fprintln(w, "    --autocommit  (bool) Automatically commit if dirty")
-	fmt.Fprintln(w, "    --message  Commit message (required if autocommit is true)")
+	fmt.Fprintln(w, "    --message     Commit message (required if autocommit is true)")
+	fmt.Fprintln(w, "    --evidence-report Path (Optional explicit evidence)")
 }
