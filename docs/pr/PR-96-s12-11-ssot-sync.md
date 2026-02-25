@@ -21,6 +21,21 @@ SSOT（1. contract.json, 2. SHA256SUMS, 3. SHA256SUMS.sha256）を実装（verif
 5. **Tests**:
    - 変更が意図通りに動作することを保証するため、`evidence_scan_test.go` を新設および `verify_test.go`, `verify_binding_test.go`, `hermetic_repo_test.go` へ `VerifyOptions` を適用。
 
+## Evidence scan boundary (targeted)
+Evidence scan は過剰検出を避けるため「文脈つき」でのみ禁止パターンを検出します。
+具体的には、空白/引用符直後など “パスとして現れやすい境界” のみを対象にし、
+`cache_go=/Users/...` のような環境ログ由来の文字列は許容します（https は常に許容）。
+
+## Error Output Definitions (API Contract)
+各種エラーはプロセスを落とさず（stopless）、以下の `Reason` を付与して出力されます：
+- `budget_exceeded`: archive 展開時のファイル数・サイズ超過
+- `missing_file`: SSOT マニフェストに存在するが実体がない
+- `extra_file`: 実体が存在するが SSOT マニフェストにない
+- `seal_broken`: `SHA256SUMS` 自体の改ざん
+- `sha_mismatch`: 各ファイルのハッシュ値不一致
+- `evidence_forbidden`: 絶対パスや `file://` 等の禁止文字列を検出
+- `create_generated_invalid_bundle`: `create` 後の self-audit 失敗
+
 ## Review Instructions
 - 動作は全て "stopless" (exit 0) のまま、エラー内容は `ERROR: <reason> ... stop=1` 出力で表現されているか確認してください。
 - ファイルサイズおよびファイル数の budget が安全に動作しているか（tar の展開中に制限値を越えれば止まるか）確認してください。
