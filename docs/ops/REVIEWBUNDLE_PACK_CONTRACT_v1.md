@@ -31,20 +31,17 @@
 - `sha256` は lower-hex
 - bundle 生成時は上書きしない（出力墓地化 or 新規ID）
 
-## 4. manifest v1（スキーマ要点）
-厳密な JSON Schema 化は任意だが、“フィールド意味”はここで固定する。
+## 4. manifest v1 と contract.json
+JSON の manifest は廃止し、以下の実装を“契約”の SSOT とする。
+- `review/meta/contract.json` (メタデータ、`evidence.required` などを保持)
+- `review/meta/SHA256SUMS` (対象ファイルのハッシュ一覧。これが事実上の manifest)
+- `review/meta/SHA256SUMS.sha256` (SHA256SUMS 自体のシール)
 
-- `kind`: `"reviewbundle.manifest"`
-- `version`: 1
-- `created_utc`: RFC3339 UTC
-- `bundle.format`: `"strict"`（まずは strict 必須）
-- `bundle.id`: 生成ID（例: timestamp）
-- `paths.evidence_report`: evidence_report の相対パス
-- `files[]`:
-  - `path`（相対）
-  - `size`（bytes）
-  - `sha256`（lower-hex）
-  - `role`（任意）
+閉世界（file set）の定義：
+- `S_hash` = `SHA256SUMS` に列挙された path 集合
+- `S_meta` = `{ review/meta/SHA256SUMS, review/meta/SHA256SUMS.sha256 }`
+- `S_allow` = `S_hash ∪ S_meta`
+- `S_actual`（bundle 内実ファイル）と `S_allow` が一致しなければ `ERROR: file_missing` または `ERROR: file_extra` (+ `stop=1`)
 
 ## 5. verify 規範
 verify は最低限以下を検証する：
@@ -53,7 +50,7 @@ verify は最低限以下を検証する：
 - file set の一致（missing/extra）
 - size 一致
 - sha256 一致（※端末保護の budget を持つ場合は、超過を `ERROR: budget_exceeded` として明示）
-- evidence_report の禁止物検出（例：`「://」`、絶対パスっぽい文字列、`..`）
+- evidence_report の禁止物検出（例：`file:` と `//` を連結した文字列、絶対パスっぽい文字列、`..`）
 
 ## 6. 出力墓地化（cemetery）/ 掃除（cleanup）
 ### 6.1 上書き禁止

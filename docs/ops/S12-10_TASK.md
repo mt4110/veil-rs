@@ -13,8 +13,8 @@
 ## フェーズ1：Discovery（超重要・軽い）
 - [x] `cmd/reviewbundle` の実装位置と契約関連ワードを観測（rgは範囲限定）
 - [x] bundle の出力先（`.local/out` 等）を浅く観測（削除しない）
-- [ ] evidence_report の実体（ファイル名/パス/形式）を特定
-- [ ] 既存の “verify/manifest/sha” 相当処理があるか確認
+- [x] evidence_report の実体（ファイル名/パス/形式）を特定
+- [x] 既存の “verify/manifest/sha” 相当処理があるか確認
 
 **成果物（OBS）**
 - `.local/obs/s12-10_discovery_*/rg_cmd_reviewbundle_contract.txt`
@@ -24,7 +24,7 @@
 - [x] `docs/ops/S12-10_PLAN.md` 作成（疑似コードつき）
 - [x] `docs/ops/S12-10_TASK.md` 作成（順序固定チェックリスト）
 - [x] `docs/ops/REVIEWBUNDLE_PACK_CONTRACT_v1.md` 作成（契約本文）
-- [ ] `docs/ops/STATUS.md` 更新（S12-09=100% / S12-10=1% WIP）
+- [x] `docs/ops/STATUS.md` 更新（S12-09=100% / S12-10=1% WIP）
 
 ## フェーズ3：manifest v1（実装：小さく）
 - [ ] manifest の ファイル名/配置 を確定（Discovery結果で固定）

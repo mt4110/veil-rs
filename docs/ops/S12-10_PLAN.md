@@ -60,40 +60,25 @@
 
 ---
 
-## manifest v1（暫定スキーマ案）
-> 実パス・ファイル名は Discovery 後に確定する（ここは“型”）
+## 実パス固定・定数定義（Discovery 反映）
+- `BUNDLE_ROOT` = `review/`
+- `CONTRACT_PATH` = `review/meta/contract.json`
+- `HASH_MANIFEST_PATH` = `review/meta/SHA256SUMS`
+- `HASH_MANIFEST_DIGEST_PATH` = `review/meta/SHA256SUMS.sha256`
+- `EVIDENCE_PREFIX` = `review/evidence/`
+- `EVIDENCE_PRVERIFY_DIR` = `review/evidence/prverify/`
+- `INDEX_PATH` = `review/INDEX.md`
+- `PATCH_PATH` = `review/patch/series.patch`
 
-- kind: `"reviewbundle.manifest"`
-- version: `1`
-- created_utc: RFC3339（例: `2026-02-25T00:00:00Z`）
-- tool:
-  - name / version / commit（可能なら）
-- bundle:
-  - format: `strict|loose`（まず strict で必須化）
-  - id: 生成ID（timestamp等）
-- paths:
-  - evidence_report: evidence_report の相対パス
-- files: 配列
-  - path: 相対パス
-  - size: bytes（整数）
-  - sha256: lower-hex（可能なら必須）
-  - role: `"evidence_report" | "doc" | "artifact" | ...`（任意）
+## manifest の定義
+JSON の形式定義は置換され、以下を**事実上の manifest** とする：
+- 本体: `SHA256SUMS`（`sha256_hex  相対path` のリスト）
+- シール: `SHA256SUMS.sha256`（`SHA256SUMS` 自身の改ざん検知）
 
-### 例（イメージ）
-```json
-{
-  "kind": "reviewbundle.manifest",
-  "version": 1,
-  "created_utc": "2026-02-25T00:00:00Z",
-  "tool": { "name": "reviewbundle", "version": "0.0.0", "commit": null },
-  "bundle": { "format": "strict", "id": "rb_20260225T000000Z" },
-  "paths": { "evidence_report": "evidence/evidence_report.json" },
-  "files": [
-    { "path": "README.md", "size": 1234, "sha256": "…", "role": "doc" },
-    { "path": "evidence/evidence_report.json", "size": 4567, "sha256": "…", "role": "evidence_report" }
-  ]
-}
-```
+## evidence の定義（contract.json と整合）
+`contract.json` の内容を SSOT と定義し、これに違反しないようにする。
+- `strict`: `evidence.required=true` を必須とする（`present=true`）
+- `wip`: `evidence.required=false` を許容する
 
 ## verify（stopless）設計：疑似コード（分岐/停止条件）
 
@@ -119,18 +104,29 @@ try:
     OK
 
   if stop == 0:
-    manifest_path = resolve(bundle_path, MANIFEST_PATH)  # ※Discovery後に固定
-    if not exists(manifest_path):
+    contract_path = resolve(bundle_path, CONTRACT_PATH)
+    if not exists(contract_path):
+      error("contract_missing"); stop=1
+    else:
+      contract = load_json(contract_path)
+      # strict requires evidence, wip doesn't
+      if contract.mode == "strict" and not contract.evidence.required:
+        error("strict_mode_requires_evidence"); stop=1
+
+  if stop == 0:
+    manifest_path = resolve(bundle_path, HASH_MANIFEST_PATH)
+    seal_path = resolve(bundle_path, HASH_MANIFEST_DIGEST_PATH)
+    if not exists(manifest_path) or not exists(seal_path):
       error("manifest_missing"); stop=1
     else:
-      manifest = load_json(manifest_path)
-      if not schema_minimal_ok(manifest):
-        error("manifest_schema_invalid"); stop=1
+      # verify seal
+      if sha256(manifest_path) != load_seal(seal_path):
+        error("manifest_seal_broken"); stop=1
 
   if stop == 0:
     # file set check（閉世界）
-    actual_files = list_files(bundle_path, exclude=[MANIFEST_PATH])
-    manifest_files = manifest.files[].path
+    actual_files = list_files(bundle_path, exclude=[HASH_MANIFEST_PATH, HASH_MANIFEST_DIGEST_PATH])
+    manifest_files = load_sha256sums(manifest_path).paths
 
     if diff(actual_files, manifest_files) has missing:
       error("file_missing"); stop=1
