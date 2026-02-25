@@ -40,7 +40,8 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S12-08   | S12-07 SOT closeout (STATUS update + PR92 doc fix)                                     | 100% (Merged PR #93) | docs/ops/S12-08_PLAN.md                                  |
 | S12-09   | reviewbundle evidence auto-discovery + UX hardening                                    | 100% (Merged)        | docs/pr/PR-94-s12-09-reviewbundle-evidence-autodetect.md |
 | S12-10   | Reviewbundle Pack Contract v1                                                          | 100% (Merged PR #95) | docs/ops/S12-10_PLAN.md                                  |
-| S12-11   | verify/create SSOT sync (contract+SHA256SUMS+seal), budget, evidence scan, light tests | 99% (Review)         | docs/pr/PR-96-s12-11-ssot-sync.md                        |
+| S12-11   | verify/create SSOT sync (contract+SHA256SUMS+seal), budget, evidence scan, light tests | 100% (Merged PR #96)         | docs/pr/PR-96-s12-11-ssot-sync.md                        |
+| S12-12   | reviewbundle contract v1 enforce (parse+validate+cross-check)                           | 1% (WIP)             | docs/ops/S12-12_PLAN.md                                  |
 | S13      | TBD                                                                                    | 0%                   | -                                                        |
 | S14      | TBD                                                                                    | 0%                   | -                                                        |
 | S15      | TBD                                                                                    | 0%                   | -                                                        |
