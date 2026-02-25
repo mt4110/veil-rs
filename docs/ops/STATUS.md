@@ -38,16 +38,17 @@ All PRs starting from S11-00 MUST update this file (at least the % and "Last Upd
 | S12-06   | TBD (theme: B=pack contract / C=local gc / A=chain) | 99% (Review)         | S12-06A: verify chain hardening                          |
 | S12-07   | Guard SOT docnames + stdout audit                   | 100% (Merged PR #92) | docs/pr/PR-92-s12-07-guard-sot-docnames-stdout-audit.md  |
 | S12-08   | S12-07 SOT closeout (STATUS update + PR92 doc fix)  | 100% (Merged PR #93) | docs/ops/S12-08_PLAN.md                                  |
-| S12-09   | reviewbundle evidence auto-discovery + UX hardening | 99% (Review)         | docs/pr/PR-94-s12-09-reviewbundle-evidence-autodetect.md |
+| S12-09   | reviewbundle evidence auto-discovery + UX hardening | 100% (Merged)        | docs/pr/PR-94-s12-09-reviewbundle-evidence-autodetect.md |
+| S12-10   | Reviewbundle Pack Contract v1                       | 1% WIP               | docs/ops/S12-10_PLAN.md                                  |
 | S13      | TBD                                                 | 0%                   | -                                                        |
 | S14      | TBD                                                 | 0%                   | -                                                        |
 | S15      | TBD                                                 | 0%                   | -                                                        |
 
 ## Last Updated
-- Date: 2026-02-24 (+0900)
+- Date: 2026-02-25 (+0900)
 - By: @mt4110
 - Agent: @antigravity
-- Evidence: docs/pr/PR-94-s12-09-reviewbundle-evidence-autodetect.md
+- Evidence: docs/ops/S12-10_PLAN.md
 
 ## Update Checklist (for every PR)
 - [x] Update the Progress % and Current (This PR) row(s)
