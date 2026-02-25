@@ -11,7 +11,7 @@ SSOT（1. contract.json, 2. SHA256SUMS, 3. SHA256SUMS.sha256）を実装（verif
 2. **verify.go (Budget & SSOT Sync)**:
    - `VerifyOptions` 構造体を導入（`BudgetBytes`, `BudgetFiles`, `EvidenceScan`）。
    - TARストリームのパース時にファイル数・バイト数の Tracking を行い、Budget を超過した場合は即座に `stop=1` を返す（`budget_exceeded`）。
-   - Evidence 対象ファイルのコンテンツ内に禁止された絶対パスや file スキームが含まれないかスキャン。
+   - Evidence 対象ファイルのコンテンツ内に禁止された絶対パスや file スキームが含まれないかスキャン（意図しない過検出を防ぐため、`cache_go=/Users/...` のような文脈を持つ絶対パスは許容し、空白や引用符などで区切られた単独の危険パスのみをブロックするよう正確に境界設定 `isBoundary` しています）。
 3. **checksums.go (Closed World & Safety)**:
    - `VerifyChecksumCompleteness` で不足ファイル (`missing_file`) と超過ファイル (`extra_file`) を厳密に検出。
    - `ParseSHA256SUMS` において、マニフェスト内のパスに対する安全検証（親ディレクトリ走破、OSドライブレター指定、絶対パス等の禁止）を追加。
