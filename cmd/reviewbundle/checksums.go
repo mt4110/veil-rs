@@ -34,10 +34,10 @@ func ParseSHA256SUMS(b []byte) ([]ChecksumLine, error) {
 		if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
 			return nil, NewVError(E_PATH, path, "absolute path forbidden in SHA256SUMS").WithReason("evidence_forbidden")
 		}
-		if strings.Contains(path, "..") {
+		if strings.Contains(path, "../") || strings.HasSuffix(path, "/..") || path == ".." {
 			return nil, NewVError(E_PATH, path, "parent traversal forbidden in SHA256SUMS").WithReason("evidence_forbidden")
 		}
-		if len(path) >= 2 && path[1] == ':' {
+		if len(path) >= 2 && path[1] == ':' && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) {
 			return nil, NewVError(E_PATH, path, "OS drive expression forbidden in SHA256SUMS").WithReason("evidence_forbidden")
 		}
 		if path != "SHA256SUMS" && !strings.HasPrefix(path, "review/") {

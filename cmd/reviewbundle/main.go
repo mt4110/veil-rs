@@ -82,8 +82,7 @@ func run(argv []string, stdout, stderr io.Writer) int {
 		// C2: flags/env for create mode+outdir
 		if err := CreateBundleUI(mode, outDir, "", *heavyFlag, *autoCommitFlag, *messageFlag, *evidenceReportFlag, stdout, stderr); err != nil {
 			if strings.Contains(err.Error(), "create_generated_invalid_bundle") {
-				fmt.Fprintf(stdout, "ERROR: create_generated_invalid_bundle detail=%s\n", err.Error())
-				fmt.Fprintln(stdout, "ERROR: create_generated_invalid_bundle stop=1")
+				fmt.Fprintf(stdout, "ERROR: create_generated_invalid_bundle detail=%s stop=1\n", err.Error())
 			} else {
 				fmt.Fprintf(stdout, "ERROR: create_failed detail=%s\n", err.Error())
 			}
