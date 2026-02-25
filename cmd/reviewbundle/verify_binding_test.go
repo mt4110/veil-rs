@@ -146,7 +146,7 @@ func TestVerify_EvidenceBinding(t *testing.T) {
 			gw.Close()
 
 			// Verify
-			_, err := VerifyBundle(&buf)
+			_, err := VerifyBundle(&buf, DefaultVerifyOptions)
 			if tt.wantError == "" {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)

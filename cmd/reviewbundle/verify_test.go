@@ -74,7 +74,7 @@ func TestVerify_FailsOnKnownBadBundle(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			_, err = VerifyBundle(bytes.NewReader(bundleBytes))
+			_, err = VerifyBundle(bytes.NewReader(bundleBytes), DefaultVerifyOptions)
 			if err == nil {
 				t.Fatalf("Expected error %v, got success", tt.expect)
 			}
@@ -97,7 +97,7 @@ func TestVerify_PassesOnMinimalValidBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rep, err := VerifyBundle(bytes.NewReader(bundleBytes))
+	rep, err := VerifyBundle(bytes.NewReader(bundleBytes), DefaultVerifyOptions)
 	if err != nil {
 		t.Fatalf("Verify failed on valid bundle: %v", err)
 	}

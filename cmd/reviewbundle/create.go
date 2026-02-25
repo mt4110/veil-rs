@@ -437,10 +437,9 @@ func CreateBundle(c *Contract, outDir, repoDir string, explicitPath string) (str
 	f.Close()
 
 	// 4. Self-Audit (C6) - Verify atomic temp file
-	_, err = VerifyBundlePath(tmpPath)
+	_, err = VerifyBundlePath(tmpPath, DefaultVerifyOptions)
 	if err != nil {
-		// Verification failed on tmp file.
-		return tmpPath, fmt.Errorf("self-audit failed for %s: %w", tmpPath, err)
+		return tmpPath, fmt.Errorf("create_generated_invalid_bundle: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, outPath); err != nil {

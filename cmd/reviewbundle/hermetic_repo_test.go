@@ -176,7 +176,7 @@ func TestCreate_StrictLocalEvidence(t *testing.T) {
 	}
 
 	// 5. Verify Bundle Contains Evidence (via VerifyBundlePath)
-	rep, err := VerifyBundlePath(bundlePath)
+	rep, err := VerifyBundlePath(bundlePath, DefaultVerifyOptions)
 	if err != nil {
 		t.Fatalf("VerifyBundlePath failed: %v", err)
 	}
