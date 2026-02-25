@@ -61,6 +61,7 @@ type VerifyReport struct {
 	// computed
 	ComputedSHA256 map[string][32]byte
 	TruncatedFiles map[string]bool // new: track files > 4MB
+	ActualFiles    map[string]struct{}
 
 	// extracted raw files (needed for seal/checks)
 	SHA256SUMS     []byte
@@ -112,6 +113,7 @@ func verifyReportFromStream(r io.Reader, opts VerifyOptions) (*VerifyReport, err
 		Opts:           &opts,
 		ComputedSHA256: make(map[string][32]byte),
 		TruncatedFiles: make(map[string]bool),
+		ActualFiles:    make(map[string]struct{}),
 	}
 
 	gz, err := gzip.NewReader(r)
@@ -170,6 +172,10 @@ func verifyReportFromStream(r io.Reader, opts VerifyOptions) (*VerifyReport, err
 		}
 		if err := validateTarPAX(name, hdr); err != nil {
 			return nil, err
+		}
+
+		if hdr.Typeflag != tar.TypeDir {
+			rep.ActualFiles[name] = struct{}{}
 		}
 
 		updateLayoutPresence(name, hdr, rep)
@@ -491,7 +497,13 @@ func validateLayout(rep *VerifyReport) error {
 		return NewVError(E_LAYOUT, PathSeriesPatch, "missing")
 	}
 	if !rep.EvidencePresent && rep.Contract.Evidence.Required {
-		return NewVError(E_EVIDENCE, DirEvidence, "required but missing")
+		return NewVError(E_EVIDENCE, DirEvidence, "required but missing").WithReason("contract_evidence_mismatch")
+	}
+	if rep.Contract.Mode == "strict" && !rep.Contract.Evidence.Required {
+		return NewVError(E_CONTRACT, "contract.json", "strict mode requires evidence.required=true").WithReason("contract_invalid")
+	}
+	if rep.Contract.Evidence.Present != rep.EvidencePresent {
+		return NewVError(E_CONTRACT, "contract.json", "evidence.present mismatch").WithReason("contract_evidence_mismatch")
 	}
 	return nil
 }
@@ -500,6 +512,12 @@ func validateManifest(rep *VerifyReport) error {
 	checksums, err := ParseSHA256SUMS(rep.SHA256SUMS)
 	if err != nil {
 		return err
+	}
+
+	for _, line := range checksums {
+		if line.Path == PathSHA256SUMS || strings.HasSuffix(line.Path, ".sha256") {
+			return NewVError(E_SHA256, line.Path, "manifest must not list itself or .sha256").WithReason("manifest_invalid")
+		}
 	}
 
 	// Filter out truncated files from expected checksums
@@ -515,6 +533,25 @@ func validateManifest(rep *VerifyReport) error {
 	if err := VerifySHA256SUMSSeal(rep.SHA256SUMS, rep.SHA256SUMSSeal); err != nil {
 		return err
 	}
+
+	allowSet := make(map[string]struct{})
+	for _, c := range checksums {
+		allowSet[c.Path] = struct{}{}
+	}
+	allowSet[PathSHA256SUMS] = struct{}{}
+	allowSet[PathSHA256SUMSSeal] = struct{}{}
+
+	for p := range rep.ActualFiles {
+		if _, ok := allowSet[p]; !ok {
+			return NewVError(E_EXTRA, p, "file not in manifest").WithReason("file_extra")
+		}
+	}
+	for p := range allowSet {
+		if _, ok := rep.ActualFiles[p]; !ok {
+			return NewVError(E_MISSING, p, "file missing in bundle").WithReason("file_missing")
+		}
+	}
+
 	return VerifyChecksumCompleteness(filteredChecksums, rep.ComputedSHA256)
 }
 

@@ -110,7 +110,46 @@ func TestVerify_PassesOnMinimalValidBundle(t *testing.T) {
 	}
 }
 
-func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
+func TestVerify_FileMissing_Stopless(t *testing.T) {
+	bundle, _ := ForgeBundleEx(nil, "review/dummy.txt", "", nil, nil)
+	_, err := VerifyBundle(bytes.NewReader(bundle), DefaultVerifyOptions)
+	if verr, ok := err.(*VError); !ok || verr.Reason != "file_missing" {
+		t.Fatalf("want file_missing, got %v", err)
+	}
+}
+
+func TestVerify_FileExtra_Stopless(t *testing.T) {
+	bundle, _ := ForgeBundleEx(nil, "", "review/z_extra.txt", nil, nil)
+	_, err := VerifyBundle(bytes.NewReader(bundle), DefaultVerifyOptions)
+	if verr, ok := err.(*VError); !ok || verr.Reason != "file_extra" {
+		t.Fatalf("want file_extra, got %v", err)
+	}
+}
+
+func TestVerify_ContractEvidenceMismatch_Stopless(t *testing.T) {
+	bundle, _ := ForgeBundleEx(nil, "review/evidence/prverify/ev", "", nil, func(c *Contract) {
+		c.Evidence.Required = true
+		c.Evidence.Present = true
+	})
+	// evidence directory is missing -> rep.EvidencePresent = false
+	_, err := VerifyBundle(bytes.NewReader(bundle), DefaultVerifyOptions)
+	if verr, ok := err.(*VError); !ok || verr.Reason != "contract_evidence_mismatch" {
+		t.Fatalf("want contract_evidence_mismatch, got %v", err)
+	}
+}
+
+func TestVerify_SHA256SUMSListsSeal_IsRejected(t *testing.T) {
+	bundle, _ := ForgeBundleEx(nil, "", "", func(sums []byte) []byte {
+		// append a bogus seal entry to sums
+		return append(sums, []byte("cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe  review/meta/SHA256SUMS.sha256\n")...)
+	}, nil)
+	_, err := VerifyBundle(bytes.NewReader(bundle), DefaultVerifyOptions)
+	if verr, ok := err.(*VError); !ok || verr.Reason != "manifest_invalid" {
+		t.Fatalf("want manifest_invalid, got %v", err)
+	}
+}
+
+func ForgeBundleEx(mutate func(*tar.Header), skipFile string, extraFile string, mutateSums func([]byte) []byte, mutateContract func(*Contract)) ([]byte, error) {
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 
@@ -137,6 +176,9 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 		},
 		Tool: Tool{Name: "reviewbundle", Version: "0.0.0"},
 	}
+	if mutateContract != nil {
+		mutateContract(&contract)
+	}
 	contractBytes, _ := json.Marshal(contract)
 
 	// Files to add
@@ -145,6 +187,7 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 		"review/meta/contract.json":   contractBytes,
 		"review/patch/series.patch":   []byte("diff --git a/foo b/foo\n"),
 		"review/evidence/prverify/ev": []byte("evidence containing head: cafebabe00112233445566778899aabbccddeeff\n"),
+		"review/dummy.txt":            []byte("dummy\n"),
 	}
 
 	// Calculate SHA256SUMS content
@@ -161,6 +204,9 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 		sumsBuilder.WriteString(fmt.Sprintf("%x  %s\n", hash, name))
 	}
 	sha256sumsBytes := []byte(sumsBuilder.String())
+	if mutateSums != nil {
+		sha256sumsBytes = mutateSums(sha256sumsBytes)
+	}
 	files["review/meta/SHA256SUMS"] = sha256sumsBytes
 	filenames = append(filenames, "review/meta/SHA256SUMS")
 	sort.Strings(filenames) // Re-sort to include SHA256SUMS
@@ -172,13 +218,9 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 	filenames = append(filenames, "review/meta/SHA256SUMS.sha256")
 	sort.Strings(filenames) // Re-sort to include Seal
 
-	// Write to tar
-	for _, name := range filenames {
-		content := files[name]
-		// Phase 7.6: Mode Normalization
+	writeEntry := func(name string, content []byte) error {
 		mode := os.FileMode(0644)
 		if name == "review/evidence/prverify/ev" {
-			// for testing, let's make it executable to test 0755
 			mode = 0755
 		}
 
@@ -199,9 +241,25 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 		}
 
 		if err := tw.WriteHeader(hdr); err != nil {
-			return nil, err
+			return err
 		}
 		if _, err := tw.Write(content); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Write to tar
+	for _, name := range filenames {
+		if name == skipFile {
+			continue
+		}
+		if err := writeEntry(name, files[name]); err != nil {
+			return nil, err
+		}
+	}
+	if extraFile != "" {
+		if err := writeEntry(extraFile, []byte("extra")); err != nil {
 			return nil, err
 		}
 	}
@@ -214,4 +272,8 @@ func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func ForgeBundle(mutate func(*tar.Header)) ([]byte, error) {
+	return ForgeBundleEx(mutate, "", "", nil, nil)
 }

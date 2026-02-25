@@ -17,7 +17,9 @@ SSOT（contract + SHA256SUMS + seal）の輪を閉じる。
 - tests: light + reproducible
 
 ## Evidence (OBS)
-- (paste prverify + key logs here)
+- `tests`: `.local/obs/s12-12_impl_test_20260225T145947Z` (PASS)
+- `strict verify`: `.local/obs/s12-12_impl_verify_strict_20260225T150114Z` (PASS)
+- `prverify`: PASS
 
 ## DoD
 - strict verify: stop=0
