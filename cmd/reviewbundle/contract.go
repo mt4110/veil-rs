@@ -36,7 +36,9 @@ func ValidateContractV11(c *Contract) error {
 	if len(c.HeadSHA) != 40 {
 		return NewVError(E_CONTRACT, "contract.json", "invalid head_sha (want 40 hex chars)").WithReason("contract_invalid")
 	}
-	if c.Evidence.Required {
+	// Validate path_prefix whenever it is set, regardless of Required.
+	// (evidence.present=true but required=false is a valid wip configuration.)
+	if c.Evidence.PathPrefix != "" {
 		if !strings.HasPrefix(c.Evidence.PathPrefix, "review/evidence/") || !strings.HasSuffix(c.Evidence.PathPrefix, "/") {
 			return NewVError(E_CONTRACT, "contract.json", "invalid evidence.path_prefix").WithReason("contract_invalid")
 		}

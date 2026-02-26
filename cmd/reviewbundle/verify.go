@@ -505,6 +505,13 @@ func validateLayout(rep *VerifyReport) error {
 	if rep.Contract.Evidence.Present != rep.EvidencePresent {
 		return NewVError(E_CONTRACT, "contract.json", "evidence.present mismatch").WithReason("contract_evidence_mismatch")
 	}
+	// Validate path_prefix whenever it is set (not just when Required=true),
+	// so bundles with evidence.present=true but required=false are also checked.
+	if rep.Contract.Evidence.PathPrefix != "" {
+		if !strings.HasPrefix(rep.Contract.Evidence.PathPrefix, "review/evidence/") || !strings.HasSuffix(rep.Contract.Evidence.PathPrefix, "/") {
+			return NewVError(E_CONTRACT, "contract.json", "invalid evidence.path_prefix").WithReason("contract_invalid")
+		}
+	}
 	return nil
 }
 
@@ -515,8 +522,11 @@ func validateManifest(rep *VerifyReport) error {
 	}
 
 	for _, line := range checksums {
-		if line.Path == PathSHA256SUMS || strings.HasSuffix(line.Path, ".sha256") {
-			return NewVError(E_SHA256, line.Path, "manifest must not list itself or .sha256").WithReason("manifest_invalid")
+		// SHA256SUMS must not list itself or its seal file.
+		// Only the exact seal path is forbidden, not all *.sha256 files
+		// (bundles may legitimately contain payload files with a .sha256 extension).
+		if line.Path == PathSHA256SUMS || line.Path == PathSHA256SUMSSeal {
+			return NewVError(E_SHA256, line.Path, "manifest must not list itself or its seal file").WithReason("manifest_invalid")
 		}
 	}
 
