@@ -79,6 +79,10 @@ func TestVerify_EvidenceBinding(t *testing.T) {
 			}
 			if tt.mode == "strict" {
 				contract.Evidence.Required = true
+				contract.Evidence.PathPrefix = DirEvidence
+			}
+			if len(tt.evidence) > 0 {
+				contract.Evidence.Present = true
 			}
 			contractBytes, _ := json.Marshal(contract)
 			files["review/meta/contract.json"] = contractBytes

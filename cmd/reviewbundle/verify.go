@@ -61,6 +61,7 @@ type VerifyReport struct {
 	// computed
 	ComputedSHA256 map[string][32]byte
 	TruncatedFiles map[string]bool // new: track files > 4MB
+	ActualFiles    map[string]struct{}
 
 	// extracted raw files (needed for seal/checks)
 	SHA256SUMS     []byte
@@ -112,6 +113,7 @@ func verifyReportFromStream(r io.Reader, opts VerifyOptions) (*VerifyReport, err
 		Opts:           &opts,
 		ComputedSHA256: make(map[string][32]byte),
 		TruncatedFiles: make(map[string]bool),
+		ActualFiles:    make(map[string]struct{}),
 	}
 
 	gz, err := gzip.NewReader(r)
@@ -170,6 +172,10 @@ func verifyReportFromStream(r io.Reader, opts VerifyOptions) (*VerifyReport, err
 		}
 		if err := validateTarPAX(name, hdr); err != nil {
 			return nil, err
+		}
+
+		if hdr.Typeflag != tar.TypeDir {
+			rep.ActualFiles[name] = struct{}{}
 		}
 
 		updateLayoutPresence(name, hdr, rep)
@@ -355,6 +361,15 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 				if n > 0 {
 					rep.TruncatedFiles[name] = true
 
+					// Codex P1 Fix: Count the remainder of the truncated file towards the budget
+					remaining := hdr.Size - int64(len(content))
+					if remaining > 0 {
+						rep.UsedBytes += remaining
+						if rep.Opts.BudgetBytes > 0 && rep.UsedBytes > rep.Opts.BudgetBytes {
+							return NewVError(E_BUDGET, name, "byte count exceeds budget").WithReason("budget_exceeded")
+						}
+					}
+
 					// Phase 7.7: Evidence scanning even for truncated files (Codex P2 feedback)
 					if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
 						if err := scanEvidenceContent(name, content); err != nil {
@@ -491,7 +506,20 @@ func validateLayout(rep *VerifyReport) error {
 		return NewVError(E_LAYOUT, PathSeriesPatch, "missing")
 	}
 	if !rep.EvidencePresent && rep.Contract.Evidence.Required {
-		return NewVError(E_EVIDENCE, DirEvidence, "required but missing")
+		return NewVError(E_EVIDENCE, DirEvidence, "required but missing").WithReason("contract_evidence_mismatch")
+	}
+	if rep.Contract.Mode == "strict" && !rep.Contract.Evidence.Required {
+		return NewVError(E_CONTRACT, "contract.json", "strict mode requires evidence.required=true").WithReason("contract_invalid")
+	}
+	if rep.Contract.Evidence.Present != rep.EvidencePresent {
+		return NewVError(E_CONTRACT, "contract.json", "evidence.present mismatch").WithReason("contract_evidence_mismatch")
+	}
+	// Validate path_prefix whenever it is set (not just when Required=true),
+	// so bundles with evidence.present=true but required=false are also checked.
+	if rep.Contract.Evidence.PathPrefix != "" {
+		if !strings.HasPrefix(rep.Contract.Evidence.PathPrefix, "review/evidence/") || !strings.HasSuffix(rep.Contract.Evidence.PathPrefix, "/") {
+			return NewVError(E_CONTRACT, "contract.json", "invalid evidence.path_prefix").WithReason("contract_invalid")
+		}
 	}
 	return nil
 }
@@ -500,6 +528,15 @@ func validateManifest(rep *VerifyReport) error {
 	checksums, err := ParseSHA256SUMS(rep.SHA256SUMS)
 	if err != nil {
 		return err
+	}
+
+	for _, line := range checksums {
+		// SHA256SUMS must not list itself or its seal file.
+		// Only the exact seal path is forbidden, not all *.sha256 files
+		// (bundles may legitimately contain payload files with a .sha256 extension).
+		if line.Path == PathSHA256SUMS || line.Path == PathSHA256SUMSSeal {
+			return NewVError(E_SHA256, line.Path, "manifest must not list itself or its seal file").WithReason("manifest_invalid")
+		}
 	}
 
 	// Filter out truncated files from expected checksums
@@ -515,6 +552,25 @@ func validateManifest(rep *VerifyReport) error {
 	if err := VerifySHA256SUMSSeal(rep.SHA256SUMS, rep.SHA256SUMSSeal); err != nil {
 		return err
 	}
+
+	allowSet := make(map[string]struct{})
+	for _, c := range checksums {
+		allowSet[c.Path] = struct{}{}
+	}
+	allowSet[PathSHA256SUMS] = struct{}{}
+	allowSet[PathSHA256SUMSSeal] = struct{}{}
+
+	for p := range rep.ActualFiles {
+		if _, ok := allowSet[p]; !ok {
+			return NewVError(E_EXTRA, p, "file not in manifest").WithReason("file_extra")
+		}
+	}
+	for p := range allowSet {
+		if _, ok := rep.ActualFiles[p]; !ok {
+			return NewVError(E_MISSING, p, "file missing in bundle").WithReason("file_missing")
+		}
+	}
+
 	return VerifyChecksumCompleteness(filteredChecksums, rep.ComputedSHA256)
 }
 

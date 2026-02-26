@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func ParseContractJSON(b []byte) (*Contract, error) {
@@ -24,16 +25,23 @@ func ParseContract(r io.Reader) (*Contract, error) {
 
 func ValidateContractV11(c *Contract) error {
 	if c.ContractVersion != "1.1" {
-		return NewVError(E_CONTRACT, "contract.json", fmt.Sprintf("unsupported version: %s (want 1.1)", c.ContractVersion))
+		return NewVError(E_CONTRACT, "contract.json", fmt.Sprintf("unsupported version: %s (want 1.1)", c.ContractVersion)).WithReason("contract_version_unsupported")
 	}
 	if c.Mode != "strict" && c.Mode != "wip" {
-		return NewVError(E_CONTRACT, "contract.json", fmt.Sprintf("invalid mode: %s", c.Mode))
+		return NewVError(E_CONTRACT, "contract.json", fmt.Sprintf("invalid mode: %s", c.Mode)).WithReason("contract_invalid")
 	}
 	if c.EpochSec <= 0 {
-		return NewVError(E_CONTRACT, "contract.json", "invalid epoch_sec")
+		return NewVError(E_CONTRACT, "contract.json", "invalid epoch_sec").WithReason("contract_invalid")
 	}
 	if len(c.HeadSHA) != 40 {
-		return NewVError(E_CONTRACT, "contract.json", "invalid head_sha (want 40 hex chars)")
+		return NewVError(E_CONTRACT, "contract.json", "invalid head_sha (want 40 hex chars)").WithReason("contract_invalid")
+	}
+	// Validate path_prefix whenever it is set, regardless of Required.
+	// (evidence.present=true but required=false is a valid wip configuration.)
+	if c.Evidence.PathPrefix != "" {
+		if !strings.HasPrefix(c.Evidence.PathPrefix, "review/evidence/") || !strings.HasSuffix(c.Evidence.PathPrefix, "/") {
+			return NewVError(E_CONTRACT, "contract.json", "invalid evidence.path_prefix").WithReason("contract_invalid")
+		}
 	}
 	return nil
 }
