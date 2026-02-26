@@ -44,23 +44,6 @@ func (e *VError) WithReason(reason string) *VError {
 	return e
 }
 
-func (e *VError) Line() string {
-	reason := e.Reason
-	if reason == "" {
-		reason = string(e.Code)
-	}
-
-	line := "ERROR: " + reason
-	if e.Path != "" {
-		line += " path=" + e.Path
-	}
-	if e.Detail != "" {
-		line += " detail=" + e.Detail
-	}
-	line += " stop=1"
-	return line
-}
-
 func NewVError(code ErrorCode, path string, detail string) *VError {
 	return &VError{
 		Code:   code,

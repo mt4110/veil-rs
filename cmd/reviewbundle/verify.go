@@ -361,6 +361,15 @@ func processEntryContent(tr *tar.Reader, hdr *tar.Header, rep *VerifyReport) err
 				if n > 0 {
 					rep.TruncatedFiles[name] = true
 
+					// Codex P1 Fix: Count the remainder of the truncated file towards the budget
+					remaining := hdr.Size - int64(len(content))
+					if remaining > 0 {
+						rep.UsedBytes += remaining
+						if rep.Opts.BudgetBytes > 0 && rep.UsedBytes > rep.Opts.BudgetBytes {
+							return NewVError(E_BUDGET, name, "byte count exceeds budget").WithReason("budget_exceeded")
+						}
+					}
+
 					// Phase 7.7: Evidence scanning even for truncated files (Codex P2 feedback)
 					if rep.Opts.EvidenceScan && strings.HasPrefix(name, DirEvidence) {
 						if err := scanEvidenceContent(name, content); err != nil {

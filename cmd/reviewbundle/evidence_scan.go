@@ -23,11 +23,44 @@ func scanEvidenceContent(name string, content []byte) error {
 	text := string(content)
 	lowerText := strings.ToLower(text)
 
-	// file scheme checks (case-insensitive)
-	if strings.Contains(lowerText, "file://") ||
-		strings.Contains(lowerText, "file:/") ||
-		strings.Contains(lowerText, "file:\\") {
-		return NewVError(E_EVIDENCE, name, "forbidden file scheme detected").WithReason("evidence_forbidden")
+	// file scheme checks (case-insensitive), boundary-aware to reduce false positives
+	for i := 0; i < len(text); i++ {
+		// Require start-of-text or a boundary before a potential "file:" token
+		if i > 0 && !isBoundary(text[i-1]) {
+			continue
+		}
+		// Need at least "file:" starting at position i
+		if i+5 > len(text) {
+			break
+		}
+		lowerSlice := lowerText[i : i+5]
+		if lowerSlice == "file:" {
+			// Position just after "file:"
+			j := i + 5
+			if j >= len(text) {
+				continue
+			}
+			// Require at least one slash or backslash to consider this a file URL/path
+			if text[j] != '/' && text[j] != '\\' {
+				continue
+			}
+			// Skip all consecutive slashes/backslashes (e.g., file:/, file://, file:///)
+			k := j
+			for k < len(text) && (text[k] == '/' || text[k] == '\\') {
+				k++
+			}
+			// If there's nothing after the slashes, treat it as a forbidden file reference
+			if k >= len(text) {
+				return NewVError(E_EVIDENCE, name, "forbidden file scheme detected").WithReason("evidence_forbidden")
+			}
+			// If the next character is whitespace, this likely appears in prose
+			// such as "the file:// protocol", so treat it as safe.
+			if text[k] == ' ' || text[k] == '\t' || text[k] == '\n' || text[k] == '\r' {
+				continue
+			}
+			// Otherwise, this looks like a real file URL/path and should be rejected.
+			return NewVError(E_EVIDENCE, name, "forbidden file scheme detected").WithReason("evidence_forbidden")
+		}
 	}
 
 	// absolute path heuristics and parent dir traversals
@@ -49,7 +82,7 @@ func scanEvidenceContent(name string, content []byte) error {
 		}
 
 		// Windows drives (C:\, D:\, C:/)
-		if i+2 < len(text) && (text[i] >= 'A' && text[i] <= 'Z' || text[i] >= 'a' && text[i] <= 'z') {
+		if i+2 < len(text) && ((text[i] >= 'A' && text[i] <= 'Z') || (text[i] >= 'a' && text[i] <= 'z')) {
 			if text[i+1] == ':' && (text[i+2] == '\\' || text[i+2] == '/') {
 				if i == 0 || isBoundary(text[i-1]) {
 					return NewVError(E_EVIDENCE, name, "forbidden Windows drive path detected").WithReason("evidence_forbidden")

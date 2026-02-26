@@ -32,16 +32,16 @@ func ParseSHA256SUMS(b []byte) ([]ChecksumLine, error) {
 
 		// 2.3 path 安全性
 		if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "\\") {
-			return nil, NewVError(E_PATH, path, "absolute path forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+			return nil, NewVError(E_PATH, path, "absolute path forbidden in SHA256SUMS").WithReason("manifest_path_invalid")
 		}
 		if strings.Contains(path, "../") || strings.HasSuffix(path, "/..") || path == ".." {
-			return nil, NewVError(E_PATH, path, "parent traversal forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+			return nil, NewVError(E_PATH, path, "parent traversal forbidden in SHA256SUMS").WithReason("manifest_path_invalid")
 		}
 		if len(path) >= 2 && path[1] == ':' && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) {
-			return nil, NewVError(E_PATH, path, "OS drive expression forbidden in SHA256SUMS").WithReason("evidence_forbidden")
+			return nil, NewVError(E_PATH, path, "OS drive expression forbidden in SHA256SUMS").WithReason("manifest_path_invalid")
 		}
 		if path != "SHA256SUMS" && !strings.HasPrefix(path, "review/") {
-			return nil, NewVError(E_PATH, path, "path must be within review/ directory").WithReason("evidence_forbidden")
+			return nil, NewVError(E_PATH, path, "path must be within review/ directory").WithReason("manifest_path_invalid")
 		}
 
 		sum, err := ParseSHA256HexLine([]byte(sumHex))
