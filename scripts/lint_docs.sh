@@ -49,5 +49,14 @@ if rg -n -- '--fail-score' README*.md 2>/dev/null; then
   exit 1
 fi
 
+# 6. Playbook signature flow Link presence
+echo "Checking for Evidence Signing Playbook Link..."
+for doc in README.md README_EN.md; do
+  if ! rg -q '160_evidence_signing_playbook.md' "$doc"; then
+    echo "[FAIL] $doc is missing the link to the Evidence Signing Playbook."
+    exit 1
+  fi
+done
+
 echo "[PASS] Documentation B2B readiness contract verified."
 exit 0

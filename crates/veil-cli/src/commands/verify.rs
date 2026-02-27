@@ -41,6 +41,7 @@ pub fn verify(
                     "message": verify_result.message,
                     "findings_count": verify_result.findings_count,
                     "is_complete": verify_result.is_complete,
+                    "run_meta_sha256": verify_result.run_meta_sha256,
                 });
                 println!("{}", serde_json::to_string_pretty(&out)?);
             } else {
@@ -51,6 +52,7 @@ pub fn verify(
                         "PASSED".green()
                     );
                     println!("{} {}", "ℹ Message:".blue(), verify_result.message);
+                    println!("   Anchor Hash: {}", verify_result.run_meta_sha256.cyan());
                     println!("   Findings: {}", verify_result.findings_count);
                     println!("   Complete: {}", verify_result.is_complete);
                 } else {
@@ -60,6 +62,7 @@ pub fn verify(
                         "POLICY VIOLATION".red()
                     );
                     println!("{} {}", "ℹ Message:".blue(), verify_result.message);
+                    println!("   Anchor Hash: {}", verify_result.run_meta_sha256.cyan());
                     println!("   Findings: {}", verify_result.findings_count);
                     println!("   Complete: {}", verify_result.is_complete);
                 }

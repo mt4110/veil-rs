@@ -42,6 +42,7 @@ pub struct VerifyResult {
     pub status: VerifyStatus,
     pub is_complete: bool,
     pub findings_count: usize,
+    pub run_meta_sha256: String,
     pub message: String,
 }
 
@@ -289,12 +290,15 @@ pub fn verify_evidence_pack(
         ));
     }
 
+    let run_meta_sha256 = extracted_files.get("run_meta.json").unwrap().clone();
+
     // 6. Validate Application Policies
     if options.require_complete && !is_complete {
         return Ok(VerifyResult {
             status: VerifyStatus::PolicyViolation,
             is_complete,
             findings_count,
+            run_meta_sha256,
             message: "Policy Violation: Evidence pack is incomplete (limit reached during scan)."
                 .to_string(),
         });
@@ -306,6 +310,7 @@ pub fn verify_evidence_pack(
                 status: VerifyStatus::PolicyViolation,
                 is_complete,
                 findings_count,
+                run_meta_sha256,
                 message: format!("Policy Violation: Extracted {} findings, which exceeds the allowed threshold ({}).", findings_count, threshold),
             });
         }
@@ -315,6 +320,7 @@ pub fn verify_evidence_pack(
         status: VerifyStatus::Ok,
         is_complete,
         findings_count,
+        run_meta_sha256,
         message: "✅ Evidence Pack Validation Passed".to_string(),
     })
 }

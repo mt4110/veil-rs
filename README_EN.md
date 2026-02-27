@@ -89,6 +89,21 @@ Veil enables zero-trust compliance via the `verify` command. Auditors can verify
 * `Exit 1`: Valid pack, but failed strict operational policy (e.g., incomplete scan).
 * `Exit 2`: Broken, dangerous (ZipSlip/ZipBomb), corrupted hashes, or token leakages (`#token=`) detected.
 
+## 🔏 Evidence Pack Signing (Audit)
+For audit submission, use an external anchor + signature:
+
+1) Record `run_meta.json` SHA256 (external anchor)
+   ```bash
+   unzip -p evidence.zip run_meta.json | shasum -a 256
+   ```
+2) Sign `evidence.zip` (minisign or SSH)
+3) Third-party verifies signature + runs:
+   ```bash
+   veil verify evidence.zip --expect-run-meta-sha256 <hash>
+   ```
+
+See `docs/design/160_evidence_signing_playbook.md` for the full playbook.
+
 ### JSON Output
 ```bash
 veil scan . --format json

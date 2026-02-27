@@ -104,6 +104,21 @@ cargo run -p veil-pro
 * `Exit 1`: 証拠は正当だが、ポリシーに反している（`--require-complete` 指定時に不完全なスキャンだった等）。
 * `Exit 2`: アーティファクトの改ざん、ZipBomb/ZipSlip攻撃の可能性、または明示的なトークン漏洩（`#token=`など）を検知。
 
+## 🔏 Evidence Pack Signing (監査向け)
+Evidence Pack を第三者が検証できる形で提出する場合は、以下の順で運用します。
+
+1) `run_meta.json` のSHA256を記録（外部アンカー）
+   ```bash
+   unzip -p evidence.zip run_meta.json | shasum -a 256
+   ```
+2) 署名（minisign / SSH）
+3) 第三者が署名検証 + veil verify を実行
+   ```bash
+   veil verify evidence.zip --expect-run-meta-sha256 <hash>
+   ```
+
+詳しくは `docs/design/160_evidence_signing_playbook.md` を参照してください。
+
 ## 🤖 CI Integration (GitHub Actions)
 
 Fail the CI pipeline if the scan score exceeds a threshold (e.g., 50).
