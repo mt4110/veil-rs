@@ -9,6 +9,7 @@ pub mod rules;
 pub mod scanner;
 pub mod scoring;
 pub mod summary;
+pub mod verify;
 
 pub use crate::masking::{apply_masks, apply_masks_spans, MaskSpan, DEFAULT_PLACEHOLDER};
 pub use finding_id::FindingId;
@@ -22,5 +23,6 @@ pub use scanner::{
     RULE_ID_MAX_FILE_SIZE,
 };
 pub use scoring::{calculate_score, grade_from_score, ScoreParams};
+pub use verify::{verify_evidence_pack, VerifyError, VerifyOptions, VerifyResult, VerifyStatus};
 
 // Placeholder for future remote rule fetching

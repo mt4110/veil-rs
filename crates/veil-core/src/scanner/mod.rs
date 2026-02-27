@@ -10,6 +10,31 @@ use veil_config::Config;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+pub const BUILTIN_IGNORES: &[&str] = &[
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "vendor",
+    ".git",
+    ".direnv",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".cache",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    "coverage",
+    ".nyc_output",
+    ".next",
+    ".nuxt",
+    ".svelte-kit",
+    ".terraform",
+    ".terragrunt-cache",
+];
+
 pub struct ScanLimit {
     max: Option<usize>,
     counter: AtomicUsize,
@@ -58,7 +83,31 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
 
     // 1. Collect all valid paths first (sequential walk, usually fast enough)
     // Use ignore::WalkBuilder to respect .gitignore
-    let entries: Vec<_> = WalkBuilder::new(root)
+    let file_limit = config.core.max_file_count.unwrap_or(1_000_000);
+
+    let skipped_builtins =
+        std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
+    let skipped_builtins_clone = skipped_builtins.clone();
+
+    let mut builder = WalkBuilder::new(root);
+    builder.filter_entry(move |entry| {
+        if entry.depth() == 0 {
+            return true;
+        }
+        if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+            if let Some(name) = entry.file_name().to_str() {
+                if BUILTIN_IGNORES.contains(&name) {
+                    if let Ok(mut set) = skipped_builtins_clone.lock() {
+                        set.insert(name.to_string());
+                    }
+                    return false;
+                }
+            }
+        }
+        true
+    });
+
+    let entries: Vec<_> = builder
         .build()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
@@ -73,9 +122,11 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
             }
             true
         })
+        .take(file_limit)
         .collect();
 
     let total_files = entries.len();
+    let file_limit_reached = total_files == file_limit;
     let scanned_counter = AtomicUsize::new(0);
     let skipped_counter = AtomicUsize::new(0);
 
@@ -113,6 +164,11 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         scanned_files: scanned_counter.load(Ordering::Relaxed),
         skipped_files: skipped_counter.load(Ordering::Relaxed),
         limit_reached: limit.check(),
+        file_limit_reached,
+        builtin_skips: std::sync::Arc::into_inner(skipped_builtins)
+            .unwrap_or_default()
+            .into_inner()
+            .unwrap_or_default(),
     }
 }
 

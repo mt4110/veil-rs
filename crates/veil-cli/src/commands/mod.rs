@@ -15,3 +15,4 @@ pub mod scan;
 pub mod sot;
 pub mod triage;
 pub mod update;
+pub mod verify;

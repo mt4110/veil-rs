@@ -7,14 +7,14 @@ fn test_init_ci_github() {
     let temp_dir = tempfile::tempdir().unwrap();
     let temp_path = temp_dir.path();
 
-    // Run veil init --ci github --pin-tag v0.17.0 inside temp dir
+    // Run veil init --ci github --pin-tag v1.0.0 inside temp dir
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(temp_path)
         .arg("init")
         .arg("--ci")
         .arg("github")
         .arg("--pin-tag")
-        .arg("v0.17.0");
+        .arg("v1.0.0");
 
     cmd.assert().success().stdout(predicate::str::contains(
         "Generated GitHub Actions workflow",
@@ -28,8 +28,8 @@ fn test_init_ci_github() {
     let content = fs::read_to_string(workflow_path).unwrap();
     assert!(content.contains("name: Veil Security Scan"));
     assert!(
-        content.contains("--tag v0.17.0"),
-        "workflow should contain pinned tag v0.17.0"
+        content.contains("--tag v1.0.0"),
+        "workflow should contain pinned tag v1.0.0"
     );
     assert!(content.contains("veil scan . --format html"));
 }

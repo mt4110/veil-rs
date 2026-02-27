@@ -69,3 +69,8 @@ crates/veil-cli/.veil/
 /veil
 /reviewbundle
 /localgc
+
+# private design docs (not committed)
+design/
+node_modules/
+.svelte-kit/

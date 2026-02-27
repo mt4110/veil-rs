@@ -10,15 +10,15 @@ veil scan [OPTIONS] [PATHS]...
 
 ### Options
 
-| Option | Description |
-| :--- | :--- |
-| `[PATHS]...` | スキャン対象のパス。デフォルトはカレントディレクトリ (`.`)。 |
-| `--staged` | Gitのステージングエリアにあるファイルのみスキャンします。 (`pre-commit` 用) |
-| `--since <TIME>` | 指定した時間以降のGit変更履歴のみスキャンします。 (例: `1 week ago`, `2024-01-01`) |
-| `--commit <SHA>` | 特定のコミットのみスキャンします。 |
-| `--format <FORMAT>` | 出力フォーマット (`text`, `json`, `html`, `markdown`, `table`)。デフォルトは `text`。 |
-| `--fail-score <SCORE>` | 指定したスコア以上の検出があった場合、終了コード 1 で終了します。 |
-| `--fail-on-severity <LEVEL>` | 指定した重要度以上の検出があった場合、終了コード 1 で終了します。 |
+| Option                       | Description                                                                           |
+| :--------------------------- | :------------------------------------------------------------------------------------ |
+| `[PATHS]...`                 | スキャン対象のパス。デフォルトはカレントディレクトリ (`.`)。                          |
+| `--staged`                   | Gitのステージングエリアにあるファイルのみスキャンします。 (`pre-commit` 用)           |
+| `--since <TIME>`             | 指定した時間以降のGit変更履歴のみスキャンします。 (例: `1 week ago`, `2024-01-01`)    |
+| `--commit <SHA>`             | 特定のコミットのみスキャンします。                                                    |
+| `--format <FORMAT>`          | 出力フォーマット (`text`, `json`, `html`, `markdown`, `table`)。デフォルトは `text`。 |
+| `--fail-on-score <SCORE>`    | 指定したスコア以上の検出があった場合、終了コード 1 で終了します。                     |
+| `--fail-on-severity <LEVEL>` | 指定した重要度以上の検出があった場合、終了コード 1 で終了します。                     |
 
 ### Examples
 
@@ -50,5 +50,5 @@ veil scan --staged
 #### 5. CIでの利用 (Fail設定)
 スコア80以上の検出があった場合にCIを失敗させます。
 ```bash
-veil scan . --fail-score 80
+veil scan . --fail-on-score 80
 ```

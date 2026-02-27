@@ -26,9 +26,12 @@ pub struct Summary {
     pub baseline_suppressed: usize,
     /// Indicates whether the scan stopped early due to limit being reached.
     pub limit_reached: bool,
+    /// Indicates whether the scan stopped early due to max_file_count being reached.
+    pub file_limit_reached: bool,
     pub duration_ms: u128,
     pub baseline_path: Option<String>,
     pub severity_counts: HashMap<Severity, usize>,
+    pub builtin_skips: Vec<String>,
 }
 
 impl Summary {
@@ -41,9 +44,11 @@ impl Summary {
         new_findings: usize,
         baseline_suppressed: usize,
         limit_reached: bool,
+        file_limit_reached: bool,
         duration: std::time::Duration,
         baseline_path: Option<String>,
         severity_counts: HashMap<Severity, usize>,
+        builtin_skips: Vec<String>,
     ) -> Self {
         Self {
             total_files,
@@ -53,9 +58,11 @@ impl Summary {
             new_findings,
             baseline_suppressed,
             limit_reached,
+            file_limit_reached,
             duration_ms: duration.as_millis(),
             baseline_path,
             severity_counts,
+            builtin_skips,
         }
     }
 }
