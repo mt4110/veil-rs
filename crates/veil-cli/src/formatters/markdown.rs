@@ -86,9 +86,11 @@ mod tests {
             new_findings: 0,
             baseline_suppressed: 0,
             limit_reached: false,
+            file_limit_reached: false,
             duration_ms: 1234,
             baseline_path: None,
             severity_counts: HashMap::new(),
+            builtin_skips: Vec::new(),
         };
 
         let result = formatter.print(&findings, &summary);

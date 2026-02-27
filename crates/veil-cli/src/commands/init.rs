@@ -156,6 +156,7 @@ pub fn build_config(answers: &InitAnswers) -> Config {
             include: vec![".".to_string()],
             ignore,
             max_file_size: None,
+            max_file_count: None,
             fail_on_score: final_fail_score,
             remote_rules_url: answers.remote_rules_url.clone(),
             rules_dir,

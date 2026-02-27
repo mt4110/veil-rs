@@ -53,6 +53,7 @@ pub struct CoreConfig {
     #[serde(default)]
     pub ignore: Vec<String>,
     pub max_file_size: Option<u64>,
+    pub max_file_count: Option<usize>,
     pub fail_on_score: Option<u32>,
     pub remote_rules_url: Option<String>,
     pub rules_dir: Option<String>,
@@ -70,6 +71,9 @@ impl Config {
         // Scalars: Override if other has value
         if let Some(val) = other.core.max_file_size {
             self.core.max_file_size = Some(val);
+        }
+        if let Some(val) = other.core.max_file_count {
+            self.core.max_file_count = Some(val);
         }
         if let Some(val) = other.core.fail_on_score {
             self.core.fail_on_score = Some(val);
@@ -107,7 +111,8 @@ impl Default for CoreConfig {
         Self {
             include: default_include(),
             ignore: Vec::new(),
-            max_file_size: None, // Default handled at usage site
+            max_file_size: None,  // Default handled at usage site
+            max_file_count: None, // Default handled at usage site
             fail_on_score: None,
             remote_rules_url: None,
             rules_dir: None,
@@ -156,4 +161,23 @@ pub struct RuleConfig {
 
 fn default_true() -> bool {
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_backward_compatibility() {
+        // Missing max_file_count in the toml shouldn't prevent parsing
+        let toml_str = r#"
+        [core]
+        max_file_size = 1024
+        "#;
+
+        let config: Config = toml::from_str(toml_str).expect("Failed to parse old config format");
+
+        assert_eq!(config.core.max_file_size, Some(1024));
+        assert_eq!(config.core.max_file_count, None);
+    }
 }

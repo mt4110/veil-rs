@@ -13,9 +13,11 @@ stdout = """
     "new_findings": 0,
     "baseline_suppressed": 0,
     "limit_reached": false,
+    "file_limit_reached": false,
     "duration_ms": [..],
     "baseline_path": null,
-    "severity_counts": [..]
+    "severity_counts": {},
+    "builtin_skips": []
   },
   "findings": []
 }

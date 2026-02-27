@@ -1,0 +1,33 @@
+[package]
+name = "veil-pro"
+version = "0.17.0"
+edition = "2021"
+rust-version.workspace = true
+
+[dependencies]
+veil-core = { workspace = true }
+veil-config = { workspace = true }
+axum = "0.7.4"
+tokio = { version = "1.36", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+askama = "0.12.1"
+anyhow = "1.0.81"
+rand = "0.8.5"
+tower-http = { version = "0.5.2", features = ["fs", "cors", "trace"] }
+base64 = "0.22.0"
+open = "5.1.2"
+clap = { version = "4.5.3", features = ["derive", "env"] }
+uuid = { version = "1.20.0", features = ["v4"] }
+chrono = "0.4.44"
+sha2 = "0.10.9"
+hex = "0.4.3"
+zip = "5.0.1"
+toml = "1.0.3"
+rust-embed = "8.3.0"
+oauth2 = "4.4.2"
+reqwest = { version = "0.12.3", default-features = false, features = ["rustls-tls", "json"] }
+tower-sessions = "0.12.1"
+mime_guess = "2.0.4"

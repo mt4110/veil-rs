@@ -149,6 +149,35 @@ pub enum Commands {
     Exceptions(ExceptionsArgs),
     /// Check for updates (stub)
     Update,
+    /// Verify an Evidence Pack (ZIP)
+    Verify {
+        /// Path to the evidence.zip file
+        path: PathBuf,
+        /// Output format (json/text)
+        #[arg(long, default_value = "text")]
+        format: String,
+        /// Fail (exit 1) if the scan was incomplete
+        #[arg(long)]
+        require_complete: bool,
+        /// Fail (exit 1) if findings exceed this threshold
+        #[arg(long)]
+        fail_on_findings: Option<usize>,
+        /// Expect this specific SHA-256 for the run_meta.json (External Anchor)
+        #[arg(long)]
+        expect_run_meta_sha256: Option<String>,
+        /// Maximum allowed size for the ZIP file (bytes)
+        #[arg(long, default_value_t = 500 * 1024 * 1024)]
+        max_zip_bytes: u64,
+        /// Maximum allowed size for any single uncompressed entry (bytes)
+        #[arg(long, default_value_t = 200 * 1024 * 1024)]
+        max_entry_bytes: u64,
+        /// Maximum allowed total uncompressed size for the ZIP (bytes)
+        #[arg(long, default_value_t = 1024 * 1024 * 1024)]
+        max_total_bytes: u64,
+        /// Maximum allowed number of files in the ZIP
+        #[arg(long, default_value_t = 64)]
+        max_files: usize,
+    },
 }
 
 #[derive(Args, Debug, Clone)]

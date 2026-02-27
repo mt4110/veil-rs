@@ -20,7 +20,7 @@ fn write_baseline_creates_file_with_schema() {
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("Baseline written to"));
+        .stderr(predicate::str::contains("Baseline written to"));
 
     assert!(baseline_path.exists());
 

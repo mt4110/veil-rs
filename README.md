@@ -8,10 +8,17 @@ English README is available [here](README_EN.md).
 - **🇯🇵 日本の個人情報に対応**: マイナンバー、運転免許証番号、住所、電話番号などの日本固有フォーマットを高精度に検出。
 - **👮 商用グレード機能**: TOMLによるカスタムルール定義、インライン無視機能 (`# veil:ignore`)、商用レベルのレポート出力。
 - **📊 レポート機能**: 機械処理可能な JSON 出力に加え、提出用としてそのまま使える HTML ダッシュボード (`--format html`) を生成可能。
-- **🛡️ 堅牢な制御**: `--fail-score` によるCI合否判定、`WARN` レベルの柔軟な運用が可能。
+- **🛡️ 堅牢な制御**: `--fail-on-score` によるCI合否判定、`WARN` レベルの柔軟な運用が可能。
 - **⚡ Staged Scan**: `--staged` オプションでコミット予定のファイルだけを高速スキャン。`pre-commit` に最適。
+
+
+### 🛡️ データプライバシーとローカルファースト保証
+Veil は B2B 環境での運用を前提に設計されており、厳格な「ローカルファースト」アーキテクチャに準拠しています。
+- **外部通信ゼロ**: コード、スキャン結果、利用統計などのデータを外部サーバーへ送信することは一切ありません。
+- **セキュアなローカル運用**: Veil Pro ダッシュボードは完全に `localhost` (127.0.0.1) で稼働し、外部アセット（CDN等）の依存を排除。トークンの持ち出しを防ぐ厳格な CSP（Content-Security-Policy）を強制します。
+- **完全隔離**: スキャン、ベースラインの生成、レポート出力機能はすべて、ローカル環境またはCIランナー内のみで完結します。
 - **📦 バイナリ/巨大ファイル対策**: バイナリファイルや1MB超の巨大ファイルは自動でスキップし、CIの詰まりや文字化けを防止。
-- **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_RULES`) を読み込む階層化ポリシー管理に対応。
+- **🔧 完全設定可能 & 階層化**: `veil.toml` に加え、組織ごとの共通設定 (`VEIL_ORG_CONFIG`) を読み込む階層化ポリシー管理に対応。
 - **💉 Stop the Bleeding (Baseline)**: 既存の技術的負債をスナップショット化し、"新規の漏洩" だけを確実に止める [Baseline Scanning](docs/baseline/usage.md) を標準搭載。
 
 ## Canonical Rules: RulePack (Source of Truth)
@@ -44,101 +51,106 @@ rules_dir = "rules/log"
 Generate a repo-local Log RulePack template:
 
 ```bash
-# 推奨: リリースタグ固定でインストール
-cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
-
-# 開発者向け (Nix): このリポジトリからビルド
-nix develop
-cargo install --path crates/veil-cli
-```
-> **Note (Windows users):** Nix環境は不要ですが、**Rust (Cargo) のインストールは必須**です。通常通り `cargo install --path crates/veil-cli` でインストールしてください。
-
-### 2. あなたのプロジェクトへ移動 (Go to YOUR project)
-
-Veilのリポジトリから離れて、**あなたがスキャンしたいプロジェクト**のフォルダへ移動してください。
-
-```bash
-# 一時的に試す
-nix run github:mt4110/veil-rs#veil -- --version
-
-# ローカルでビルドだけしたい場合
-nix build github:mt4110/veil-rs#veil
-ls result/bin/veil
+veil init --profile Logs
 ```
 
-### ソースコードからビルド
+## 📦 Install
+### Cargo (Recommended)
 ```bash
-git clone https://github.com/mt4110/veil-rs.git
-cd veil-rs
-
-# 開発環境に入る (推奨: 必要なRustバージョンやライブラリが揃います)
-nix develop
-
-cargo build --release
+cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v1.0.0 veil-cli
 ```
+*(Requires Rust 1.82.0+)*
 
-> [!TIP]
-> **Check MSRV (1.82.0)**
-> ```bash
-> nix develop .#msrv
-> ```
-
-
-> [!IMPORTANT]
-> **開発者向け: Nix環境の利用について**
-> 本プロジェクトは `nix develop` 環境での開発を前提としています。
-> システムの Rust バージョンが古い場合（例: 1.82.0以下）、最新の依存クレート（Rust 2024 Edition要求など）のビルドに失敗する可能性があります。
-> 必ず `nix develop` を経由して、プロジェクトが指定する適切なツールチェーンを使用してください。
-
-## 使い方
-
-### 0. 初期セットアップ (推奨)
-プロジェクトに合わせた最適な設定ファイルを対話的に作成します。
+## ⏱️ 60-Second Quickstart
 
 ```bash
+# 1. Initialize your project's configuration
 veil init --wizard
-```
 
-### 1. 安全性の確認 (推奨)
-新しいルールを追加したり設定を変更した場合は、必ず構成チェックを行ってください。
-
-```bash
+# 2. Validate your rules
 veil config check
-```
 
-### 2. 基本スキャン
-```bash
+# 3. Run your first scan
 veil scan .
 ```
 
-### 3. 脆弱性スキャン (Guardian)
-ロックファイル (Cargo.lock, package-lock.json 等) を解析し、既知の脆弱性を検出します。
+## 🖥️ Veil Pro ダッシュボード・クイックスタート
+**Veil Pro ダッシュボード** は、日々の誤検知トリアージ、ノイズ管理、および監査証跡の作成を行う「ローカル向けコマンドセンター」です。B2Bグレードのセキュリティ（完全オフライン、ゼロ・テレメトリ）を備えています。
 
+1. **ダッシュボードを起動**:
 ```bash
-# 通常スキャン (高速)
-veil guardian check
+cargo run -p veil-pro
+```
+2. **安全にアクセス**: サーバーは `127.0.0.1` 以外にはバインドしません。`stderr` に出力された URL をブラウザで開いてください（例: `http://127.0.0.1:3000/#token=xxxxxxxx`）。`#token` のフラグメント認証により、サーバーログや履歴にクレデンシャルが漏洩するのを未然に防ぎます。
+3. **外部公開厳禁**: リバースプロキシなどを用いてインターネットや 0.0.0.0 に公開しないでください。
+4. **監査証跡の出力**: UI上の「Export Evidence Pack」ボタンを使うと、監査提出用に `report.html`, `report.json`, 実行メタデータ (`run_meta`) などを一括でZIP化してダウンロードできます。
 
-# 詳細表示 (OSVから詳細情報を取得・キャッシュ)
-veil guardian check --osv-details
+### 🕵️ 第三者機関による証拠検証 (Golden Path)
+外部通信ゼロ・完全オフラインで証拠の改ざんや漏洩がないかを検証する `verify` コマンドを提供しています。
 
-# オフラインモード (キャッシュのみ使用)
-veil guardian check --osv-details --offline
+1. **証拠の生成**: ダッシュボードから `evidence.zip` をエクスポートします。
+2. **信頼のアンカーを記録**: ZIPに含まれる `run_meta.json` を抽出し、**生バイト列（raw bytes）のSHA256ハッシュ** を計算します。この値をチケットシステム等に記録してください。
+   ```bash
+   unzip -p evidence.zip run_meta.json | shasum -a 256
+   # e.g. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+   ```
+3. **整合性の検証**: 監査担当者は提供された証拠パックと記録されたハッシュを突き合わせ、第三者検証を実行します。
+   ```bash
+   veil verify evidence.zip \
+     --expect-run-meta-sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 \
+     --require-complete
+   ```
+* `Exit 0`: ZIP構造・ハッシュの一貫性・安全性が確認され、トークン漏洩がない証明。
+* `Exit 1`: 証拠は正当だが、ポリシーに反している（`--require-complete` 指定時に不完全なスキャンだった等）。
+* `Exit 2`: アーティファクトの改ざん、ZipBomb/ZipSlip攻撃の可能性、または明示的なトークン漏洩（`#token=`など）を検知。
+
+## 🤖 CI Integration (GitHub Actions)
+
+Fail the CI pipeline if the scan score exceeds a threshold (e.g., 50).
+
+```yaml
+- name: Veil Security Scan
+  run: |
+    # 1. Save HTML report as an artifact
+    veil scan . --format html > veil-report.html
+
+    # 2. Fail CI if findings exceed score 50
+    veil scan . --fail-on-score 50
 ```
 
-> [!TIP]
-> **キャッシュと更新**:
-> 詳細情報は `~/.cache/veil/guardian/osv/vulns` (OS依存) に保存されます。
-> CI等で強制的に最新情報を取得したい場合は `VEIL_OSV_FORCE_REFRESH=1` を設定してください。
+## 🩹 Stop the Bleeding (Baseline)
 
-### JSON 出力
+When introducing Veil to an existing codebase with legacy secrets, map them to a baseline so CI only fails on **new** secrets.
+
 ```bash
-veil scan . --format json
+# Generate the baseline snapshot of current findings
+veil scan . --format json > .veil-baseline.json
+
+# Tell Veil to ignore these existing findings in future scans
+export VEIL_BASELINE_FILE=.veil-baseline.json
+
+# Scans will now only report NEW violations
+veil scan .
 ```
 
-### HTML ダッシュボード (監査レポート用)
+## 🚦 Exit Codes
+Veil uses strict exit codes to ensure robust CI automation.
+
+| Code | Meaning        | Example                                                                                                |
+| ---- | -------------- | ------------------------------------------------------------------------------------------------------ |
+| `0`  | **Success**    | Scan completed with no fail-threshold violations.                                                      |
+| `1`  | **Violation**  | Scan completed but findings exceeded `--fail-on-score`, `--fail-on-severity`, or `--fail-on-findings`. |
+| `2`  | **Tool Error** | Scan aborted due to config error, reaching max limits, or baseline mismatch.                           |
+
+## 🔇 Machine Output Purity (stdout / stderr)
+For reliable automation, Veil strictly enforces output purity:
+
+* **stdout**: Contains ONLY the requested machine format (e.g. valid JSON parsing via `--format json`).
+* **stderr**: Contains ALL human-readable logs, warnings, progress bars, and diagnostics.
+
 ```bash
-veil scan . --format html > report.html
-open report.html
+# This will NEVER corrupt the JSON file with random warnings!
+veil scan . --format json > report.json
 ```
 
 ## Testing
@@ -224,12 +236,13 @@ let test_token = "ghp_xxxxxxxx"; // veil:ignore=github_personal_access_token
 
 ### 3. ポリシーの階層化 (Policy Layering)
 全社共通のブラックリストや許容設定を一括管理できます。
-環境変数 `VEIL_ORG_RULES` に共通設定ファイルのパスを指定すると、各プロジェクトの `veil.toml` とマージされます（プロジェクト設定が優先）。
+環境変数 `VEIL_ORG_CONFIG` に共通設定ファイルのパスを指定すると、各プロジェクトの `veil.toml` とマージされます（プロジェクト設定が優先）。
 
 ```bash
-export VEIL_ORG_RULES=/etc/veil/org_policy.toml
+export VEIL_ORG_CONFIG=/etc/veil/org_policy.toml
 # org_policy.toml で "fail_on_score = 50" を設定しておけば、全プロジェクトで厳格なチェックを強制可能
 ```
+> **Note:** 以前の環境変数 `VEIL_ORG_RULES` は **非推奨 (Deprecated)** となりました。今後は `VEIL_ORG_CONFIG` を使用してください。
 
 ### 3. CI/CD インテグレーション
 GitHub Actions や GitLab CI ですぐに使えるテンプレートを `examples/ci/` に用意しています。
@@ -242,7 +255,7 @@ GitHub Actions や GitLab CI ですぐに使えるテンプレートを `example
     veil scan . --format html > report.html
 
     # スコア80以上の検出があればCI失敗
-    veil scan . --fail-score 80
+    veil scan . --fail-on-score 80
     
     # または、変更されたファイルだけをチェック (Pull Request時など)
     # veil scan --staged
@@ -256,6 +269,30 @@ Detailed guides for integrating `veil-rs` into your workflow:
 *   **[pre-commit Framework](docs/integrations/pre-commit.md)**: Drop-in support for `.pre-commit-config.yaml`.
 *   **[Native Git Hooks](docs/integrations/git-hook.md)**: Simple shell script for `.git/hooks`.
 *   **[GitHub Actions](docs/integrations/github-actions.md)**: CI integration template.
+
+---
+
+## ⚠️ Common Pitfalls & Troubleshooting (よくある落とし穴とトラブルシューティング)
+
+**1. Exit Code 2: "Scan Incomplete" (Limit Reached)**
+*   **What**: Veil stopped scanning because it hit the `max_file_count` or `max_findings` limit. This is a safety measure to prevent Out-Of-Memory errors or hanging CI jobs.
+*   **How to fix**: 
+    1.  **Reduce Scope**: Use `veil.toml` to specify `[core] ignore = ["tests/data", "dist"]` or scan specific folders (`veil scan src/`).
+    2.  **Use Baseline**: If returning 10,000 existing secrets, use the Baseline feature to suppress them so you only process *new* findings.
+    3.  **Increase Limit**: If you genuinely need to scan millions of files, increase `core.max_file_count` in `veil.toml`.
+
+**2. Stdout vs. Stderr Purity (JSON broken)**
+*   **What**: You ran `veil scan . --format json` in a script, but the JSON parser failed.
+*   **Why**: You likely piped both `stdout` and `stderr` into your file (e.g., `> report.json 2>&1`). Veil strictly separates output: pure JSON/HTML goes to `stdout`, while human-readable logs, defaults skipped boundaries, and diagnostics go to `stderr`. 
+*   **How to fix**: Only capture `stdout`! Use `veil scan . --format json > report.json`
+
+**3. Org Config Overrides not applying**
+*   **What**: You set `VEIL_ORG_CONFIG=/etc/veil/org_policy.toml`, but rules aren't changing.
+*   **Why**: Local `veil.toml` settings always take precedence over the Org Config. If your local config specifies `fail_on_score = 100`, it will override the org policy.
+
+**4. "I edited veil.ci.toml but my local scan ignores it!"**
+*   **Why**: Veil automatically detects and loads `veil.ci.toml` *only* if the `CI=true` or `GITHUB_ACTIONS=true` environment variable is set. Otherwise, it prefers `veil.toml`.
+*   **How to fix**: Explicitly pass the config file if you want to test CI rules locally: `veil scan --config veil.ci.toml .`
 
 ---
 

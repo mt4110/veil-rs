@@ -109,6 +109,7 @@ pub fn collect_findings(
     let scanned_files_atomic = AtomicUsize::new(0);
     let skipped_files_atomic = AtomicUsize::new(0);
     let mut all_findings = Vec::new();
+    let mut all_builtin_skips = std::collections::HashSet::new();
 
     // Limit Logic (Global)
     let limit_val = if let Some(l) = limit {
@@ -120,6 +121,8 @@ pub fn collect_findings(
     } else {
         config.output.max_findings
     };
+
+    let mut any_file_limit_reached = false;
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -172,7 +175,7 @@ pub fn collect_findings(
                 }
             }
         } else {
-            println!("Scanning root commit not fully optimized yet.");
+            eprintln!("Scanning root commit not fully optimized yet.");
         }
     } else if let Some(since_str) = since {
         // 2. Scan history since time
@@ -260,9 +263,11 @@ pub fn collect_findings(
                         0,
                         0, // baseline_suppressed
                         false,
+                        false,
                         start_time.elapsed(),
                         None, // baseline_path
                         HashMap::new(),
+                        Vec::new(),
                     ),
                     findings: vec![],
                     suppressed_findings: vec![],
@@ -327,10 +332,16 @@ pub fn collect_findings(
             let result = veil_core::scan_path(&path, &rules, &run_config);
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
+            any_file_limit_reached |= result.file_limit_reached;
+            all_builtin_skips.extend(result.builtin_skips);
             let count = result.findings.len();
             all_findings.extend(result.findings);
             current_total += count;
         }
+
+        // Store this so we can reference it out of the block, we'll assign it to a boolean in the outer scope
+        // Actually, it's easier to just pass it through the struct.
+        // We'll mutate a variable defined outside the if/else block.
     }
 
     let scanned_files = scanned_files_atomic.load(Ordering::Relaxed);
@@ -369,10 +380,7 @@ pub fn collect_findings(
     };
 
     if is_truncated {
-        eprintln!(
-            "⚠ Reached finding limit ({}). Further findings were not scanned.",
-            limit_val.unwrap_or(0)
-        );
+        // Will be handled in `scan` for detailed UX Output
     }
 
     let summary = Summary::new(
@@ -383,9 +391,11 @@ pub fn collect_findings(
         final_findings.len(),                             // new
         suppressed_findings.len(),
         is_truncated,
+        any_file_limit_reached,
         duration,
         baseline_path.map(|p| p.to_string_lossy().to_string()),
         severity_counts,
+        all_builtin_skips.into_iter().collect(),
     );
 
     Ok(ScanResultForCli {
@@ -417,7 +427,7 @@ pub fn scan(
     let format: Format = format_str.as_str().into();
 
     if show_progress {
-        println!("Scanning...");
+        eprintln!("Scanning...");
     }
 
     // Load config here for scan command to support --config arg
@@ -449,7 +459,7 @@ pub fn scan(
         // Save to file
         save_baseline(path, &snapshot).context("Failed to save baseline file")?;
 
-        println!(
+        eprintln!(
             "Baseline written to {:?} ({} findings, schema={})",
             path,
             snapshot.entries.len(),
@@ -518,6 +528,49 @@ pub fn scan(
                     .and_then(|c| c.core.fail_on_score)
             })
     };
+
+    if !result.summary.builtin_skips.is_empty() {
+        eprintln!(
+            "{} Skipped by default: {}",
+            "ℹ".cyan(),
+            result.summary.builtin_skips.join(", ")
+        );
+    }
+
+    if result.summary.file_limit_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("  What: The maximum file count limit (core.max_file_count) was reached.");
+        eprintln!("  Why:  To prevent runaway scans, Veil stops when this safety boundary is hit.");
+        eprintln!("        However, passing CI with a truncated scan is dangerous.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Reduce your scanning scope by pointing Veil to specific targets:");
+        eprintln!("       veil scan src/ configs/");
+        eprintln!("    B) Exclude the vast/noise directories in your veil.toml:");
+        eprintln!("       [core]");
+        eprintln!("       ignore = [\"tests/data\", \"docs/images\"]");
+        eprintln!("    C) Increase the limit if you genuinely have a massive repository.");
+        std::process::exit(2);
+    }
+
+    if result.summary.limit_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("  What: The maximum findings limit (output.max_findings) was reached.");
+        eprintln!("  Why:  Too many secrets were detected, risking OOM or unreadable reports.");
+        eprintln!("        Passing CI with truncated findings hides remaining vulnerabilities.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Address the current findings and re-scan.");
+        eprintln!("    B) Filter out noisy rules in your veil.toml if they are false positives:");
+        eprintln!("       [rules.\"rule.id.here\"]");
+        eprintln!("       enabled = false");
+        eprintln!(
+            "    C) Use Baseline to suppress existing known-issues so you only see new ones."
+        );
+        std::process::exit(2);
+    }
 
     let should_fail = determine_exit_code(
         &result.summary,
@@ -683,7 +736,16 @@ impl Formatter for TextFormatterWrapper {
         }
 
         if summary.limit_reached {
-            println!("{}", "  (Output truncated due to limit)".yellow());
+            println!("{}", "  (Output truncated due to finding limit)".yellow());
+        }
+
+        if summary.file_limit_reached {
+            println!(
+                "{}",
+                "  (Scan incomplete: stopped early due to max_file_count limit)"
+                    .red()
+                    .bold()
+            );
         }
 
         Ok(())

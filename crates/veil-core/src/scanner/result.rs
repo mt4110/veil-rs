@@ -7,4 +7,6 @@ pub struct ScanResult {
     pub scanned_files: usize,
     pub skipped_files: usize,
     pub limit_reached: bool,
+    pub file_limit_reached: bool,
+    pub builtin_skips: std::collections::HashSet<String>,
 }

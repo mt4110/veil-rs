@@ -131,6 +131,28 @@ fn main() -> anyhow::Result<()> {
         Some(Commands::Sot(cmd)) => commands::sot::run(cmd).map(|_| false),
         Some(Commands::Exceptions(args)) => commands::exceptions::run(args).map(|_| false),
         Some(Commands::Update) => commands::update::update().map(|_| false),
+        Some(Commands::Verify {
+            path,
+            format,
+            require_complete,
+            fail_on_findings,
+            expect_run_meta_sha256,
+            max_zip_bytes,
+            max_entry_bytes,
+            max_total_bytes,
+            max_files,
+        }) => commands::verify::verify(
+            path.clone(),
+            format.clone(),
+            *require_complete,
+            *fail_on_findings,
+            expect_run_meta_sha256.clone(),
+            *max_zip_bytes,
+            *max_entry_bytes,
+            *max_total_bytes,
+            *max_files,
+        )
+        .map(|_| false),
         None => {
             // If no subcommand is provided, print help
             use clap::CommandFactory;
