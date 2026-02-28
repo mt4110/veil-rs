@@ -24,6 +24,8 @@ result/dogfood/
 !docs/dogfood/*-Tokyo/
 !docs/dogfood/*-Tokyo/
 !docs/dogfood/README.md
+docs/sales/*
+docs/pricing/*
 
 # Test debugging artifacts
 cli_test_out*.txt
@@ -74,3 +76,7 @@ crates/veil-cli/.veil/
 design/
 node_modules/
 .svelte-kit/
+
+# GTM SOT directories
+.private/
+.design/
