@@ -32,7 +32,7 @@ fn test_json_output_purity_with_limit() {
 
     // Depending on fail-on-findings or fail-score defaults, it might exit 0 or 1.
     // We mainly care about stdout and stderr.
-    let assert = assert.stderr(predicate::str::contains("Reached finding limit (1)"));
+    let assert = assert.stderr(predicate::str::contains("output.max_findings"));
 
     let output = assert.get_output();
     let stdout_str = String::from_utf8_lossy(&output.stdout);
@@ -76,7 +76,7 @@ max_file_count = 1
     let assert = cmd.assert().code(2);
 
     let assert = assert.stderr(predicate::str::contains(
-        "The scan was truncated due to max_file_count limit",
+        "core.max_file_count",
     ));
 
     let output = assert.get_output();
