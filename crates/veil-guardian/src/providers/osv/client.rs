@@ -918,7 +918,7 @@ impl OsvClientInternal {
             // Async Query Chunk
             let results = self.query_chunk_async(chunk).await?;
 
-            for (pkg, os_vulns) in chunk.iter().zip(results.into_iter()) {
+            for (pkg, os_vulns) in chunk.iter().zip(results) {
                 if let Some(vulns) = os_vulns {
                     if !vulns.is_empty() {
                         let mut advisories = Vec::new();

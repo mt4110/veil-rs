@@ -113,10 +113,8 @@ async fn main() -> anyhow::Result<()> {
     println!(" URL: {}", url);
     println!("=======================================================");
 
-    if !cli.no_open {
-        if open::that(&url).is_err() {
-            tracing::warn!("Failed to open browser automatically. Please open the URL manually.");
-        }
+    if !cli.no_open && open::that(&url).is_err() {
+        tracing::warn!("Failed to open browser automatically. Please open the URL manually.");
     }
 
     axum::serve(listener, app).await?;

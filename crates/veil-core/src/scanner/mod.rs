@@ -94,7 +94,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         if entry.depth() == 0 {
             return true;
         }
-        if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+        if entry.file_type().is_some_and(|ft| ft.is_dir()) {
             if let Some(name) = entry.file_name().to_str() {
                 if BUILTIN_IGNORES.contains(&name) {
                     if let Ok(mut set) = skipped_builtins_clone.lock() {

@@ -55,7 +55,7 @@ pub struct SafeFindingApiV1 {
 
 - baseline照合は `baseline_fingerprint` のみで行う。
 - `finding_id == baseline_fingerprint` を仮定してはならない。
-- `veil.baseline.json` は `baseline_fingerprint` を保存する。
+- `veil.baseline.json` 内のJSON field名は既存互換のため `fingerprint` とし、API/Evidence field名 `baselineFingerprint` とは分ける。
 - `finding_id` は表示/API操作用であり、baseline互換性の正本ではない。
 - どちらも raw secret / matched content を含まない opaque identifier とする。
 

@@ -56,6 +56,8 @@ cargo run -p veil-cli -- verify tests/fixtures/evidence/golden.zip --require-com
 
 acceptance gate は PATH上の `veil` バイナリには依存しない。必ず `cargo run -p veil-cli -- verify ...` を使う。
 
+実行用ラッパーは shell script ではなく `python scripts/check_contract_acceptance.py` とする。このラッパーは上記コマンド列を直列実行するだけで、正本はこの14.4のコマンド列である。
+
 実運用ではCPU/端末安全のため直列実行を推奨する。CIでは各ステップを独立jobにしてもよいが、完了判定は同一ゲート名 `contract-acceptance` に集約する。
 
 ## 14.5 Rollback条件

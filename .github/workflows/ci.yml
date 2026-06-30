@@ -20,14 +20,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Ensure no .sh files
+      - name: Ensure no new .sh files
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
+          set -euo pipefail
+
           # CI scripts in ops/ci/ are allowed as an exception.
           # Vendored scripts (vendor/) are ignored as they are upstream dependencies.
-          if git ls-files '*.sh' | grep -Ev '^(ops/ci/|vendor/)' > /dev/null; then
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            candidates="$(git diff --name-only --diff-filter=ACMR "${PR_BASE_SHA}...${PR_HEAD_SHA}" -- '*.sh')"
+          elif [ -n "${PUSH_BEFORE_SHA}" ] && [ "${PUSH_BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+            candidates="$(git diff --name-only --diff-filter=ACMR "${PUSH_BEFORE_SHA}...${GITHUB_SHA}" -- '*.sh')"
+          else
+            candidates="$(git ls-files '*.sh')"
+          fi
+
+          forbidden="$(printf '%s\n' "${candidates}" | grep -Ev '^(ops/ci/|vendor/)' || true)"
+          if [ -n "${forbidden}" ]; then
             echo "Error: Shell scripts (.sh) are forbidden. Please use Go/Nix/Rust."
             echo "Exceptions: ops/ci/*.sh and vendor/**/*.sh are allowed."
-            git ls-files '*.sh' | grep -Ev '^(ops/ci/|vendor/)'
+            printf '%s\n' "${forbidden}"
             exit 1
           fi
 

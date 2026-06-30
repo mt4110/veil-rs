@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::Write;
@@ -56,17 +56,16 @@ fn create_golden_zip(dir: &TempDir) -> std::path::PathBuf {
     })
     .to_string();
 
-    zip.start_file("run_meta.json", options.clone()).unwrap();
+    zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
 
-    zip.start_file("effective_config.toml", options.clone())
-        .unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(effective_config_content).unwrap();
 
-    zip.start_file("report.json", options.clone()).unwrap();
+    zip.start_file("report.json", options).unwrap();
     zip.write_all(report_json_content).unwrap();
 
-    zip.start_file("report.html", options.clone()).unwrap();
+    zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
 
     zip.finish().unwrap();
@@ -78,7 +77,7 @@ fn test_golden_zip() {
     let dir = TempDir::new().unwrap();
     let zip_path = create_golden_zip(&dir);
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify").arg(&zip_path);
 
     cmd.assert()
@@ -122,20 +121,19 @@ fn test_hash_mismatch() {
     })
     .to_string();
 
-    zip.start_file("run_meta.json", options.clone()).unwrap();
+    zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
-    zip.start_file("effective_config.toml", options.clone())
-        .unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(b"rules = []").unwrap();
-    zip.start_file("report.html", options.clone()).unwrap();
+    zip.start_file("report.html", options).unwrap();
     zip.write_all(b"<html></html>").unwrap();
 
     // Write MALICIOUS report
-    zip.start_file("report.json", options.clone()).unwrap();
+    zip.start_file("report.json", options).unwrap();
     zip.write_all(malicious_report).unwrap();
     zip.finish().unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify").arg(&zip_path);
 
     cmd.assert()
@@ -149,7 +147,7 @@ fn test_external_anchor_mismatch() {
     let dir = TempDir::new().unwrap();
     let zip_path = create_golden_zip(&dir);
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify")
         .arg(&zip_path)
         .arg("--expect-run-meta-sha256")
@@ -179,22 +177,21 @@ fn test_zip_slip() {
         serde_json::json!({ "schemaVersion": "veil-pro-run-meta-v1", "artifacts": artifacts })
             .to_string();
 
-    zip.start_file("run_meta.json", options.clone()).unwrap();
+    zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
-    zip.start_file("report.html", options.clone()).unwrap();
+    zip.start_file("report.html", options).unwrap();
     zip.write_all(b"").unwrap();
-    zip.start_file("report.json", options.clone()).unwrap();
+    zip.start_file("report.json", options).unwrap();
     zip.write_all(b"").unwrap();
-    zip.start_file("effective_config.toml", options.clone())
-        .unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(b"").unwrap();
 
     // DANGEROUS PATH INJECTION
-    zip.start_file("../evil.txt", options.clone()).unwrap();
+    zip.start_file("../evil.txt", options).unwrap();
     zip.write_all(b"I overwrite your system_keys").unwrap();
     zip.finish().unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify").arg(&zip_path);
 
     cmd.assert()
@@ -220,20 +217,19 @@ fn test_token_leakage() {
         serde_json::json!({ "schemaVersion": "veil-pro-run-meta-v1", "artifacts": artifacts })
             .to_string();
 
-    zip.start_file("run_meta.json", options.clone()).unwrap();
+    zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
-    zip.start_file("report.html", options.clone()).unwrap();
+    zip.start_file("report.html", options).unwrap();
     // Inject leakage here
     zip.write_all(b"<html><script>window.location.hash='#token=secret123';</script></html>")
         .unwrap();
-    zip.start_file("report.json", options.clone()).unwrap();
+    zip.start_file("report.json", options).unwrap();
     zip.write_all(b"").unwrap();
-    zip.start_file("effective_config.toml", options.clone())
-        .unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(b"").unwrap();
     zip.finish().unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify").arg(&zip_path);
 
     cmd.assert()
@@ -272,18 +268,17 @@ fn test_require_complete_fail() {
     })
     .to_string();
 
-    zip.start_file("run_meta.json", options.clone()).unwrap();
+    zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
-    zip.start_file("report.html", options.clone()).unwrap();
+    zip.start_file("report.html", options).unwrap();
     zip.write_all(html_rep).unwrap();
-    zip.start_file("report.json", options.clone()).unwrap();
+    zip.start_file("report.json", options).unwrap();
     zip.write_all(json_rep).unwrap();
-    zip.start_file("effective_config.toml", options.clone())
-        .unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(rule_config).unwrap();
     zip.finish().unwrap();
 
-    let mut cmd = Command::cargo_bin("veil").unwrap();
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("verify").arg(&zip_path).arg("--require-complete");
 
     cmd.assert()

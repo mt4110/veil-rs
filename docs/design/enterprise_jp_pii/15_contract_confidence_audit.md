@@ -38,7 +38,7 @@ v4.4時点で、設計契約としての既知の実装停止要因は Contract 
 - 生成物とtracked schemaの差分を `scripts/check_generated_schemas.py` で検出する。
 - JSON Schema resolverで未解決 `$ref` を検出する。
 - OpenAPI内部 `$ref` を検出する。
-- `./scripts/acceptance_gate.sh` を唯一の完了判定にする。
+- `python scripts/check_contract_acceptance.py` で `14.4 Acceptance Gate` のコマンド列を直列実行する。
 - acceptance gate失敗時は `14_bulk_implementation_safety.md` のDAG層までrollbackする。
 
 ## Confidence boundary

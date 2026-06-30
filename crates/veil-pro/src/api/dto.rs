@@ -80,6 +80,7 @@ pub enum RunStatus {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::enum_variant_names)]
 pub enum PresetName {
     StandardJp,
     FintechJp,

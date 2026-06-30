@@ -10,6 +10,7 @@ use chrono::Utc;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+#[allow(clippy::too_many_arguments)]
 pub fn generate_evidence_pack(
     config: &veil_config::Config,
     findings: &[SafeFindingApiV1],

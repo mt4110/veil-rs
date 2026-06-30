@@ -339,7 +339,7 @@ DTO/schema生成
 
 - `findingId`: Local API / Evidence / UI操作で使う表示・相関ID。
 - `baselineFingerprint`: baseline suppress照合に使う長期安定キー。
-- `veil.baseline.json` は `baselineFingerprint` を保存する。
+- `veil.baseline.json` 内のJSON field名は既存互換のため `fingerprint` とし、API/Evidence field名 `baselineFingerprint` とは分ける。
 - baseline照合で `findingId` を使ってはならない。
 - `findingId == baselineFingerprint` を仮定してはならない。
 - どちらも raw secret を含まない opaque identifier とする。
@@ -2107,7 +2107,7 @@ pub struct SafeFindingApiV1 {
 
 - baseline照合は `baseline_fingerprint` のみで行う。
 - `finding_id == baseline_fingerprint` を仮定してはならない。
-- `veil.baseline.json` は `baseline_fingerprint` を保存する。
+- `veil.baseline.json` 内のJSON field名は既存互換のため `fingerprint` とし、API/Evidence field名 `baselineFingerprint` とは分ける。
 - `finding_id` は表示/API操作用であり、baseline互換性の正本ではない。
 - どちらも raw secret / matched content を含まない opaque identifier とする。
 
@@ -2643,6 +2643,8 @@ cargo run -p veil-cli -- verify tests/fixtures/evidence/golden.zip --require-com
 
 acceptance gate は PATH上の `veil` バイナリには依存しない。必ず `cargo run -p veil-cli -- verify ...` を使う。
 
+実行用ラッパーは shell script ではなく `python scripts/check_contract_acceptance.py` とする。このラッパーは上記コマンド列を直列実行するだけで、正本はこの14.4のコマンド列である。
+
 実運用ではCPU/端末安全のため直列実行を推奨する。CIでは各ステップを独立jobにしてもよいが、完了判定は同一ゲート名 `contract-acceptance` に集約する。
 
 ## 14.5 Rollback条件
@@ -2715,7 +2717,7 @@ v4.4時点で、設計契約としての既知の実装停止要因は Contract 
 - 生成物とtracked schemaの差分を `scripts/check_generated_schemas.py` で検出する。
 - JSON Schema resolverで未解決 `$ref` を検出する。
 - OpenAPI内部 `$ref` を検出する。
-- `./scripts/acceptance_gate.sh` を唯一の完了判定にする。
+- `python scripts/check_contract_acceptance.py` で `14.4 Acceptance Gate` のコマンド列を直列実行する。
 - acceptance gate失敗時は `14_bulk_implementation_safety.md` のDAG層までrollbackする。
 
 ## Confidence boundary
