@@ -297,7 +297,7 @@ pub async fn scan_project(
         skipped_files += result.skipped_files;
         limit_reached |= result.limit_reached;
         limit_reasons.extend(limit_reasons_for(&result));
-        builtin_skips.extend(result.builtin_skips.into_iter());
+        builtin_skips.extend(result.builtin_skips);
         findings.extend(result.findings);
     }
 
