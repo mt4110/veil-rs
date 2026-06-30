@@ -47,7 +47,7 @@ impl HtmlFormatter {
         }
 
         let mut top_rules: Vec<_> = by_rule.into_iter().collect();
-        top_rules.sort_by(|a, b| b.1.cmp(&a.1));
+        top_rules.sort_by_key(|rule| std::cmp::Reverse(rule.1));
         top_rules.truncate(3);
 
         let severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];

@@ -37,7 +37,7 @@ pub fn list(config_path: Option<&PathBuf>, severity_filter: Option<Severity>) ->
     }
 
     // Sort by ID to make it readable
-    rules.sort_by(|a, b| a.id.cmp(&b.id));
+    rules.sort_by_key(|rule| rule.id.clone());
 
     let mut table = Table::new();
     table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
