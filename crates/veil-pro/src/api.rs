@@ -4,257 +4,444 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use serde::{Deserialize, Serialize};
+use chrono::{Duration, Utc};
+use serde::Serialize;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tower_sessions::Session;
-use veil_core::Severity;
+use veil_core::finding_id::SpanData;
 
-// GET /api/me
-// Returns the currently authenticated context (either SSO user or local token context)
-pub async fn get_me(session: Session) -> Result<Json<serde_json::Value>, StatusCode> {
-    if let Ok(Some(email)) = session.get::<String>("user_email").await {
-        return Ok(Json(serde_json::json!({
-            "authenticated": true,
-            "type": "sso",
-            "email": email,
-            "name": session.get::<String>("user_name").await.unwrap_or_default().unwrap_or_default()
-        })));
-    }
-
-    // If we're here and the request passed middleware, it's a CLI Token user
-    Ok(Json(serde_json::json!({
-        "authenticated": true,
-        "type": "local_token"
-    })))
-}
+#[allow(dead_code)]
+pub mod dto;
+pub use dto::*;
 
 use crate::AppState;
 
-// --- DTOs ---
+// GET /api/me
+// Returns the currently authenticated context (either SSO user or local token context).
+pub async fn get_me(session: Session) -> Result<Json<AuthContext>, StatusCode> {
+    if let Ok(Some(email)) = session.get::<String>("user_email").await {
+        return Ok(Json(AuthContext::Sso(SsoAuthContext {
+            authenticated: true,
+            kind: AuthContextType::Sso,
+            email,
+            name: session.get::<String>("user_name").await.unwrap_or_default(),
+            enterprise_opt_in: true,
+        })));
+    }
 
-#[derive(Serialize)]
+    Ok(Json(AuthContext::LocalToken(LocalTokenAuthContext {
+        authenticated: true,
+        kind: AuthContextType::LocalToken,
+    })))
+}
+
+#[derive(Debug, Serialize)]
 pub struct ApiError {
     pub error: String,
 }
 
-#[derive(Deserialize)]
-pub struct ScanRequest {
-    pub paths: Vec<String>,
+struct BaselineFileInfo {
+    content: String,
+    snapshot: veil_core::baseline::BaselineSnapshot,
 }
 
-#[derive(Serialize)]
-pub struct SafeFinding {
-    pub path: String,
-    pub line_number: usize,
-    pub rule_id: String,
-    pub severity: Severity,
-    // We MUST NOT expose raw matched_content or line_content to UI
-    pub masked_snippet: String,
+struct FindingBuckets {
+    all: Vec<SafeFindingApiV1>,
+    effective: Vec<SafeFindingApiV1>,
+    suppressed: Vec<SafeFindingApiV1>,
 }
 
-#[derive(Serialize)]
-pub struct ScanResponse {
-    pub run_id: String,
-    pub scanned_files: usize,
-    pub skipped_files: usize,
-    pub findings: Vec<SafeFinding>,
+fn repo_root() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-#[derive(Serialize)]
-pub struct ProjectsResponse {
-    pub current_dir: String,
+fn normalized_paths(paths: Option<Vec<String>>) -> Vec<String> {
+    match paths {
+        Some(paths) if !paths.is_empty() => paths,
+        _ => vec![".".to_string()],
+    }
 }
 
-#[derive(Serialize)]
-pub struct PolicyResponse {
-    pub has_org_config: bool,
-    pub org_config_path: Option<String>,
-    pub effective_rules_count: usize,
+fn load_effective_config_for_paths(paths: &[String]) -> veil_config::Config {
+    let explicit_root = paths.first().map(PathBuf::from);
+    crate::config_loader::load_config_layers(explicit_root.as_ref())
+        .map(|layers| layers.effective)
+        .unwrap_or_default()
+}
+
+fn resolve_baseline_file() -> Option<BaselineFileInfo> {
+    let root = repo_root();
+    let path = veil_core::baseline::resolve_compatible_baseline_path(&root)?;
+    let content = std::fs::read_to_string(&path).ok()?;
+    let snapshot = veil_core::baseline::load_baseline(&path).ok()?;
+
+    Some(BaselineFileInfo { content, snapshot })
+}
+
+fn rule_lookup(rules: &[veil_core::Rule]) -> HashMap<String, (String, Vec<String>)> {
+    rules
+        .iter()
+        .map(|rule| (rule.id.clone(), (rule.category.clone(), rule.tags.clone())))
+        .collect()
+}
+
+fn finding_id(finding: &veil_core::Finding) -> String {
+    let span = SpanData {
+        start_line: finding.line_number as u64,
+        start_col: 0,
+        end_line: finding.line_number as u64,
+        end_col: 0,
+    };
+    veil_core::FindingId::new(
+        &finding.rule_id,
+        &finding.path,
+        &span,
+        &finding.matched_content,
+    )
+    .to_string()
+}
+
+fn to_safe_finding(
+    finding: &veil_core::Finding,
+    baseline_status: BaselineStatus,
+    rules: &HashMap<String, (String, Vec<String>)>,
+) -> SafeFindingApiV1 {
+    let (category, tags) = rules
+        .get(&finding.rule_id)
+        .cloned()
+        .unwrap_or_else(|| ("uncategorized".to_string(), Vec::new()));
+
+    SafeFindingApiV1 {
+        finding_id: finding_id(finding),
+        baseline_fingerprint: veil_core::baseline::generate_fingerprint(finding),
+        path: finding.path.to_string_lossy().to_string(),
+        line_number: finding.line_number,
+        rule_id: finding.rule_id.clone(),
+        severity: SeverityName::from(&finding.severity),
+        score: finding.score,
+        grade: GradeName::from(&finding.grade),
+        masked_snippet: finding.masked_snippet.clone(),
+        category,
+        tags,
+        baseline_status,
+    }
+}
+
+fn count_severities(findings: &[SafeFindingApiV1]) -> SeverityCounts {
+    let mut counts = SeverityCounts::zero();
+    for finding in findings {
+        counts.increment(finding.severity);
+    }
+    counts
+}
+
+fn bucket_findings(
+    findings: Vec<veil_core::Finding>,
+    baseline: Option<&veil_core::baseline::BaselineSnapshot>,
+    rules: &HashMap<String, (String, Vec<String>)>,
+) -> FindingBuckets {
+    if let Some(baseline) = baseline {
+        let result = veil_core::baseline::apply_baseline(findings, Some(baseline));
+        let effective = result
+            .new
+            .iter()
+            .map(|finding| to_safe_finding(finding, BaselineStatus::New, rules))
+            .collect::<Vec<_>>();
+        let suppressed = result
+            .suppressed
+            .iter()
+            .map(|finding| to_safe_finding(finding, BaselineStatus::Suppressed, rules))
+            .collect::<Vec<_>>();
+        let mut all = effective.clone();
+        all.extend(suppressed.clone());
+        FindingBuckets {
+            all,
+            effective,
+            suppressed,
+        }
+    } else {
+        let effective = findings
+            .iter()
+            .map(|finding| to_safe_finding(finding, BaselineStatus::None, rules))
+            .collect::<Vec<_>>();
+        FindingBuckets {
+            all: effective.clone(),
+            effective,
+            suppressed: Vec::new(),
+        }
+    }
+}
+
+fn build_evidence_summary(buckets: &FindingBuckets, coverage_complete: bool) -> EvidenceSummary {
+    EvidenceSummary {
+        total_findings: buckets.all.len(),
+        suppressed_findings: buckets.suppressed.len(),
+        effective_findings: buckets.effective.len(),
+        severity_counts: count_severities(&buckets.effective),
+        all_severity_counts: count_severities(&buckets.all),
+        suppressed_severity_counts: count_severities(&buckets.suppressed),
+        coverage_complete,
+    }
+}
+
+fn policy_response() -> PolicyResponse {
+    let layers = crate::config_loader::load_config_layers(None).unwrap_or_default();
+    let config = layers.effective;
+    let rules = veil_core::get_all_rules(&config, vec![]);
+    let repo_config_path = repo_root().join("veil.toml");
+    let org_config_path = std::env::var("VEIL_ORG_CONFIG").ok();
+
+    PolicyResponse {
+        schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
+        has_org_config: layers.org.is_some(),
+        org_config_path,
+        repo_config_path: repo_config_path
+            .exists()
+            .then(|| repo_config_path.to_string_lossy().to_string()),
+        effective_rules_count: rules.len(),
+        preset: None,
+        layers: vec![
+            ConfigLayerSummary {
+                name: ConfigLayerName::Builtin,
+                path: None,
+                loaded: true,
+                warnings: Vec::new(),
+            },
+            ConfigLayerSummary {
+                name: ConfigLayerName::Org,
+                path: std::env::var("VEIL_ORG_CONFIG").ok(),
+                loaded: layers.org.is_some(),
+                warnings: Vec::new(),
+            },
+            ConfigLayerSummary {
+                name: ConfigLayerName::Repo,
+                path: repo_config_path
+                    .exists()
+                    .then(|| repo_config_path.to_string_lossy().to_string()),
+                loaded: repo_config_path.exists(),
+                warnings: Vec::new(),
+            },
+        ],
+        conflicts: Vec::new(),
+    }
+}
+
+fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if result.file_limit_reached {
+        reasons.push("file-limit".to_string());
+    }
+    if result.limit_reached && !result.file_limit_reached {
+        reasons.push("result-limit".to_string());
+    }
+    reasons
 }
 
 // --- Endpoints ---
 
 pub async fn list_projects(State(_state): State<Arc<AppState>>) -> Json<ProjectsResponse> {
-    let current_dir = std::env::current_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| ".".to_string());
+    let current_dir = repo_root();
+    let current_dir_text = current_dir.to_string_lossy().to_string();
+    let display_name = current_dir
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| current_dir_text.clone());
 
-    Json(ProjectsResponse { current_dir })
+    Json(ProjectsResponse {
+        schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
+        current_dir: current_dir_text.clone(),
+        projects: vec![ProjectSummary {
+            id: current_dir_text.clone(),
+            display_name,
+            root_path: current_dir_text,
+            is_current: true,
+            has_repo_config: repo_root().join("veil.toml").exists(),
+        }],
+    })
 }
 
 pub async fn scan_project(
     State(state): State<Arc<AppState>>,
     Json(req): Json<ScanRequest>,
-) -> Json<ScanResponse> {
-    let mut config = veil_config::Config::default();
-
-    // Load config from the first path (project root)
-    if let Some(first_path) = req.paths.first() {
-        if let Ok(layers) =
-            crate::config_loader::load_config_layers(Some(&PathBuf::from(first_path)))
-        {
-            config = layers.effective;
-        }
-    } else {
-        if let Ok(layers) = crate::config_loader::load_config_layers(None) {
-            config = layers.effective;
-        }
+) -> Result<Json<ScanResponse>, (StatusCode, Json<ApiError>)> {
+    let paths_to_scan = normalized_paths(req.paths.clone());
+    let mut config = load_effective_config_for_paths(&paths_to_scan);
+    if let Some(max_findings) = req.fail_on_findings {
+        config.output.max_findings = Some(max_findings);
     }
 
-    // For web UI, we definitely want some masking unless requested otherwise
     let rules = veil_core::get_all_rules(&config, vec![]);
+    let rules_by_id = rule_lookup(&rules);
+    let baseline = resolve_baseline_file();
 
-    let mut safe_findings = Vec::new();
+    let mut findings = Vec::new();
     let mut scanned_files = 0;
     let mut skipped_files = 0;
+    let mut limit_reached = false;
+    let mut limit_reasons = Vec::new();
+    let mut builtin_skips = Vec::new();
 
-    let paths_to_scan = if req.paths.is_empty() {
-        vec![".".to_string()]
+    for path in paths_to_scan {
+        let safe_path = validate_safe_path(&path).map_err(|error| {
+            (
+                StatusCode::FORBIDDEN,
+                Json(ApiError {
+                    error: format!("Path denied: {error}"),
+                }),
+            )
+        })?;
+        let result = veil_core::scan_path(&safe_path, &rules, &config);
+        scanned_files += result.scanned_files;
+        skipped_files += result.skipped_files;
+        limit_reached |= result.limit_reached;
+        limit_reasons.extend(limit_reasons_for(&result));
+        builtin_skips.extend(result.builtin_skips.into_iter());
+        findings.extend(result.findings);
+    }
+
+    limit_reasons.sort();
+    limit_reasons.dedup();
+    builtin_skips.sort();
+    builtin_skips.dedup();
+
+    let buckets = bucket_findings(
+        findings,
+        baseline.as_ref().map(|info| &info.snapshot),
+        &rules_by_id,
+    );
+    let coverage_complete = !limit_reached;
+    let summary = build_evidence_summary(&buckets, coverage_complete);
+    let status = if limit_reached {
+        RunStatus::Incomplete
+    } else if buckets.effective.is_empty() {
+        RunStatus::Success
     } else {
-        req.paths
+        RunStatus::Violation
     };
 
-    for p in paths_to_scan {
-        match validate_safe_path(&p) {
-            Ok(safe_path) => {
-                let result = veil_core::scan_path(&safe_path, &rules, &config);
-                scanned_files += result.scanned_files;
-                skipped_files += result.skipped_files;
-
-                for f in result.findings {
-                    safe_findings.push(SafeFinding {
-                        path: f.path.to_string_lossy().to_string(),
-                        line_number: f.line_number,
-                        rule_id: f.rule_id,
-                        severity: f.severity,
-                        masked_snippet: f.masked_snippet, // strictly mapped
-                    });
-                }
-            }
-            Err(e) => {
-                // Log and skip unsafe path
-                eprintln!("Blocked unsafe scan path: {}", e);
-            }
-        }
-    }
-
-    // Attempt to load baseline if it exists to bundle it
-    let mut has_baseline = false;
-    let mut baseline_content = None;
-    if let Ok(b) = std::fs::read_to_string(".veil-baseline.json") {
-        has_baseline = true;
-        baseline_content = Some(b);
-    }
+    let response_findings = if req.include_suppressed {
+        buckets.all.clone()
+    } else {
+        buckets.effective.clone()
+    };
 
     let (run_meta, cached_run) = crate::evidence_generator::generate_evidence_pack(
         &config,
-        &safe_findings,
+        &buckets.all,
+        summary.clone(),
+        status,
+        limit_reached,
+        limit_reasons.clone(),
         scanned_files,
         skipped_files,
-        150, // duration mock
-        has_baseline,
-        baseline_content,
+        150,
+        baseline.map(|info| info.content),
     );
+    let run_id = run_meta.run_id.clone();
 
     state
         .run_cache
         .write()
         .await
-        .insert(run_meta.run_id.clone(), cached_run);
+        .insert(run_id.clone(), cached_run);
 
-    Json(ScanResponse {
-        run_id: run_meta.run_id,
+    Ok(Json(ScanResponse {
+        schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
+        run_id,
+        status,
         scanned_files,
         skipped_files,
-        findings: safe_findings,
-    })
+        total_findings: summary.total_findings,
+        suppressed_findings: summary.suppressed_findings,
+        effective_findings: summary.effective_findings,
+        coverage_complete,
+        severity_counts: summary.severity_counts,
+        all_severity_counts: summary.all_severity_counts,
+        suppressed_severity_counts: summary.suppressed_severity_counts,
+        limit_reached,
+        limit_reasons,
+        builtin_skips,
+        findings: response_findings,
+        expires_at_utc: (Utc::now() + Duration::minutes(30)).to_rfc3339(),
+    }))
 }
 
 pub async fn get_policy(State(_state): State<Arc<AppState>>) -> Json<PolicyResponse> {
-    let layers = crate::config_loader::load_config_layers(None).unwrap_or_default();
-    let config = layers.effective;
-    let rules = veil_core::get_all_rules(&config, vec![]);
+    Json(policy_response())
+}
 
-    let has_org_config = layers.org.is_some();
-    // Simulate finding the org config Path (since config_loader abstracts it, we do a basic check)
-    let org_config_path = std::env::var("VEIL_ORG_CONFIG").ok();
+pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorResponse> {
+    let config = load_effective_config_for_paths(&[".".to_string()]);
+    let mut bounds = BTreeMap::new();
+    bounds.insert(
+        "maxFileCount".to_string(),
+        BoundValue::Number(config.core.max_file_count.unwrap_or(20_000) as u64),
+    );
+    bounds.insert(
+        "maxFileSizeBytes".to_string(),
+        BoundValue::Number(config.core.max_file_size.unwrap_or(10_000_000)),
+    );
+    bounds.insert(
+        "maxFindings".to_string(),
+        BoundValue::Number(config.output.max_findings.unwrap_or(1_000) as u64),
+    );
 
-    Json(PolicyResponse {
-        has_org_config,
-        org_config_path,
-        effective_rules_count: rules.len(),
+    Json(DoctorResponse {
+        schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
+        product_version: env!("CARGO_PKG_VERSION").to_string(),
+        os: std::env::consts::OS.to_string(),
+        rust_version: option_env!("RUSTC_VERSION").map(str::to_string),
+        config: policy_response(),
+        bounds,
+        rule_packs: vec![DoctorRulePack {
+            name: "default".to_string(),
+            version: None,
+            source: RulePackSource::Embedded,
+        }],
+        network_mode: NetworkMode::LocalOnly,
+        warnings: Vec::new(),
     })
-}
-
-// --- Baseline Endpoint ---
-
-#[derive(Deserialize)]
-pub struct BaselineRequest {
-    pub paths: Vec<String>,
-}
-
-#[derive(Serialize)]
-pub struct BaselineResponse {
-    pub success: bool,
-    pub message: String,
-    pub findings_count: usize,
-    pub file_path: String,
 }
 
 pub async fn write_baseline(
     State(_state): State<Arc<AppState>>,
     Json(req): Json<BaselineRequest>,
 ) -> Json<BaselineResponse> {
-    let mut config = veil_config::Config::default();
-    if let Some(first_path) = req.paths.first() {
-        if let Ok(layers) =
-            crate::config_loader::load_config_layers(Some(&PathBuf::from(first_path)))
-        {
-            config = layers.effective;
-        }
-    } else {
-        if let Ok(layers) = crate::config_loader::load_config_layers(None) {
-            config = layers.effective;
-        }
-    }
-
+    let paths_to_scan = normalized_paths(req.paths);
+    let config = load_effective_config_for_paths(&paths_to_scan);
     let rules = veil_core::get_all_rules(&config, vec![]);
     let mut all_findings = Vec::new();
 
-    let paths_to_scan = if req.paths.is_empty() {
-        vec![".".to_string()]
-    } else {
-        req.paths
-    };
-
-    for p in paths_to_scan {
-        if let Ok(safe_path) = validate_safe_path(&p) {
+    for path in paths_to_scan {
+        if let Ok(safe_path) = validate_safe_path(&path) {
             let result = veil_core::scan_path(&safe_path, &rules, &config);
             all_findings.extend(result.findings);
         }
     }
 
-    let val_version = env!("CARGO_PKG_VERSION");
-    let snapshot = veil_core::baseline::from_findings(&all_findings, val_version);
+    let tool_version = env!("CARGO_PKG_VERSION");
+    let snapshot = veil_core::baseline::from_findings(&all_findings, tool_version);
+    let output_path = req
+        .output_path
+        .map(PathBuf::from)
+        .unwrap_or_else(|| veil_core::baseline::default_baseline_path(&repo_root()));
+    let output_path = if output_path.is_absolute() {
+        output_path
+    } else {
+        repo_root().join(output_path)
+    };
 
-    let mut baseline_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    baseline_path.push(".veil-baseline.json");
+    let written = veil_core::baseline::save_baseline(&output_path, &snapshot).is_ok();
 
-    match veil_core::baseline::save_baseline(&baseline_path, &snapshot) {
-        Ok(_) => Json(BaselineResponse {
-            success: true,
-            message: "Baseline created successfully.".to_string(),
-            findings_count: snapshot.entries.len(),
-            file_path: baseline_path.to_string_lossy().to_string(),
-        }),
-        Err(e) => Json(BaselineResponse {
-            success: false,
-            message: format!("Failed to save baseline: {}", e),
-            findings_count: 0,
-            file_path: "".to_string(),
-        }),
-    }
+    Json(BaselineResponse {
+        schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
+        file_path: output_path.to_string_lossy().to_string(),
+        findings_count: snapshot.entries.len(),
+        written,
+        next_action: NextAction::CommitBaseline,
+    })
 }
 
 /// B2B Security: Ensure path does not escape the current project directory using traversal ('../')
@@ -274,7 +461,6 @@ fn validate_safe_path(p: &str) -> Result<PathBuf, String> {
         current_dir.join(&path)
     };
 
-    // Check canonicalized prefix to avoid symlink trickery if the path or parent exists
     let check_path = if resolved.exists() {
         resolved.clone()
     } else {
@@ -302,29 +488,6 @@ fn validate_safe_path(p: &str) -> Result<PathBuf, String> {
     Ok(resolved)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validate_safe_path() {
-        // Valid paths
-        assert!(validate_safe_path(".").is_ok());
-        assert!(validate_safe_path("./src").is_ok());
-
-        // Invalid paths (traversal)
-        assert!(validate_safe_path("..").is_err());
-        assert!(validate_safe_path("../some_other_folder").is_err());
-        assert!(validate_safe_path("src/../..").is_err());
-
-        // Invalid paths (absolute outside of cwd)
-        #[cfg(unix)]
-        assert!(validate_safe_path("/etc/passwd").is_err());
-        #[cfg(windows)]
-        assert!(validate_safe_path("C:\\Windows\\System32").is_err());
-    }
-}
-
 pub async fn get_run_meta(
     State(state): State<Arc<AppState>>,
     Path(run_id): Path<String>,
@@ -348,18 +511,19 @@ pub async fn export_evidence(
     Path(run_id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ApiError>)> {
     let mut cache = state.run_cache.write().await;
-    let cached =
-        match cache.get(&run_id) {
-            Some(c) => c,
-            None => return Err((
+    let cached = match cache.get(&run_id) {
+        Some(c) => c,
+        None => {
+            return Err((
                 StatusCode::GONE,
                 Json(ApiError {
                     error:
                         "Run evidence has expired or runId is invalid. Please trigger a new scan."
                             .to_string(),
                 }),
-            )),
-        };
+            ));
+        }
+    };
 
     let mut zip_data = Vec::new();
     {
@@ -382,7 +546,7 @@ pub async fn export_evidence(
         let _ = std::io::Write::write_all(&mut zip, meta_json.as_bytes());
 
         if let Some(baseline) = &cached.baseline_json {
-            let _ = zip.start_file("baseline.json", options);
+            let _ = zip.start_file(veil_core::baseline::DEFAULT_BASELINE_FILE, options);
             let _ = std::io::Write::write_all(&mut zip, baseline.as_bytes());
         }
 
@@ -408,13 +572,62 @@ pub async fn export_evidence(
 }
 
 #[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_safe_path() {
+        assert!(validate_safe_path(".").is_ok());
+        assert!(validate_safe_path("./src").is_ok());
+
+        assert!(validate_safe_path("..").is_err());
+        assert!(validate_safe_path("../some_other_folder").is_err());
+        assert!(validate_safe_path("src/../..").is_err());
+
+        #[cfg(unix)]
+        assert!(validate_safe_path("/etc/passwd").is_err());
+        #[cfg(windows)]
+        assert!(validate_safe_path("C:\\Windows\\System32").is_err());
+    }
+
+    #[test]
+    fn scan_request_paths_missing_or_empty_defaults_to_current_directory() {
+        assert_eq!(normalized_paths(None), vec![".".to_string()]);
+        assert_eq!(normalized_paths(Some(Vec::new())), vec![".".to_string()]);
+    }
+
+    #[test]
+    fn safe_finding_exposes_distinct_finding_id_and_baseline_fingerprint() {
+        let finding = veil_core::Finding {
+            path: "src/config.rs".into(),
+            line_number: 7,
+            line_content: "token = secret".to_string(),
+            rule_id: "creds.test".to_string(),
+            matched_content: "secret".to_string(),
+            masked_snippet: "token = <REDACTED>".to_string(),
+            severity: veil_core::Severity::High,
+            score: 80,
+            grade: veil_core::Grade::High,
+            context_before: Vec::new(),
+            context_after: Vec::new(),
+            commit_sha: None,
+            author: None,
+            date: None,
+        };
+        let safe = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new());
+
+        assert_ne!(safe.finding_id, safe.baseline_fingerprint);
+        assert!(safe.finding_id.starts_with("fx_"));
+        assert!(safe.baseline_fingerprint.starts_with("sha256:"));
+    }
+}
+
+#[cfg(test)]
 mod evidence_tests {
     #[tokio::test]
     async fn test_evidence_pack_contract() {
-        use crate::api::ScanRequest;
         use crate::AppState;
         use axum::extract::{Path, State};
-        use axum::Json;
         use std::sync::Arc;
 
         let token_val = "sensitive_token_leakage_test_123456789".to_string();
@@ -426,13 +639,36 @@ mod evidence_tests {
             oauth: Arc::new(crate::auth::init_oauth()),
         });
 
-        let req = Json(ScanRequest {
-            paths: vec!["/tmp/test_dir_veil.txt".to_string()],
-        });
-        let scan_res = crate::api::scan_project(State(state.clone()), req).await;
-        let run_id = scan_res.0.run_id.clone();
+        let empty_counts = crate::api::SeverityCounts::zero();
+        let summary = crate::api::EvidenceSummary {
+            total_findings: 0,
+            suppressed_findings: 0,
+            effective_findings: 0,
+            severity_counts: empty_counts.clone(),
+            all_severity_counts: empty_counts.clone(),
+            suppressed_severity_counts: empty_counts,
+            coverage_complete: true,
+        };
+        let (meta, cached_run) = crate::evidence_generator::generate_evidence_pack(
+            &veil_config::Config::default(),
+            &[],
+            summary,
+            crate::api::RunStatus::Success,
+            false,
+            Vec::new(),
+            1,
+            0,
+            1,
+            None,
+        );
+        let run_id = meta.run_id.clone();
 
-        // Check if report builds
+        state
+            .run_cache
+            .write()
+            .await
+            .insert(run_id.clone(), cached_run);
+
         let mut cache = state.run_cache.write().await;
         let cached = cache.get(&run_id).unwrap();
 
@@ -440,10 +676,11 @@ mod evidence_tests {
             cached.baseline_json.is_none(),
             "Baseline should be omitted by default"
         );
-        assert_eq!(cached.meta.schema_version, "veil-pro-run-meta-v1");
+        let meta_json = serde_json::to_value(&cached.meta).unwrap();
+        assert_eq!(meta_json["schemaVersion"], "veil-pro-run-meta-v1");
 
         let report_json: serde_json::Value = serde_json::from_str(&cached.report_json).unwrap();
-        assert_eq!(report_json["schemaVersion"], "veil-v1");
+        assert_eq!(report_json["schemaVersion"], "veil-evidence-report-v1");
 
         let forbidden_strings = vec![
             format!("?token={}", token_val),
@@ -456,7 +693,7 @@ mod evidence_tests {
             for token in &forbidden_strings {
                 assert!(
                     !content.contains(token),
-                    "Forbidden exact token fragment leaked into {}!",
+                    "Forbidden exact token fragment leaked into {}",
                     file
                 );
             }
@@ -476,5 +713,8 @@ mod evidence_tests {
             cached.meta.artifacts.report_json.sha256, sha,
             "report.json SHA256 must match run_meta artifacts exactly"
         );
+
+        drop(cache);
+        let _ = crate::api::get_run_meta(State(state.clone()), Path(run_id)).await;
     }
 }

@@ -1,165 +1,111 @@
-use crate::api::SafeFinding;
-use crate::evidence::*;
+use crate::api::dto::{
+    ArtifactMeta, BaselineArtifactMeta, BaselineArtifactPath, BindAddress, BuildProfile,
+    EngineMeta, EngineName, EngineSchemaVersion, EvidenceArtifacts, EvidenceReportSchemaVersion,
+    EvidenceReportV1, EvidenceSummary, NetworkMode, PrivacyMeta, ProductMeta, ProductName,
+    RulePackMeta, RulePackSource, RunMetaSchemaVersion, RunMetaV1, RunResultMeta, RunStatus,
+    SafeFindingApiV1, TelemetryMode,
+};
+use crate::evidence::CachedRun;
 use chrono::Utc;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn generate_evidence_pack(
     config: &veil_config::Config,
-    findings: &[SafeFinding],
+    findings: &[SafeFindingApiV1],
+    summary: EvidenceSummary,
+    status: RunStatus,
+    limit_reached: bool,
+    limit_reasons: Vec<String>,
     scanned_files: usize,
     skipped_files: usize,
-    duration_ms: u64,
-    has_baseline: bool,
+    _duration_ms: u64,
     baseline_content: Option<String>,
-) -> (RunMeta, CachedRun) {
+) -> (RunMetaV1, CachedRun) {
     let run_id = Uuid::new_v4().to_string();
     let generated_at = Utc::now().to_rfc3339();
 
-    // 1. Generate report.html
     let html_content = generate_html_report(findings, scanned_files, skipped_files);
     let html_sha = sha256_str(&html_content);
 
-    // 2. Generate report.json
-    let json_content = generate_json_report(findings, scanned_files, skipped_files);
+    let report = EvidenceReportV1 {
+        schema_version: EvidenceReportSchemaVersion::VeilEvidenceReportV1,
+        run_id: run_id.clone(),
+        generated_at_utc: generated_at.clone(),
+        summary: summary.clone(),
+        findings: findings.to_vec(),
+    };
+    let json_content = serde_json::to_string_pretty(&report).unwrap_or_default();
     let json_sha = sha256_str(&json_content);
 
-    // 3. Generate effective_config.toml
     let config_content = toml::to_string_pretty(config).unwrap_or_default();
     let config_sha = sha256_str(&config_content);
 
-    // 4. Handle Baseline
-    let baseline_meta = if has_baseline && baseline_content.is_some() {
-        let text = baseline_content.clone().unwrap();
-        Some(ArtifactFileMeta {
-            path: "baseline.json".to_string(),
-            sha256: sha256_str(&text),
-        })
-    } else {
-        None
-    };
+    let baseline_meta = baseline_content.as_ref().map(|text| BaselineArtifactMeta {
+        path: BaselineArtifactPath::VeilBaselineJson,
+        sha256: sha256_str(text),
+        size_bytes: Some(text.len()),
+    });
 
-    let mut severity_counts = HashMap::new();
-    severity_counts.insert("Critical".to_string(), 0);
-    severity_counts.insert("High".to_string(), 0);
-    severity_counts.insert("Medium".to_string(), 0);
-    severity_counts.insert("Low".to_string(), 0);
-
-    for f in findings {
-        let label = match f.severity {
-            veil_core::Severity::Critical => "Critical",
-            veil_core::Severity::High => "High",
-            veil_core::Severity::Medium => "Medium",
-            veil_core::Severity::Low => "Low",
-        };
-        *severity_counts.entry(label.to_string()).or_insert(0) += 1;
-    }
-
-    let meta = RunMeta {
-        schema_version: "veil-pro-run-meta-v1".to_string(),
+    let meta = RunMetaV1 {
+        schema_version: RunMetaSchemaVersion::VeilProRunMetaV1,
         run_id: run_id.clone(),
-        generated_at_utc: generated_at.clone(),
+        generated_at_utc: generated_at,
         product: ProductMeta {
-            name: "veil-pro".to_string(),
+            name: ProductName::VeilPro,
             version: env!("CARGO_PKG_VERSION").to_string(),
-            commit: "unknown".to_string(), // could parse git
-            build_profile: "release".to_string(),
+            commit: None,
+            build_profile: Some(if cfg!(debug_assertions) {
+                BuildProfile::Debug
+            } else {
+                BuildProfile::Release
+            }),
         },
         engine: EngineMeta {
-            name: "veil".to_string(),
-            schema_version: "veil-v1".to_string(),
+            name: EngineName::Veil,
+            schema_version: EngineSchemaVersion::VeilV1,
             rule_packs: vec![RulePackMeta {
                 name: "default".to_string(),
-                source: "embedded".to_string(),
-                content_sha256: "unknown".to_string(),
+                source: RulePackSource::Embedded,
+                content_sha256: None,
+                version: None,
             }],
         },
-        project: ProjectMeta {
-            display_name: std::env::current_dir()
-                .map(|p| {
-                    p.file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                })
-                .unwrap_or_default(),
-            root_hint: ".".to_string(),
-            git: ProjectGitMeta {
-                head: "unknown".to_string(),
-                dirty: false,
+        result: RunResultMeta {
+            status,
+            exit_code: match status {
+                RunStatus::Success => 0,
+                RunStatus::Violation => 1,
+                RunStatus::Incomplete | RunStatus::Error => 2,
             },
+            limit_reached,
+            limit_reasons,
+            summary,
         },
-        invocation: InvocationMeta {
-            mode: "ui".to_string(),
-            targets: vec![".".to_string()],
-            config: InvocationConfigMeta {
-                repo_config: "veil.toml".to_string(),
-                ci_config: "veil.ci.toml".to_string(),
-                org_config_env: "VEIL_ORG_CONFIG".to_string(),
-                org_config_path: std::env::var("VEIL_ORG_CONFIG").unwrap_or_default(),
-            },
-            baseline: InvocationBaselineMeta {
-                enabled: has_baseline,
-                file: if has_baseline {
-                    ".veil-baseline.json".to_string()
-                } else {
-                    "".to_string()
-                },
-            },
-        },
-        limits: LimitsMeta {
-            max_file_count: config.core.max_file_count.unwrap_or(20000),
-            max_findings: config.output.max_findings.unwrap_or(1000),
-            max_file_size_bytes: config.core.max_file_size.unwrap_or(10_000_000) as usize,
-        },
-        scope: ScopeMeta {
-            gitignore_respected: true,
-            built_in_excluded_dirs: config.core.ignore.clone(),
-            binary_skip: true,
-            oversize_skip: true,
-        },
-        result: ResultMeta {
-            status: if findings.is_empty() {
-                "success".to_string()
-            } else {
-                "violation".to_string()
-            },
-            exit_code: if findings.is_empty() { 0 } else { 1 },
-            limit_reached: false, // Need actual status
-            limit_reasons: vec![],
-            summary: ResultSummaryMeta {
-                scanned_files,
-                skipped_files,
-                findings_count: findings.len(),
-                severity_counts,
-            },
-            timing: ResultTimingMeta {
-                started_at_utc: generated_at,
-                finished_at_utc: Utc::now().to_rfc3339(),
-                duration_ms,
-            },
-        },
-        artifacts: ArtifactsMeta {
-            report_html: ArtifactFileMeta {
+        artifacts: EvidenceArtifacts {
+            report_html: ArtifactMeta {
                 path: "report.html".to_string(),
                 sha256: html_sha,
+                size_bytes: Some(html_content.len()),
             },
-            report_json: ArtifactFileMeta {
+            report_json: ArtifactMeta {
                 path: "report.json".to_string(),
                 sha256: json_sha,
+                size_bytes: Some(json_content.len()),
             },
-            effective_config: ArtifactFileMeta {
+            effective_config: ArtifactMeta {
                 path: "effective_config.toml".to_string(),
                 sha256: config_sha,
+                size_bytes: Some(config_content.len()),
             },
             baseline: baseline_meta,
         },
         privacy: PrivacyMeta {
-            telemetry: "none".to_string(),
-            network: "local-only".to_string(),
-            bind: "127.0.0.1".to_string(),
+            telemetry: TelemetryMode::None,
+            network_mode: NetworkMode::LocalOnly,
+            bind: BindAddress::LocalhostV4,
         },
+        extensions: None,
     };
 
     let cached = CachedRun {
@@ -180,45 +126,14 @@ fn sha256_str(data: &str) -> String {
     hex::encode(hasher.finalize())
 }
 
-#[derive(serde::Serialize)]
-struct JsonReport<'a> {
-    #[serde(rename = "schemaVersion")]
-    schema_version: &'a str,
-    summary: serde_json::Value,
-    findings: &'a [SafeFinding],
-}
-
-fn generate_json_report(
-    findings: &[SafeFinding],
-    scanned_files: usize,
-    skipped_files: usize,
-) -> String {
-    let report = JsonReport {
-        schema_version: "veil-v1",
-        summary: serde_json::json!({
-            "scanned_files": scanned_files,
-            "skipped_files": skipped_files,
-            "total_findings": findings.len(),
-        }),
-        findings,
-    };
-    serde_json::to_string_pretty(&report).unwrap_or_default()
-}
-
 fn generate_html_report(
-    findings: &[SafeFinding],
+    findings: &[SafeFindingApiV1],
     _scanned_files: usize,
     _skipped_files: usize,
 ) -> String {
-    // simplified beautiful html generator similar to veil-cli
-    let mut top_rules = HashMap::new();
-    for f in findings {
-        *top_rules.entry(f.rule_id.clone()).or_insert(0) += 1;
-    }
-
     let rows = findings
         .iter()
-        .map(|f| {
+        .map(|finding| {
             format!(
                 r#"<tr class="finding-row">
             <td><span class="badge">{}</span></td>
@@ -227,17 +142,17 @@ fn generate_html_report(
             <td class="mono">{}</td>
             <td>{}</td>
         </tr>"#,
-                html_escape(&format!("{:?}", f.severity)),
-                html_escape(&f.rule_id),
-                html_escape(&f.path),
-                html_escape(&f.masked_snippet),
-                html_escape(&f.line_number.to_string())
+                html_escape(&format!("{:?}", finding.severity)),
+                html_escape(&finding.rule_id),
+                html_escape(&finding.path),
+                html_escape(&finding.masked_snippet),
+                html_escape(&finding.line_number.to_string())
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
 
-    let template = format!(
+    format!(
         r#"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -263,16 +178,90 @@ fn generate_html_report(
 </html>"#,
         html_escape(&findings.len().to_string()),
         rows
-    );
-
-    template
+    )
 }
 
 fn html_escape(input: &str) -> String {
     input
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&#39;")
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::dto::{BaselineStatus, GradeName, SeverityCounts, SeverityName};
+
+    fn finding(id: &str, status: BaselineStatus) -> SafeFindingApiV1 {
+        SafeFindingApiV1 {
+            finding_id: id.to_string(),
+            baseline_fingerprint: format!("sha256:{:0>64}", id.len()),
+            path: "src/config.rs".to_string(),
+            line_number: 1,
+            rule_id: "creds.test".to_string(),
+            severity: SeverityName::High,
+            score: 80,
+            grade: GradeName::High,
+            masked_snippet: "token = <REDACTED>".to_string(),
+            category: "credentials".to_string(),
+            tags: vec!["secret".to_string()],
+            baseline_status: status,
+        }
+    }
+
+    #[test]
+    fn evidence_report_contains_raw_free_all_findings() {
+        let findings = vec![
+            finding("new", BaselineStatus::New),
+            finding("suppressed", BaselineStatus::Suppressed),
+        ];
+        let summary = EvidenceSummary {
+            total_findings: 2,
+            suppressed_findings: 1,
+            effective_findings: 1,
+            severity_counts: SeverityCounts {
+                low: 0,
+                medium: 0,
+                high: 1,
+                critical: 0,
+            },
+            all_severity_counts: SeverityCounts {
+                low: 0,
+                medium: 0,
+                high: 2,
+                critical: 0,
+            },
+            suppressed_severity_counts: SeverityCounts {
+                low: 0,
+                medium: 0,
+                high: 1,
+                critical: 0,
+            },
+            coverage_complete: true,
+        };
+
+        let (_meta, cached) = generate_evidence_pack(
+            &veil_config::Config::default(),
+            &findings,
+            summary,
+            RunStatus::Violation,
+            false,
+            Vec::new(),
+            1,
+            0,
+            1,
+            None,
+        );
+        let report: serde_json::Value = serde_json::from_str(&cached.report_json).unwrap();
+
+        assert_eq!(report["schemaVersion"], "veil-evidence-report-v1");
+        assert_eq!(report["findings"].as_array().unwrap().len(), 2);
+        assert_eq!(report["findings"][0]["baselineStatus"], "new");
+        assert_eq!(report["findings"][1]["baselineStatus"], "suppressed");
+        assert!(!report.to_string().contains("matched_content"));
+        assert!(!report.to_string().contains("line_content"));
+    }
 }

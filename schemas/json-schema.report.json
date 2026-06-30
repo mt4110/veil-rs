@@ -1,0 +1,206 @@
+{
+  "$defs": {
+    "BaselineStatus": {
+      "enum": [
+        "none",
+        "new",
+        "suppressed"
+      ],
+      "type": "string"
+    },
+    "EvidenceReportSchemaVersion": {
+      "enum": [
+        "veil-evidence-report-v1"
+      ],
+      "type": "string"
+    },
+    "EvidenceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "allSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "coverageComplete": {
+          "type": "boolean"
+        },
+        "effectiveFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "suppressedFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "suppressedSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "totalFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totalFindings",
+        "suppressedFindings",
+        "effectiveFindings",
+        "severityCounts",
+        "allSeverityCounts",
+        "suppressedSeverityCounts",
+        "coverageComplete"
+      ],
+      "type": "object"
+    },
+    "GradeName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    },
+    "SafeFindingApiV1": {
+      "additionalProperties": false,
+      "properties": {
+        "baselineFingerprint": {
+          "type": "string"
+        },
+        "baselineStatus": {
+          "$ref": "#/$defs/BaselineStatus"
+        },
+        "category": {
+          "type": "string"
+        },
+        "findingId": {
+          "type": "string"
+        },
+        "grade": {
+          "$ref": "#/$defs/GradeName"
+        },
+        "lineNumber": {
+          "format": "uint",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maskedSnippet": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "ruleId": {
+          "type": "string"
+        },
+        "score": {
+          "format": "uint32",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severity": {
+          "$ref": "#/$defs/SeverityName"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "findingId",
+        "baselineFingerprint",
+        "path",
+        "lineNumber",
+        "ruleId",
+        "severity",
+        "score",
+        "grade",
+        "maskedSnippet",
+        "category",
+        "tags",
+        "baselineStatus"
+      ],
+      "type": "object"
+    },
+    "SeverityCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "Critical": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "High": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Low": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Medium": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "object"
+    },
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://veil.local/schemas/evidence-report-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/SafeFindingApiV1"
+      },
+      "type": "array"
+    },
+    "generatedAtUtc": {
+      "type": "string"
+    },
+    "runId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "veil-evidence-report-v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/EvidenceSummary"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runId",
+    "generatedAtUtc",
+    "summary",
+    "findings"
+  ],
+  "title": "Veil Evidence Report v1",
+  "type": "object"
+}

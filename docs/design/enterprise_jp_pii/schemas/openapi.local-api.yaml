@@ -1,0 +1,866 @@
+openapi: 3.0.3
+info:
+  title: Veil Pro Local API
+  version: 1.0.0-local
+  description: Generated from Rust DTOs. Do not hand-edit in implementation.
+servers:
+- url: http://127.0.0.1:{port}
+  variables:
+    port:
+      default: '3000'
+security:
+- bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required:
+      - error
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              enum:
+              - INVALID_REQUEST
+              - UNAUTHORIZED
+              - PATH_DENIED
+              - NOT_FOUND
+              - RUN_EXPIRED
+              - RUN_TOO_LARGE
+              - INTERNAL_ERROR
+            message:
+              type: string
+            nextAction:
+              type: string
+              enum:
+              - RESCAN
+              - CHECK_TOKEN
+              - NARROW_SCOPE
+              - OPEN_DOCTOR
+    AuthContext:
+      oneOf:
+      - type: object
+        required:
+        - authenticated
+        - type
+        additionalProperties: false
+        properties:
+          authenticated:
+            type: boolean
+            enum:
+            - true
+          type:
+            type: string
+            enum:
+            - local_token
+      - type: object
+        required:
+        - authenticated
+        - type
+        - email
+        - enterpriseOptIn
+        additionalProperties: false
+        properties:
+          authenticated:
+            type: boolean
+            enum:
+            - true
+          type:
+            type: string
+            enum:
+            - sso
+          email:
+            type: string
+          name:
+            type: string
+          enterpriseOptIn:
+            type: boolean
+            enum:
+            - true
+    ProjectsResponse:
+      type: object
+      required:
+      - schemaVersion
+      - currentDir
+      - projects
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-local-api-v1
+        currentDir:
+          type: string
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectSummary'
+    ProjectSummary:
+      type: object
+      required:
+      - id
+      - displayName
+      - rootPath
+      - isCurrent
+      - hasRepoConfig
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        rootPath:
+          type: string
+        isCurrent:
+          type: boolean
+        hasRepoConfig:
+          type: boolean
+    ScanRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        paths:
+          description: Missing or empty array is normalized to ["."].
+          type: array
+          items:
+            type: string
+          default:
+          - .
+        preset:
+          type: string
+          enum:
+          - standard-jp
+          - fintech-jp
+          - gov-jp
+          - si-vendor-jp
+          - logs-jp
+        mode:
+          type: string
+          enum:
+          - full
+          - staged
+          - ci
+        baselineFile:
+          type: string
+        includeSuppressed:
+          type: boolean
+          default: false
+        failOnScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        failOnSeverity:
+          type: string
+          enum:
+          - Low
+          - Medium
+          - High
+          - Critical
+        failOnFindings:
+          type: integer
+          minimum: 1
+          description: Violation when effectiveFindings >= N. N=0 is INVALID_REQUEST.
+    SafeFindingApiV1:
+      type: object
+      required:
+      - findingId
+      - baselineFingerprint
+      - path
+      - lineNumber
+      - ruleId
+      - severity
+      - score
+      - grade
+      - maskedSnippet
+      - category
+      - tags
+      - baselineStatus
+      additionalProperties: false
+      properties:
+        findingId:
+          type: string
+        path:
+          type: string
+        lineNumber:
+          type: integer
+          minimum: 1
+        ruleId:
+          type: string
+        severity:
+          type: string
+          enum:
+          - Low
+          - Medium
+          - High
+          - Critical
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        grade:
+          type: string
+          enum:
+          - Low
+          - Medium
+          - High
+          - Critical
+        maskedSnippet:
+          type: string
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        baselineStatus:
+          type: string
+          enum:
+          - new
+          - suppressed
+          - none
+        baselineFingerprint:
+          type: string
+          description: Opaque baseline suppression key. Distinct from findingId; used
+            for baseline matching.
+    SeverityCounts:
+      type: object
+      description: Zero-filled severity counts. All four keys are required even when
+        values are 0.
+      required:
+      - Low
+      - Medium
+      - High
+      - Critical
+      additionalProperties: false
+      properties:
+        Low:
+          type: integer
+          minimum: 0
+        Medium:
+          type: integer
+          minimum: 0
+        High:
+          type: integer
+          minimum: 0
+        Critical:
+          type: integer
+          minimum: 0
+    ScanResponse:
+      type: object
+      required:
+      - schemaVersion
+      - runId
+      - status
+      - scannedFiles
+      - skippedFiles
+      - totalFindings
+      - suppressedFindings
+      - effectiveFindings
+      - severityCounts
+      - allSeverityCounts
+      - suppressedSeverityCounts
+      - limitReached
+      - limitReasons
+      - builtinSkips
+      - findings
+      - expiresAtUtc
+      - coverageComplete
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-local-api-v1
+        runId:
+          type: string
+        status:
+          type: string
+          enum:
+          - success
+          - violation
+          - incomplete
+          - error
+        scannedFiles:
+          type: integer
+        skippedFiles:
+          type: integer
+        totalFindings:
+          type: integer
+          description: Baseline pre-suppression count.
+        suppressedFindings:
+          type: integer
+        effectiveFindings:
+          type: integer
+          description: Post-baseline count used by fail checks.
+        severityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        allSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        suppressedSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        limitReached:
+          type: boolean
+        limitReasons:
+          type: array
+          items:
+            type: string
+        builtinSkips:
+          type: array
+          items:
+            type: string
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SafeFindingApiV1'
+        expiresAtUtc:
+          type: string
+          format: date-time
+        coverageComplete:
+          type: boolean
+          description: False when scan stopped due to coverage/limit gap. Counts are
+            observed values only.
+    ConfigLayerSummary:
+      type: object
+      required:
+      - name
+      - loaded
+      - warnings
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          enum:
+          - builtin
+          - preset
+          - org
+          - repo
+          - cli
+        path:
+          type: string
+        loaded:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+    ConfigConflict:
+      type: object
+      required:
+      - key
+      - winner
+      - shadowed
+      - explanation
+      additionalProperties: false
+      properties:
+        key:
+          type: string
+        winner:
+          type: string
+          enum:
+          - builtin
+          - preset
+          - org
+          - repo
+          - cli
+        shadowed:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+    PolicyResponse:
+      type: object
+      required:
+      - schemaVersion
+      - hasOrgConfig
+      - effectiveRulesCount
+      - layers
+      - conflicts
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-local-api-v1
+        hasOrgConfig:
+          type: boolean
+        orgConfigPath:
+          type: string
+        repoConfigPath:
+          type: string
+        effectiveRulesCount:
+          type: integer
+        preset:
+          type: string
+        layers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigLayerSummary'
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfigConflict'
+    BaselineRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        paths:
+          type: array
+          items:
+            type: string
+          default:
+          - .
+        outputPath:
+          type: string
+          default: veil.baseline.json
+    BaselineResponse:
+      type: object
+      required:
+      - schemaVersion
+      - filePath
+      - findingsCount
+      - written
+      - nextAction
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-local-api-v1
+        filePath:
+          type: string
+        findingsCount:
+          type: integer
+        written:
+          type: boolean
+        nextAction:
+          type: string
+          enum:
+          - COMMIT_BASELINE
+          - REVIEW_FINDINGS
+    DoctorResponse:
+      type: object
+      required:
+      - schemaVersion
+      - productVersion
+      - os
+      - config
+      - bounds
+      - rulePacks
+      - networkMode
+      - warnings
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-local-api-v1
+        productVersion:
+          type: string
+        os:
+          type: string
+        rustVersion:
+          type: string
+        config:
+          $ref: '#/components/schemas/PolicyResponse'
+        bounds:
+          type: object
+        rulePacks:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - source
+            properties:
+              name:
+                type: string
+              version:
+                type: string
+              source:
+                type: string
+                enum:
+                - embedded
+                - local
+                - remote
+        networkMode:
+          type: string
+          enum:
+          - local-only
+          - enterprise-opt-in
+        warnings:
+          type: array
+          items:
+            type: string
+    RunMetaResponse:
+      type: object
+      required:
+      - schemaVersion
+      - runId
+      - generatedAtUtc
+      - product
+      - engine
+      - result
+      - artifacts
+      - privacy
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-pro-run-meta-v1
+        runId:
+          type: string
+        generatedAtUtc:
+          type: string
+          format: date-time
+        product:
+          $ref: '#/components/schemas/ProductMeta'
+        engine:
+          $ref: '#/components/schemas/EngineMeta'
+        result:
+          type: object
+          required:
+          - status
+          - exitCode
+          - limitReached
+          - limitReasons
+          - summary
+          properties:
+            status:
+              type: string
+              enum:
+              - success
+              - violation
+              - incomplete
+              - error
+            exitCode:
+              type: integer
+              enum:
+              - 0
+              - 1
+              - 2
+            limitReached:
+              type: boolean
+            limitReasons:
+              type: array
+              items:
+                type: string
+            summary:
+              $ref: '#/components/schemas/EvidenceSummary'
+          additionalProperties: false
+        artifacts:
+          $ref: '#/components/schemas/EvidenceArtifacts'
+        privacy:
+          $ref: '#/components/schemas/PrivacyMeta'
+        extensions:
+          type: object
+          description: Reserved extension namespace for forward-compatible metadata.
+            Core v1 fields remain strict.
+          additionalProperties: true
+    EvidenceSummary:
+      type: object
+      required:
+      - totalFindings
+      - suppressedFindings
+      - effectiveFindings
+      - severityCounts
+      - allSeverityCounts
+      - suppressedSeverityCounts
+      - coverageComplete
+      additionalProperties: false
+      properties:
+        totalFindings:
+          type: integer
+          minimum: 0
+        suppressedFindings:
+          type: integer
+          minimum: 0
+        effectiveFindings:
+          type: integer
+          minimum: 0
+        severityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        allSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        suppressedSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        coverageComplete:
+          type: boolean
+    ArtifactMeta:
+      type: object
+      required:
+      - path
+      - sha256
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        sizeBytes:
+          type: integer
+          minimum: 0
+    BaselineArtifactMeta:
+      type: object
+      required:
+      - path
+      - sha256
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+          enum:
+          - veil.baseline.json
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        sizeBytes:
+          type: integer
+          minimum: 0
+    EvidenceArtifacts:
+      type: object
+      required:
+      - reportHtml
+      - reportJson
+      - effectiveConfig
+      additionalProperties: false
+      properties:
+        reportHtml:
+          $ref: '#/components/schemas/ArtifactMeta'
+        reportJson:
+          $ref: '#/components/schemas/ArtifactMeta'
+        effectiveConfig:
+          $ref: '#/components/schemas/ArtifactMeta'
+        baseline:
+          $ref: '#/components/schemas/BaselineArtifactMeta'
+    PrivacyMeta:
+      type: object
+      required:
+      - telemetry
+      - networkMode
+      - bind
+      additionalProperties: false
+      properties:
+        telemetry:
+          type: string
+          enum:
+          - none
+        networkMode:
+          type: string
+          enum:
+          - local-only
+          - enterprise-opt-in
+        bind:
+          type: string
+          enum:
+          - 127.0.0.1
+    EvidenceReportV1:
+      type: object
+      required:
+      - schemaVersion
+      - runId
+      - generatedAtUtc
+      - summary
+      - findings
+      additionalProperties: false
+      properties:
+        schemaVersion:
+          type: string
+          enum:
+          - veil-evidence-report-v1
+        runId:
+          type: string
+        generatedAtUtc:
+          type: string
+          format: date-time
+        summary:
+          $ref: '#/components/schemas/EvidenceSummary'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SafeFindingApiV1'
+          description: Raw-free all findings, including baselineStatus=new and baselineStatus=suppressed
+            when a baseline is used.
+    ProductMeta:
+      type: object
+      required:
+      - name
+      - version
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          enum:
+          - veil-pro
+          - veil
+        version:
+          type: string
+        commit:
+          type: string
+        buildProfile:
+          type: string
+          enum:
+          - debug
+          - release
+    EngineMeta:
+      type: object
+      required:
+      - name
+      - schemaVersion
+      - rulePacks
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          enum:
+          - veil
+        schemaVersion:
+          type: string
+          enum:
+          - veil-v1
+        rulePacks:
+          type: array
+          items:
+            type: object
+            required:
+            - name
+            - source
+            additionalProperties: false
+            properties:
+              name:
+                type: string
+              source:
+                type: string
+                enum:
+                - embedded
+                - local
+                - remote
+              contentSha256:
+                type: string
+                pattern: ^[a-f0-9]{64}$
+              version:
+                type: string
+paths:
+  /api/me:
+    get:
+      responses:
+        '200':
+          description: Auth context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthContext'
+        '401':
+          description: Unauthorized
+  /api/projects:
+    get:
+      responses:
+        '200':
+          description: Project list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsResponse'
+  /api/scan:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: Scan response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+        '400':
+          description: Invalid request
+        '403':
+          description: Path denied
+        '413':
+          description: Run too large
+  /api/runs/{runId}:
+    get:
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Run metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunMetaResponse'
+        '410':
+          description: Run expired
+  /api/runs/{runId}/evidence.zip:
+    get:
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Evidence ZIP
+          content:
+            application/zip: {}
+        '410':
+          description: Run expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/policy:
+    get:
+      responses:
+        '200':
+          description: Effective policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+  /api/baseline:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineRequest'
+      responses:
+        '200':
+          description: Baseline result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineResponse'
+  /api/doctor:
+    get:
+      responses:
+        '200':
+          description: Doctor diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorResponse'

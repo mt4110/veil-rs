@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://veil.local/schemas/safe-finding-api-v1.json",
+  "title": "SafeFindingApiV1",
+  "description": "Local UI / Evidence preview finding schema. Raw line content and matched content are forbidden. Field names are camelCase.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "findingId",
+    "baselineFingerprint",
+    "path",
+    "lineNumber",
+    "ruleId",
+    "severity",
+    "score",
+    "grade",
+    "maskedSnippet",
+    "category",
+    "tags",
+    "baselineStatus"
+  ],
+  "properties": {
+    "findingId": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "lineNumber": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ruleId": {
+      "type": "string"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ]
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "grade": {
+      "type": "string",
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ]
+    },
+    "maskedSnippet": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "baselineStatus": {
+      "type": "string",
+      "enum": [
+        "new",
+        "suppressed",
+        "none"
+      ]
+    },
+    "baselineFingerprint": {
+      "type": "string",
+      "description": "Opaque baseline suppression key. Distinct from findingId; used for baseline matching."
+    }
+  }
+}

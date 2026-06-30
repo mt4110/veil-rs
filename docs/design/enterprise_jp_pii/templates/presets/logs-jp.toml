@@ -1,0 +1,10 @@
+[core]
+max_file_size = 5000000
+max_file_count = 1000000
+ignore = ["node_modules", "target", ".git"]
+rules_dir = "rules/log"
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 5000

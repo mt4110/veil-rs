@@ -540,6 +540,7 @@ pub fn scan(
     if result.summary.file_limit_reached {
         eprintln!();
         eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("The scan was truncated due to max_file_count limit.");
         eprintln!("  What: The maximum file count limit (core.max_file_count) was reached.");
         eprintln!("  Why:  To prevent runaway scans, Veil stops when this safety boundary is hit.");
         eprintln!("        However, passing CI with a truncated scan is dangerous.");
@@ -557,6 +558,7 @@ pub fn scan(
     if result.summary.limit_reached {
         eprintln!();
         eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("Reached finding limit ({}).", result.summary.total_findings);
         eprintln!("  What: The maximum findings limit (output.max_findings) was reached.");
         eprintln!("  Why:  Too many secrets were detected, risking OOM or unreadable reports.");
         eprintln!("        Passing CI with truncated findings hides remaining vulnerabilities.");

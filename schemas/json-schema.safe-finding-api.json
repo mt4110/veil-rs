@@ -1,0 +1,96 @@
+{
+  "$defs": {
+    "BaselineStatus": {
+      "enum": [
+        "none",
+        "new",
+        "suppressed"
+      ],
+      "type": "string"
+    },
+    "GradeName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    },
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://veil.local/schemas/safe-finding-api-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Local UI / Evidence preview finding schema. Raw line content and matched content are forbidden. Field names are camelCase.",
+  "properties": {
+    "baselineFingerprint": {
+      "type": "string"
+    },
+    "baselineStatus": {
+      "$ref": "#/$defs/BaselineStatus"
+    },
+    "category": {
+      "type": "string"
+    },
+    "findingId": {
+      "type": "string"
+    },
+    "grade": {
+      "$ref": "#/$defs/GradeName"
+    },
+    "lineNumber": {
+      "format": "uint",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "maskedSnippet": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "ruleId": {
+      "type": "string"
+    },
+    "score": {
+      "format": "uint32",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "severity": {
+      "$ref": "#/$defs/SeverityName"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "findingId",
+    "baselineFingerprint",
+    "path",
+    "lineNumber",
+    "ruleId",
+    "severity",
+    "score",
+    "grade",
+    "maskedSnippet",
+    "category",
+    "tags",
+    "baselineStatus"
+  ],
+  "title": "SafeFindingApiV1",
+  "type": "object"
+}

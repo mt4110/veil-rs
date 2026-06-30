@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FindingV1 (CLI/Core snake_case)",
+  "type": "object",
+  "required": [
+    "path",
+    "line_number",
+    "rule_id",
+    "severity",
+    "score",
+    "masked_snippet"
+  ],
+  "properties": {
+    "path": {
+      "type": "string"
+    },
+    "line_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "rule_id": {
+      "type": "string"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical",
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "masked_snippet": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$id": "https://veil.local/schemas/finding-v1.json",
+  "description": "CLI/Core compatible finding schema. Local UI must use SafeFindingApiV1 instead."
+}

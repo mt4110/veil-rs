@@ -1,5 +1,4 @@
 use regex::Regex;
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs::File;
@@ -70,33 +69,6 @@ impl Default for VerifyOptions {
     }
 }
 
-// Minimal struct to extract what we need from run_meta.json
-#[derive(Debug, Deserialize)]
-struct RunMetaLight {
-    #[serde(rename = "schemaVersion")]
-    schema_version: Option<String>,
-    schema_version_old: Option<String>, // fallbacks if needed
-    result: Option<ResultMetaLight>,
-    artifacts: Option<HashMap<String, ArtifactMetaLight>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ResultMetaLight {
-    limit_reached: Option<bool>,
-    summary: Option<SummaryMetaLight>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SummaryMetaLight {
-    findings_count: Option<usize>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ArtifactMetaLight {
-    path: String,
-    sha256: String,
-}
-
 fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
@@ -143,6 +115,13 @@ pub fn verify_evidence_pack(
 
         if name.ends_with('/') {
             continue;
+        }
+
+        if name == "baseline.json" {
+            return Err(VerifyError::SchemaViolation(
+                "baseline.json is not supported in Evidence Pack v1; use veil.baseline.json"
+                    .to_string(),
+            ));
         }
 
         // Anti-ZipSlip
@@ -236,51 +215,94 @@ pub fn verify_evidence_pack(
         }
     }
 
-    let run_meta: RunMetaLight = serde_json::from_slice(run_meta_buf)?;
+    let run_meta: serde_json::Value = serde_json::from_slice(run_meta_buf)?;
 
     let schema_ver = run_meta
-        .schema_version
-        .or(run_meta.schema_version_old)
+        .get("schemaVersion")
+        .or_else(|| run_meta.get("schema_version"))
+        .and_then(serde_json::Value::as_str)
         .unwrap_or_default();
-    if !schema_ver.starts_with("veil-pro-run-meta-v1") && !schema_ver.starts_with("veil-v1") {
+    if schema_ver != "veil-pro-run-meta-v1" && !schema_ver.starts_with("veil-v1") {
         return Err(VerifyError::SchemaViolation(format!(
             "Unsupported run_meta.json schema: {}",
             schema_ver
         )));
     }
 
-    let is_complete = !run_meta
-        .result
-        .as_ref()
-        .and_then(|r| r.limit_reached)
-        .unwrap_or(false);
+    let is_complete = run_meta
+        .pointer("/result/summary/coverageComplete")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or_else(|| {
+            !run_meta
+                .pointer("/result/limitReached")
+                .or_else(|| run_meta.pointer("/result/limit_reached"))
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        });
 
     let findings_count = run_meta
-        .result
-        .as_ref()
-        .and_then(|r| r.summary.as_ref())
-        .and_then(|s| s.findings_count)
+        .pointer("/result/summary/effectiveFindings")
+        .or_else(|| run_meta.pointer("/result/summary/totalFindings"))
+        .or_else(|| run_meta.pointer("/result/summary/findingsCount"))
+        .or_else(|| run_meta.pointer("/result/summary/findings_count"))
+        .and_then(serde_json::Value::as_u64)
+        .map(|count| count as usize)
         .unwrap_or(0);
 
     // 5. Match hashes against run_meta.json tracking
-    if let Some(artifacts_map) = run_meta.artifacts {
-        let expected_files = ["report_html", "report_json", "effective_config", "baseline"];
-        for key in expected_files {
-            if let Some(art) = artifacts_map.get(key) {
-                // Sometimes baseline doesn't exist, only check if it is formally mapped
-                let expected_path = &art.path;
-                let expected_hash = &art.sha256;
-                if let Some(actual_hash) = extracted_files.get(expected_path) {
-                    if actual_hash != expected_hash {
-                        return Err(VerifyError::HashMismatch(
-                            expected_path.clone(),
-                            expected_hash.clone(),
-                            actual_hash.clone(),
-                        ));
-                    }
-                } else if key != "baseline" {
-                    return Err(VerifyError::MissingFile(expected_path.clone()));
+    if let Some(artifacts_map) = run_meta
+        .get("artifacts")
+        .and_then(serde_json::Value::as_object)
+    {
+        let expected_files = [
+            ("reportHtml", "report_html", false),
+            ("reportJson", "report_json", false),
+            ("effectiveConfig", "effective_config", false),
+            ("baseline", "baseline", true),
+        ];
+        for (camel_key, snake_key, optional) in expected_files {
+            let Some(art) = artifacts_map
+                .get(camel_key)
+                .or_else(|| artifacts_map.get(snake_key))
+            else {
+                if optional {
+                    continue;
                 }
+                return Err(VerifyError::SchemaViolation(format!(
+                    "artifact {} missing from run_meta.json",
+                    camel_key
+                )));
+            };
+
+            let expected_path = art
+                .get("path")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| {
+                    VerifyError::SchemaViolation(format!(
+                        "artifact {} path missing from run_meta.json",
+                        camel_key
+                    ))
+                })?;
+            let expected_hash = art
+                .get("sha256")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| {
+                    VerifyError::SchemaViolation(format!(
+                        "artifact {} sha256 missing from run_meta.json",
+                        camel_key
+                    ))
+                })?;
+
+            if let Some(actual_hash) = extracted_files.get(expected_path) {
+                if actual_hash != expected_hash {
+                    return Err(VerifyError::HashMismatch(
+                        expected_path.to_string(),
+                        expected_hash.to_string(),
+                        actual_hash.clone(),
+                    ));
+                }
+            } else if !optional {
+                return Err(VerifyError::MissingFile(expected_path.to_string()));
             }
         }
     } else {
@@ -301,12 +323,12 @@ pub fn verify_evidence_pack(
     }
 
     if let Some(threshold) = options.fail_on_findings {
-        if findings_count > threshold {
+        if findings_count >= threshold {
             return Ok(VerifyResult {
                 status: VerifyStatus::PolicyViolation,
                 is_complete,
                 findings_count,
-                message: format!("Policy Violation: Extracted {} findings, which exceeds the allowed threshold ({}).", findings_count, threshold),
+                message: format!("Policy Violation: Extracted {} findings, meeting the configured threshold ({}).", findings_count, threshold),
             });
         }
     }

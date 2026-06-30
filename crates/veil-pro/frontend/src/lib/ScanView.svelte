@@ -75,12 +75,12 @@
       const data = await res.json();
       findings = data.findings || [];
       scanStats = {
-        scanned: data.scanned_files,
-        skipped: data.skipped_files,
-        runId: data.run_id
+        scanned: data.scannedFiles,
+        skipped: data.skippedFiles,
+        runId: data.runId
       };
       
-      if (data.limit_reached) {
+      if (data.limitReached) {
         currentState = 'Incomplete';
       } else if (findings.length > 0) {
         currentState = 'Violation';
@@ -223,10 +223,10 @@
                         {finding.severity}
                       </span>
                     </td>
-                    <td class="rule-col">{finding.rule_id}</td>
-                    <td class="path-col">{finding.path}:{safeInt(finding.line_number)}</td>
+                    <td class="rule-col">{finding.ruleId}</td>
+                    <td class="path-col">{finding.path}:{safeInt(finding.lineNumber)}</td>
                     <td class="context-col">
-                      <code class="code-block">{finding.masked_snippet}</code>
+                      <code class="code-block">{finding.maskedSnippet}</code>
                     </td>
                   </tr>
                 {/each}

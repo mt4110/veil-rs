@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/runs/:run_id", get(api::get_run_meta))
         .route("/runs/:run_id/evidence.zip", get(api::export_evidence))
         .route("/policy", get(api::get_policy))
+        .route("/doctor", get(api::get_doctor))
         .route("/baseline", post(api::write_baseline))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth)); // Updated to require_auth
 
@@ -125,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[derive(RustEmbed)]
 #[folder = "frontend/dist/"]
+#[allow_missing = true]
 struct Asset;
 
 async fn static_handler(uri: Uri) -> impl IntoResponse {
