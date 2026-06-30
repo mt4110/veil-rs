@@ -29,12 +29,19 @@ PR-0で以下を追加する。
 
 PR-0の出力先は **repo root の `schemas/`** とする。設計書パック内の `schemas/` は同じ内容の参照コピーであり、実装時の正規出力先ではない。
 
-生成コマンド契約:
+schema更新時の生成コマンド契約:
 
 ```bash
 cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas
+```
+
+schema検証コマンド契約:
+
+```bash
 python scripts/check_generated_schemas.py
 ```
+
+`scripts/check_generated_schemas.py` は一時ディレクトリへ生成して tracked `schemas/` と比較する。acceptance gate では検証前に `schemas/` を上書きしてはならない。
 
 実装者は OpenAPI / JSON Schema を手編集してはならない。
 

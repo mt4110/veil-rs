@@ -87,12 +87,19 @@ PR-0で以下を追加する。
 
 PR-0の出力先は **repo root の `schemas/`** とする。設計書パック内の `schemas/` は同じ内容の参照コピーであり、実装時の正規出力先ではない。
 
-生成コマンド契約:
+schema更新時の生成コマンド契約:
 
 ```bash
 cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas
+```
+
+schema検証コマンド契約:
+
+```bash
 python scripts/check_generated_schemas.py
 ```
+
+`scripts/check_generated_schemas.py` は一時ディレクトリへ生成して tracked `schemas/` と比較する。acceptance gate では検証前に `schemas/` を上書きしてはならない。
 
 実装者は OpenAPI / JSON Schema を手編集してはならない。
 
@@ -2636,10 +2643,11 @@ flowchart LR
 ```bash
 cargo test --workspace
 npm --prefix crates/veil-pro/frontend run build
-cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas
 python scripts/check_generated_schemas.py
 cargo run -p veil-cli -- verify tests/fixtures/evidence/golden.zip --require-complete
 ```
+
+`scripts/check_generated_schemas.py` は生成結果を一時ディレクトリに出力して tracked `schemas/` と比較する。acceptance gate 内で検証前に `schemas/` を上書きしてはならない。schema更新が必要なときだけ、開発者が明示的に `cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas` を実行し、その差分をコミットする。
 
 acceptance gate は PATH上の `veil` バイナリには依存しない。必ず `cargo run -p veil-cli -- verify ...` を使う。
 

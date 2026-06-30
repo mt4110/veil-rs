@@ -5,7 +5,6 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
-use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,6 +16,26 @@ pub mod dto;
 pub use dto::*;
 
 use crate::AppState;
+
+type ApiErrorResponse = (StatusCode, Json<ErrorEnvelope>);
+
+pub fn error_response(
+    status: StatusCode,
+    code: ErrorCode,
+    message: impl Into<String>,
+    next_action: Option<NextAction>,
+) -> ApiErrorResponse {
+    (
+        status,
+        Json(ErrorEnvelope {
+            error: ErrorBody {
+                code,
+                message: message.into(),
+                next_action,
+            },
+        }),
+    )
+}
 
 // GET /api/me
 // Returns the currently authenticated context (either SSO user or local token context).
@@ -35,11 +54,6 @@ pub async fn get_me(session: Session) -> Result<Json<AuthContext>, StatusCode> {
         authenticated: true,
         kind: AuthContextType::LocalToken,
     })))
-}
-
-#[derive(Debug, Serialize)]
-pub struct ApiError {
-    pub error: String,
 }
 
 struct BaselineFileInfo {
@@ -317,22 +331,28 @@ pub async fn list_projects(State(_state): State<Arc<AppState>>) -> Json<Projects
 pub async fn scan_project(
     State(state): State<Arc<AppState>>,
     Json(req): Json<ScanRequest>,
-) -> Result<Json<ScanResponse>, (StatusCode, Json<ApiError>)> {
+) -> Result<Json<ScanResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths.clone());
     let config = load_effective_config_for_paths(&paths_to_scan);
     if req.fail_on_findings == Some(0) {
-        return Err((
+        return Err(error_response(
             StatusCode::BAD_REQUEST,
-            Json(ApiError {
-                error: "failOnFindings must be >= 1".to_string(),
-            }),
+            ErrorCode::InvalidRequest,
+            "failOnFindings must be >= 1",
+            None,
         ));
     }
 
     let rules = veil_core::get_all_rules(&config, vec![]);
     let rules_by_id = rule_lookup(&rules);
-    let baseline = resolve_baseline_file(req.baseline_file.as_deref())
-        .map_err(|error| (StatusCode::BAD_REQUEST, Json(ApiError { error })))?;
+    let baseline = resolve_baseline_file(req.baseline_file.as_deref()).map_err(|error| {
+        error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            error,
+            None,
+        )
+    })?;
 
     let mut findings = Vec::new();
     let mut scanned_files = 0;
@@ -343,11 +363,11 @@ pub async fn scan_project(
 
     for path in paths_to_scan {
         let safe_path = validate_safe_path(&path).map_err(|error| {
-            (
+            error_response(
                 StatusCode::FORBIDDEN,
-                Json(ApiError {
-                    error: format!("Path denied: {error}"),
-                }),
+                ErrorCode::PathDenied,
+                format!("Path denied: {error}"),
+                Some(NextAction::NarrowScope),
             )
         })?;
         let result = veil_core::scan_path(&safe_path, &rules, &config);
@@ -466,7 +486,7 @@ pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorRespo
 pub async fn write_baseline(
     State(_state): State<Arc<AppState>>,
     Json(req): Json<BaselineRequest>,
-) -> Result<Json<BaselineResponse>, (StatusCode, Json<ApiError>)> {
+) -> Result<Json<BaselineResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths);
     let config = load_effective_config_for_paths(&paths_to_scan);
     let rules = veil_core::get_all_rules(&config, vec![]);
@@ -482,8 +502,14 @@ pub async fn write_baseline(
     let tool_version = env!("CARGO_PKG_VERSION");
     let snapshot = veil_core::baseline::from_findings(&all_findings, tool_version);
     let output_path = if let Some(output_path) = req.output_path {
-        validate_safe_path(&output_path)
-            .map_err(|error| (StatusCode::BAD_REQUEST, Json(ApiError { error })))?
+        validate_safe_path(&output_path).map_err(|error| {
+            error_response(
+                StatusCode::FORBIDDEN,
+                ErrorCode::PathDenied,
+                error,
+                Some(NextAction::NarrowScope),
+            )
+        })?
     } else {
         veil_core::baseline::default_baseline_path(&repo_root())
     };
@@ -546,17 +572,16 @@ fn validate_safe_path(p: &str) -> Result<PathBuf, String> {
 pub async fn get_run_meta(
     State(state): State<Arc<AppState>>,
     Path(run_id): Path<String>,
-) -> Result<Json<crate::evidence::RunMeta>, (StatusCode, Json<ApiError>)> {
+) -> Result<Json<crate::evidence::RunMeta>, ApiErrorResponse> {
     let mut cache = state.run_cache.write().await;
     if let Some(cached) = cache.get(&run_id) {
         Ok(Json(cached.meta))
     } else {
-        Err((
+        Err(error_response(
             StatusCode::GONE,
-            Json(ApiError {
-                error: "Run evidence has expired or runId is invalid. Please trigger a new scan."
-                    .to_string(),
-            }),
+            ErrorCode::RunExpired,
+            "Run evidence has expired or runId is invalid. Please trigger a new scan.",
+            Some(NextAction::Rescan),
         ))
     }
 }
@@ -564,18 +589,16 @@ pub async fn get_run_meta(
 pub async fn export_evidence(
     State(state): State<Arc<AppState>>,
     Path(run_id): Path<String>,
-) -> Result<impl IntoResponse, (StatusCode, Json<ApiError>)> {
+) -> Result<impl IntoResponse, ApiErrorResponse> {
     let mut cache = state.run_cache.write().await;
     let cached = match cache.get(&run_id) {
         Some(c) => c,
         None => {
-            return Err((
+            return Err(error_response(
                 StatusCode::GONE,
-                Json(ApiError {
-                    error:
-                        "Run evidence has expired or runId is invalid. Please trigger a new scan."
-                            .to_string(),
-                }),
+                ErrorCode::RunExpired,
+                "Run evidence has expired or runId is invalid. Please trigger a new scan.",
+                Some(NextAction::Rescan),
             ));
         }
     };
@@ -606,11 +629,11 @@ pub async fn export_evidence(
         }
 
         let _ = zip.finish().map_err(|_| {
-            (
+            error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ApiError {
-                    error: "Failed to assemble Evidence Pack ZIP archive.".to_string(),
-                }),
+                ErrorCode::InternalError,
+                "Failed to assemble Evidence Pack ZIP archive.",
+                None,
             )
         })?;
     }
@@ -751,6 +774,27 @@ mod tests {
         };
 
         assert_eq!(limit_reasons_for(&result), vec!["file-limit".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn fail_on_findings_zero_returns_error_envelope() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = ScanRequest {
+            fail_on_findings: Some(0),
+            ..ScanRequest::default()
+        };
+
+        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert_eq!(body.error.message, "failOnFindings must be >= 1");
     }
 }
 

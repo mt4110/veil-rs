@@ -49,10 +49,11 @@ flowchart LR
 ```bash
 cargo test --workspace
 npm --prefix crates/veil-pro/frontend run build
-cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas
 python scripts/check_generated_schemas.py
 cargo run -p veil-cli -- verify tests/fixtures/evidence/golden.zip --require-complete
 ```
+
+`scripts/check_generated_schemas.py` は生成結果を一時ディレクトリに出力して tracked `schemas/` と比較する。acceptance gate 内で検証前に `schemas/` を上書きしてはならない。schema更新が必要なときだけ、開発者が明示的に `cargo run -p veil-pro --bin export_local_api_schema -- --out-dir schemas` を実行し、その差分をコミットする。
 
 acceptance gate は PATH上の `veil` バイナリには依存しない。必ず `cargo run -p veil-cli -- verify ...` を使う。
 

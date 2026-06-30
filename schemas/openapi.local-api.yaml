@@ -858,6 +858,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaselineResponse'
           description: Baseline result
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Path denied
       security:
       - bearerAuth: []
       tags: []
@@ -966,6 +972,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: Run expired
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Evidence assembly failed
       security:
       - bearerAuth: []
       tags: []

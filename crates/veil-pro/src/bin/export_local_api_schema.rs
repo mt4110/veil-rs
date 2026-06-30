@@ -75,7 +75,8 @@ fn openapi_get_run_meta() {}
     params(("runId" = String, Path, description = "Run identifier")),
     responses(
         (status = 200, description = "Evidence ZIP", content_type = "application/zip"),
-        (status = 410, description = "Run expired", body = ErrorEnvelope)
+        (status = 410, description = "Run expired", body = ErrorEnvelope),
+        (status = 500, description = "Evidence assembly failed", body = ErrorEnvelope)
     ),
     security(("bearerAuth" = []))
 )]
@@ -95,7 +96,10 @@ fn openapi_get_policy() {}
     post,
     path = "/api/baseline",
     request_body = BaselineRequest,
-    responses((status = 200, description = "Baseline result", body = BaselineResponse)),
+    responses(
+        (status = 200, description = "Baseline result", body = BaselineResponse),
+        (status = 403, description = "Path denied", body = ErrorEnvelope)
+    ),
     security(("bearerAuth" = []))
 )]
 fn openapi_write_baseline() {}

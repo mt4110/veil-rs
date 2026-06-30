@@ -4,7 +4,7 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
-    Router,
+    Json, Router,
 };
 use base64::Engine;
 use clap::Parser;
@@ -174,7 +174,7 @@ async fn require_auth(
     session: Session,
     req: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, (StatusCode, Json<api::ErrorEnvelope>)> {
     // 1. Check Bearer Token
     let auth_header = req
         .headers()
@@ -195,7 +195,12 @@ async fn require_auth(
     }
 
     // Unauthorized
-    Err(StatusCode::UNAUTHORIZED)
+    Err(api::error_response(
+        StatusCode::UNAUTHORIZED,
+        api::ErrorCode::Unauthorized,
+        "Unauthorized",
+        Some(api::NextAction::CheckToken),
+    ))
 }
 
 #[cfg(test)]

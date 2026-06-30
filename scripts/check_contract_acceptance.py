@@ -9,17 +9,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 COMMANDS = [
     ["cargo", "test", "--workspace"],
     ["npm", "--prefix", "crates/veil-pro/frontend", "run", "build"],
-    [
-        "cargo",
-        "run",
-        "-p",
-        "veil-pro",
-        "--bin",
-        "export_local_api_schema",
-        "--",
-        "--out-dir",
-        "schemas",
-    ],
     [sys.executable, "scripts/check_generated_schemas.py"],
     [
         "cargo",
