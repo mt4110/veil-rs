@@ -143,6 +143,65 @@ fn test_hash_mismatch() {
 }
 
 #[test]
+fn test_declared_baseline_must_exist_in_zip() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("missing_baseline_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = b"{\"findings\": []}";
+    let report_html_content = b"<html></html>";
+    let baseline_content = b"{\"schema\":\"veil.baseline.v1\",\"entries\":[]}";
+
+    let artifacts = serde_json::json!({
+        "effective_config": {
+            "path": "effective_config.toml",
+            "sha256": sha256_hex(effective_config_content),
+        },
+        "report_json": {
+            "path": "report.json",
+            "sha256": sha256_hex(report_json_content),
+        },
+        "report_html": {
+            "path": "report.html",
+            "sha256": sha256_hex(report_html_content),
+        },
+        "baseline": {
+            "path": "veil.baseline.json",
+            "sha256": sha256_hex(baseline_content),
+        }
+    });
+
+    let run_meta_content = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "artifacts": artifacts
+    })
+    .to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "Missing required file: veil.baseline.json",
+        ));
+}
+
+#[test]
 fn test_external_anchor_mismatch() {
     let dir = TempDir::new().unwrap();
     let zip_path = create_golden_zip(&dir);

@@ -80,7 +80,7 @@
           "type": "array"
         },
         "schemaVersion": {
-          "const": "veil-pro-local-api-v1"
+          "$ref": "#/$defs/EngineSchemaVersion"
         }
       },
       "required": [

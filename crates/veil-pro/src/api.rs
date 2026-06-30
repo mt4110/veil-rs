@@ -64,20 +64,39 @@ fn normalized_paths(paths: Option<Vec<String>>) -> Vec<String> {
     }
 }
 
-fn load_effective_config_for_paths(paths: &[String]) -> veil_config::Config {
-    let explicit_root = paths.first().map(PathBuf::from);
-    crate::config_loader::load_config_layers(explicit_root.as_ref())
+fn load_effective_config_for_paths(_paths: &[String]) -> veil_config::Config {
+    let repo_config = repo_root().join("veil.toml");
+    let explicit_path = repo_config.is_file().then_some(repo_config);
+    crate::config_loader::load_config_layers(explicit_path.as_ref())
         .map(|layers| layers.effective)
         .unwrap_or_default()
 }
 
-fn resolve_baseline_file() -> Option<BaselineFileInfo> {
+fn resolve_baseline_file(requested_path: Option<&str>) -> Result<Option<BaselineFileInfo>, String> {
     let root = repo_root();
-    let path = veil_core::baseline::resolve_compatible_baseline_path(&root)?;
-    let content = std::fs::read_to_string(&path).ok()?;
-    let snapshot = veil_core::baseline::load_baseline(&path).ok()?;
+    if let Some(requested_path) = requested_path {
+        let path = validate_safe_path(requested_path)?;
+        let content = std::fs::read_to_string(&path)
+            .map_err(|err| format!("Failed to read baselineFile: {err}"))?;
+        let snapshot = veil_core::baseline::load_baseline(&path)
+            .map_err(|err| format!("Failed to load baselineFile: {err}"))?;
 
-    Some(BaselineFileInfo { content, snapshot })
+        return Ok(Some(BaselineFileInfo { content, snapshot }));
+    }
+
+    let Some(path) = veil_core::baseline::resolve_compatible_baseline_path(&root) else {
+        return Ok(None);
+    };
+    let content = match std::fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(_) => return Ok(None),
+    };
+    let snapshot = match veil_core::baseline::load_baseline(&path) {
+        Ok(snapshot) => snapshot,
+        Err(_) => return Ok(None),
+    };
+
+    Ok(Some(BaselineFileInfo { content, snapshot }))
 }
 
 fn rule_lookup(rules: &[veil_core::Rule]) -> HashMap<String, (String, Vec<String>)> {
@@ -239,6 +258,39 @@ fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
     reasons
 }
 
+fn severity_rank(severity: SeverityName) -> u8 {
+    match severity {
+        SeverityName::Low => 0,
+        SeverityName::Medium => 1,
+        SeverityName::High => 2,
+        SeverityName::Critical => 3,
+    }
+}
+
+fn policy_violated(findings: &[SafeFindingApiV1], req: &ScanRequest) -> bool {
+    let has_thresholds = req.fail_on_findings.is_some()
+        || req.fail_on_score.is_some()
+        || req.fail_on_severity.is_some();
+    let findings_threshold = req
+        .fail_on_findings
+        .is_some_and(|threshold| findings.len() >= threshold);
+    let score_threshold = req
+        .fail_on_score
+        .is_some_and(|threshold| findings.iter().any(|finding| finding.score >= threshold));
+    let severity_threshold = req.fail_on_severity.is_some_and(|threshold| {
+        let threshold_rank = severity_rank(threshold);
+        findings
+            .iter()
+            .any(|finding| severity_rank(finding.severity) >= threshold_rank)
+    });
+
+    if has_thresholds {
+        findings_threshold || score_threshold || severity_threshold
+    } else {
+        !findings.is_empty()
+    }
+}
+
 // --- Endpoints ---
 
 pub async fn list_projects(State(_state): State<Arc<AppState>>) -> Json<ProjectsResponse> {
@@ -267,14 +319,20 @@ pub async fn scan_project(
     Json(req): Json<ScanRequest>,
 ) -> Result<Json<ScanResponse>, (StatusCode, Json<ApiError>)> {
     let paths_to_scan = normalized_paths(req.paths.clone());
-    let mut config = load_effective_config_for_paths(&paths_to_scan);
-    if let Some(max_findings) = req.fail_on_findings {
-        config.output.max_findings = Some(max_findings);
+    let config = load_effective_config_for_paths(&paths_to_scan);
+    if req.fail_on_findings == Some(0) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ApiError {
+                error: "failOnFindings must be >= 1".to_string(),
+            }),
+        ));
     }
 
     let rules = veil_core::get_all_rules(&config, vec![]);
     let rules_by_id = rule_lookup(&rules);
-    let baseline = resolve_baseline_file();
+    let baseline = resolve_baseline_file(req.baseline_file.as_deref())
+        .map_err(|error| (StatusCode::BAD_REQUEST, Json(ApiError { error })))?;
 
     let mut findings = Vec::new();
     let mut scanned_files = 0;
@@ -295,7 +353,7 @@ pub async fn scan_project(
         let result = veil_core::scan_path(&safe_path, &rules, &config);
         scanned_files += result.scanned_files;
         skipped_files += result.skipped_files;
-        limit_reached |= result.limit_reached;
+        limit_reached |= result.limit_reached || result.file_limit_reached;
         limit_reasons.extend(limit_reasons_for(&result));
         builtin_skips.extend(result.builtin_skips);
         findings.extend(result.findings);
@@ -315,10 +373,10 @@ pub async fn scan_project(
     let summary = build_evidence_summary(&buckets, coverage_complete);
     let status = if limit_reached {
         RunStatus::Incomplete
-    } else if buckets.effective.is_empty() {
-        RunStatus::Success
-    } else {
+    } else if policy_violated(&buckets.effective, &req) {
         RunStatus::Violation
+    } else {
+        RunStatus::Success
     };
 
     let response_findings = if req.include_suppressed {
@@ -408,7 +466,7 @@ pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorRespo
 pub async fn write_baseline(
     State(_state): State<Arc<AppState>>,
     Json(req): Json<BaselineRequest>,
-) -> Json<BaselineResponse> {
+) -> Result<Json<BaselineResponse>, (StatusCode, Json<ApiError>)> {
     let paths_to_scan = normalized_paths(req.paths);
     let config = load_effective_config_for_paths(&paths_to_scan);
     let rules = veil_core::get_all_rules(&config, vec![]);
@@ -423,25 +481,22 @@ pub async fn write_baseline(
 
     let tool_version = env!("CARGO_PKG_VERSION");
     let snapshot = veil_core::baseline::from_findings(&all_findings, tool_version);
-    let output_path = req
-        .output_path
-        .map(PathBuf::from)
-        .unwrap_or_else(|| veil_core::baseline::default_baseline_path(&repo_root()));
-    let output_path = if output_path.is_absolute() {
-        output_path
+    let output_path = if let Some(output_path) = req.output_path {
+        validate_safe_path(&output_path)
+            .map_err(|error| (StatusCode::BAD_REQUEST, Json(ApiError { error })))?
     } else {
-        repo_root().join(output_path)
+        veil_core::baseline::default_baseline_path(&repo_root())
     };
 
     let written = veil_core::baseline::save_baseline(&output_path, &snapshot).is_ok();
 
-    Json(BaselineResponse {
+    Ok(Json(BaselineResponse {
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
         file_path: output_path.to_string_lossy().to_string(),
         findings_count: snapshot.entries.len(),
         written,
         next_action: NextAction::CommitBaseline,
-    })
+    }))
 }
 
 /// B2B Security: Ensure path does not escape the current project directory using traversal ('../')
@@ -575,6 +630,23 @@ pub async fn export_evidence(
 mod tests {
     use super::*;
 
+    fn policy_finding(score: u32, severity: SeverityName) -> SafeFindingApiV1 {
+        SafeFindingApiV1 {
+            finding_id: format!("fx_{score}"),
+            baseline_fingerprint: format!("sha256:{score:064x}"),
+            path: "src/config.rs".to_string(),
+            line_number: 1,
+            rule_id: "creds.test".to_string(),
+            severity,
+            score,
+            grade: GradeName::High,
+            masked_snippet: "token = <REDACTED>".to_string(),
+            category: "credentials".to_string(),
+            tags: Vec::new(),
+            baseline_status: BaselineStatus::New,
+        }
+    }
+
     #[test]
     fn test_validate_safe_path() {
         assert!(validate_safe_path(".").is_ok());
@@ -619,6 +691,66 @@ mod tests {
         assert_ne!(safe.finding_id, safe.baseline_fingerprint);
         assert!(safe.finding_id.starts_with("fx_"));
         assert!(safe.baseline_fingerprint.starts_with("sha256:"));
+    }
+
+    #[test]
+    fn fail_on_findings_uses_effective_findings_threshold() {
+        let req = ScanRequest {
+            fail_on_findings: Some(2),
+            ..ScanRequest::default()
+        };
+        let one_finding = vec![policy_finding(80, SeverityName::High)];
+        let two_findings = vec![
+            policy_finding(80, SeverityName::High),
+            policy_finding(70, SeverityName::Medium),
+        ];
+
+        assert!(!policy_violated(&one_finding, &req));
+        assert!(policy_violated(&two_findings, &req));
+    }
+
+    #[test]
+    fn fail_on_score_and_severity_respect_thresholds() {
+        let findings = vec![policy_finding(60, SeverityName::Medium)];
+
+        assert!(!policy_violated(
+            &findings,
+            &ScanRequest {
+                fail_on_score: Some(80),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(policy_violated(
+            &findings,
+            &ScanRequest {
+                fail_on_score: Some(60),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(!policy_violated(
+            &findings,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::High),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(policy_violated(
+            &findings,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::Medium),
+                ..ScanRequest::default()
+            }
+        ));
+    }
+
+    #[test]
+    fn file_limit_has_dedicated_limit_reason() {
+        let result = veil_core::ScanResult {
+            file_limit_reached: true,
+            ..veil_core::ScanResult::default()
+        };
+
+        assert_eq!(limit_reasons_for(&result), vec!["file-limit".to_string()]);
     }
 }
 

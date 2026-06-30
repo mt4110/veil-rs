@@ -301,7 +301,7 @@ pub fn verify_evidence_pack(
                         actual_hash.clone(),
                     ));
                 }
-            } else if !optional {
+            } else {
                 return Err(VerifyError::MissingFile(expected_path.to_string()));
             }
         }

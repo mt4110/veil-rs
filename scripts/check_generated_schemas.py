@@ -7,7 +7,12 @@ import sys
 import tempfile
 from typing import Any
 
-import yaml
+try:
+    import yaml
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        "PyYAML is required for schema checks. Install it with: python -m pip install PyYAML"
+    ) from exc
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

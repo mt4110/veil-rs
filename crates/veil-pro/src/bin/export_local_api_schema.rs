@@ -248,7 +248,6 @@ fn apply_contract_schema_fixes(value: &mut Value) {
     match value {
         Value::Object(map) => {
             if let Some(Value::Object(properties)) = map.get_mut("properties") {
-                set_const(properties, "schemaVersion", "veil-pro-local-api-v1");
                 if properties.contains_key("result") && properties.contains_key("artifacts") {
                     set_const(properties, "schemaVersion", "veil-pro-run-meta-v1");
                 }

@@ -36,10 +36,12 @@ pub fn generate_evidence_pack(
         summary: summary.clone(),
         findings: findings.to_vec(),
     };
-    let json_content = serde_json::to_string_pretty(&report).unwrap_or_default();
+    let json_content =
+        serde_json::to_string_pretty(&report).expect("failed to serialize evidence report.json");
     let json_sha = sha256_str(&json_content);
 
-    let config_content = toml::to_string_pretty(config).unwrap_or_default();
+    let config_content =
+        toml::to_string_pretty(config).expect("failed to serialize effective_config.toml");
     let config_sha = sha256_str(&config_content);
 
     let baseline_meta = baseline_content.as_ref().map(|text| BaselineArtifactMeta {

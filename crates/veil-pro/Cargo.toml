@@ -33,4 +33,4 @@ oauth2 = "4.4.2"
 reqwest = { version = "0.12.3", default-features = false, features = ["rustls-tls", "json"] }
 tower-sessions = "0.12.1"
 mime_guess = "2.0.4"
-utoipa = { version = "5.4", features = ["yaml"] }
+utoipa = "5.4"
