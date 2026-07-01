@@ -536,7 +536,8 @@ pub async fn write_baseline(
 
     for path in paths_to_scan {
         if let Ok(safe_path) = validate_safe_path(&path) {
-            let result = veil_core::scan_path(&safe_path, &rules, &config);
+            let scan_path = scan_path_for_request(&path, &safe_path);
+            let result = veil_core::scan_path(&scan_path, &rules, &config);
             all_findings.extend(result.findings);
         }
     }

@@ -87,6 +87,23 @@ fn test_golden_zip() {
 }
 
 #[test]
+fn test_fail_on_findings_zero_allows_clean_pack() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = create_golden_zip(&dir);
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("0");
+
+    cmd.assert()
+        .success()
+        .code(0)
+        .stdout(predicates::str::contains("PASSED"));
+}
+
+#[test]
 fn test_hash_mismatch() {
     let dir = TempDir::new().unwrap();
     let zip_path = dir.path().join("mismatch_evidence.zip");

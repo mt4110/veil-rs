@@ -184,29 +184,15 @@ pub fn scan_file(
     limit: Option<&ScanLimit>,
 ) -> Vec<Finding> {
     let mut local_findings = Vec::new();
-
-    // Check file size
-    if let Ok(metadata) = std::fs::metadata(path) {
-        let max_size = config.core.max_file_size.unwrap_or(1_000_000);
-        if metadata.len() > max_size {
-            local_findings.push(crate::scanner::utils::create_skipped_finding(
-                path,
-                RULE_ID_MAX_FILE_SIZE,
-                format!(
-                    "File size ({} bytes) exceeds limit ({} bytes)",
-                    metadata.len(),
-                    max_size
-                ),
-                crate::model::Severity::High,
-            ));
-            return local_findings;
-        }
-    }
+    let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+    let file_size = std::fs::metadata(path).ok().map(|metadata| metadata.len());
+    let oversized = file_size.is_some_and(|size| size > max_size);
 
     let score_params = ScoreParams::default();
 
     if let Ok(mut file) = File::open(path) {
-        // Binary Check
+        // Binary checks happen before max-size classification so large binary assets
+        // remain ordinary binary skips instead of coverage-incomplete text skips.
         let mut buffer = [0; 1024];
         let n = file.read(&mut buffer).unwrap_or(0);
         if buffer[..n].contains(&0) {
@@ -215,6 +201,20 @@ pub fn scan_file(
                 RULE_ID_BINARY_FILE,
                 "Binary file detected (skipped)".to_string(),
                 crate::model::Severity::Medium,
+            ));
+            return local_findings;
+        }
+
+        if oversized {
+            let size = file_size.unwrap_or(0);
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_MAX_FILE_SIZE,
+                format!(
+                    "File size ({} bytes) exceeds limit ({} bytes)",
+                    size, max_size
+                ),
+                crate::model::Severity::High,
             ));
             return local_findings;
         }
@@ -255,6 +255,17 @@ pub fn scan_file(
                 context_buffer.push_back(content);
             }
         }
+    } else if oversized {
+        let size = file_size.unwrap_or(0);
+        local_findings.push(crate::scanner::utils::create_skipped_finding(
+            path,
+            RULE_ID_MAX_FILE_SIZE,
+            format!(
+                "File size ({} bytes) exceeds limit ({} bytes)",
+                size, max_size
+            ),
+            crate::model::Severity::High,
+        ));
     }
 
     if local_findings.is_empty() {
@@ -557,6 +568,21 @@ mod tests {
 
         assert_eq!(result.skipped_files, 1);
         assert!(result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[test]
+    fn scan_path_treats_oversized_binary_as_binary_skip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.bin");
+        std::fs::write(&path, [0_u8; 16]).unwrap();
+        let mut config = Config::default();
+        config.core.max_file_size = Some(3);
+
+        let result = scan_path(dir.path(), &[], &config);
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(!result.max_file_size_reached);
         assert!(!result.file_limit_reached);
     }
 }
