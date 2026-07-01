@@ -858,6 +858,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaselineResponse'
           description: Baseline result
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Invalid request or incomplete baseline scan
         '403':
           content:
             application/json:

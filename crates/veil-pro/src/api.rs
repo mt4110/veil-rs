@@ -660,24 +660,23 @@ pub async fn write_baseline(
     let paths_to_scan = normalized_paths(req.paths);
     let config = load_effective_config_for_paths(&paths_to_scan)?;
     let rules = veil_core::get_all_rules(&config, vec![]);
-    let mut all_findings = Vec::new();
-
-    for path in paths_to_scan {
-        let safe_path = validate_safe_path(&path).map_err(|error| {
-            error_response(
-                StatusCode::FORBIDDEN,
-                ErrorCode::PathDenied,
-                format!("Path denied: {error}"),
-                Some(NextAction::NarrowScope),
-            )
-        })?;
-        let scan_path = scan_path_for_request(&path, &safe_path);
-        let result = veil_core::scan_path(&scan_path, &rules, &config);
-        all_findings.extend(result.findings);
+    let aggregate = scan_paths_with_global_limit(paths_to_scan, &rules, &config)?;
+    if aggregate.limit_reached {
+        let reasons = if aggregate.limit_reasons.is_empty() {
+            "unknown".to_string()
+        } else {
+            aggregate.limit_reasons.join(", ")
+        };
+        return Err(error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            format!("Cannot write baseline from incomplete scan: {reasons}"),
+            Some(NextAction::NarrowScope),
+        ));
     }
 
     let tool_version = env!("CARGO_PKG_VERSION");
-    let snapshot = veil_core::baseline::from_findings(&all_findings, tool_version);
+    let snapshot = veil_core::baseline::from_findings(&aggregate.findings, tool_version);
     let output_path = if let Some(output_path) = req.output_path {
         validate_safe_path(&output_path).map_err(|error| {
             error_response(
@@ -1244,6 +1243,57 @@ mod tests {
             body.error.next_action,
             Some(NextAction::NarrowScope)
         ));
+    }
+
+    #[tokio::test]
+    async fn write_baseline_rejects_incomplete_scan() {
+        let root = unique_target_dir("baseline-incomplete");
+        let oversized = root.join("large.txt");
+        let output = root.join("veil.baseline.json");
+        std::fs::write(
+            &oversized,
+            "A".repeat((veil_core::DEFAULT_MAX_FILE_SIZE_BYTES + 1) as usize),
+        )
+        .unwrap();
+        let repo = repo_root();
+        let path = root
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let output_path = output
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = BaselineRequest {
+            paths: Some(vec![path]),
+            output_path: Some(output_path),
+        };
+
+        let (status, Json(body)) = write_baseline(State(state), Json(request))
+            .await
+            .unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body
+            .error
+            .message
+            .contains("Cannot write baseline from incomplete scan: max-file-size"));
+        assert!(matches!(
+            body.error.next_action,
+            Some(NextAction::NarrowScope)
+        ));
+        assert!(!output.exists());
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[tokio::test]

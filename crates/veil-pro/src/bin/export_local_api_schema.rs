@@ -98,6 +98,7 @@ fn openapi_get_policy() {}
     request_body = BaselineRequest,
     responses(
         (status = 200, description = "Baseline result", body = BaselineResponse),
+        (status = 400, description = "Invalid request or incomplete baseline scan", body = ErrorEnvelope),
         (status = 403, description = "Path denied", body = ErrorEnvelope)
     ),
     security(("bearerAuth" = []))

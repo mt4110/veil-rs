@@ -347,6 +347,13 @@ fn canonical_artifact_path(camel_key: &str) -> Option<&'static str> {
     }
 }
 
+fn is_allowed_evidence_pack_v1_file(name: &str) -> bool {
+    matches!(
+        name,
+        "run_meta.json" | "report.json" | "report.html" | "effective_config.toml"
+    ) || name == crate::baseline::DEFAULT_BASELINE_FILE
+}
+
 fn require_canonical_artifact_path(
     artifact: &Map<String, Value>,
     camel_key: &str,
@@ -870,9 +877,10 @@ pub fn verify_evidence_pack(
             }
         }
 
-        // Ignore Mac __MACOSX weirdness if it exists
-        if name.starts_with("__MACOSX") || name.contains(".DS_Store") {
-            continue;
+        if !is_allowed_evidence_pack_v1_file(&name) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "Evidence Pack v1 contains unsupported file: {name}"
+            )));
         }
 
         let uncompressed_size = zip_entry.size();
@@ -989,6 +997,8 @@ pub fn verify_evidence_pack(
 
     // 5. Match hashes against run_meta.json tracking
     let mut report_json_path = None;
+    let baseline_file_present =
+        extracted_files.contains_key(crate::baseline::DEFAULT_BASELINE_FILE);
     if let Some(artifacts_map) = run_meta.get("artifacts").and_then(Value::as_object) {
         let expected_files = [
             ("reportHtml", false),
@@ -999,6 +1009,12 @@ pub fn verify_evidence_pack(
         for (camel_key, optional) in expected_files {
             let Some(art) = artifacts_map.get(camel_key) else {
                 if optional {
+                    if baseline_file_present {
+                        return Err(VerifyError::SchemaViolation(
+                            "artifact baseline missing from run_meta.json while veil.baseline.json is present"
+                                .to_string(),
+                        ));
+                    }
                     continue;
                 }
                 return Err(VerifyError::SchemaViolation(format!(
@@ -1007,6 +1023,12 @@ pub fn verify_evidence_pack(
                 )));
             };
             if optional && art.is_null() {
+                if baseline_file_present {
+                    return Err(VerifyError::SchemaViolation(
+                        "artifact baseline must describe veil.baseline.json when it is present"
+                            .to_string(),
+                    ));
+                }
                 continue;
             }
 

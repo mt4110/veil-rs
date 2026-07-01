@@ -834,8 +834,6 @@ fn test_baseline_artifact_path_must_be_canonical() {
     zip.write_all(&report_json_content).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
-    zip.start_file("custom-baseline.json", options).unwrap();
-    zip.write_all(baseline_content).unwrap();
     zip.finish().unwrap();
 
     let mut cmd = cargo_bin_cmd!("veil");
@@ -903,8 +901,6 @@ fn test_required_artifact_paths_must_be_canonical() {
         zip.write_all(&report_json_content).unwrap();
         zip.start_file("report.html", options).unwrap();
         zip.write_all(report_html_content).unwrap();
-        zip.start_file(declared_path, options).unwrap();
-        zip.write_all(declared_content).unwrap();
         zip.finish().unwrap();
 
         let mut cmd = cargo_bin_cmd!("veil");
@@ -915,6 +911,89 @@ fn test_required_artifact_paths_must_be_canonical() {
             .code(2)
             .stdout(predicates::str::contains(expected_message));
     }
+}
+
+#[test]
+fn test_extra_evidence_zip_entry_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("extra_file_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.start_file("extra.txt", options).unwrap();
+    zip.write_all(b"undeclared").unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "Evidence Pack v1 contains unsupported file: extra.txt",
+        ));
+}
+
+#[test]
+fn test_baseline_file_must_be_declared_in_artifacts() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("undeclared_baseline_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.start_file("veil.baseline.json", options).unwrap();
+    zip.write_all(b"{\"schema\":\"veil.baseline.v1\",\"entries\":[]}")
+        .unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "artifact baseline missing from run_meta.json while veil.baseline.json is present",
+        ));
 }
 
 #[test]
