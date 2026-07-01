@@ -76,6 +76,8 @@ use result::ScanResult;
 
 pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
 pub const RULE_ID_MAX_FILE_SIZE: &str = "MAX_FILE_SIZE";
+pub const DEFAULT_MAX_FILE_COUNT: usize = 1_000_000;
+pub const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 1_000_000;
 
 pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let ignore_patterns = &config.core.ignore;
@@ -83,7 +85,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
 
     // 1. Collect all valid paths first (sequential walk, usually fast enough)
     // Use ignore::WalkBuilder to respect .gitignore
-    let file_limit = config.core.max_file_count.unwrap_or(1_000_000);
+    let file_limit = config.core.max_file_count.unwrap_or(DEFAULT_MAX_FILE_COUNT);
 
     let skipped_builtins =
         std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
@@ -184,7 +186,10 @@ pub fn scan_file(
     limit: Option<&ScanLimit>,
 ) -> Vec<Finding> {
     let mut local_findings = Vec::new();
-    let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+    let max_size = config
+        .core
+        .max_file_size
+        .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
     let file_size = std::fs::metadata(path).ok().map(|metadata| metadata.len());
     let oversized = file_size.is_some_and(|size| size > max_size);
 

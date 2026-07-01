@@ -157,6 +157,8 @@ def find_schema_object(schema: dict[str, Any], name: str) -> dict[str, Any] | No
 
 def check_openapi_contract(openapi: dict[str, Any]) -> list[str]:
     failures: list[str] = []
+    if openapi.get("openapi") != "3.1.0":
+        failures.append("OpenAPI version must be 3.1.0")
     required_paths = {
         "/api/me",
         "/api/projects",

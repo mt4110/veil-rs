@@ -65,7 +65,9 @@
   "summary": {
     "duration_ms": 0,
     "findings_count": 4,
+    "file_limit_reached": false,
     "limit_reached": false,
+    "max_file_size_reached": false,
     "scanned_files": 2,
     "severity_counts": {
       "High": 1,

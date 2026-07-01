@@ -1,71 +1,50 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://veil.local/schemas/evidence-report-v1.json",
-  "title": "Veil Evidence Report v1",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "runId",
-    "generatedAtUtc",
-    "summary",
-    "findings"
-  ],
-  "properties": {
-    "schemaVersion": {
-      "const": "veil-evidence-report-v1"
-    },
-    "runId": {
+  "$defs": {
+    "BaselineStatus": {
+      "enum": [
+        "none",
+        "new",
+        "suppressed"
+      ],
       "type": "string"
     },
-    "generatedAtUtc": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "summary": {
-      "$ref": "#/$defs/EvidenceSummary"
-    },
-    "findings": {
-      "type": "array",
-      "description": "Raw-free all findings, including baselineStatus=new and baselineStatus=suppressed when baseline is used.",
-      "items": {
-        "$ref": "#/$defs/SafeFindingApiV1"
-      }
-    }
-  },
-  "$defs": {
-    "SeverityCounts": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "Low",
-        "Medium",
-        "High",
-        "Critical"
+    "EvidenceReportSchemaVersion": {
+      "enum": [
+        "veil-evidence-report-v1"
       ],
-      "properties": {
-        "Low": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "Medium": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "High": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "Critical": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "description": "Zero-filled severity counts. All four keys are required even when values are 0."
+      "type": "string"
     },
     "EvidenceSummary": {
-      "type": "object",
       "additionalProperties": false,
+      "properties": {
+        "allSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "coverageComplete": {
+          "type": "boolean"
+        },
+        "effectiveFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "suppressedFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "suppressedSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "totalFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
       "required": [
         "totalFindings",
         "suppressedFindings",
@@ -75,37 +54,65 @@
         "suppressedSeverityCounts",
         "coverageComplete"
       ],
-      "properties": {
-        "totalFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "suppressedFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "effectiveFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "severityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "allSeverityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "suppressedSeverityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "coverageComplete": {
-          "type": "boolean",
-          "description": "False when scan stopped because of max_findings/max_file_count/text oversize/read coverage gap. Counts are observed values only."
-        }
-      }
+      "type": "object"
+    },
+    "GradeName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
     },
     "SafeFindingApiV1": {
-      "type": "object",
       "additionalProperties": false,
+      "properties": {
+        "baselineFingerprint": {
+          "type": "string"
+        },
+        "baselineStatus": {
+          "$ref": "#/$defs/BaselineStatus"
+        },
+        "category": {
+          "type": "string"
+        },
+        "findingId": {
+          "type": "string"
+        },
+        "grade": {
+          "$ref": "#/$defs/GradeName"
+        },
+        "lineNumber": {
+          "format": "uint",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maskedSnippet": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "ruleId": {
+          "type": "string"
+        },
+        "score": {
+          "format": "uint32",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severity": {
+          "$ref": "#/$defs/SeverityName"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
       "required": [
         "findingId",
         "baselineFingerprint",
@@ -120,68 +127,80 @@
         "tags",
         "baselineStatus"
       ],
+      "type": "object"
+    },
+    "SeverityCounts": {
+      "additionalProperties": false,
       "properties": {
-        "findingId": {
-          "type": "string"
-        },
-        "path": {
-          "type": "string"
-        },
-        "lineNumber": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "ruleId": {
-          "type": "string"
-        },
-        "severity": {
-          "type": "string",
-          "enum": [
-            "Low",
-            "Medium",
-            "High",
-            "Critical"
-          ]
-        },
-        "score": {
-          "type": "integer",
+        "Critical": {
+          "format": "uint",
           "minimum": 0,
-          "maximum": 100
+          "type": "integer"
         },
-        "grade": {
-          "type": "string",
-          "enum": [
-            "Low",
-            "Medium",
-            "High",
-            "Critical"
-          ]
+        "High": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
         },
-        "maskedSnippet": {
-          "type": "string"
+        "Low": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
         },
-        "category": {
-          "type": "string"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "baselineStatus": {
-          "type": "string",
-          "enum": [
-            "new",
-            "suppressed",
-            "none"
-          ]
-        },
-        "baselineFingerprint": {
-          "type": "string",
-          "description": "Opaque baseline suppression key. Distinct from findingId; used for baseline matching."
+        "Medium": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
         }
-      }
+      },
+      "required": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "object"
+    },
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
     }
-  }
+  },
+  "$id": "https://veil.local/schemas/evidence-report-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/SafeFindingApiV1"
+      },
+      "type": "array"
+    },
+    "generatedAtUtc": {
+      "type": "string"
+    },
+    "runId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "veil-evidence-report-v1"
+    },
+    "summary": {
+      "$ref": "#/$defs/EvidenceSummary"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "runId",
+    "generatedAtUtc",
+    "summary",
+    "findings"
+  ],
+  "title": "Veil Evidence Report v1",
+  "type": "object"
 }

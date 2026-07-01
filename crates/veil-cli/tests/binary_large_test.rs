@@ -30,8 +30,8 @@ fn test_binary_and_large_files() -> Result<(), Box<dyn std::error::Error>> {
     cmd.current_dir(repo_path)
         .arg("scan")
         .assert()
-        // v0.8.0+ defaults to exit 0 (non-blocking) unless --fail-score is set
-        .success()
+        .code(2)
+        .stderr(predicate::str::contains("exceeded core.max_file_size"))
         // Check for findings in output
         // Check for summary of skipped files
         .stdout(predicate::str::contains("Skipped Files"))

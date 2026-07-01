@@ -123,6 +123,7 @@ pub fn collect_findings(
     };
 
     let mut any_file_limit_reached = false;
+    let mut any_max_file_size_reached = false;
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -159,6 +160,9 @@ pub fn collect_findings(
                                             || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                         {
                                             is_skipped = true;
+                                        }
+                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                            any_max_file_size_reached = true;
                                         }
                                     }
 
@@ -212,7 +216,6 @@ pub fn collect_findings(
                 for delta in diff.deltas() {
                     if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                         if let Some(path) = delta.new_file().path() {
-                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
                             if let Ok(entry) = tree.get_path(path) {
                                 if let Ok(object) = entry.to_object(&repo) {
                                     if let Some(blob) = object.as_blob() {
@@ -228,6 +231,9 @@ pub fn collect_findings(
                                                 || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                             {
                                                 is_skipped = true;
+                                            }
+                                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                                any_max_file_size_reached = true;
                                             }
                                         }
 
@@ -264,6 +270,7 @@ pub fn collect_findings(
                         0, // baseline_suppressed
                         false,
                         false,
+                        false,
                         start_time.elapsed(),
                         None, // baseline_path
                         HashMap::new(),
@@ -297,6 +304,9 @@ pub fn collect_findings(
                                     || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                 {
                                     is_skipped = true;
+                                }
+                                if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                    any_max_file_size_reached = true;
                                 }
                             }
                             if is_skipped {
@@ -333,6 +343,7 @@ pub fn collect_findings(
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
             any_file_limit_reached |= result.file_limit_reached;
+            any_max_file_size_reached |= result.max_file_size_reached;
             all_builtin_skips.extend(result.builtin_skips);
             let count = result.findings.len();
             all_findings.extend(result.findings);
@@ -392,6 +403,7 @@ pub fn collect_findings(
         suppressed_findings.len(),
         is_truncated,
         any_file_limit_reached,
+        any_max_file_size_reached,
         duration,
         baseline_path.map(|p| p.to_string_lossy().to_string()),
         severity_counts,
@@ -425,6 +437,13 @@ pub fn scan(
     no_color: bool, // Passed from cli args
 ) -> Result<bool> {
     let format: Format = format_str.as_str().into();
+
+    if fail_on_findings == Some(0) {
+        anyhow::bail!("--fail-on-findings must be >= 1");
+    }
+    if fail_score.is_some_and(|score| score > 100) {
+        anyhow::bail!("--fail-on-score must be between 0 and 100");
+    }
 
     if show_progress {
         eprintln!("Scanning...");
@@ -562,6 +581,19 @@ pub fn scan(
         eprintln!("       [core]");
         eprintln!("       ignore = [\"tests/data\", \"docs/images\"]");
         eprintln!("    C) Increase the limit if you genuinely have a massive repository.");
+        std::process::exit(2);
+    }
+
+    if result.summary.max_file_size_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("A text/source file exceeded core.max_file_size.");
+        eprintln!("  What: At least one non-binary file was skipped because it exceeded the configured size limit.");
+        eprintln!("  Why:  Passing CI with unscanned source text can hide secrets.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Reduce the scanning scope or ignore generated text artifacts.");
+        eprintln!("    B) Increase core.max_file_size if the file is legitimate source input.");
         std::process::exit(2);
     }
 
@@ -759,6 +791,15 @@ impl Formatter for TextFormatterWrapper {
             println!(
                 "{}",
                 "  (Scan incomplete: stopped early due to max_file_count limit)"
+                    .red()
+                    .bold()
+            );
+        }
+
+        if summary.max_file_size_reached {
+            println!(
+                "{}",
+                "  (Scan incomplete: skipped text/source file over max_file_size)"
                     .red()
                     .bold()
             );

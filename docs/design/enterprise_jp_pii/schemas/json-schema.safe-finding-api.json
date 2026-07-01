@@ -1,10 +1,82 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "BaselineStatus": {
+      "enum": [
+        "none",
+        "new",
+        "suppressed"
+      ],
+      "type": "string"
+    },
+    "GradeName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    },
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "https://veil.local/schemas/safe-finding-api-v1.json",
-  "title": "SafeFindingApiV1",
-  "description": "Local UI / Evidence preview finding schema. Raw line content and matched content are forbidden. Field names are camelCase.",
-  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "Local UI / Evidence preview finding schema. Raw line content and matched content are forbidden. Field names are camelCase.",
+  "properties": {
+    "baselineFingerprint": {
+      "type": "string"
+    },
+    "baselineStatus": {
+      "$ref": "#/$defs/BaselineStatus"
+    },
+    "category": {
+      "type": "string"
+    },
+    "findingId": {
+      "type": "string"
+    },
+    "grade": {
+      "$ref": "#/$defs/GradeName"
+    },
+    "lineNumber": {
+      "format": "uint",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "maskedSnippet": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "ruleId": {
+      "type": "string"
+    },
+    "score": {
+      "format": "uint32",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "severity": {
+      "$ref": "#/$defs/SeverityName"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
   "required": [
     "findingId",
     "baselineFingerprint",
@@ -19,66 +91,6 @@
     "tags",
     "baselineStatus"
   ],
-  "properties": {
-    "findingId": {
-      "type": "string"
-    },
-    "path": {
-      "type": "string"
-    },
-    "lineNumber": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "ruleId": {
-      "type": "string"
-    },
-    "severity": {
-      "type": "string",
-      "enum": [
-        "Low",
-        "Medium",
-        "High",
-        "Critical"
-      ]
-    },
-    "score": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 100
-    },
-    "grade": {
-      "type": "string",
-      "enum": [
-        "Low",
-        "Medium",
-        "High",
-        "Critical"
-      ]
-    },
-    "maskedSnippet": {
-      "type": "string"
-    },
-    "category": {
-      "type": "string"
-    },
-    "tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "baselineStatus": {
-      "type": "string",
-      "enum": [
-        "new",
-        "suppressed",
-        "none"
-      ]
-    },
-    "baselineFingerprint": {
-      "type": "string",
-      "description": "Opaque baseline suppression key. Distinct from findingId; used for baseline matching."
-    }
-  }
+  "title": "SafeFindingApiV1",
+  "type": "object"
 }

@@ -1,57 +1,65 @@
 {
+  "$defs": {
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://veil.local/schemas/finding-v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "FindingV1 (CLI/Core snake_case)",
-  "type": "object",
+  "additionalProperties": false,
+  "description": "CLI/Core compatible finding schema. Local UI must use SafeFindingApiV1 instead.",
+  "properties": {
+    "category": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "line_number": {
+      "format": "uint",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "masked_snippet": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "rule_id": {
+      "type": "string"
+    },
+    "score": {
+      "format": "uint32",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "severity": {
+      "$ref": "#/$defs/SeverityName"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
   "required": [
     "path",
     "line_number",
     "rule_id",
     "severity",
     "score",
-    "masked_snippet"
+    "masked_snippet",
+    "tags"
   ],
-  "properties": {
-    "path": {
-      "type": "string"
-    },
-    "line_number": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "rule_id": {
-      "type": "string"
-    },
-    "severity": {
-      "type": "string",
-      "enum": [
-        "Low",
-        "Medium",
-        "High",
-        "Critical",
-        "LOW",
-        "MEDIUM",
-        "HIGH",
-        "CRITICAL"
-      ]
-    },
-    "score": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 100
-    },
-    "masked_snippet": {
-      "type": "string"
-    },
-    "category": {
-      "type": "string"
-    },
-    "tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
-  },
-  "$id": "https://veil.local/schemas/finding-v1.json",
-  "description": "CLI/Core compatible finding schema. Local UI must use SafeFindingApiV1 instead."
+  "title": "FindingV1 (CLI/Core snake_case)",
+  "type": "object"
 }

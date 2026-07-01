@@ -15,6 +15,10 @@ pub fn verify(
     max_total_bytes: u64,
     max_files: usize,
 ) -> Result<()> {
+    if fail_on_findings == Some(0) {
+        anyhow::bail!("--fail-on-findings must be >= 1");
+    }
+
     let options = VerifyOptions {
         require_complete,
         fail_on_findings,

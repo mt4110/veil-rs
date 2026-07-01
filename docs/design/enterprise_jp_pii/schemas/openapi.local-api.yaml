@@ -1,178 +1,656 @@
-openapi: 3.0.3
-info:
-  title: Veil Pro Local API
-  version: 1.0.0-local
-  description: Generated from Rust DTOs. Do not hand-edit in implementation.
-servers:
-- url: http://127.0.0.1:{port}
-  variables:
-    port:
-      default: '3000'
-security:
-- bearerAuth: []
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
   schemas:
-    ErrorEnvelope:
-      type: object
+    ArtifactMeta:
+      additionalProperties: false
+      properties:
+        path:
+          type: string
+        sha256:
+          type: string
+        sizeBytes:
+          minimum: 0
+          type:
+          - integer
+          - 'null'
       required:
-      - error
+      - path
+      - sha256
+      type: object
+    AuthContext:
+      oneOf:
+      - $ref: '#/components/schemas/LocalTokenAuthContext'
+      - $ref: '#/components/schemas/SsoAuthContext'
+    AuthContextType:
+      enum:
+      - local_token
+      - sso
+      type: string
+    BaselineArtifactMeta:
+      additionalProperties: false
+      properties:
+        path:
+          $ref: '#/components/schemas/BaselineArtifactPath'
+        sha256:
+          type: string
+        sizeBytes:
+          minimum: 0
+          type:
+          - integer
+          - 'null'
+      required:
+      - path
+      - sha256
+      type: object
+    BaselineArtifactPath:
+      enum:
+      - veil.baseline.json
+      type: string
+    BaselineRequest:
+      additionalProperties: false
+      properties:
+        outputPath:
+          type:
+          - string
+          - 'null'
+        paths:
+          items:
+            type: string
+          type:
+          - array
+          - 'null'
+      type: object
+    BaselineResponse:
+      additionalProperties: false
+      properties:
+        filePath:
+          type: string
+        findingsCount:
+          minimum: 0
+          type: integer
+        nextAction:
+          $ref: '#/components/schemas/NextAction'
+        schemaVersion:
+          $ref: '#/components/schemas/LocalApiSchemaVersion'
+        written:
+          type: boolean
+      required:
+      - schemaVersion
+      - filePath
+      - findingsCount
+      - written
+      - nextAction
+      type: object
+    BaselineStatus:
+      enum:
+      - none
+      - new
+      - suppressed
+      type: string
+    BindAddress:
+      enum:
+      - 127.0.0.1
+      type: string
+    BoundValue:
+      oneOf:
+      - format: int64
+        minimum: 0
+        type: integer
+      - type: string
+      - type: boolean
+    BuildProfile:
+      enum:
+      - debug
+      - release
+      type: string
+    ConfigConflict:
+      additionalProperties: false
+      properties:
+        explanation:
+          type: string
+        key:
+          type: string
+        shadowed:
+          items:
+            type: string
+          type: array
+        winner:
+          $ref: '#/components/schemas/ConfigLayerName'
+      required:
+      - key
+      - winner
+      - shadowed
+      - explanation
+      type: object
+    ConfigLayerName:
+      enum:
+      - builtin
+      - preset
+      - org
+      - repo
+      - cli
+      type: string
+    ConfigLayerSummary:
+      additionalProperties: false
+      properties:
+        loaded:
+          type: boolean
+        name:
+          $ref: '#/components/schemas/ConfigLayerName'
+        path:
+          type:
+          - string
+          - 'null'
+        warnings:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      - loaded
+      - warnings
+      type: object
+    DoctorResponse:
+      additionalProperties: false
+      properties:
+        bounds:
+          additionalProperties:
+            $ref: '#/components/schemas/BoundValue'
+          propertyNames:
+            type: string
+          type: object
+        config:
+          $ref: '#/components/schemas/PolicyResponse'
+        networkMode:
+          $ref: '#/components/schemas/NetworkMode'
+        os:
+          type: string
+        productVersion:
+          type: string
+        rulePacks:
+          items:
+            $ref: '#/components/schemas/DoctorRulePack'
+          type: array
+        rustVersion:
+          type:
+          - string
+          - 'null'
+        schemaVersion:
+          $ref: '#/components/schemas/LocalApiSchemaVersion'
+        warnings:
+          items:
+            type: string
+          type: array
+      required:
+      - schemaVersion
+      - productVersion
+      - os
+      - config
+      - bounds
+      - rulePacks
+      - networkMode
+      - warnings
+      type: object
+    DoctorRulePack:
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        source:
+          $ref: '#/components/schemas/RulePackSource'
+        version:
+          type:
+          - string
+          - 'null'
+      required:
+      - name
+      - source
+      type: object
+    EngineMeta:
+      additionalProperties: false
+      properties:
+        name:
+          $ref: '#/components/schemas/EngineName'
+        rulePacks:
+          items:
+            $ref: '#/components/schemas/RulePackMeta'
+          type: array
+        schemaVersion:
+          $ref: '#/components/schemas/EngineSchemaVersion'
+      required:
+      - name
+      - schemaVersion
+      - rulePacks
+      type: object
+    EngineName:
+      enum:
+      - veil
+      type: string
+    EngineSchemaVersion:
+      enum:
+      - veil-v1
+      type: string
+    ErrorBody:
+      additionalProperties: false
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+        nextAction:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/NextAction'
+      required:
+      - code
+      - message
+      type: object
+    ErrorCode:
+      enum:
+      - INVALID_REQUEST
+      - UNAUTHORIZED
+      - PATH_DENIED
+      - NOT_FOUND
+      - RUN_EXPIRED
+      - RUN_TOO_LARGE
+      - INTERNAL_ERROR
+      type: string
+    ErrorEnvelope:
       additionalProperties: false
       properties:
         error:
-          type: object
-          required:
-          - code
-          - message
-          additionalProperties: false
-          properties:
-            code:
-              type: string
-              enum:
-              - INVALID_REQUEST
-              - UNAUTHORIZED
-              - PATH_DENIED
-              - NOT_FOUND
-              - RUN_EXPIRED
-              - RUN_TOO_LARGE
-              - INTERNAL_ERROR
-            message:
-              type: string
-            nextAction:
-              type: string
-              enum:
-              - RESCAN
-              - CHECK_TOKEN
-              - NARROW_SCOPE
-              - OPEN_DOCTOR
-    AuthContext:
-      oneOf:
-      - type: object
-        required:
-        - authenticated
-        - type
-        additionalProperties: false
-        properties:
-          authenticated:
-            type: boolean
-            enum:
-            - true
-          type:
-            type: string
-            enum:
-            - local_token
-      - type: object
-        required:
-        - authenticated
-        - type
-        - email
-        - enterpriseOptIn
-        additionalProperties: false
-        properties:
-          authenticated:
-            type: boolean
-            enum:
-            - true
-          type:
-            type: string
-            enum:
-            - sso
-          email:
-            type: string
-          name:
-            type: string
-          enterpriseOptIn:
-            type: boolean
-            enum:
-            - true
-    ProjectsResponse:
-      type: object
+          $ref: '#/components/schemas/ErrorBody'
       required:
-      - schemaVersion
-      - currentDir
-      - projects
+      - error
+      type: object
+    EvidenceArtifacts:
       additionalProperties: false
       properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-local-api-v1
-        currentDir:
-          type: string
-        projects:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProjectSummary'
-    ProjectSummary:
+        baseline:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/BaselineArtifactMeta'
+        effectiveConfig:
+          $ref: '#/components/schemas/ArtifactMeta'
+        reportHtml:
+          $ref: '#/components/schemas/ArtifactMeta'
+        reportJson:
+          $ref: '#/components/schemas/ArtifactMeta'
+      required:
+      - reportHtml
+      - reportJson
+      - effectiveConfig
       type: object
+    EvidenceReportSchemaVersion:
+      enum:
+      - veil-evidence-report-v1
+      type: string
+    EvidenceReportV1:
+      additionalProperties: false
+      properties:
+        findings:
+          items:
+            $ref: '#/components/schemas/SafeFindingApiV1'
+          type: array
+        generatedAtUtc:
+          type: string
+        runId:
+          type: string
+        schemaVersion:
+          $ref: '#/components/schemas/EvidenceReportSchemaVersion'
+        summary:
+          $ref: '#/components/schemas/EvidenceSummary'
+      required:
+      - schemaVersion
+      - runId
+      - generatedAtUtc
+      - summary
+      - findings
+      type: object
+    EvidenceSummary:
+      additionalProperties: false
+      properties:
+        allSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        coverageComplete:
+          type: boolean
+        effectiveFindings:
+          minimum: 0
+          type: integer
+        severityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        suppressedFindings:
+          minimum: 0
+          type: integer
+        suppressedSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        totalFindings:
+          minimum: 0
+          type: integer
+      required:
+      - totalFindings
+      - suppressedFindings
+      - effectiveFindings
+      - severityCounts
+      - allSeverityCounts
+      - suppressedSeverityCounts
+      - coverageComplete
+      type: object
+    FindingV1:
+      additionalProperties: false
+      properties:
+        category:
+          type:
+          - string
+          - 'null'
+        line_number:
+          minimum: 1
+          type: integer
+        masked_snippet:
+          type: string
+        path:
+          type: string
+        rule_id:
+          type: string
+        score:
+          format: int32
+          maximum: 100
+          minimum: 0
+          type: integer
+        severity:
+          $ref: '#/components/schemas/SeverityName'
+        tags:
+          items:
+            type: string
+          type: array
+      required:
+      - path
+      - line_number
+      - rule_id
+      - severity
+      - score
+      - masked_snippet
+      - tags
+      type: object
+    GradeName:
+      enum:
+      - Low
+      - Medium
+      - High
+      - Critical
+      type: string
+    LocalApiSchemaVersion:
+      enum:
+      - veil-pro-local-api-v1
+      type: string
+    LocalTokenAuthContext:
+      additionalProperties: false
+      properties:
+        authenticated:
+          type: boolean
+        type:
+          $ref: '#/components/schemas/AuthContextType'
+      required:
+      - authenticated
+      - type
+      type: object
+    NetworkMode:
+      enum:
+      - local-only
+      - enterprise-opt-in
+      type: string
+    NextAction:
+      enum:
+      - RESCAN
+      - CHECK_TOKEN
+      - NARROW_SCOPE
+      - OPEN_DOCTOR
+      - COMMIT_BASELINE
+      - REVIEW_FINDINGS
+      type: string
+    PolicyResponse:
+      additionalProperties: false
+      properties:
+        conflicts:
+          items:
+            $ref: '#/components/schemas/ConfigConflict'
+          type: array
+        effectiveRulesCount:
+          minimum: 0
+          type: integer
+        hasOrgConfig:
+          type: boolean
+        layers:
+          items:
+            $ref: '#/components/schemas/ConfigLayerSummary'
+          type: array
+        orgConfigPath:
+          type:
+          - string
+          - 'null'
+        preset:
+          type:
+          - string
+          - 'null'
+        repoConfigPath:
+          type:
+          - string
+          - 'null'
+        schemaVersion:
+          $ref: '#/components/schemas/LocalApiSchemaVersion'
+      required:
+      - schemaVersion
+      - hasOrgConfig
+      - effectiveRulesCount
+      - layers
+      - conflicts
+      type: object
+    PresetName:
+      enum:
+      - standard-jp
+      - fintech-jp
+      - gov-jp
+      - si-vendor-jp
+      - logs-jp
+      type: string
+    PrivacyMeta:
+      additionalProperties: false
+      properties:
+        bind:
+          $ref: '#/components/schemas/BindAddress'
+        networkMode:
+          $ref: '#/components/schemas/NetworkMode'
+        telemetry:
+          $ref: '#/components/schemas/TelemetryMode'
+      required:
+      - telemetry
+      - networkMode
+      - bind
+      type: object
+    ProductMeta:
+      additionalProperties: false
+      properties:
+        buildProfile:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/BuildProfile'
+        commit:
+          type:
+          - string
+          - 'null'
+        name:
+          $ref: '#/components/schemas/ProductName'
+        version:
+          type: string
+      required:
+      - name
+      - version
+      type: object
+    ProductName:
+      enum:
+      - veil-pro
+      - veil
+      type: string
+    ProjectSummary:
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+        hasRepoConfig:
+          type: boolean
+        id:
+          type: string
+        isCurrent:
+          type: boolean
+        rootPath:
+          type: string
       required:
       - id
       - displayName
       - rootPath
       - isCurrent
       - hasRepoConfig
-      additionalProperties: false
-      properties:
-        id:
-          type: string
-        displayName:
-          type: string
-        rootPath:
-          type: string
-        isCurrent:
-          type: boolean
-        hasRepoConfig:
-          type: boolean
-    ScanRequest:
       type: object
+    ProjectsResponse:
       additionalProperties: false
       properties:
-        paths:
-          description: Missing or empty array is normalized to ["."].
+        currentDir:
+          type: string
+        projects:
+          items:
+            $ref: '#/components/schemas/ProjectSummary'
           type: array
+        schemaVersion:
+          $ref: '#/components/schemas/LocalApiSchemaVersion'
+      required:
+      - schemaVersion
+      - currentDir
+      - projects
+      type: object
+    RulePackMeta:
+      additionalProperties: false
+      properties:
+        contentSha256:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        source:
+          $ref: '#/components/schemas/RulePackSource'
+        version:
+          type:
+          - string
+          - 'null'
+      required:
+      - name
+      - source
+      type: object
+    RulePackSource:
+      enum:
+      - embedded
+      - local
+      - remote
+      type: string
+    RunMetaSchemaVersion:
+      enum:
+      - veil-pro-run-meta-v1
+      type: string
+    RunMetaV1:
+      additionalProperties: false
+      properties:
+        artifacts:
+          $ref: '#/components/schemas/EvidenceArtifacts'
+        engine:
+          $ref: '#/components/schemas/EngineMeta'
+        extensions:
+          type: object
+        generatedAtUtc:
+          type: string
+        privacy:
+          $ref: '#/components/schemas/PrivacyMeta'
+        product:
+          $ref: '#/components/schemas/ProductMeta'
+        result:
+          $ref: '#/components/schemas/RunResultMeta'
+        runId:
+          type: string
+        schemaVersion:
+          $ref: '#/components/schemas/RunMetaSchemaVersion'
+      required:
+      - schemaVersion
+      - runId
+      - generatedAtUtc
+      - product
+      - engine
+      - result
+      - artifacts
+      - privacy
+      type: object
+    RunResultMeta:
+      additionalProperties: false
+      properties:
+        exitCode:
+          format: int32
+          maximum: 2
+          minimum: 0
+          type: integer
+        limitReached:
+          type: boolean
+        limitReasons:
           items:
             type: string
-          default:
-          - .
-        preset:
-          type: string
-          enum:
-          - standard-jp
-          - fintech-jp
-          - gov-jp
-          - si-vendor-jp
-          - logs-jp
-        mode:
-          type: string
-          enum:
-          - full
-          - staged
-          - ci
-        baselineFile:
-          type: string
-        includeSuppressed:
-          type: boolean
-          default: false
-        failOnScore:
-          type: integer
-          minimum: 0
-          maximum: 100
-        failOnSeverity:
-          type: string
-          enum:
-          - Low
-          - Medium
-          - High
-          - Critical
-        failOnFindings:
-          type: integer
-          minimum: 1
-          description: Violation when effectiveFindings >= N. N=0 is INVALID_REQUEST.
-    SafeFindingApiV1:
+          type: array
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        summary:
+          $ref: '#/components/schemas/EvidenceSummary'
+      required:
+      - status
+      - exitCode
+      - limitReached
+      - limitReasons
+      - summary
       type: object
+    RunStatus:
+      enum:
+      - success
+      - violation
+      - incomplete
+      - error
+      type: string
+    SafeFindingApiV1:
+      additionalProperties: false
+      properties:
+        baselineFingerprint:
+          type: string
+        baselineStatus:
+          $ref: '#/components/schemas/BaselineStatus'
+        category:
+          type: string
+        findingId:
+          type: string
+        grade:
+          $ref: '#/components/schemas/GradeName'
+        lineNumber:
+          minimum: 1
+          type: integer
+        maskedSnippet:
+          type: string
+        path:
+          type: string
+        ruleId:
+          type: string
+        score:
+          format: int32
+          maximum: 100
+          minimum: 0
+          type: integer
+        severity:
+          $ref: '#/components/schemas/SeverityName'
+        tags:
+          items:
+            type: string
+          type: array
       required:
       - findingId
       - baselineFingerprint
@@ -186,78 +664,101 @@ components:
       - category
       - tags
       - baselineStatus
+      type: object
+    ScanMode:
+      enum:
+      - full
+      - staged
+      - ci
+      type: string
+    ScanRequest:
       additionalProperties: false
       properties:
-        findingId:
-          type: string
-        path:
-          type: string
-        lineNumber:
-          type: integer
+        baselineFile:
+          type:
+          - string
+          - 'null'
+        failOnFindings:
           minimum: 1
-        ruleId:
-          type: string
-        severity:
-          type: string
-          enum:
-          - Low
-          - Medium
-          - High
-          - Critical
-        score:
-          type: integer
-          minimum: 0
+          type:
+          - integer
+          - 'null'
+        failOnScore:
+          format: int32
           maximum: 100
-        grade:
-          type: string
-          enum:
-          - Low
-          - Medium
-          - High
-          - Critical
-        maskedSnippet:
-          type: string
-        category:
-          type: string
-        tags:
-          type: array
+          minimum: 0
+          type:
+          - integer
+          - 'null'
+        failOnSeverity:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SeverityName'
+        includeSuppressed:
+          type: boolean
+        mode:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ScanMode'
+        paths:
           items:
             type: string
-        baselineStatus:
-          type: string
-          enum:
-          - new
-          - suppressed
-          - none
-        baselineFingerprint:
-          type: string
-          description: Opaque baseline suppression key. Distinct from findingId; used
-            for baseline matching.
-    SeverityCounts:
+          type:
+          - array
+          - 'null'
+        preset:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PresetName'
       type: object
-      description: Zero-filled severity counts. All four keys are required even when
-        values are 0.
-      required:
-      - Low
-      - Medium
-      - High
-      - Critical
+    ScanResponse:
       additionalProperties: false
       properties:
-        Low:
-          type: integer
+        allSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        builtinSkips:
+          items:
+            type: string
+          type: array
+        coverageComplete:
+          type: boolean
+        effectiveFindings:
           minimum: 0
-        Medium:
           type: integer
+        expiresAtUtc:
+          type: string
+        findings:
+          items:
+            $ref: '#/components/schemas/SafeFindingApiV1'
+          type: array
+        limitReached:
+          type: boolean
+        limitReasons:
+          items:
+            type: string
+          type: array
+        runId:
+          type: string
+        scannedFiles:
           minimum: 0
-        High:
           type: integer
+        schemaVersion:
+          $ref: '#/components/schemas/LocalApiSchemaVersion'
+        severityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        skippedFiles:
           minimum: 0
-        Critical:
           type: integer
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        suppressedFindings:
           minimum: 0
-    ScanResponse:
-      type: object
+          type: integer
+        suppressedSeverityCounts:
+          $ref: '#/components/schemas/SeverityCounts'
+        totalFindings:
+          minimum: 0
+          type: integer
       required:
       - schemaVersion
       - runId
@@ -267,6 +768,7 @@ components:
       - totalFindings
       - suppressedFindings
       - effectiveFindings
+      - coverageComplete
       - severityCounts
       - allSeverityCounts
       - suppressedSeverityCounts
@@ -275,592 +777,249 @@ components:
       - builtinSkips
       - findings
       - expiresAtUtc
-      - coverageComplete
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-local-api-v1
-        runId:
-          type: string
-        status:
-          type: string
-          enum:
-          - success
-          - violation
-          - incomplete
-          - error
-        scannedFiles:
-          type: integer
-        skippedFiles:
-          type: integer
-        totalFindings:
-          type: integer
-          description: Baseline pre-suppression count.
-        suppressedFindings:
-          type: integer
-        effectiveFindings:
-          type: integer
-          description: Post-baseline count used by fail checks.
-        severityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        allSeverityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        suppressedSeverityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        limitReached:
-          type: boolean
-        limitReasons:
-          type: array
-          items:
-            type: string
-        builtinSkips:
-          type: array
-          items:
-            type: string
-        findings:
-          type: array
-          items:
-            $ref: '#/components/schemas/SafeFindingApiV1'
-        expiresAtUtc:
-          type: string
-          format: date-time
-        coverageComplete:
-          type: boolean
-          description: False when scan stopped due to coverage/limit gap. Counts are
-            observed values only.
-    ConfigLayerSummary:
       type: object
-      required:
-      - name
-      - loaded
-      - warnings
+    SeverityCounts:
       additionalProperties: false
       properties:
+        Critical:
+          minimum: 0
+          type: integer
+        High:
+          minimum: 0
+          type: integer
+        Low:
+          minimum: 0
+          type: integer
+        Medium:
+          minimum: 0
+          type: integer
+      required:
+      - Low
+      - Medium
+      - High
+      - Critical
+      type: object
+    SeverityName:
+      enum:
+      - Low
+      - Medium
+      - High
+      - Critical
+      type: string
+    SsoAuthContext:
+      additionalProperties: false
+      properties:
+        authenticated:
+          type: boolean
+        email:
+          type: string
+        enterpriseOptIn:
+          type: boolean
         name:
-          type: string
-          enum:
-          - builtin
-          - preset
-          - org
-          - repo
-          - cli
-        path:
-          type: string
-        loaded:
-          type: boolean
-        warnings:
-          type: array
-          items:
-            type: string
-    ConfigConflict:
-      type: object
+          type:
+          - string
+          - 'null'
+        type:
+          $ref: '#/components/schemas/AuthContextType'
       required:
-      - key
-      - winner
-      - shadowed
-      - explanation
-      additionalProperties: false
-      properties:
-        key:
-          type: string
-        winner:
-          type: string
-          enum:
-          - builtin
-          - preset
-          - org
-          - repo
-          - cli
-        shadowed:
-          type: array
-          items:
-            type: string
-        explanation:
-          type: string
-    PolicyResponse:
+      - authenticated
+      - type
+      - email
+      - enterpriseOptIn
       type: object
-      required:
-      - schemaVersion
-      - hasOrgConfig
-      - effectiveRulesCount
-      - layers
-      - conflicts
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-local-api-v1
-        hasOrgConfig:
-          type: boolean
-        orgConfigPath:
-          type: string
-        repoConfigPath:
-          type: string
-        effectiveRulesCount:
-          type: integer
-        preset:
-          type: string
-        layers:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConfigLayerSummary'
-        conflicts:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConfigConflict'
-    BaselineRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        paths:
-          type: array
-          items:
-            type: string
-          default:
-          - .
-        outputPath:
-          type: string
-          default: veil.baseline.json
-    BaselineResponse:
-      type: object
-      required:
-      - schemaVersion
-      - filePath
-      - findingsCount
-      - written
-      - nextAction
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-local-api-v1
-        filePath:
-          type: string
-        findingsCount:
-          type: integer
-        written:
-          type: boolean
-        nextAction:
-          type: string
-          enum:
-          - COMMIT_BASELINE
-          - REVIEW_FINDINGS
-    DoctorResponse:
-      type: object
-      required:
-      - schemaVersion
-      - productVersion
-      - os
-      - config
-      - bounds
-      - rulePacks
-      - networkMode
-      - warnings
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-local-api-v1
-        productVersion:
-          type: string
-        os:
-          type: string
-        rustVersion:
-          type: string
-        config:
-          $ref: '#/components/schemas/PolicyResponse'
-        bounds:
-          type: object
-        rulePacks:
-          type: array
-          items:
-            type: object
-            required:
-            - name
-            - source
-            properties:
-              name:
-                type: string
-              version:
-                type: string
-              source:
-                type: string
-                enum:
-                - embedded
-                - local
-                - remote
-        networkMode:
-          type: string
-          enum:
-          - local-only
-          - enterprise-opt-in
-        warnings:
-          type: array
-          items:
-            type: string
-    RunMetaResponse:
-      type: object
-      required:
-      - schemaVersion
-      - runId
-      - generatedAtUtc
-      - product
-      - engine
-      - result
-      - artifacts
-      - privacy
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-pro-run-meta-v1
-        runId:
-          type: string
-        generatedAtUtc:
-          type: string
-          format: date-time
-        product:
-          $ref: '#/components/schemas/ProductMeta'
-        engine:
-          $ref: '#/components/schemas/EngineMeta'
-        result:
-          type: object
-          required:
-          - status
-          - exitCode
-          - limitReached
-          - limitReasons
-          - summary
-          properties:
-            status:
-              type: string
-              enum:
-              - success
-              - violation
-              - incomplete
-              - error
-            exitCode:
-              type: integer
-              enum:
-              - 0
-              - 1
-              - 2
-            limitReached:
-              type: boolean
-            limitReasons:
-              type: array
-              items:
-                type: string
-            summary:
-              $ref: '#/components/schemas/EvidenceSummary'
-          additionalProperties: false
-        artifacts:
-          $ref: '#/components/schemas/EvidenceArtifacts'
-        privacy:
-          $ref: '#/components/schemas/PrivacyMeta'
-        extensions:
-          type: object
-          description: Reserved extension namespace for forward-compatible metadata.
-            Core v1 fields remain strict.
-          additionalProperties: true
-    EvidenceSummary:
-      type: object
-      required:
-      - totalFindings
-      - suppressedFindings
-      - effectiveFindings
-      - severityCounts
-      - allSeverityCounts
-      - suppressedSeverityCounts
-      - coverageComplete
-      additionalProperties: false
-      properties:
-        totalFindings:
-          type: integer
-          minimum: 0
-        suppressedFindings:
-          type: integer
-          minimum: 0
-        effectiveFindings:
-          type: integer
-          minimum: 0
-        severityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        allSeverityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        suppressedSeverityCounts:
-          $ref: '#/components/schemas/SeverityCounts'
-        coverageComplete:
-          type: boolean
-    ArtifactMeta:
-      type: object
-      required:
-      - path
-      - sha256
-      additionalProperties: false
-      properties:
-        path:
-          type: string
-        sha256:
-          type: string
-          pattern: ^[a-f0-9]{64}$
-        sizeBytes:
-          type: integer
-          minimum: 0
-    BaselineArtifactMeta:
-      type: object
-      required:
-      - path
-      - sha256
-      additionalProperties: false
-      properties:
-        path:
-          type: string
-          enum:
-          - veil.baseline.json
-        sha256:
-          type: string
-          pattern: ^[a-f0-9]{64}$
-        sizeBytes:
-          type: integer
-          minimum: 0
-    EvidenceArtifacts:
-      type: object
-      required:
-      - reportHtml
-      - reportJson
-      - effectiveConfig
-      additionalProperties: false
-      properties:
-        reportHtml:
-          $ref: '#/components/schemas/ArtifactMeta'
-        reportJson:
-          $ref: '#/components/schemas/ArtifactMeta'
-        effectiveConfig:
-          $ref: '#/components/schemas/ArtifactMeta'
-        baseline:
-          $ref: '#/components/schemas/BaselineArtifactMeta'
-    PrivacyMeta:
-      type: object
-      required:
-      - telemetry
-      - networkMode
-      - bind
-      additionalProperties: false
-      properties:
-        telemetry:
-          type: string
-          enum:
-          - none
-        networkMode:
-          type: string
-          enum:
-          - local-only
-          - enterprise-opt-in
-        bind:
-          type: string
-          enum:
-          - 127.0.0.1
-    EvidenceReportV1:
-      type: object
-      required:
-      - schemaVersion
-      - runId
-      - generatedAtUtc
-      - summary
-      - findings
-      additionalProperties: false
-      properties:
-        schemaVersion:
-          type: string
-          enum:
-          - veil-evidence-report-v1
-        runId:
-          type: string
-        generatedAtUtc:
-          type: string
-          format: date-time
-        summary:
-          $ref: '#/components/schemas/EvidenceSummary'
-        findings:
-          type: array
-          items:
-            $ref: '#/components/schemas/SafeFindingApiV1'
-          description: Raw-free all findings, including baselineStatus=new and baselineStatus=suppressed
-            when a baseline is used.
-    ProductMeta:
-      type: object
-      required:
-      - name
-      - version
-      additionalProperties: false
-      properties:
-        name:
-          type: string
-          enum:
-          - veil-pro
-          - veil
-        version:
-          type: string
-        commit:
-          type: string
-        buildProfile:
-          type: string
-          enum:
-          - debug
-          - release
-    EngineMeta:
-      type: object
-      required:
-      - name
-      - schemaVersion
-      - rulePacks
-      additionalProperties: false
-      properties:
-        name:
-          type: string
-          enum:
-          - veil
-        schemaVersion:
-          type: string
-          enum:
-          - veil-v1
-        rulePacks:
-          type: array
-          items:
-            type: object
-            required:
-            - name
-            - source
-            additionalProperties: false
-            properties:
-              name:
-                type: string
-              source:
-                type: string
-                enum:
-                - embedded
-                - local
-                - remote
-              contentSha256:
-                type: string
-                pattern: ^[a-f0-9]{64}$
-              version:
-                type: string
+    TelemetryMode:
+      enum:
+      - none
+      type: string
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: opaque
+      scheme: bearer
+      type: http
+info:
+  description: Generated from Rust DTOs. Do not hand-edit in implementation.
+  title: Veil Pro Local API
+  version: 1.0.0-local
+openapi: 3.1.0
 paths:
-  /api/me:
-    get:
-      responses:
-        '200':
-          description: Auth context
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthContext'
-        '401':
-          description: Unauthorized
-  /api/projects:
-    get:
-      responses:
-        '200':
-          description: Project list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProjectsResponse'
-  /api/scan:
-    post:
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ScanRequest'
-      responses:
-        '200':
-          description: Scan response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ScanResponse'
-        '400':
-          description: Invalid request
-        '403':
-          description: Path denied
-        '413':
-          description: Run too large
-  /api/runs/{runId}:
-    get:
-      parameters:
-      - name: runId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Run metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RunMetaResponse'
-        '410':
-          description: Run expired
-  /api/runs/{runId}/evidence.zip:
-    get:
-      parameters:
-      - name: runId
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Evidence ZIP
-          content:
-            application/zip: {}
-        '410':
-          description: Run expired
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-  /api/policy:
-    get:
-      responses:
-        '200':
-          description: Effective policy
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PolicyResponse'
   /api/baseline:
     post:
+      operationId: openapi_write_baseline
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/BaselineRequest'
+        required: true
       responses:
         '200':
-          description: Baseline result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BaselineResponse'
+          description: Baseline result
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Path denied
+      security:
+      - bearerAuth: []
+      tags: []
   /api/doctor:
     get:
+      operationId: openapi_get_doctor
       responses:
         '200':
-          description: Doctor diagnostics
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DoctorResponse'
+          description: Doctor diagnostics
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/me:
+    get:
+      operationId: openapi_get_me
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthContext'
+          description: Auth context
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/policy:
+    get:
+      operationId: openapi_get_policy
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+          description: Effective policy
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/projects:
+    get:
+      operationId: openapi_list_projects
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsResponse'
+          description: Project list
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/runs/{runId}:
+    get:
+      operationId: openapi_get_run_meta
+      parameters:
+      - description: Run identifier
+        in: path
+        name: runId
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunMetaV1'
+          description: Run metadata
+        '410':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Run expired
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/runs/{runId}/evidence.zip:
+    get:
+      operationId: openapi_export_evidence
+      parameters:
+      - description: Run identifier
+        in: path
+        name: runId
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/zip: {}
+          description: Evidence ZIP
+        '410':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Run expired
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Evidence assembly failed
+      security:
+      - bearerAuth: []
+      tags: []
+  /api/scan:
+    post:
+      operationId: openapi_scan_project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+          description: Scan response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Invalid request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Path denied
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Run too large
+      security:
+      - bearerAuth: []
+      tags: []
+servers:
+- url: http://127.0.0.1:{port}
+  variables:
+    port:
+      default: '3000'

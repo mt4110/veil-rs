@@ -1,6 +1,8 @@
 use crate::model::{Finding, Rule, Severity};
 use crate::rules::grade::Grade;
-use crate::scanner::{scan_content, RULE_ID_BINARY_FILE, RULE_ID_MAX_FILE_SIZE};
+use crate::scanner::{
+    scan_content, DEFAULT_MAX_FILE_SIZE_BYTES, RULE_ID_BINARY_FILE, RULE_ID_MAX_FILE_SIZE,
+};
 use std::path::Path;
 use veil_config::Config;
 
@@ -18,7 +20,10 @@ pub fn scan_data(path: &Path, data: &[u8], rules: &[Rule], config: &Config) -> V
 
     // 2. Size Check
     let size = data.len() as u64;
-    let max_size = config.core.max_file_size.unwrap_or(1_000_000);
+    let max_size = config
+        .core
+        .max_file_size
+        .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
     if size > max_size {
         return vec![create_skipped_finding(
             path,

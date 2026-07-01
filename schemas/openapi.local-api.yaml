@@ -840,7 +840,7 @@ info:
   description: Generated from Rust DTOs. Do not hand-edit in implementation.
   title: Veil Pro Local API
   version: 1.0.0-local
-openapi: 3.0.3
+openapi: 3.1.0
 paths:
   /api/baseline:
     post:

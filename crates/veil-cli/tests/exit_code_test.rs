@@ -16,7 +16,7 @@ fn test_exit_code_behavior() {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan").arg(temp_dir.path()).assert().success(); // Expecting exit code 0
 
-    // 2. Explicit flag behavior
+    // 2. Zero threshold is a configuration error.
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan")
         .arg(temp_dir.path())
@@ -24,9 +24,19 @@ fn test_exit_code_behavior() {
         .arg("0")
         .assert()
         .failure()
+        .code(2);
+
+    // 3. Explicit threshold behavior
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.arg("scan")
+        .arg(temp_dir.path())
+        .arg("--fail-on-findings")
+        .arg("1")
+        .assert()
+        .failure()
         .code(1);
 
-    // 3. Clean scan should succeed
+    // 4. Clean scan should succeed
     let clean_dir = tempdir().unwrap();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan").arg(clean_dir.path()).assert().success();

@@ -542,6 +542,7 @@ mod tests {
             baseline_suppressed: 0,
             limit_reached: false,
             file_limit_reached: false,
+            max_file_size_reached: false,
             duration_ms: 100,
             baseline_path: Some("baseline.json".to_string()),
             severity_counts: HashMap::new(),

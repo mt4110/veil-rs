@@ -1,9 +1,405 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ArtifactMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "BaselineArtifactMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/BaselineArtifactPath"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "sizeBytes": {
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "BaselineArtifactPath": {
+      "enum": [
+        "veil.baseline.json"
+      ],
+      "type": "string"
+    },
+    "BindAddress": {
+      "enum": [
+        "127.0.0.1"
+      ],
+      "type": "string"
+    },
+    "BuildProfile": {
+      "enum": [
+        "debug",
+        "release"
+      ],
+      "type": "string"
+    },
+    "EngineMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/EngineName"
+        },
+        "rulePacks": {
+          "items": {
+            "$ref": "#/$defs/RulePackMeta"
+          },
+          "type": "array"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/EngineSchemaVersion"
+        }
+      },
+      "required": [
+        "name",
+        "schemaVersion",
+        "rulePacks"
+      ],
+      "type": "object"
+    },
+    "EngineName": {
+      "enum": [
+        "veil"
+      ],
+      "type": "string"
+    },
+    "EngineSchemaVersion": {
+      "enum": [
+        "veil-v1"
+      ],
+      "type": "string"
+    },
+    "EvidenceArtifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BaselineArtifactMeta"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effectiveConfig": {
+          "$ref": "#/$defs/ArtifactMeta"
+        },
+        "reportHtml": {
+          "$ref": "#/$defs/ArtifactMeta"
+        },
+        "reportJson": {
+          "$ref": "#/$defs/ArtifactMeta"
+        }
+      },
+      "required": [
+        "reportHtml",
+        "reportJson",
+        "effectiveConfig"
+      ],
+      "type": "object"
+    },
+    "EvidenceSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "allSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "coverageComplete": {
+          "type": "boolean"
+        },
+        "effectiveFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "severityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "suppressedFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "suppressedSeverityCounts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "totalFindings": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "totalFindings",
+        "suppressedFindings",
+        "effectiveFindings",
+        "severityCounts",
+        "allSeverityCounts",
+        "suppressedSeverityCounts",
+        "coverageComplete"
+      ],
+      "type": "object"
+    },
+    "NetworkMode": {
+      "enum": [
+        "local-only",
+        "enterprise-opt-in"
+      ],
+      "type": "string"
+    },
+    "PrivacyMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "bind": {
+          "$ref": "#/$defs/BindAddress"
+        },
+        "networkMode": {
+          "$ref": "#/$defs/NetworkMode"
+        },
+        "telemetry": {
+          "$ref": "#/$defs/TelemetryMode"
+        }
+      },
+      "required": [
+        "telemetry",
+        "networkMode",
+        "bind"
+      ],
+      "type": "object"
+    },
+    "ProductMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "buildProfile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BuildProfile"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "$ref": "#/$defs/ProductName"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ProductName": {
+      "enum": [
+        "veil-pro",
+        "veil"
+      ],
+      "type": "string"
+    },
+    "RulePackMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "contentSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/RulePackSource"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "RulePackSource": {
+      "enum": [
+        "embedded",
+        "local",
+        "remote"
+      ],
+      "type": "string"
+    },
+    "RunMetaSchemaVersion": {
+      "enum": [
+        "veil-pro-run-meta-v1"
+      ],
+      "type": "string"
+    },
+    "RunResultMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "format": "uint8",
+          "maximum": 2,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limitReached": {
+          "type": "boolean"
+        },
+        "limitReasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "summary": {
+          "$ref": "#/$defs/EvidenceSummary"
+        }
+      },
+      "required": [
+        "status",
+        "exitCode",
+        "limitReached",
+        "limitReasons",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "RunStatus": {
+      "enum": [
+        "success",
+        "violation",
+        "incomplete",
+        "error"
+      ],
+      "type": "string"
+    },
+    "SeverityCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "Critical": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "High": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Low": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Medium": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "object"
+    },
+    "TelemetryMode": {
+      "enum": [
+        "none"
+      ],
+      "type": "string"
+    }
+  },
   "$id": "https://veil.local/schemas/run-meta-v1.json",
-  "title": "Veil Pro RunMeta v1",
-  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "$ref": "#/$defs/EvidenceArtifacts"
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineMeta"
+    },
+    "extensions": {
+      "additionalProperties": true,
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "generatedAtUtc": {
+      "type": "string"
+    },
+    "privacy": {
+      "$ref": "#/$defs/PrivacyMeta"
+    },
+    "product": {
+      "$ref": "#/$defs/ProductMeta"
+    },
+    "result": {
+      "$ref": "#/$defs/RunResultMeta"
+    },
+    "runId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "veil-pro-run-meta-v1"
+    }
+  },
   "required": [
     "schemaVersion",
     "runId",
@@ -14,296 +410,6 @@
     "artifacts",
     "privacy"
   ],
-  "properties": {
-    "schemaVersion": {
-      "const": "veil-pro-run-meta-v1"
-    },
-    "runId": {
-      "type": "string"
-    },
-    "generatedAtUtc": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "product": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "version"
-      ],
-      "properties": {
-        "name": {
-          "enum": [
-            "veil-pro",
-            "veil"
-          ]
-        },
-        "version": {
-          "type": "string"
-        },
-        "commit": {
-          "type": "string"
-        },
-        "buildProfile": {
-          "enum": [
-            "debug",
-            "release"
-          ]
-        }
-      }
-    },
-    "engine": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "name",
-        "schemaVersion",
-        "rulePacks"
-      ],
-      "properties": {
-        "name": {
-          "const": "veil"
-        },
-        "schemaVersion": {
-          "const": "veil-v1"
-        },
-        "rulePacks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "source"
-            ],
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "source": {
-                "enum": [
-                  "embedded",
-                  "local",
-                  "remote"
-                ]
-              },
-              "contentSha256": {
-                "type": "string",
-                "pattern": "^[a-f0-9]{64}$"
-              },
-              "version": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "result": {
-      "type": "object",
-      "required": [
-        "status",
-        "exitCode",
-        "limitReached",
-        "limitReasons",
-        "summary"
-      ],
-      "properties": {
-        "status": {
-          "enum": [
-            "success",
-            "violation",
-            "incomplete",
-            "error"
-          ]
-        },
-        "exitCode": {
-          "enum": [
-            0,
-            1,
-            2
-          ]
-        },
-        "limitReached": {
-          "type": "boolean"
-        },
-        "limitReasons": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "summary": {
-          "$ref": "#/$defs/EvidenceSummary"
-        }
-      },
-      "additionalProperties": false
-    },
-    "artifacts": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "reportHtml",
-        "reportJson",
-        "effectiveConfig"
-      ],
-      "properties": {
-        "reportHtml": {
-          "$ref": "#/$defs/artifact"
-        },
-        "reportJson": {
-          "$ref": "#/$defs/artifact"
-        },
-        "effectiveConfig": {
-          "$ref": "#/$defs/artifact"
-        },
-        "baseline": {
-          "$ref": "#/$defs/baselineArtifact",
-          "description": "Optional. If present, path MUST be veil.baseline.json."
-        }
-      }
-    },
-    "privacy": {
-      "type": "object",
-      "required": [
-        "telemetry",
-        "networkMode",
-        "bind"
-      ],
-      "properties": {
-        "telemetry": {
-          "const": "none"
-        },
-        "networkMode": {
-          "enum": [
-            "local-only",
-            "enterprise-opt-in"
-          ]
-        },
-        "bind": {
-          "const": "127.0.0.1"
-        }
-      },
-      "additionalProperties": false
-    },
-    "extensions": {
-      "type": "object",
-      "description": "Reserved extension namespace for forward-compatible metadata. Core v1 fields remain strict.",
-      "additionalProperties": true
-    }
-  },
-  "$defs": {
-    "artifact": {
-      "type": "object",
-      "required": [
-        "path",
-        "sha256"
-      ],
-      "properties": {
-        "path": {
-          "type": "string"
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "sizeBytes": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "additionalProperties": false
-    },
-    "EvidenceSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "totalFindings",
-        "suppressedFindings",
-        "effectiveFindings",
-        "severityCounts",
-        "allSeverityCounts",
-        "suppressedSeverityCounts",
-        "coverageComplete"
-      ],
-      "properties": {
-        "totalFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "suppressedFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "effectiveFindings": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "severityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "allSeverityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "suppressedSeverityCounts": {
-          "$ref": "#/$defs/SeverityCounts"
-        },
-        "coverageComplete": {
-          "type": "boolean",
-          "description": "False when scan stopped because of max_findings/max_file_count/text oversize/read coverage gap. Counts are observed values only."
-        }
-      }
-    },
-    "baselineArtifact": {
-      "type": "object",
-      "required": [
-        "path",
-        "sha256"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "path": {
-          "const": "veil.baseline.json"
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "sizeBytes": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
-    },
-    "SeverityCounts": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "Low",
-        "Medium",
-        "High",
-        "Critical"
-      ],
-      "properties": {
-        "Low": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "Medium": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "High": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "Critical": {
-          "type": "integer",
-          "minimum": 0
-        }
-      },
-      "description": "Zero-filled severity counts. All four keys are required even when values are 0."
-    }
-  }
+  "title": "Veil Pro RunMeta v1",
+  "type": "object"
 }

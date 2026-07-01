@@ -329,12 +329,12 @@ pub fn verify_evidence_pack(
     }
 
     if let Some(threshold) = options.fail_on_findings {
-        if findings_count > threshold {
+        if findings_count >= threshold {
             return Ok(VerifyResult {
                 status: VerifyStatus::PolicyViolation,
                 is_complete,
                 findings_count,
-                message: format!("Policy Violation: Extracted {} findings, exceeding the configured threshold ({}).", findings_count, threshold),
+                message: format!("Policy Violation: Extracted {} findings, meeting or exceeding the configured threshold ({}).", findings_count, threshold),
             });
         }
     }

@@ -13,6 +13,13 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 fn create_golden_zip(dir: &TempDir) -> std::path::PathBuf {
+    create_zip_with_effective_findings(dir, 0)
+}
+
+fn create_zip_with_effective_findings(
+    dir: &TempDir,
+    effective_findings: usize,
+) -> std::path::PathBuf {
     let zip_path = dir.path().join("golden_evidence.zip");
     let file = File::create(&zip_path).unwrap();
     let mut zip = ZipWriter::new(file);
@@ -49,7 +56,9 @@ fn create_golden_zip(dir: &TempDir) -> std::path::PathBuf {
         "result": {
             "limit_reached": false,
             "summary": {
-                "findings_count": 0
+                "effectiveFindings": effective_findings,
+                "totalFindings": effective_findings,
+                "findings_count": effective_findings
             }
         },
         "artifacts": artifacts
@@ -87,7 +96,7 @@ fn test_golden_zip() {
 }
 
 #[test]
-fn test_fail_on_findings_zero_allows_clean_pack() {
+fn test_fail_on_findings_zero_is_rejected() {
     let dir = TempDir::new().unwrap();
     let zip_path = create_golden_zip(&dir);
 
@@ -98,9 +107,26 @@ fn test_fail_on_findings_zero_allows_clean_pack() {
         .arg("0");
 
     cmd.assert()
-        .success()
-        .code(0)
-        .stdout(predicates::str::contains("PASSED"));
+        .failure()
+        .code(2)
+        .stderr(predicates::str::contains("--fail-on-findings must be >= 1"));
+}
+
+#[test]
+fn test_fail_on_findings_fails_at_threshold() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = create_zip_with_effective_findings(&dir, 1);
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("1");
+
+    cmd.assert()
+        .failure()
+        .code(1)
+        .stdout(predicates::str::contains("meeting or exceeding"));
 }
 
 #[test]

@@ -49,6 +49,7 @@ python scripts/check_generated_schemas.py
 
 - JSON Schema: `schemars`
 - OpenAPI: `utoipa`
+- OpenAPI version は **3.1.0** とする。JSON Schema の nullable union (`type: ["...", "null"]`) を正本として扱うため、3.0.x へダウングレードしない。
 - DTOは `serde`, `schemars::JsonSchema`, `utoipa::ToSchema` を同じRust型にderiveする。
 - `utoipa` で表現しづらいschema制約（例: `baseline.path` const）は、生成後patchではなくDTO/Schema helperで生成できる形に寄せる。どうしても不可の場合は `export_local_api_schema` 内の deterministic post-process とし、`check_generated_schemas.py` が差分を検知する。
 

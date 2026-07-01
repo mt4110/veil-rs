@@ -291,7 +291,7 @@ fn set_const(properties: &mut serde_json::Map<String, Value>, name: &str, expect
 fn write_openapi(out_dir: &Path) -> Result<()> {
     let mut openapi = serde_json::to_value(ApiDoc::openapi())?;
     if let Some(object) = openapi.as_object_mut() {
-        object.insert("openapi".to_string(), Value::String("3.0.3".to_string()));
+        object.insert("openapi".to_string(), Value::String("3.1.0".to_string()));
         object.insert(
             "info".to_string(),
             json!({

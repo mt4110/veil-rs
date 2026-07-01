@@ -88,7 +88,7 @@ fn test_fail_on_score() {
         .assert()
         .failure();
 
-    // 2. Fail on Score 1000 (Impossible) -> Success
+    // 2. Out-of-range thresholds are configuration errors.
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
@@ -96,5 +96,6 @@ fn test_fail_on_score() {
         .arg("--fail-on-score")
         .arg("1000")
         .assert()
-        .success();
+        .failure()
+        .code(2);
 }

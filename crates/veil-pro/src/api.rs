@@ -382,6 +382,14 @@ pub async fn scan_project(
             None,
         ));
     }
+    if req.fail_on_score.is_some_and(|score| score > 100) {
+        return Err(error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            "failOnScore must be between 0 and 100",
+            None,
+        ));
+    }
 
     let rules = veil_core::get_all_rules(&config, vec![]);
     let rules_by_id = rule_lookup(&rules);
@@ -497,11 +505,21 @@ pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorRespo
     let mut bounds = BTreeMap::new();
     bounds.insert(
         "maxFileCount".to_string(),
-        BoundValue::Number(config.core.max_file_count.unwrap_or(20_000) as u64),
+        BoundValue::Number(
+            config
+                .core
+                .max_file_count
+                .unwrap_or(veil_core::DEFAULT_MAX_FILE_COUNT) as u64,
+        ),
     );
     bounds.insert(
         "maxFileSizeBytes".to_string(),
-        BoundValue::Number(config.core.max_file_size.unwrap_or(10_000_000)),
+        BoundValue::Number(
+            config
+                .core
+                .max_file_size
+                .unwrap_or(veil_core::DEFAULT_MAX_FILE_SIZE_BYTES),
+        ),
     );
     bounds.insert(
         "maxFindings".to_string(),
@@ -866,6 +884,49 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
         assert_eq!(body.error.message, "failOnFindings must be >= 1");
+    }
+
+    #[tokio::test]
+    async fn fail_on_score_above_range_returns_error_envelope() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = ScanRequest {
+            fail_on_score: Some(101),
+            ..ScanRequest::default()
+        };
+
+        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert_eq!(body.error.message, "failOnScore must be between 0 and 100");
+    }
+
+    #[tokio::test]
+    async fn doctor_reports_scanner_default_bounds() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+
+        let Json(body) = get_doctor(State(state)).await;
+
+        assert!(matches!(
+            body.bounds.get("maxFileCount"),
+            Some(BoundValue::Number(value)) if *value == veil_core::DEFAULT_MAX_FILE_COUNT as u64
+        ));
+        assert!(matches!(
+            body.bounds.get("maxFileSizeBytes"),
+            Some(BoundValue::Number(value)) if *value == veil_core::DEFAULT_MAX_FILE_SIZE_BYTES
+        ));
     }
 
     #[tokio::test]
