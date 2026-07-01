@@ -670,6 +670,94 @@ fn test_report_summary_must_match_finding_statuses() {
 }
 
 #[test]
+fn test_artifact_size_bytes_mismatch_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("bad_artifact_size_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts["reportJson"]["sizeBytes"] = serde_json::json!(999_999);
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "artifact reportJson sizeBytes mismatch",
+        ));
+}
+
+#[test]
+fn test_nullable_run_meta_option_fields_are_accepted() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("nullable_options_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts["reportHtml"]["sizeBytes"] = serde_json::Value::Null;
+    artifacts["reportJson"]["sizeBytes"] = serde_json::Value::Null;
+    artifacts["effectiveConfig"]["sizeBytes"] = serde_json::Value::Null;
+    artifacts["baseline"] = serde_json::Value::Null;
+
+    let mut run_meta_content: serde_json::Value =
+        serde_json::from_str(&run_meta_json(artifacts, run_result(0, false, true))).unwrap();
+    run_meta_content["product"]["commit"] = serde_json::Value::Null;
+    run_meta_content["product"]["buildProfile"] = serde_json::Value::Null;
+    run_meta_content["engine"]["rulePacks"][0]["contentSha256"] = serde_json::Value::Null;
+    run_meta_content["engine"]["rulePacks"][0]["version"] = serde_json::Value::Null;
+    let run_meta_content = run_meta_content.to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .success()
+        .code(0)
+        .stdout(predicates::str::contains("PASSED"));
+}
+
+#[test]
 fn test_baseline_artifact_path_must_be_canonical() {
     let dir = TempDir::new().unwrap();
     let zip_path = dir.path().join("custom_baseline_path_evidence.zip");

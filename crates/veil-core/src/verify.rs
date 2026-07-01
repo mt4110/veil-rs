@@ -134,6 +134,41 @@ fn validate_string_enum(
     Ok(())
 }
 
+fn validate_nullable_string_field(
+    object: &Map<String, Value>,
+    field: &str,
+    context: &str,
+) -> Result<(), VerifyError> {
+    if let Some(value) = object.get(field) {
+        if !value.is_null() && !value.is_string() {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.{field} must be a string or null"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_nullable_string_enum(
+    object: &Map<String, Value>,
+    field: &str,
+    allowed: &[&str],
+    context: &str,
+) -> Result<(), VerifyError> {
+    if let Some(value) = object.get(field) {
+        if value.is_null() {
+            return Ok(());
+        }
+        if value.as_str().is_none_or(|value| !allowed.contains(&value)) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.{field} must be one of {} or null",
+                allowed.join(", ")
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn validate_u64_field(
     object: &Map<String, Value>,
     field: &str,
@@ -262,9 +297,9 @@ fn validate_artifact_meta(value: &Value, context: &str, baseline: bool) -> Resul
     validate_string_field(artifact, "path", context)?;
     validate_string_field(artifact, "sha256", context)?;
     if let Some(size_bytes) = artifact.get("sizeBytes") {
-        if !size_bytes.is_u64() {
+        if !size_bytes.is_null() && !size_bytes.is_u64() {
             return Err(VerifyError::SchemaViolation(format!(
-                "{context}.sizeBytes must be a non-negative integer"
+                "{context}.sizeBytes must be a non-negative integer or null"
             )));
         }
     }
@@ -304,7 +339,7 @@ fn validate_evidence_artifacts(value: &Value) -> Result<(), VerifyError> {
         "run_meta.json artifacts.effectiveConfig",
         false,
     )?;
-    if let Some(baseline) = artifacts.get("baseline") {
+    if let Some(baseline) = artifacts.get("baseline").filter(|value| !value.is_null()) {
         validate_artifact_meta(baseline, "run_meta.json artifacts.baseline", true)?;
     }
     Ok(())
@@ -325,10 +360,10 @@ fn validate_product(value: &Value) -> Result<(), VerifyError> {
     )?;
     validate_string_field(product, "version", "run_meta.json product")?;
     if product.contains_key("commit") {
-        validate_string_field(product, "commit", "run_meta.json product")?;
+        validate_nullable_string_field(product, "commit", "run_meta.json product")?;
     }
     if product.contains_key("buildProfile") {
-        validate_string_enum(
+        validate_nullable_string_enum(
             product,
             "buildProfile",
             &["debug", "release"],
@@ -376,10 +411,10 @@ fn validate_engine(value: &Value) -> Result<(), VerifyError> {
             &context,
         )?;
         if rule_pack.contains_key("contentSha256") {
-            validate_string_field(rule_pack, "contentSha256", &context)?;
+            validate_nullable_string_field(rule_pack, "contentSha256", &context)?;
         }
         if rule_pack.contains_key("version") {
-            validate_string_field(rule_pack, "version", &context)?;
+            validate_nullable_string_field(rule_pack, "version", &context)?;
         }
     }
     Ok(())
@@ -757,6 +792,7 @@ pub fn verify_evidence_pack(
 
     let mut total_uncompressed_bytes = 0u64;
     let mut extracted_files: HashMap<String, String> = HashMap::new(); // path -> hex_hash
+    let mut extracted_sizes: HashMap<String, u64> = HashMap::new();
     let mut extracted_content: HashMap<String, Vec<u8>> = HashMap::new();
 
     // 2. Stream Process ZIP (Anti-ZipSlip, Anti-ZipBomb, Leakage Check)
@@ -830,6 +866,7 @@ pub fn verify_evidence_pack(
                 name
             )));
         }
+        extracted_sizes.insert(name.clone(), uncompressed_size);
 
         // Keep required files in memory to parse them for structural validations
         if name == "run_meta.json" || name == "report.json" {
@@ -916,6 +953,9 @@ pub fn verify_evidence_pack(
                     camel_key
                 )));
             };
+            if optional && art.is_null() {
+                continue;
+            }
 
             let expected_path = art.get("path").and_then(Value::as_str).ok_or_else(|| {
                 VerifyError::SchemaViolation(format!(
@@ -946,6 +986,16 @@ pub fn verify_evidence_pack(
                 }
             } else {
                 return Err(VerifyError::MissingFile(expected_path.to_string()));
+            }
+            if let Some(expected_size) = art.get("sizeBytes").and_then(Value::as_u64) {
+                let actual_size = extracted_sizes
+                    .get(expected_path)
+                    .ok_or_else(|| VerifyError::MissingFile(expected_path.to_string()))?;
+                if *actual_size != expected_size {
+                    return Err(VerifyError::SchemaViolation(format!(
+                        "artifact {camel_key} sizeBytes mismatch for {expected_path} (expected {expected_size}, got {actual_size})"
+                    )));
+                }
             }
             if camel_key == "reportJson" {
                 report_json_path = Some(expected_path.to_string());
