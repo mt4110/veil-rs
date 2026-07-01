@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs::File;
@@ -75,132 +76,481 @@ fn sha256_hex(data: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
-fn validate_v1_run_result(run_meta: &serde_json::Value) -> Result<(), VerifyError> {
+fn validate_object_schema<'a>(
+    value: &'a Value,
+    context: &str,
+    required: &[&str],
+    optional: &[&str],
+) -> Result<&'a Map<String, Value>, VerifyError> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| VerifyError::SchemaViolation(format!("{context} must be an object")))?;
+    for key in object.keys() {
+        if !required.contains(&key.as_str()) && !optional.contains(&key.as_str()) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context} contains unknown field: {key}"
+            )));
+        }
+    }
+    for field in required {
+        if !object.contains_key(*field) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context} missing required field: {field}"
+            )));
+        }
+    }
+    Ok(object)
+}
+
+fn validate_string_field(
+    object: &Map<String, Value>,
+    field: &str,
+    context: &str,
+) -> Result<(), VerifyError> {
+    if !object.get(field).is_some_and(Value::is_string) {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.{field} must be a string"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_string_enum(
+    object: &Map<String, Value>,
+    field: &str,
+    allowed: &[&str],
+    context: &str,
+) -> Result<(), VerifyError> {
+    if object
+        .get(field)
+        .and_then(Value::as_str)
+        .is_none_or(|value| !allowed.contains(&value))
+    {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.{field} must be one of {}",
+            allowed.join(", ")
+        )));
+    }
+    Ok(())
+}
+
+fn validate_u64_field(
+    object: &Map<String, Value>,
+    field: &str,
+    context: &str,
+) -> Result<(), VerifyError> {
+    if !object.get(field).is_some_and(Value::is_u64) {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.{field} must be a non-negative integer"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_bool_field(
+    object: &Map<String, Value>,
+    field: &str,
+    context: &str,
+) -> Result<(), VerifyError> {
+    if !object.get(field).is_some_and(Value::is_boolean) {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.{field} must be a boolean"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_severity_counts(value: &Value, context: &str) -> Result<(), VerifyError> {
+    let counts =
+        validate_object_schema(value, context, &["Low", "Medium", "High", "Critical"], &[])?;
+    for field in ["Low", "Medium", "High", "Critical"] {
+        validate_u64_field(counts, field, context)?;
+    }
+    Ok(())
+}
+
+fn validate_evidence_summary(value: &Value, context: &str) -> Result<(), VerifyError> {
+    let summary = validate_object_schema(
+        value,
+        context,
+        &[
+            "totalFindings",
+            "suppressedFindings",
+            "effectiveFindings",
+            "severityCounts",
+            "allSeverityCounts",
+            "suppressedSeverityCounts",
+            "coverageComplete",
+        ],
+        &[],
+    )?;
+    for field in ["totalFindings", "suppressedFindings", "effectiveFindings"] {
+        validate_u64_field(summary, field, context)?;
+    }
+    validate_severity_counts(
+        summary.get("severityCounts").unwrap(),
+        &format!("{context}.severityCounts"),
+    )?;
+    validate_severity_counts(
+        summary.get("allSeverityCounts").unwrap(),
+        &format!("{context}.allSeverityCounts"),
+    )?;
+    validate_severity_counts(
+        summary.get("suppressedSeverityCounts").unwrap(),
+        &format!("{context}.suppressedSeverityCounts"),
+    )?;
+    validate_bool_field(summary, "coverageComplete", context)?;
+    Ok(())
+}
+
+fn validate_v1_run_result(run_meta: &Value) -> Result<(), VerifyError> {
     let result = run_meta
         .get("result")
-        .and_then(serde_json::Value::as_object)
+        .and_then(Value::as_object)
         .ok_or_else(|| {
             VerifyError::SchemaViolation(
                 "run_meta.json result must be an object for veil-pro-run-meta-v1".to_string(),
             )
         })?;
-    let result_fields = [
+    validate_object_schema(
+        run_meta.get("result").unwrap(),
+        "run_meta.json result",
+        &[
+            "status",
+            "exitCode",
+            "limitReached",
+            "limitReasons",
+            "summary",
+        ],
+        &[],
+    )?;
+    validate_string_enum(
+        result,
         "status",
-        "exitCode",
-        "limitReached",
-        "limitReasons",
-        "summary",
-    ];
-    for key in result.keys() {
-        if !result_fields.contains(&key.as_str()) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result contains unknown field: {key}"
-            )));
-        }
-    }
-    for field in result_fields {
-        if !result.contains_key(field) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result missing required field: {field}"
-            )));
-        }
-    }
-    let valid_status = ["success", "violation", "incomplete", "error"];
-    if result
-        .get("status")
-        .and_then(serde_json::Value::as_str)
-        .is_none_or(|status| !valid_status.contains(&status))
-    {
-        return Err(VerifyError::SchemaViolation(
-            "run_meta.json result.status must be one of success, violation, incomplete, or error"
-                .to_string(),
-        ));
-    }
+        &["success", "violation", "incomplete", "error"],
+        "run_meta.json result",
+    )?;
     if result
         .get("exitCode")
-        .and_then(serde_json::Value::as_u64)
+        .and_then(Value::as_u64)
         .is_none_or(|code| code > 2)
     {
         return Err(VerifyError::SchemaViolation(
             "run_meta.json result.exitCode must be 0, 1, or 2".to_string(),
         ));
     }
-    if !result
-        .get("limitReached")
-        .is_some_and(serde_json::Value::is_boolean)
-    {
-        return Err(VerifyError::SchemaViolation(
-            "run_meta.json result.limitReached must be a boolean".to_string(),
-        ));
-    }
+    validate_bool_field(result, "limitReached", "run_meta.json result")?;
     if !result
         .get("limitReasons")
-        .and_then(serde_json::Value::as_array)
-        .is_some_and(|reasons| reasons.iter().all(serde_json::Value::is_string))
+        .and_then(Value::as_array)
+        .is_some_and(|reasons| reasons.iter().all(Value::is_string))
     {
         return Err(VerifyError::SchemaViolation(
             "run_meta.json result.limitReasons must be an array of strings".to_string(),
         ));
     }
+    validate_evidence_summary(
+        result.get("summary").unwrap(),
+        "run_meta.json result.summary",
+    )?;
 
-    let summary = result
-        .get("summary")
-        .and_then(serde_json::Value::as_object)
+    Ok(())
+}
+
+fn validate_artifact_meta(value: &Value, context: &str, baseline: bool) -> Result<(), VerifyError> {
+    let artifact = validate_object_schema(value, context, &["path", "sha256"], &["sizeBytes"])?;
+    validate_string_field(artifact, "path", context)?;
+    validate_string_field(artifact, "sha256", context)?;
+    if let Some(size_bytes) = artifact.get("sizeBytes") {
+        if !size_bytes.is_u64() {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.sizeBytes must be a non-negative integer"
+            )));
+        }
+    }
+    if baseline
+        && artifact
+            .get("path")
+            .and_then(Value::as_str)
+            .is_none_or(|path| path != crate::baseline::DEFAULT_BASELINE_FILE)
+    {
+        return Err(VerifyError::SchemaViolation(format!(
+            "artifact baseline path must be {}",
+            crate::baseline::DEFAULT_BASELINE_FILE
+        )));
+    }
+    Ok(())
+}
+
+fn validate_evidence_artifacts(value: &Value) -> Result<(), VerifyError> {
+    let artifacts = validate_object_schema(
+        value,
+        "run_meta.json artifacts",
+        &["reportHtml", "reportJson", "effectiveConfig"],
+        &["baseline"],
+    )?;
+    validate_artifact_meta(
+        artifacts.get("reportHtml").unwrap(),
+        "run_meta.json artifacts.reportHtml",
+        false,
+    )?;
+    validate_artifact_meta(
+        artifacts.get("reportJson").unwrap(),
+        "run_meta.json artifacts.reportJson",
+        false,
+    )?;
+    validate_artifact_meta(
+        artifacts.get("effectiveConfig").unwrap(),
+        "run_meta.json artifacts.effectiveConfig",
+        false,
+    )?;
+    if let Some(baseline) = artifacts.get("baseline") {
+        validate_artifact_meta(baseline, "run_meta.json artifacts.baseline", true)?;
+    }
+    Ok(())
+}
+
+fn validate_product(value: &Value) -> Result<(), VerifyError> {
+    let product = validate_object_schema(
+        value,
+        "run_meta.json product",
+        &["name", "version"],
+        &["commit", "buildProfile"],
+    )?;
+    validate_string_enum(
+        product,
+        "name",
+        &["veil-pro", "veil"],
+        "run_meta.json product",
+    )?;
+    validate_string_field(product, "version", "run_meta.json product")?;
+    if product.contains_key("commit") {
+        validate_string_field(product, "commit", "run_meta.json product")?;
+    }
+    if product.contains_key("buildProfile") {
+        validate_string_enum(
+            product,
+            "buildProfile",
+            &["debug", "release"],
+            "run_meta.json product",
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_engine(value: &Value) -> Result<(), VerifyError> {
+    let engine = validate_object_schema(
+        value,
+        "run_meta.json engine",
+        &["name", "schemaVersion", "rulePacks"],
+        &[],
+    )?;
+    validate_string_enum(engine, "name", &["veil"], "run_meta.json engine")?;
+    validate_string_enum(
+        engine,
+        "schemaVersion",
+        &["veil-v1"],
+        "run_meta.json engine",
+    )?;
+    let rule_packs = engine
+        .get("rulePacks")
+        .and_then(Value::as_array)
         .ok_or_else(|| {
             VerifyError::SchemaViolation(
-                "run_meta.json result.summary must be an object".to_string(),
+                "run_meta.json engine.rulePacks must be an array".to_string(),
             )
         })?;
-    let summary_fields = [
-        "totalFindings",
-        "suppressedFindings",
-        "effectiveFindings",
-        "severityCounts",
-        "allSeverityCounts",
-        "suppressedSeverityCounts",
-        "coverageComplete",
-    ];
-    for key in summary.keys() {
-        if !summary_fields.contains(&key.as_str()) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result.summary contains unknown field: {key}"
-            )));
+    for (index, rule_pack) in rule_packs.iter().enumerate() {
+        let context = format!("run_meta.json engine.rulePacks[{index}]");
+        let rule_pack = validate_object_schema(
+            rule_pack,
+            &context,
+            &["name", "source"],
+            &["contentSha256", "version"],
+        )?;
+        validate_string_field(rule_pack, "name", &context)?;
+        validate_string_enum(
+            rule_pack,
+            "source",
+            &["embedded", "local", "remote"],
+            &context,
+        )?;
+        if rule_pack.contains_key("contentSha256") {
+            validate_string_field(rule_pack, "contentSha256", &context)?;
+        }
+        if rule_pack.contains_key("version") {
+            validate_string_field(rule_pack, "version", &context)?;
         }
     }
-    for field in summary_fields {
-        if !summary.contains_key(field) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result.summary missing required field: {field}"
-            )));
-        }
-    }
-    for field in ["totalFindings", "suppressedFindings", "effectiveFindings"] {
-        if !summary.get(field).is_some_and(serde_json::Value::is_u64) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result.summary.{field} must be a non-negative integer"
-            )));
-        }
-    }
-    for field in [
-        "severityCounts",
-        "allSeverityCounts",
-        "suppressedSeverityCounts",
-    ] {
-        if !summary.get(field).is_some_and(serde_json::Value::is_object) {
-            return Err(VerifyError::SchemaViolation(format!(
-                "run_meta.json result.summary.{field} must be an object"
-            )));
-        }
-    }
-    if !summary
-        .get("coverageComplete")
-        .is_some_and(serde_json::Value::is_boolean)
-    {
-        return Err(VerifyError::SchemaViolation(
-            "run_meta.json result.summary.coverageComplete must be a boolean".to_string(),
-        ));
-    }
+    Ok(())
+}
 
+fn validate_privacy(value: &Value) -> Result<(), VerifyError> {
+    let privacy = validate_object_schema(
+        value,
+        "run_meta.json privacy",
+        &["telemetry", "networkMode", "bind"],
+        &[],
+    )?;
+    validate_string_enum(privacy, "telemetry", &["none"], "run_meta.json privacy")?;
+    validate_string_enum(
+        privacy,
+        "networkMode",
+        &["local-only", "enterprise-opt-in"],
+        "run_meta.json privacy",
+    )?;
+    validate_string_enum(privacy, "bind", &["127.0.0.1"], "run_meta.json privacy")?;
+    Ok(())
+}
+
+fn validate_v1_run_meta(run_meta: &Value) -> Result<(), VerifyError> {
+    let root = validate_object_schema(
+        run_meta,
+        "run_meta.json",
+        &[
+            "schemaVersion",
+            "runId",
+            "generatedAtUtc",
+            "product",
+            "engine",
+            "result",
+            "artifacts",
+            "privacy",
+        ],
+        &["extensions"],
+    )?;
+    validate_string_enum(
+        root,
+        "schemaVersion",
+        &["veil-pro-run-meta-v1"],
+        "run_meta.json",
+    )?;
+    validate_string_field(root, "runId", "run_meta.json")?;
+    validate_string_field(root, "generatedAtUtc", "run_meta.json")?;
+    validate_product(root.get("product").unwrap())?;
+    validate_engine(root.get("engine").unwrap())?;
+    validate_v1_run_result(run_meta)?;
+    validate_evidence_artifacts(root.get("artifacts").unwrap())?;
+    validate_privacy(root.get("privacy").unwrap())?;
+    if let Some(extensions) = root.get("extensions") {
+        if !extensions.is_object() && !extensions.is_null() {
+            return Err(VerifyError::SchemaViolation(
+                "run_meta.json extensions must be an object or null".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_safe_finding(value: &Value, context: &str) -> Result<(), VerifyError> {
+    let finding = validate_object_schema(
+        value,
+        context,
+        &[
+            "findingId",
+            "baselineFingerprint",
+            "path",
+            "lineNumber",
+            "ruleId",
+            "severity",
+            "score",
+            "grade",
+            "maskedSnippet",
+            "category",
+            "tags",
+            "baselineStatus",
+        ],
+        &[],
+    )?;
+    for field in [
+        "findingId",
+        "baselineFingerprint",
+        "path",
+        "ruleId",
+        "maskedSnippet",
+        "category",
+    ] {
+        validate_string_field(finding, field, context)?;
+    }
+    if finding
+        .get("lineNumber")
+        .and_then(Value::as_u64)
+        .is_none_or(|line| line == 0)
+    {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.lineNumber must be a positive integer"
+        )));
+    }
+    if finding
+        .get("score")
+        .and_then(Value::as_u64)
+        .is_none_or(|score| score > 100)
+    {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.score must be between 0 and 100"
+        )));
+    }
+    validate_string_enum(
+        finding,
+        "severity",
+        &["Low", "Medium", "High", "Critical"],
+        context,
+    )?;
+    validate_string_enum(
+        finding,
+        "grade",
+        &["Low", "Medium", "High", "Critical"],
+        context,
+    )?;
+    validate_string_enum(
+        finding,
+        "baselineStatus",
+        &["none", "new", "suppressed"],
+        context,
+    )?;
+    let tags = finding
+        .get("tags")
+        .and_then(Value::as_array)
+        .ok_or_else(|| VerifyError::SchemaViolation(format!("{context}.tags must be an array")))?;
+    if !tags.iter().all(Value::is_string) {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.tags must contain only strings"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_evidence_report(report: &Value) -> Result<(), VerifyError> {
+    let root = validate_object_schema(
+        report,
+        "report.json",
+        &[
+            "schemaVersion",
+            "runId",
+            "generatedAtUtc",
+            "summary",
+            "findings",
+        ],
+        &[],
+    )?;
+    validate_string_enum(
+        root,
+        "schemaVersion",
+        &["veil-evidence-report-v1"],
+        "report.json",
+    )?;
+    validate_string_field(root, "runId", "report.json")?;
+    validate_string_field(root, "generatedAtUtc", "report.json")?;
+    validate_evidence_summary(root.get("summary").unwrap(), "report.json summary")?;
+    let findings = root
+        .get("findings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation("report.json findings must be an array".to_string())
+        })?;
+    for (index, finding) in findings.iter().enumerate() {
+        validate_safe_finding(finding, &format!("report.json findings[{index}]"))?;
+    }
     Ok(())
 }
 
@@ -357,7 +707,7 @@ pub fn verify_evidence_pack(
             schema_ver
         )));
     }
-    validate_v1_run_result(&run_meta)?;
+    validate_v1_run_meta(&run_meta)?;
 
     let limit_reached = run_meta
         .pointer("/result/limitReached")
@@ -376,21 +726,16 @@ pub fn verify_evidence_pack(
         .unwrap_or(0);
 
     // 5. Match hashes against run_meta.json tracking
-    if let Some(artifacts_map) = run_meta
-        .get("artifacts")
-        .and_then(serde_json::Value::as_object)
-    {
+    let mut report_json_path = None;
+    if let Some(artifacts_map) = run_meta.get("artifacts").and_then(Value::as_object) {
         let expected_files = [
-            ("reportHtml", "report_html", false),
-            ("reportJson", "report_json", false),
-            ("effectiveConfig", "effective_config", false),
-            ("baseline", "baseline", true),
+            ("reportHtml", false),
+            ("reportJson", false),
+            ("effectiveConfig", false),
+            ("baseline", true),
         ];
-        for (camel_key, snake_key, optional) in expected_files {
-            let Some(art) = artifacts_map
-                .get(camel_key)
-                .or_else(|| artifacts_map.get(snake_key))
-            else {
+        for (camel_key, optional) in expected_files {
+            let Some(art) = artifacts_map.get(camel_key) else {
                 if optional {
                     continue;
                 }
@@ -400,30 +745,24 @@ pub fn verify_evidence_pack(
                 )));
             };
 
-            let expected_path = art
-                .get("path")
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| {
-                    VerifyError::SchemaViolation(format!(
-                        "artifact {} path missing from run_meta.json",
-                        camel_key
-                    ))
-                })?;
+            let expected_path = art.get("path").and_then(Value::as_str).ok_or_else(|| {
+                VerifyError::SchemaViolation(format!(
+                    "artifact {} path missing from run_meta.json",
+                    camel_key
+                ))
+            })?;
             if camel_key == "baseline" && expected_path != crate::baseline::DEFAULT_BASELINE_FILE {
                 return Err(VerifyError::SchemaViolation(format!(
                     "artifact baseline path must be {}",
                     crate::baseline::DEFAULT_BASELINE_FILE
                 )));
             }
-            let expected_hash = art
-                .get("sha256")
-                .and_then(serde_json::Value::as_str)
-                .ok_or_else(|| {
-                    VerifyError::SchemaViolation(format!(
-                        "artifact {} sha256 missing from run_meta.json",
-                        camel_key
-                    ))
-                })?;
+            let expected_hash = art.get("sha256").and_then(Value::as_str).ok_or_else(|| {
+                VerifyError::SchemaViolation(format!(
+                    "artifact {} sha256 missing from run_meta.json",
+                    camel_key
+                ))
+            })?;
 
             if let Some(actual_hash) = extracted_files.get(expected_path) {
                 if actual_hash != expected_hash {
@@ -436,12 +775,23 @@ pub fn verify_evidence_pack(
             } else {
                 return Err(VerifyError::MissingFile(expected_path.to_string()));
             }
+            if camel_key == "reportJson" {
+                report_json_path = Some(expected_path.to_string());
+            }
         }
     } else {
         return Err(VerifyError::SchemaViolation(
             "artifacts map missing from run_meta.json".to_string(),
         ));
     }
+    let report_json_path = report_json_path.ok_or_else(|| {
+        VerifyError::SchemaViolation("artifact reportJson missing from run_meta.json".to_string())
+    })?;
+    let report_json_buf = extracted_content
+        .get(&report_json_path)
+        .ok_or_else(|| VerifyError::MissingFile(report_json_path.clone()))?;
+    let report_json: Value = serde_json::from_slice(report_json_buf)?;
+    validate_evidence_report(&report_json)?;
 
     // 6. Validate Application Policies
     if options.require_complete && !is_complete {

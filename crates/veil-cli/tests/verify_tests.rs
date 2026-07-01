@@ -47,6 +47,75 @@ fn run_result(
     })
 }
 
+fn evidence_report(effective_findings: usize, coverage_complete: bool) -> Vec<u8> {
+    serde_json::json!({
+        "schemaVersion": "veil-evidence-report-v1",
+        "runId": "test-run",
+        "generatedAtUtc": "2026-06-29T00:00:00Z",
+        "summary": {
+            "totalFindings": effective_findings,
+            "suppressedFindings": 0,
+            "effectiveFindings": effective_findings,
+            "severityCounts": severity_counts(),
+            "allSeverityCounts": severity_counts(),
+            "suppressedSeverityCounts": severity_counts(),
+            "coverageComplete": coverage_complete
+        },
+        "findings": []
+    })
+    .to_string()
+    .into_bytes()
+}
+
+fn artifacts_json(
+    effective_config_content: &[u8],
+    report_json_content: &[u8],
+    report_html_content: &[u8],
+) -> serde_json::Value {
+    serde_json::json!({
+        "effectiveConfig": {
+            "path": "effective_config.toml",
+            "sha256": sha256_hex(effective_config_content),
+            "sizeBytes": effective_config_content.len()
+        },
+        "reportJson": {
+            "path": "report.json",
+            "sha256": sha256_hex(report_json_content),
+            "sizeBytes": report_json_content.len()
+        },
+        "reportHtml": {
+            "path": "report.html",
+            "sha256": sha256_hex(report_html_content),
+            "sizeBytes": report_html_content.len()
+        }
+    })
+}
+
+fn run_meta_json(artifacts: serde_json::Value, result: serde_json::Value) -> String {
+    serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "runId": "test-run",
+        "generatedAtUtc": "2026-06-29T00:00:00Z",
+        "product": {
+            "name": "veil-pro",
+            "version": "0.17.0"
+        },
+        "engine": {
+            "name": "veil",
+            "schemaVersion": "veil-v1",
+            "rulePacks": [{"name": "default", "source": "embedded"}]
+        },
+        "result": result,
+        "artifacts": artifacts,
+        "privacy": {
+            "telemetry": "none",
+            "networkMode": "local-only",
+            "bind": "127.0.0.1"
+        }
+    })
+    .to_string()
+}
+
 fn create_golden_zip(dir: &TempDir) -> std::path::PathBuf {
     create_zip_with_effective_findings(dir, 0)
 }
@@ -65,33 +134,15 @@ fn create_zip_with_effective_findings(
 
     // Create artifacts
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(effective_findings, true);
     let report_html_content = b"<html></html>";
 
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-            "size_bytes": effective_config_content.len()
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-            "size_bytes": report_json_content.len()
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-            "size_bytes": report_html_content.len()
-        }
-    });
-
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(effective_findings, false, true),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result(effective_findings, false, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
@@ -100,7 +151,7 @@ fn create_zip_with_effective_findings(
     zip.write_all(effective_config_content).unwrap();
 
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(report_json_content).unwrap();
+    zip.write_all(&report_json_content).unwrap();
 
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
@@ -169,29 +220,10 @@ fn test_hash_mismatch() {
     let malicious_report = b"{\"findings\": [\"hacked!\"]}";
 
     // We register the hash for harmless report to simulate tampering
-    let harmless_report = b"{\"findings\": []}";
+    let harmless_report = evidence_report(0, true);
 
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(b"rules = []"),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(harmless_report), // Hash doesn't match the malicious file injected!
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(b"<html></html>"),
-        }
-    });
-
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(0, false, true),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let artifacts = artifacts_json(b"rules = []", &harmless_report, b"<html></html>");
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
@@ -223,42 +255,31 @@ fn test_declared_baseline_must_exist_in_zip() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(0, true);
     let report_html_content = b"<html></html>";
     let baseline_content = b"{\"schema\":\"veil.baseline.v1\",\"entries\":[]}";
 
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-        },
-        "baseline": {
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts.as_object_mut().unwrap().insert(
+        "baseline".to_string(),
+        serde_json::json!({
             "path": "veil.baseline.json",
             "sha256": sha256_hex(baseline_content),
-        }
-    });
+        }),
+    );
 
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(0, false, true),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(effective_config_content).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(report_json_content).unwrap();
+    zip.write_all(&report_json_content).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
     zip.finish().unwrap();
@@ -337,34 +358,24 @@ fn test_v1_run_meta_missing_result_is_rejected() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(0, true);
     let report_html_content = b"<html></html>";
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-        }
-    });
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "artifacts": artifacts
-    })
-    .to_string();
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let mut run_meta_content: serde_json::Value =
+        serde_json::from_str(&run_meta_json(artifacts, run_result(0, false, true))).unwrap();
+    run_meta_content.as_object_mut().unwrap().remove("result");
+    let run_meta_content = run_meta_content.to_string();
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(effective_config_content).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(report_json_content).unwrap();
+    zip.write_all(&report_json_content).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
     zip.finish().unwrap();
@@ -376,7 +387,7 @@ fn test_v1_run_meta_missing_result_is_rejected() {
         .failure()
         .code(2)
         .stdout(predicates::str::contains(
-            "run_meta.json result must be an object",
+            "run_meta.json missing required field: result",
         ));
 }
 
@@ -389,37 +400,23 @@ fn test_v1_run_meta_missing_limit_reasons_is_rejected() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(0, true);
     let report_html_content = b"<html></html>";
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-        }
-    });
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
     let mut result = run_result(0, false, true);
     result.as_object_mut().unwrap().remove("limitReasons");
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": result,
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta_content = run_meta_json(artifacts, result);
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(effective_config_content).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(report_json_content).unwrap();
+    zip.write_all(&report_json_content).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
     zip.finish().unwrap();
@@ -444,33 +441,100 @@ fn test_v1_run_meta_invalid_status_is_rejected() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(0, true);
     let report_html_content = b"<html></html>";
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-        }
-    });
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
     let mut result = run_result(0, false, true);
     result.as_object_mut().unwrap().insert(
         "status".to_string(),
         serde_json::Value::String("passed".to_string()),
     );
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": result,
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta_content = run_meta_json(artifacts, result);
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result.status must be one of success, violation, incomplete, error",
+        ));
+}
+
+#[test]
+fn test_v1_run_meta_missing_top_level_required_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("missing_run_id_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let mut run_meta_content: serde_json::Value =
+        serde_json::from_str(&run_meta_json(artifacts, run_result(0, false, true))).unwrap();
+    run_meta_content.as_object_mut().unwrap().remove("runId");
+    let run_meta_content = run_meta_content.to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json missing required field: runId",
+        ));
+}
+
+#[test]
+fn test_report_json_schema_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("invalid_report_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = b"{\"findings\": []}";
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
@@ -489,7 +553,7 @@ fn test_v1_run_meta_invalid_status_is_rejected() {
         .failure()
         .code(2)
         .stdout(predicates::str::contains(
-            "run_meta.json result.status must be one of success, violation, incomplete, or error",
+            "report.json missing required field: schemaVersion",
         ));
 }
 
@@ -502,42 +566,31 @@ fn test_baseline_artifact_path_must_be_canonical() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let effective_config_content = b"rules = []";
-    let report_json_content = b"{\"findings\": []}";
+    let report_json_content = evidence_report(0, true);
     let report_html_content = b"<html></html>";
     let baseline_content = b"{\"schema\":\"veil.baseline.v1\",\"entries\":[]}";
 
-    let artifacts = serde_json::json!({
-        "effective_config": {
-            "path": "effective_config.toml",
-            "sha256": sha256_hex(effective_config_content),
-        },
-        "report_json": {
-            "path": "report.json",
-            "sha256": sha256_hex(report_json_content),
-        },
-        "report_html": {
-            "path": "report.html",
-            "sha256": sha256_hex(report_html_content),
-        },
-        "baseline": {
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts.as_object_mut().unwrap().insert(
+        "baseline".to_string(),
+        serde_json::json!({
             "path": "custom-baseline.json",
             "sha256": sha256_hex(baseline_content),
-        }
-    });
+        }),
+    );
 
-    let run_meta_content = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(0, false, true),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta_content.as_bytes()).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(effective_config_content).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(report_json_content).unwrap();
+    zip.write_all(&report_json_content).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(report_html_content).unwrap();
     zip.start_file("custom-baseline.json", options).unwrap();
@@ -666,28 +719,19 @@ fn test_require_complete_fail() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let rule_config = b"";
-    let json_rep = b"";
+    let json_rep = evidence_report(5, false);
     let html_rep = b"";
 
-    let artifacts = serde_json::json!({
-        "effective_config": { "path": "effective_config.toml", "sha256": sha256_hex(rule_config) },
-        "report_json": { "path": "report.json", "sha256": sha256_hex(json_rep) },
-        "report_html": { "path": "report.html", "sha256": sha256_hex(html_rep) }
-    });
+    let artifacts = artifacts_json(rule_config, &json_rep, html_rep);
 
-    let run_meta = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(5, true, false),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta = run_meta_json(artifacts, run_result(5, true, false));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(html_rep).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(json_rep).unwrap();
+    zip.write_all(&json_rep).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(rule_config).unwrap();
     zip.finish().unwrap();
@@ -710,28 +754,19 @@ fn test_require_complete_fails_when_limit_reached_contradicts_summary() {
     let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
 
     let rule_config = b"";
-    let json_rep = b"";
+    let json_rep = evidence_report(0, true);
     let html_rep = b"";
 
-    let artifacts = serde_json::json!({
-        "effective_config": { "path": "effective_config.toml", "sha256": sha256_hex(rule_config) },
-        "report_json": { "path": "report.json", "sha256": sha256_hex(json_rep) },
-        "report_html": { "path": "report.html", "sha256": sha256_hex(html_rep) }
-    });
+    let artifacts = artifacts_json(rule_config, &json_rep, html_rep);
 
-    let run_meta = serde_json::json!({
-        "schemaVersion": "veil-pro-run-meta-v1",
-        "result": run_result(0, true, true),
-        "artifacts": artifacts
-    })
-    .to_string();
+    let run_meta = run_meta_json(artifacts, run_result(0, true, true));
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
     zip.start_file("report.html", options).unwrap();
     zip.write_all(html_rep).unwrap();
     zip.start_file("report.json", options).unwrap();
-    zip.write_all(json_rep).unwrap();
+    zip.write_all(&json_rep).unwrap();
     zip.start_file("effective_config.toml", options).unwrap();
     zip.write_all(rule_config).unwrap();
     zip.finish().unwrap();
