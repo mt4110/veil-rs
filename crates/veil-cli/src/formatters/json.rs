@@ -25,6 +25,8 @@ mod tests {
                 severity: Severity::High,
                 score: 80,
                 grade: veil_core::rules::grade::Grade::Critical,
+                span: Default::default(),
+                utf16_range: Default::default(),
                 context_before: vec![],
                 context_after: vec![],
                 commit_sha: None,

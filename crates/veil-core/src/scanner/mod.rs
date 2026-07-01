@@ -1,8 +1,9 @@
-use crate::model::{Finding, Rule};
+use crate::model::{Finding, FindingSpan, Position, Range, Rule};
+use crate::scanner::jp_normalize::{normalize_jp_text, NormalizationPolicy};
 use crate::scoring::{calculate_score, grade_from_score, ScoreParams};
 use ignore::WalkBuilder;
 use rayon::prelude::*;
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
@@ -70,6 +71,7 @@ impl ScanLimit {
     }
 }
 
+pub mod jp_normalize;
 pub mod result;
 pub mod utils;
 use result::ScanResult;
@@ -373,6 +375,8 @@ fn scan_line(
     let mut findings = Vec::new();
     // 1. Collect all matches
     let mut all_matches = Vec::new();
+    let mut seen_matches = HashSet::new();
+    let normalized = normalize_jp_text(content, NormalizationPolicy::default());
 
     for rule in rules {
         let rule_enabled = config
@@ -412,7 +416,7 @@ fn scan_line(
             }
         }
 
-        // Find ALL matches for this rule on the line
+        // Raw matching preserves existing custom-rule semantics.
         for mat in rule.pattern.find_iter(content) {
             let matched_str = mat.as_str();
             if let Some(validator) = rule.validator {
@@ -420,7 +424,36 @@ fn scan_line(
                     continue;
                 }
             }
-            all_matches.push((rule, mat));
+
+            let span = FindingSpan {
+                byte_start: mat.start(),
+                byte_end: mat.end(),
+            };
+            if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
+                all_matches.push(LineMatch { rule, span });
+            }
+        }
+
+        if normalized.normalized == content {
+            continue;
+        }
+
+        // Normalized matching adds JP width/separator tolerance while still
+        // returning original byte spans for masking and editor ranges.
+        for mat in rule.pattern.find_iter(&normalized.normalized) {
+            let matched_str = mat.as_str();
+            if let Some(validator) = rule.validator {
+                if !validator(matched_str) {
+                    continue;
+                }
+            }
+
+            let Some(span) = normalized.original_span(mat.start(), mat.end()) else {
+                continue;
+            };
+            if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
+                all_matches.push(LineMatch { rule, span });
+            }
         }
     }
 
@@ -430,7 +463,10 @@ fn scan_line(
 
     // 2. Generate Masked Snippet (Safe Output: Mask ALL secrets on the line)
     // Collect all ranges from all matches
-    let ranges: Vec<_> = all_matches.iter().map(|(_, m)| m.range()).collect();
+    let ranges: Vec<_> = all_matches
+        .iter()
+        .map(|line_match| line_match.span.byte_start..line_match.span.byte_end)
+        .collect();
     let placeholder = config.masking.placeholder.as_str();
     let masked_snippet = crate::masking::apply_masks(
         content,
@@ -440,8 +476,10 @@ fn scan_line(
     );
 
     // 3. Create Findings
-    for (rule, mat) in all_matches {
-        let matched_content = mat.as_str().to_string();
+    for line_match in all_matches {
+        let rule = line_match.rule;
+        let matched_content =
+            content[line_match.span.byte_start..line_match.span.byte_end].to_string();
 
         // Context Capture (Lookback only)
         let needed = rule.context_lines_before as usize;
@@ -461,6 +499,8 @@ fn scan_line(
             severity: rule.severity.clone(),
             score: 0,
             grade: crate::rules::grade::Grade::Safe,
+            span: line_match.span,
+            utf16_range: utf16_range_for_span(line_number, content, line_match.span),
             context_before,
             context_after,
             commit_sha: None,
@@ -480,10 +520,33 @@ fn scan_line(
     findings
 }
 
+struct LineMatch<'a> {
+    rule: &'a Rule,
+    span: FindingSpan,
+}
+
+fn utf16_range_for_span(line_number: usize, content: &str, span: FindingSpan) -> Range {
+    let lsp_line = line_number.saturating_sub(1) as u32;
+    Range {
+        start: Position {
+            line: lsp_line,
+            character: utf16_units_before(content, span.byte_start),
+        },
+        end: Position {
+            line: lsp_line,
+            character: utf16_units_before(content, span.byte_end),
+        },
+    }
+}
+
+fn utf16_units_before(content: &str, byte_offset: usize) -> u32 {
+    content[..byte_offset].encode_utf16().count() as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Severity;
+    use crate::model::{FindingSpan, Severity};
     use regex::Regex;
 
     #[test]
@@ -594,6 +657,49 @@ mod tests {
         let content = "SECRET // veil:ignore=other";
         let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
         assert_eq!(findings.len(), 1, "Should NOT ignore if ID mismatch");
+    }
+
+    #[test]
+    fn scan_content_detects_normalized_jp_pii_with_original_span() {
+        let rule = Rule {
+            id: "pii.jp.mynumber.keyword".to_string(),
+            pattern: Regex::new(r"個人番号[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 92,
+            category: "pii".to_string(),
+            tags: vec!["jp".to_string(), "mynumber".to_string()],
+            base_score: Some(92),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+        let content = "😀 個人番号：１２３４－５６７８－９０１２";
+
+        let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
+
+        assert_eq!(findings.len(), 1);
+        let finding = &findings[0];
+        let byte_start = content.find("個人番号").unwrap();
+        let span = FindingSpan {
+            byte_start,
+            byte_end: content.len(),
+        };
+        assert_eq!(
+            finding.matched_content,
+            &content[span.byte_start..span.byte_end]
+        );
+        assert_eq!(finding.span, span);
+        assert_eq!(finding.utf16_range.start.line, 0);
+        assert_eq!(finding.utf16_range.start.character, 3);
+        assert_eq!(
+            finding.utf16_range.end.character,
+            content.encode_utf16().count() as u32
+        );
+        assert!(!finding.masked_snippet.contains("１２３４"));
     }
 
     #[test]
