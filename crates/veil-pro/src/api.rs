@@ -6,7 +6,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
+use std::path::{Path as FsPath, PathBuf};
 use std::sync::Arc;
 use tower_sessions::Session;
 use veil_core::finding_id::SpanData;
@@ -75,6 +75,26 @@ fn normalized_paths(paths: Option<Vec<String>>) -> Vec<String> {
     match paths {
         Some(paths) if !paths.is_empty() => paths,
         _ => vec![".".to_string()],
+    }
+}
+
+fn scan_path_for_request(requested: &str, safe_path: &FsPath) -> PathBuf {
+    let requested_path = PathBuf::from(requested);
+    if !requested_path.is_absolute() {
+        return requested_path;
+    }
+
+    let root = repo_root();
+    let root = std::fs::canonicalize(&root).unwrap_or(root);
+    let safe_path = std::fs::canonicalize(safe_path).unwrap_or_else(|_| safe_path.to_path_buf());
+    if let Ok(relative) = safe_path.strip_prefix(&root) {
+        if relative.as_os_str().is_empty() {
+            PathBuf::from(".")
+        } else {
+            relative.to_path_buf()
+        }
+    } else {
+        safe_path
     }
 }
 
@@ -390,7 +410,8 @@ pub async fn scan_project(
                 Some(NextAction::NarrowScope),
             )
         })?;
-        let result = veil_core::scan_path(&safe_path, &rules, &config);
+        let scan_path = scan_path_for_request(&path, &safe_path);
+        let result = veil_core::scan_path(&scan_path, &rules, &config);
         scanned_files += result.scanned_files;
         skipped_files += result.skipped_files;
         limit_reached |=
@@ -710,6 +731,21 @@ mod tests {
     fn scan_request_paths_missing_or_empty_defaults_to_current_directory() {
         assert_eq!(normalized_paths(None), vec![".".to_string()]);
         assert_eq!(normalized_paths(Some(Vec::new())), vec![".".to_string()]);
+    }
+
+    #[test]
+    fn scan_path_preserves_relative_request_for_baseline_matching() {
+        let safe_path = repo_root().join(".");
+
+        assert_eq!(scan_path_for_request(".", &safe_path), PathBuf::from("."));
+    }
+
+    #[test]
+    fn scan_path_converts_absolute_repo_root_to_relative() {
+        let root = repo_root();
+        let root_text = root.to_string_lossy().to_string();
+
+        assert_eq!(scan_path_for_request(&root_text, &root), PathBuf::from("."));
     }
 
     #[test]

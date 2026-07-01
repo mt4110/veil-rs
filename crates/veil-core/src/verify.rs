@@ -222,7 +222,7 @@ pub fn verify_evidence_pack(
         .or_else(|| run_meta.get("schema_version"))
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default();
-    if schema_ver != "veil-pro-run-meta-v1" && !schema_ver.starts_with("veil-v1") {
+    if schema_ver != "veil-pro-run-meta-v1" {
         return Err(VerifyError::SchemaViolation(format!(
             "Unsupported run_meta.json schema: {}",
             schema_ver
@@ -283,6 +283,12 @@ pub fn verify_evidence_pack(
                         camel_key
                     ))
                 })?;
+            if camel_key == "baseline" && expected_path != crate::baseline::DEFAULT_BASELINE_FILE {
+                return Err(VerifyError::SchemaViolation(format!(
+                    "artifact baseline path must be {}",
+                    crate::baseline::DEFAULT_BASELINE_FILE
+                )));
+            }
             let expected_hash = art
                 .get("sha256")
                 .and_then(serde_json::Value::as_str)
