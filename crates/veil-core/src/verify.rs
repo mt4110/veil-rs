@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::{Component, Path};
@@ -794,7 +794,92 @@ fn validate_report_summary_matches_findings(report: &Value) -> Result<(), Verify
     Ok(())
 }
 
-fn validate_report_matches_run_meta(run_meta: &Value, report: &Value) -> Result<(), VerifyError> {
+fn parse_baseline_fingerprints(content: &[u8]) -> Result<HashSet<String>, VerifyError> {
+    let baseline: Value = serde_json::from_slice(content)?;
+    let root = validate_object_schema(
+        &baseline,
+        "veil.baseline.json",
+        &["schema", "entries"],
+        &["generated_at", "tool"],
+    )?;
+    validate_string_enum(
+        root,
+        "schema",
+        &[crate::baseline::BASELINE_SCHEMA_V1],
+        "veil.baseline.json",
+    )?;
+    let entries = root
+        .get("entries")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation("veil.baseline.json entries must be an array".to_string())
+        })?;
+
+    let mut fingerprints = HashSet::new();
+    for (index, entry) in entries.iter().enumerate() {
+        let context = format!("veil.baseline.json entries[{index}]");
+        let entry = entry
+            .as_object()
+            .ok_or_else(|| VerifyError::SchemaViolation(format!("{context} must be an object")))?;
+        let fingerprint = entry
+            .get("fingerprint")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                VerifyError::SchemaViolation(format!("{context}.fingerprint must be a string"))
+            })?;
+        fingerprints.insert(fingerprint.to_string());
+    }
+    Ok(fingerprints)
+}
+
+fn validate_suppressed_findings_have_baseline_proof(
+    report: &Value,
+    baseline_fingerprints: Option<&HashSet<String>>,
+) -> Result<(), VerifyError> {
+    let findings = report
+        .get("findings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation("report.json findings must be an array".to_string())
+        })?;
+
+    for (index, finding) in findings.iter().enumerate() {
+        let context = format!("report.json findings[{index}]");
+        let baseline_status = finding
+            .get("baselineStatus")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                VerifyError::SchemaViolation(format!("{context}.baselineStatus missing"))
+            })?;
+        if baseline_status != "suppressed" {
+            continue;
+        }
+
+        let Some(baseline_fingerprints) = baseline_fingerprints else {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.baselineStatus suppressed requires veil.baseline.json baseline artifact"
+            )));
+        };
+        let baseline_fingerprint = finding
+            .get("baselineFingerprint")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                VerifyError::SchemaViolation(format!("{context}.baselineFingerprint missing"))
+            })?;
+        if !baseline_fingerprints.contains(baseline_fingerprint) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.baselineFingerprint is not present in veil.baseline.json"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_report_matches_run_meta(
+    run_meta: &Value,
+    report: &Value,
+    baseline_fingerprints: Option<&HashSet<String>>,
+) -> Result<(), VerifyError> {
     if run_meta.get("runId") != report.get("runId") {
         return Err(VerifyError::SchemaViolation(
             "run_meta.json runId does not match report.json runId".to_string(),
@@ -807,6 +892,7 @@ fn validate_report_matches_run_meta(run_meta: &Value, report: &Value) -> Result<
     }
 
     validate_report_summary_matches_findings(report)?;
+    validate_suppressed_findings_have_baseline_proof(report, baseline_fingerprints)?;
 
     if run_meta.pointer("/result/summary") != report.get("summary") {
         return Err(VerifyError::SchemaViolation(
@@ -924,8 +1010,11 @@ pub fn verify_evidence_pack(
         }
         extracted_sizes.insert(name.clone(), uncompressed_size);
 
-        // Keep required files in memory to parse them for structural validations
-        if name == "run_meta.json" || name == "report.json" {
+        // Keep schema-bearing files in memory to parse them for structural validations
+        if name == "run_meta.json"
+            || name == "report.json"
+            || name == crate::baseline::DEFAULT_BASELINE_FILE
+        {
             extracted_content.insert(name, buf);
         }
     }
@@ -1083,8 +1172,18 @@ pub fn verify_evidence_pack(
         .get(&report_json_path)
         .ok_or_else(|| VerifyError::MissingFile(report_json_path.clone()))?;
     let report_json: Value = serde_json::from_slice(report_json_buf)?;
+    let baseline_fingerprints = if baseline_file_present {
+        let baseline_buf = extracted_content
+            .get(crate::baseline::DEFAULT_BASELINE_FILE)
+            .ok_or_else(|| {
+                VerifyError::MissingFile(crate::baseline::DEFAULT_BASELINE_FILE.to_string())
+            })?;
+        Some(parse_baseline_fingerprints(baseline_buf)?)
+    } else {
+        None
+    };
     validate_evidence_report(&report_json)?;
-    validate_report_matches_run_meta(&run_meta, &report_json)?;
+    validate_report_matches_run_meta(&run_meta, &report_json, baseline_fingerprints.as_ref())?;
 
     // 6. Validate Application Policies
     if options.require_complete && !is_complete {

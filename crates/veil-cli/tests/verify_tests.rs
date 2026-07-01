@@ -92,6 +92,56 @@ fn evidence_report(effective_findings: usize, coverage_complete: bool) -> Vec<u8
     .into_bytes()
 }
 
+fn suppressed_evidence_report(fingerprint: &str) -> (Vec<u8>, serde_json::Value) {
+    let mut finding = safe_finding(0, "suppressed");
+    finding["baselineFingerprint"] = serde_json::json!(fingerprint);
+    let summary = serde_json::json!({
+        "totalFindings": 1,
+        "suppressedFindings": 1,
+        "effectiveFindings": 0,
+        "severityCounts": severity_counts(),
+        "allSeverityCounts": severity_counts_with_high(1),
+        "suppressedSeverityCounts": severity_counts_with_high(1),
+        "coverageComplete": true
+    });
+
+    let report = serde_json::json!({
+        "schemaVersion": "veil-evidence-report-v1",
+        "runId": "test-run",
+        "generatedAtUtc": "2026-06-29T00:00:00Z",
+        "summary": summary.clone(),
+        "findings": [finding]
+    });
+    (serde_json::to_vec(&report).unwrap(), summary)
+}
+
+fn run_result_with_summary(summary: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "status": "success",
+        "exitCode": 0,
+        "limitReached": false,
+        "limitReasons": [],
+        "summary": summary
+    })
+}
+
+fn baseline_content_with_fingerprint(fingerprint: &str) -> Vec<u8> {
+    serde_json::json!({
+        "schema": "veil.baseline.v1",
+        "generated_at": "2026-06-29T00:00:00Z",
+        "tool": "veil-rs test",
+        "entries": [{
+            "fingerprint": fingerprint,
+            "rule_id": "creds.test",
+            "path": "src/file_0.rs",
+            "line": 1,
+            "severity": "High"
+        }]
+    })
+    .to_string()
+    .into_bytes()
+}
+
 fn artifacts_json(
     effective_config_content: &[u8],
     report_json_content: &[u8],
@@ -318,6 +368,152 @@ fn test_declared_baseline_must_exist_in_zip() {
         .stdout(predicates::str::contains(
             "Missing required file: veil.baseline.json",
         ));
+}
+
+#[test]
+fn test_suppressed_findings_require_baseline_artifact() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("suppressed_without_baseline.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let (report_json_content, summary) = suppressed_evidence_report("sha256:test-fingerprint-0");
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result_with_summary(summary));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("1");
+
+    cmd.assert().failure().code(2).stdout(
+        predicates::str::contains(
+            "report.json findings[0].baselineStatus suppressed requires veil.baseline.json baseline artifact",
+        ),
+    );
+}
+
+#[test]
+fn test_suppressed_finding_fingerprint_must_exist_in_baseline() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("suppressed_fingerprint_mismatch.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let (report_json_content, summary) = suppressed_evidence_report("sha256:test-fingerprint-0");
+    let report_html_content = b"<html></html>";
+    let baseline_content = baseline_content_with_fingerprint("sha256:other-fingerprint");
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts.as_object_mut().unwrap().insert(
+        "baseline".to_string(),
+        serde_json::json!({
+            "path": "veil.baseline.json",
+            "sha256": sha256_hex(&baseline_content),
+            "sizeBytes": baseline_content.len()
+        }),
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result_with_summary(summary));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.start_file("veil.baseline.json", options).unwrap();
+    zip.write_all(&baseline_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("1");
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "report.json findings[0].baselineFingerprint is not present in veil.baseline.json",
+        ));
+}
+
+#[test]
+fn test_suppressed_finding_with_matching_baseline_passes() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("suppressed_with_matching_baseline.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let fingerprint = "sha256:test-fingerprint-0";
+    let (report_json_content, summary) = suppressed_evidence_report(fingerprint);
+    let report_html_content = b"<html></html>";
+    let baseline_content = baseline_content_with_fingerprint(fingerprint);
+    let mut artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    artifacts.as_object_mut().unwrap().insert(
+        "baseline".to_string(),
+        serde_json::json!({
+            "path": "veil.baseline.json",
+            "sha256": sha256_hex(&baseline_content),
+            "sizeBytes": baseline_content.len()
+        }),
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result_with_summary(summary));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.start_file("veil.baseline.json", options).unwrap();
+    zip.write_all(&baseline_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("1");
+
+    cmd.assert()
+        .success()
+        .code(0)
+        .stdout(predicates::str::contains("PASSED"));
 }
 
 #[test]
