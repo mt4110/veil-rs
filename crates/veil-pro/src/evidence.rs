@@ -46,12 +46,12 @@ impl RunCache {
         }
     }
 
-    pub fn insert(&mut self, run_id: String, run: CachedRun) {
+    pub fn insert(&mut self, run_id: String, run: CachedRun) -> bool {
         self.evict_stale();
 
         let incoming_size = run.size_bytes();
         if incoming_size > self.max_bytes_kept {
-            return;
+            return false;
         }
 
         while self.items.len() >= self.max_runs_kept
@@ -69,6 +69,7 @@ impl RunCache {
         self.order.push_back(run_id.clone());
         self.current_bytes += incoming_size;
         self.items.insert(run_id, run);
+        true
     }
 
     pub fn get(&mut self, run_id: &str) -> Option<CachedRun> {

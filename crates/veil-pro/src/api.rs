@@ -544,11 +544,19 @@ pub async fn scan_project(
     );
     let run_id = run_meta.run_id.clone();
 
-    state
+    if !state
         .run_cache
         .write()
         .await
-        .insert(run_id.clone(), cached_run);
+        .insert(run_id.clone(), cached_run)
+    {
+        return Err(error_response(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            ErrorCode::RunTooLarge,
+            "Run evidence is too large to cache. Narrow the scan scope or reduce findings before exporting evidence.",
+            Some(NextAction::NarrowScope),
+        ));
+    }
 
     Ok(Json(ScanResponse {
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
@@ -633,11 +641,17 @@ pub async fn write_baseline(
     let mut all_findings = Vec::new();
 
     for path in paths_to_scan {
-        if let Ok(safe_path) = validate_safe_path(&path) {
-            let scan_path = scan_path_for_request(&path, &safe_path);
-            let result = veil_core::scan_path(&scan_path, &rules, &config);
-            all_findings.extend(result.findings);
-        }
+        let safe_path = validate_safe_path(&path).map_err(|error| {
+            error_response(
+                StatusCode::FORBIDDEN,
+                ErrorCode::PathDenied,
+                format!("Path denied: {error}"),
+                Some(NextAction::NarrowScope),
+            )
+        })?;
+        let scan_path = scan_path_for_request(&path, &safe_path);
+        let result = veil_core::scan_path(&scan_path, &rules, &config);
+        all_findings.extend(result.findings);
     }
 
     let tool_version = env!("CARGO_PKG_VERSION");
@@ -1069,6 +1083,65 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn scan_returns_run_too_large_when_evidence_cannot_be_cached() {
+        let root = unique_target_dir("run-too-large");
+        std::fs::write(root.join("sample.txt"), "hello\n").unwrap();
+        let repo = repo_root();
+        let path = root
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = ScanRequest {
+            paths: Some(vec![path]),
+            ..ScanRequest::default()
+        };
+
+        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+        assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
+        assert!(matches!(body.error.code, ErrorCode::RunTooLarge));
+        assert!(matches!(
+            body.error.next_action,
+            Some(NextAction::NarrowScope)
+        ));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn write_baseline_rejects_denied_input_path() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = BaselineRequest {
+            paths: Some(vec!["../secrets".to_string()]),
+            ..BaselineRequest::default()
+        };
+
+        let (status, Json(body)) = write_baseline(State(state), Json(request))
+            .await
+            .unwrap_err();
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert!(matches!(body.error.code, ErrorCode::PathDenied));
+        assert!(matches!(
+            body.error.next_action,
+            Some(NextAction::NarrowScope)
+        ));
+    }
+
+    #[tokio::test]
     async fn doctor_reports_scanner_default_bounds() {
         let state = Arc::new(AppState {
             token: "test-token".to_string(),
@@ -1179,11 +1252,12 @@ mod evidence_tests {
         );
         let run_id = meta.run_id.clone();
 
-        state
+        let inserted = state
             .run_cache
             .write()
             .await
             .insert(run_id.clone(), cached_run);
+        assert!(inserted);
 
         let mut cache = state.run_cache.write().await;
         let cached = cache.get(&run_id).unwrap();

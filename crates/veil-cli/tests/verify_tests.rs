@@ -804,8 +804,76 @@ fn test_baseline_artifact_path_must_be_canonical() {
         .failure()
         .code(2)
         .stdout(predicates::str::contains(
-            "artifact baseline path must be veil.baseline.json",
+            "run_meta.json artifacts.baseline.path must be veil.baseline.json",
         ));
+}
+
+#[test]
+fn test_required_artifact_paths_must_be_canonical() {
+    for (artifact_key, declared_path, expected_message) in [
+        (
+            "reportHtml",
+            "alternate-report.html",
+            "run_meta.json artifacts.reportHtml.path must be report.html",
+        ),
+        (
+            "reportJson",
+            "alternate-report.json",
+            "run_meta.json artifacts.reportJson.path must be report.json",
+        ),
+        (
+            "effectiveConfig",
+            "alternate-effective-config.toml",
+            "run_meta.json artifacts.effectiveConfig.path must be effective_config.toml",
+        ),
+    ] {
+        let dir = TempDir::new().unwrap();
+        let zip_path = dir.path().join(format!("{artifact_key}_custom_path.zip"));
+        let file = File::create(&zip_path).unwrap();
+        let mut zip = ZipWriter::new(file);
+        let options =
+            FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+        let effective_config_content = b"rules = []";
+        let report_json_content = evidence_report(0, true);
+        let report_html_content = b"<html></html>";
+        let mut artifacts = artifacts_json(
+            effective_config_content,
+            &report_json_content,
+            report_html_content,
+        );
+        let declared_content = match artifact_key {
+            "reportHtml" => &report_html_content[..],
+            "reportJson" => report_json_content.as_slice(),
+            "effectiveConfig" => &effective_config_content[..],
+            _ => unreachable!(),
+        };
+        artifacts[artifact_key]["path"] = serde_json::json!(declared_path);
+        artifacts[artifact_key]["sha256"] = serde_json::json!(sha256_hex(declared_content));
+        artifacts[artifact_key]["sizeBytes"] = serde_json::json!(declared_content.len());
+
+        let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
+
+        zip.start_file("run_meta.json", options).unwrap();
+        zip.write_all(run_meta_content.as_bytes()).unwrap();
+        zip.start_file("effective_config.toml", options).unwrap();
+        zip.write_all(effective_config_content).unwrap();
+        zip.start_file("report.json", options).unwrap();
+        zip.write_all(&report_json_content).unwrap();
+        zip.start_file("report.html", options).unwrap();
+        zip.write_all(report_html_content).unwrap();
+        zip.start_file(declared_path, options).unwrap();
+        zip.write_all(declared_content).unwrap();
+        zip.finish().unwrap();
+
+        let mut cmd = cargo_bin_cmd!("veil");
+        cmd.arg("verify").arg(&zip_path);
+
+        cmd.assert()
+            .failure()
+            .code(2)
+            .stdout(predicates::str::contains(expected_message));
+    }
 }
 
 #[test]

@@ -292,7 +292,13 @@ fn validate_v1_run_result(run_meta: &Value) -> Result<(), VerifyError> {
     Ok(())
 }
 
-fn validate_artifact_meta(value: &Value, context: &str, baseline: bool) -> Result<(), VerifyError> {
+fn validate_artifact_meta(
+    value: &Value,
+    context: &str,
+    camel_key: &str,
+) -> Result<(), VerifyError> {
+    let canonical_path = canonical_artifact_path(camel_key)
+        .ok_or_else(|| VerifyError::SchemaViolation(format!("unknown artifact key {camel_key}")))?;
     let artifact = validate_object_schema(value, context, &["path", "sha256"], &["sizeBytes"])?;
     validate_string_field(artifact, "path", context)?;
     validate_string_field(artifact, "sha256", context)?;
@@ -303,18 +309,44 @@ fn validate_artifact_meta(value: &Value, context: &str, baseline: bool) -> Resul
             )));
         }
     }
-    if baseline
-        && artifact
-            .get("path")
-            .and_then(Value::as_str)
-            .is_none_or(|path| path != crate::baseline::DEFAULT_BASELINE_FILE)
+    if artifact
+        .get("path")
+        .and_then(Value::as_str)
+        .is_none_or(|path| path != canonical_path)
     {
         return Err(VerifyError::SchemaViolation(format!(
-            "artifact baseline path must be {}",
-            crate::baseline::DEFAULT_BASELINE_FILE
+            "{context}.path must be {canonical_path}"
         )));
     }
     Ok(())
+}
+
+fn canonical_artifact_path(camel_key: &str) -> Option<&'static str> {
+    match camel_key {
+        "reportHtml" => Some("report.html"),
+        "reportJson" => Some("report.json"),
+        "effectiveConfig" => Some("effective_config.toml"),
+        "baseline" => Some(crate::baseline::DEFAULT_BASELINE_FILE),
+        _ => None,
+    }
+}
+
+fn require_canonical_artifact_path(
+    artifact: &Map<String, Value>,
+    camel_key: &str,
+) -> Result<&'static str, VerifyError> {
+    let canonical_path = canonical_artifact_path(camel_key)
+        .ok_or_else(|| VerifyError::SchemaViolation(format!("unknown artifact key {camel_key}")))?;
+    if artifact
+        .get("path")
+        .and_then(Value::as_str)
+        .is_none_or(|path| path != canonical_path)
+    {
+        return Err(VerifyError::SchemaViolation(format!(
+            "artifact {camel_key} path must be {canonical_path}"
+        )));
+    }
+    Ok(canonical_path)
 }
 
 fn validate_evidence_artifacts(value: &Value) -> Result<(), VerifyError> {
@@ -327,20 +359,20 @@ fn validate_evidence_artifacts(value: &Value) -> Result<(), VerifyError> {
     validate_artifact_meta(
         artifacts.get("reportHtml").unwrap(),
         "run_meta.json artifacts.reportHtml",
-        false,
+        "reportHtml",
     )?;
     validate_artifact_meta(
         artifacts.get("reportJson").unwrap(),
         "run_meta.json artifacts.reportJson",
-        false,
+        "reportJson",
     )?;
     validate_artifact_meta(
         artifacts.get("effectiveConfig").unwrap(),
         "run_meta.json artifacts.effectiveConfig",
-        false,
+        "effectiveConfig",
     )?;
     if let Some(baseline) = artifacts.get("baseline").filter(|value| !value.is_null()) {
-        validate_artifact_meta(baseline, "run_meta.json artifacts.baseline", true)?;
+        validate_artifact_meta(baseline, "run_meta.json artifacts.baseline", "baseline")?;
     }
     Ok(())
 }
@@ -957,18 +989,13 @@ pub fn verify_evidence_pack(
                 continue;
             }
 
-            let expected_path = art.get("path").and_then(Value::as_str).ok_or_else(|| {
+            let art = art.as_object().ok_or_else(|| {
                 VerifyError::SchemaViolation(format!(
-                    "artifact {} path missing from run_meta.json",
+                    "artifact {} must be an object in run_meta.json",
                     camel_key
                 ))
             })?;
-            if camel_key == "baseline" && expected_path != crate::baseline::DEFAULT_BASELINE_FILE {
-                return Err(VerifyError::SchemaViolation(format!(
-                    "artifact baseline path must be {}",
-                    crate::baseline::DEFAULT_BASELINE_FILE
-                )));
-            }
+            let expected_path = require_canonical_artifact_path(art, camel_key)?;
             let expected_hash = art.get("sha256").and_then(Value::as_str).ok_or_else(|| {
                 VerifyError::SchemaViolation(format!(
                     "artifact {} sha256 missing from run_meta.json",
