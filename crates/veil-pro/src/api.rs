@@ -169,6 +169,13 @@ fn resolve_baseline_file(
     requested_path: Option<&str>,
 ) -> Result<Option<BaselineFileInfo>, BaselineFileError> {
     let root = repo_root();
+    resolve_baseline_file_from_root(&root, requested_path)
+}
+
+fn resolve_baseline_file_from_root(
+    root: &FsPath,
+    requested_path: Option<&str>,
+) -> Result<Option<BaselineFileInfo>, BaselineFileError> {
     if let Some(requested_path) = requested_path {
         let path = validate_safe_path(requested_path).map_err(BaselineFileError::PathDenied)?;
         let content = std::fs::read_to_string(&path).map_err(|err| {
@@ -181,17 +188,21 @@ fn resolve_baseline_file(
         return Ok(Some(BaselineFileInfo { content, snapshot }));
     }
 
-    let Some(path) = veil_core::baseline::resolve_compatible_baseline_path(&root) else {
+    let Some(path) = veil_core::baseline::resolve_compatible_baseline_path(root) else {
         return Ok(None);
     };
-    let content = match std::fs::read_to_string(&path) {
-        Ok(content) => content,
-        Err(_) => return Ok(None),
-    };
-    let snapshot = match veil_core::baseline::load_baseline(&path) {
-        Ok(snapshot) => snapshot,
-        Err(_) => return Ok(None),
-    };
+    let content = std::fs::read_to_string(&path).map_err(|err| {
+        BaselineFileError::InvalidRequest(format!(
+            "Failed to read discovered baselineFile {}: {err}",
+            path.display()
+        ))
+    })?;
+    let snapshot = veil_core::baseline::load_baseline(&path).map_err(|err| {
+        BaselineFileError::InvalidRequest(format!(
+            "Failed to load discovered baselineFile {}: {err}",
+            path.display()
+        ))
+    })?;
 
     Ok(Some(BaselineFileInfo { content, snapshot }))
 }
@@ -361,7 +372,7 @@ fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
     if result.read_error_reached {
         reasons.push("read-error".to_string());
     }
-    if result.limit_reached && !result.file_limit_reached {
+    if result.limit_reached && !result.file_limit_reached && !result.findings.is_empty() {
         reasons.push("result-limit".to_string());
     }
     reasons
@@ -437,7 +448,8 @@ fn scan_paths_with_global_limit(
         let result = veil_core::scan_path(&scan_path, rules, &run_config);
         scanned_files += result.scanned_files;
         skipped_files += result.skipped_files;
-        limit_reached |= result.limit_reached
+        let real_finding_limit_reached = result.limit_reached && !result.findings.is_empty();
+        limit_reached |= real_finding_limit_reached
             || result.file_limit_reached
             || result.max_file_size_reached
             || result.read_error_reached;
@@ -1095,6 +1107,52 @@ mod tests {
             .message
             .contains("Invalid config field 'output.max_findings'"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn discovered_invalid_baseline_returns_error() {
+        let root = unique_target_dir("invalid-discovered-baseline");
+        std::fs::write(
+            root.join(veil_core::baseline::DEFAULT_BASELINE_FILE),
+            "{bad json",
+        )
+        .unwrap();
+
+        let result = resolve_baseline_file_from_root(&root, None);
+
+        match result {
+            Err(BaselineFileError::InvalidRequest(message)) => {
+                assert!(message.contains("Failed to load discovered baselineFile"));
+            }
+            _ => panic!("expected invalid discovered baseline to return InvalidRequest"),
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn binary_skips_do_not_trigger_result_limit() {
+        let root = unique_target_dir("binary-skip-limit");
+        let binary_path = root.join("asset.bin");
+        std::fs::write(&binary_path, [b'a', 0, b'b']).unwrap();
+        let repo = repo_root();
+        let path = root
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut config = veil_config::Config::default();
+        config.output.max_findings = Some(1);
+        let rules = veil_core::get_all_rules(&config, vec![]);
+
+        let aggregate = scan_paths_with_global_limit(vec![path], &rules, &config).unwrap();
+
+        assert!(!aggregate.limit_reached);
+        assert_eq!(aggregate.skipped_files, 1);
+        assert!(aggregate.findings.is_empty());
+        assert!(!aggregate
+            .limit_reasons
+            .contains(&"result-limit".to_string()));
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
