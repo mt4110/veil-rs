@@ -194,18 +194,19 @@ fn rule_lookup(rules: &[veil_core::Rule]) -> HashMap<String, (String, Vec<String
         .collect()
 }
 
-fn finding_id(finding: &veil_core::Finding) -> String {
+fn finding_id(finding: &veil_core::Finding, ordinal: usize) -> String {
     let span = SpanData {
         start_line: finding.line_number as u64,
         start_col: 0,
         end_line: finding.line_number as u64,
         end_col: 0,
     };
+    let public_discriminator = format!("{}|{}", finding.masked_snippet, ordinal);
     veil_core::FindingId::new(
         &finding.rule_id,
         &finding.path,
         &span,
-        &finding.matched_content,
+        &public_discriminator,
     )
     .to_string()
 }
@@ -214,6 +215,7 @@ fn to_safe_finding(
     finding: &veil_core::Finding,
     baseline_status: BaselineStatus,
     rules: &HashMap<String, (String, Vec<String>)>,
+    ordinal: usize,
 ) -> SafeFindingApiV1 {
     let (category, tags) = rules
         .get(&finding.rule_id)
@@ -221,7 +223,7 @@ fn to_safe_finding(
         .unwrap_or_else(|| ("uncategorized".to_string(), Vec::new()));
 
     SafeFindingApiV1 {
-        finding_id: finding_id(finding),
+        finding_id: finding_id(finding, ordinal),
         baseline_fingerprint: veil_core::baseline::generate_fingerprint(finding),
         path: finding.path.to_string_lossy().to_string(),
         line_number: finding.line_number,
@@ -249,35 +251,34 @@ fn bucket_findings(
     baseline: Option<&veil_core::baseline::BaselineSnapshot>,
     rules: &HashMap<String, (String, Vec<String>)>,
 ) -> FindingBuckets {
-    if let Some(baseline) = baseline {
-        let result = veil_core::baseline::apply_baseline(findings, Some(baseline));
-        let effective = result
-            .new
-            .iter()
-            .map(|finding| to_safe_finding(finding, BaselineStatus::New, rules))
-            .collect::<Vec<_>>();
-        let suppressed = result
-            .suppressed
-            .iter()
-            .map(|finding| to_safe_finding(finding, BaselineStatus::Suppressed, rules))
-            .collect::<Vec<_>>();
-        let mut all = effective.clone();
-        all.extend(suppressed.clone());
-        FindingBuckets {
-            all,
-            effective,
-            suppressed,
+    let known_fingerprints = baseline.map(veil_core::baseline::BaselineSnapshot::fingerprint_set);
+    let mut all = Vec::new();
+    let mut effective = Vec::new();
+    let mut suppressed = Vec::new();
+
+    for (ordinal, finding) in findings.iter().enumerate() {
+        let baseline_status = match &known_fingerprints {
+            Some(fingerprints)
+                if fingerprints.contains(&veil_core::baseline::generate_fingerprint(finding)) =>
+            {
+                BaselineStatus::Suppressed
+            }
+            Some(_) => BaselineStatus::New,
+            None => BaselineStatus::None,
+        };
+        let safe = to_safe_finding(finding, baseline_status, rules, ordinal);
+        if matches!(baseline_status, BaselineStatus::Suppressed) {
+            suppressed.push(safe.clone());
+        } else {
+            effective.push(safe.clone());
         }
-    } else {
-        let effective = findings
-            .iter()
-            .map(|finding| to_safe_finding(finding, BaselineStatus::None, rules))
-            .collect::<Vec<_>>();
-        FindingBuckets {
-            all: effective.clone(),
-            effective,
-            suppressed: Vec::new(),
-        }
+        all.push(safe);
+    }
+
+    FindingBuckets {
+        all,
+        effective,
+        suppressed,
     }
 }
 
@@ -913,11 +914,38 @@ mod tests {
             author: None,
             date: None,
         };
-        let safe = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new());
+        let safe = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new(), 0);
 
         assert_ne!(safe.finding_id, safe.baseline_fingerprint);
         assert!(safe.finding_id.starts_with("fx_"));
         assert!(safe.baseline_fingerprint.starts_with("sha256:"));
+    }
+
+    #[test]
+    fn safe_finding_id_does_not_depend_on_raw_match() {
+        let mut finding = veil_core::Finding {
+            path: "src/config.rs".into(),
+            line_number: 7,
+            line_content: "token = secret".to_string(),
+            rule_id: "creds.test".to_string(),
+            matched_content: "secret-one".to_string(),
+            masked_snippet: "token = <REDACTED>".to_string(),
+            severity: veil_core::Severity::High,
+            score: 80,
+            grade: veil_core::Grade::High,
+            context_before: Vec::new(),
+            context_after: Vec::new(),
+            commit_sha: None,
+            author: None,
+            date: None,
+        };
+        let first = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new(), 0);
+        finding.matched_content = "secret-two".to_string();
+        let second = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new(), 0);
+        let next_ordinal = to_safe_finding(&finding, BaselineStatus::None, &HashMap::new(), 1);
+
+        assert_eq!(first.finding_id, second.finding_id);
+        assert_ne!(first.finding_id, next_ordinal.finding_id);
     }
 
     #[test]
