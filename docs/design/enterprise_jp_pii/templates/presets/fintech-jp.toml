@@ -1,0 +1,21 @@
+[core]
+max_file_size = 1000000
+max_file_count = 1000000
+ignore = ["node_modules", "target", "dist", "coverage"]
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 1000
+
+[rules."pii.jp.mynumber.unlabeled"]
+enabled = true
+base_score = 72
+
+[rules."pii.fin.credit_card.keyword"]
+enabled = true
+base_score = 85
+
+[rules."pii.fin.bank_account.keyword"]
+enabled = true
+base_score = 80

@@ -87,6 +87,8 @@ mod tests {
             baseline_suppressed: 0,
             limit_reached: false,
             file_limit_reached: false,
+            max_file_size_reached: false,
+            read_error_reached: false,
             duration_ms: 1234,
             baseline_path: None,
             severity_counts: HashMap::new(),

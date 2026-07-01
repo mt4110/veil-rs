@@ -3,6 +3,7 @@ use colored::Colorize;
 use std::path::PathBuf;
 use veil_core::verify::{verify_evidence_pack, VerifyOptions, VerifyStatus};
 
+#[allow(clippy::too_many_arguments)]
 pub fn verify(
     path: PathBuf,
     format: String,
@@ -14,6 +15,10 @@ pub fn verify(
     max_total_bytes: u64,
     max_files: usize,
 ) -> Result<()> {
+    if fail_on_findings == Some(0) {
+        anyhow::bail!("--fail-on-findings must be >= 1");
+    }
+
     let options = VerifyOptions {
         require_complete,
         fail_on_findings,
@@ -43,26 +48,24 @@ pub fn verify(
                     "is_complete": verify_result.is_complete,
                 });
                 println!("{}", serde_json::to_string_pretty(&out)?);
+            } else if verify_result.status == VerifyStatus::Ok {
+                println!(
+                    "{} {}",
+                    "✅ Evidence Pack Validation:".green().bold(),
+                    "PASSED".green()
+                );
+                println!("{} {}", "ℹ Message:".blue(), verify_result.message);
+                println!("   Findings: {}", verify_result.findings_count);
+                println!("   Complete: {}", verify_result.is_complete);
             } else {
-                if verify_result.status == VerifyStatus::Ok {
-                    println!(
-                        "{} {}",
-                        "✅ Evidence Pack Validation:".green().bold(),
-                        "PASSED".green()
-                    );
-                    println!("{} {}", "ℹ Message:".blue(), verify_result.message);
-                    println!("   Findings: {}", verify_result.findings_count);
-                    println!("   Complete: {}", verify_result.is_complete);
-                } else {
-                    println!(
-                        "{} {}",
-                        "❌ Evidence Pack Validation:".red().bold(),
-                        "POLICY VIOLATION".red()
-                    );
-                    println!("{} {}", "ℹ Message:".blue(), verify_result.message);
-                    println!("   Findings: {}", verify_result.findings_count);
-                    println!("   Complete: {}", verify_result.is_complete);
-                }
+                println!(
+                    "{} {}",
+                    "❌ Evidence Pack Validation:".red().bold(),
+                    "POLICY VIOLATION".red()
+                );
+                println!("{} {}", "ℹ Message:".blue(), verify_result.message);
+                println!("   Findings: {}", verify_result.findings_count);
+                println!("   Complete: {}", verify_result.is_complete);
             }
 
             match verify_result.status {

@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const BASELINE_SCHEMA_V1: &str = "veil.baseline.v1";
+pub const DEFAULT_BASELINE_FILE: &str = "veil.baseline.json";
+pub const COMPAT_BASELINE_FILE: &str = ".veil-baseline.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BaselineEntry {
@@ -74,6 +76,24 @@ pub fn load_baseline(path: &Path) -> Result<BaselineSnapshot> {
         );
     }
     Ok(snapshot)
+}
+
+pub fn default_baseline_path(root: &Path) -> PathBuf {
+    root.join(DEFAULT_BASELINE_FILE)
+}
+
+pub fn resolve_compatible_baseline_path(root: &Path) -> Option<PathBuf> {
+    let canonical = default_baseline_path(root);
+    if canonical.exists() {
+        return Some(canonical);
+    }
+
+    let compat = root.join(COMPAT_BASELINE_FILE);
+    if compat.exists() {
+        Some(compat)
+    } else {
+        None
+    }
 }
 
 pub fn save_baseline(path: &Path, snapshot: &BaselineSnapshot) -> Result<()> {

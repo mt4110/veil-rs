@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "FindingGradeName": {
+      "enum": [
+        "Safe",
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    },
+    "SeverityName": {
+      "enum": [
+        "Low",
+        "Medium",
+        "High",
+        "Critical"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://veil.local/schemas/finding-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "CLI/Core compatible finding schema. Local UI must use SafeFindingApiV1 instead.",
+  "properties": {
+    "author": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "commit_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_after": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "context_before": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "grade": {
+      "$ref": "#/$defs/FindingGradeName"
+    },
+    "line_content": {
+      "type": "string"
+    },
+    "line_number": {
+      "format": "uint",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "masked_snippet": {
+      "type": "string"
+    },
+    "matched_content": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "rule_id": {
+      "type": "string"
+    },
+    "score": {
+      "format": "uint32",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "severity": {
+      "$ref": "#/$defs/SeverityName"
+    }
+  },
+  "required": [
+    "path",
+    "line_number",
+    "line_content",
+    "rule_id",
+    "matched_content",
+    "severity",
+    "score",
+    "grade",
+    "masked_snippet",
+    "context_before",
+    "context_after"
+  ],
+  "title": "FindingV1 (CLI/Core snake_case)",
+  "type": "object"
+}

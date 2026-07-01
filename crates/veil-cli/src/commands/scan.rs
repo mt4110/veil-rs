@@ -123,6 +123,8 @@ pub fn collect_findings(
     };
 
     let mut any_file_limit_reached = false;
+    let mut any_max_file_size_reached = false;
+    let mut any_read_error_reached = false;
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -159,6 +161,9 @@ pub fn collect_findings(
                                             || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                         {
                                             is_skipped = true;
+                                        }
+                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                            any_max_file_size_reached = true;
                                         }
                                     }
 
@@ -212,7 +217,6 @@ pub fn collect_findings(
                 for delta in diff.deltas() {
                     if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                         if let Some(path) = delta.new_file().path() {
-                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
                             if let Ok(entry) = tree.get_path(path) {
                                 if let Ok(object) = entry.to_object(&repo) {
                                     if let Some(blob) = object.as_blob() {
@@ -228,6 +232,9 @@ pub fn collect_findings(
                                                 || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                             {
                                                 is_skipped = true;
+                                            }
+                                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                                any_max_file_size_reached = true;
                                             }
                                         }
 
@@ -264,6 +271,8 @@ pub fn collect_findings(
                         0, // baseline_suppressed
                         false,
                         false,
+                        false,
+                        false,
                         start_time.elapsed(),
                         None, // baseline_path
                         HashMap::new(),
@@ -297,6 +306,9 @@ pub fn collect_findings(
                                     || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
                                 {
                                     is_skipped = true;
+                                }
+                                if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                    any_max_file_size_reached = true;
                                 }
                             }
                             if is_skipped {
@@ -333,6 +345,8 @@ pub fn collect_findings(
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
             any_file_limit_reached |= result.file_limit_reached;
+            any_max_file_size_reached |= result.max_file_size_reached;
+            any_read_error_reached |= result.read_error_reached;
             all_builtin_skips.extend(result.builtin_skips);
             let count = result.findings.len();
             all_findings.extend(result.findings);
@@ -392,6 +406,8 @@ pub fn collect_findings(
         suppressed_findings.len(),
         is_truncated,
         any_file_limit_reached,
+        any_max_file_size_reached,
+        any_read_error_reached,
         duration,
         baseline_path.map(|p| p.to_string_lossy().to_string()),
         severity_counts,
@@ -425,6 +441,13 @@ pub fn scan(
     no_color: bool, // Passed from cli args
 ) -> Result<bool> {
     let format: Format = format_str.as_str().into();
+
+    if fail_on_findings == Some(0) {
+        anyhow::bail!("--fail-on-findings must be >= 1");
+    }
+    if fail_score.is_some_and(|score| score > 100) {
+        anyhow::bail!("--fail-on-score must be between 0 and 100");
+    }
 
     if show_progress {
         eprintln!("Scanning...");
@@ -528,6 +551,16 @@ pub fn scan(
                     .and_then(|c| c.core.fail_on_score)
             })
     };
+    let effective_findings_limit = limit.filter(|limit| *limit != 0).or_else(|| {
+        config
+            .as_ref()
+            .and_then(|c| c.output.max_findings)
+            .or_else(|| {
+                crate::config_loader::load_effective_config(None)
+                    .ok()
+                    .and_then(|c| c.output.max_findings)
+            })
+    });
 
     if !result.summary.builtin_skips.is_empty() {
         eprintln!(
@@ -540,6 +573,7 @@ pub fn scan(
     if result.summary.file_limit_reached {
         eprintln!();
         eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("The scan was truncated due to max_file_count limit.");
         eprintln!("  What: The maximum file count limit (core.max_file_count) was reached.");
         eprintln!("  Why:  To prevent runaway scans, Veil stops when this safety boundary is hit.");
         eprintln!("        However, passing CI with a truncated scan is dangerous.");
@@ -554,9 +588,40 @@ pub fn scan(
         std::process::exit(2);
     }
 
+    if result.summary.max_file_size_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("A text/source file exceeded core.max_file_size.");
+        eprintln!("  What: At least one non-binary file was skipped because it exceeded the configured size limit.");
+        eprintln!("  Why:  Passing CI with unscanned source text can hide secrets.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Reduce the scanning scope or ignore generated text artifacts.");
+        eprintln!("    B) Increase core.max_file_size if the file is legitimate source input.");
+        std::process::exit(2);
+    }
+
+    if result.summary.read_error_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("At least one file could not be read.");
+        eprintln!("  What: Veil could not open a file in the scan scope.");
+        eprintln!("  Why:  Passing CI with unread source files can hide secrets.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Narrow the scan scope or ignore files that cannot be read.");
+        eprintln!("    B) Fix file permissions and re-run the scan.");
+        std::process::exit(2);
+    }
+
     if result.summary.limit_reached {
         eprintln!();
         eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        if let Some(limit) = effective_findings_limit {
+            eprintln!("Reached finding limit ({}).", limit);
+        } else {
+            eprintln!("Reached finding limit.");
+        }
         eprintln!("  What: The maximum findings limit (output.max_findings) was reached.");
         eprintln!("  Why:  Too many secrets were detected, risking OOM or unreadable reports.");
         eprintln!("        Passing CI with truncated findings hides remaining vulnerabilities.");
@@ -603,18 +668,16 @@ fn determine_exit_code(
 
     // 2) fail-on-severity
     if let Some(min_level) = fail_on_severity {
-        if findings.iter().any(|f| &f.severity >= min_level) {
-            let count = findings.iter().filter(|f| &f.severity >= min_level).count();
-            let max_sev = findings
-                .iter()
-                .map(|f| &f.severity)
-                .max()
-                .unwrap_or(min_level);
-            eprintln!(
-                "CI failed: found {} findings >= severity {} (max: {})",
-                count, min_level, max_sev
-            );
-            return true;
+        let min_score = veil_core::severity_min_score(min_level);
+        if let Some(max_score) = findings.iter().map(|f| f.score).max() {
+            if max_score >= min_score {
+                let count = findings.iter().filter(|f| f.score >= min_score).count();
+                eprintln!(
+                    "CI failed: found {} finding(s) with score >= {} for severity {} (max: {})",
+                    count, min_score, min_level, max_score
+                );
+                return true;
+            }
         }
     }
 
@@ -748,6 +811,118 @@ impl Formatter for TextFormatterWrapper {
             );
         }
 
+        if summary.max_file_size_reached {
+            println!(
+                "{}",
+                "  (Scan incomplete: skipped text/source file over max_file_size)"
+                    .red()
+                    .bold()
+            );
+        }
+
+        if summary.read_error_reached {
+            println!(
+                "{}",
+                "  (Scan incomplete: one or more files could not be read)"
+                    .red()
+                    .bold()
+            );
+        }
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn summary(new_findings: usize) -> Summary {
+        Summary::new(
+            0,
+            0,
+            0,
+            new_findings,
+            new_findings,
+            0,
+            false,
+            false,
+            false,
+            false,
+            Duration::from_millis(0),
+            None,
+            HashMap::new(),
+            Vec::new(),
+        )
+    }
+
+    fn finding(score: u32, severity: veil_core::Severity) -> veil_core::Finding {
+        veil_core::Finding {
+            path: PathBuf::from("src/config.rs"),
+            line_number: 1,
+            line_content: "token = secret".to_string(),
+            rule_id: "creds.test".to_string(),
+            matched_content: "secret".to_string(),
+            masked_snippet: "token = <REDACTED>".to_string(),
+            severity,
+            score,
+            grade: veil_core::grade_from_score(score),
+            context_before: Vec::new(),
+            context_after: Vec::new(),
+            commit_sha: None,
+            author: None,
+            date: None,
+        }
+    }
+
+    #[test]
+    fn fail_on_severity_uses_score_thresholds() {
+        let boosted_medium = vec![finding(70, veil_core::Severity::Medium)];
+        let lowered_high = vec![finding(60, veil_core::Severity::High)];
+        let below_low = vec![finding(19, veil_core::Severity::Critical)];
+        let low_score = vec![finding(20, veil_core::Severity::Low)];
+
+        assert!(determine_exit_code(
+            &summary(boosted_medium.len()),
+            &boosted_medium,
+            None,
+            Some(&veil_core::Severity::High),
+            None,
+        ));
+        assert!(!determine_exit_code(
+            &summary(lowered_high.len()),
+            &lowered_high,
+            None,
+            Some(&veil_core::Severity::High),
+            None,
+        ));
+        assert!(!determine_exit_code(
+            &summary(below_low.len()),
+            &below_low,
+            None,
+            Some(&veil_core::Severity::Low),
+            None,
+        ));
+        assert!(determine_exit_code(
+            &summary(low_score.len()),
+            &low_score,
+            None,
+            Some(&veil_core::Severity::Low),
+            None,
+        ));
+    }
+
+    #[test]
+    fn fail_on_severity_miss_still_allows_fail_on_score() {
+        let findings = vec![finding(80, veil_core::Severity::High)];
+
+        assert!(determine_exit_code(
+            &summary(findings.len()),
+            &findings,
+            None,
+            Some(&veil_core::Severity::Critical),
+            Some(80),
+        ));
     }
 }

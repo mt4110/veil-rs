@@ -25,6 +25,20 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+    const err = await res.json().catch(() => ({}));
+    if (typeof err?.error === 'string') {
+      return err.error;
+    }
+    if (typeof err?.error?.message === 'string') {
+      return err.error.message;
+    }
+    if (typeof err?.message === 'string') {
+      return err.message;
+    }
+    return fallback;
+  }
+
   async function triggerScan() {
     currentState = 'Running';
     errorMsg = null;
@@ -56,8 +70,7 @@
       }
       if (res.status === 400 || res.status === 422) {
         currentState = 'ErrorConfig';
-        const err = await res.json().catch(() => ({}));
-        errorMsg = err.error || 'Configuration error or invalid path.';
+        errorMsg = await readErrorMessage(res, 'Configuration error or invalid path.');
         return;
       }
       if (res.status === 413) {
@@ -66,8 +79,7 @@
         return;
       }
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        errorMsg = err.error || `HTTP ${res.status}`;
+        errorMsg = await readErrorMessage(res, `HTTP ${res.status}`);
         currentState = 'ErrorUnknown';
         return;
       }
@@ -75,12 +87,12 @@
       const data = await res.json();
       findings = data.findings || [];
       scanStats = {
-        scanned: data.scanned_files,
-        skipped: data.skipped_files,
-        runId: data.run_id
+        scanned: data.scannedFiles,
+        skipped: data.skippedFiles,
+        runId: data.runId
       };
       
-      if (data.limit_reached) {
+      if (data.limitReached) {
         currentState = 'Incomplete';
       } else if (findings.length > 0) {
         currentState = 'Violation';
@@ -118,7 +130,10 @@
       }
       if (!res.ok) {
         currentState = 'ErrorUnknown';
-        errorMsg = `Failed to download evidence pack (HTTP ${res.status}).`;
+        errorMsg = await readErrorMessage(
+          res,
+          `Failed to download evidence pack (HTTP ${res.status}).`
+        );
         return;
       }
       
@@ -223,10 +238,10 @@
                         {finding.severity}
                       </span>
                     </td>
-                    <td class="rule-col">{finding.rule_id}</td>
-                    <td class="path-col">{finding.path}:{safeInt(finding.line_number)}</td>
+                    <td class="rule-col">{finding.ruleId}</td>
+                    <td class="path-col">{finding.path}:{safeInt(finding.lineNumber)}</td>
                     <td class="context-col">
-                      <code class="code-block">{finding.masked_snippet}</code>
+                      <code class="code-block">{finding.maskedSnippet}</code>
                     </td>
                   </tr>
                 {/each}

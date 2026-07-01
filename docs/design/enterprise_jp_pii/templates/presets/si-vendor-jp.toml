@@ -1,0 +1,20 @@
+[core]
+max_file_size = 1000000
+max_file_count = 1000000
+ignore = ["node_modules", "target", "dist", "coverage", ".git"]
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 1000
+
+[baseline]
+recommended_file = "veil.baseline.json"
+
+[rules."pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 92
+
+[rules."pii.jp.address.prefecture_heuristic"]
+enabled = true
+base_score = 55

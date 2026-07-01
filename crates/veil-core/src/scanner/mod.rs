@@ -76,6 +76,9 @@ use result::ScanResult;
 
 pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
 pub const RULE_ID_MAX_FILE_SIZE: &str = "MAX_FILE_SIZE";
+pub const RULE_ID_READ_ERROR: &str = "READ_ERROR";
+pub const DEFAULT_MAX_FILE_COUNT: usize = 1_000_000;
+pub const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 1_000_000;
 
 pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let ignore_patterns = &config.core.ignore;
@@ -83,7 +86,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
 
     // 1. Collect all valid paths first (sequential walk, usually fast enough)
     // Use ignore::WalkBuilder to respect .gitignore
-    let file_limit = config.core.max_file_count.unwrap_or(1_000_000);
+    let file_limit = config.core.max_file_count.unwrap_or(DEFAULT_MAX_FILE_COUNT);
 
     let skipped_builtins =
         std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
@@ -94,7 +97,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         if entry.depth() == 0 {
             return true;
         }
-        if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+        if entry.file_type().is_some_and(|ft| ft.is_dir()) {
             if let Some(name) = entry.file_name().to_str() {
                 if BUILTIN_IGNORES.contains(&name) {
                     if let Ok(mut set) = skipped_builtins_clone.lock() {
@@ -107,28 +110,37 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         true
     });
 
-    let entries: Vec<_> = builder
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
-        .filter(|e| {
-            let path = e.path();
-            let path_str = path.to_string_lossy();
-            // User configured ignores (veil.toml)
-            for pattern in ignore_patterns {
-                if path_str.contains(pattern) {
-                    return false;
-                }
-            }
-            true
-        })
-        .take(file_limit)
-        .collect();
+    let mut walk_error_count = 0usize;
+    let mut entries = Vec::new();
+    for entry in builder.build() {
+        let Ok(entry) = entry else {
+            walk_error_count += 1;
+            continue;
+        };
+        if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let path_str = path.to_string_lossy();
+        // User configured ignores (veil.toml)
+        if ignore_patterns
+            .iter()
+            .any(|pattern| path_str.contains(pattern))
+        {
+            continue;
+        }
+        entries.push(entry);
+        if entries.len() >= file_limit {
+            break;
+        }
+    }
 
     let total_files = entries.len();
     let file_limit_reached = total_files == file_limit;
     let scanned_counter = AtomicUsize::new(0);
     let skipped_counter = AtomicUsize::new(0);
+    let max_file_size_counter = AtomicUsize::new(0);
+    let read_error_counter = AtomicUsize::new(0);
 
     // 2. Process files in parallel
     let findings: Vec<Finding> = entries
@@ -143,8 +155,17 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
             // Check if file was skipped due to binary/size
             let mut is_skipped = false;
             if let Some(first) = file_findings.first() {
-                if first.rule_id == RULE_ID_BINARY_FILE || first.rule_id == RULE_ID_MAX_FILE_SIZE {
+                if first.rule_id == RULE_ID_BINARY_FILE
+                    || first.rule_id == RULE_ID_MAX_FILE_SIZE
+                    || first.rule_id == RULE_ID_READ_ERROR
+                {
                     is_skipped = true;
+                }
+                if first.rule_id == RULE_ID_MAX_FILE_SIZE {
+                    max_file_size_counter.fetch_add(1, Ordering::Relaxed);
+                }
+                if first.rule_id == RULE_ID_READ_ERROR {
+                    read_error_counter.fetch_add(1, Ordering::Relaxed);
                 }
             }
 
@@ -162,9 +183,11 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         findings,
         total_files,
         scanned_files: scanned_counter.load(Ordering::Relaxed),
-        skipped_files: skipped_counter.load(Ordering::Relaxed),
+        skipped_files: skipped_counter.load(Ordering::Relaxed) + walk_error_count,
         limit_reached: limit.check(),
         file_limit_reached,
+        max_file_size_reached: max_file_size_counter.load(Ordering::Relaxed) > 0,
+        read_error_reached: read_error_counter.load(Ordering::Relaxed) > 0 || walk_error_count > 0,
         builtin_skips: std::sync::Arc::into_inner(skipped_builtins)
             .unwrap_or_default()
             .into_inner()
@@ -179,30 +202,19 @@ pub fn scan_file(
     limit: Option<&ScanLimit>,
 ) -> Vec<Finding> {
     let mut local_findings = Vec::new();
-
-    // Check file size
-    if let Ok(metadata) = std::fs::metadata(path) {
-        let max_size = config.core.max_file_size.unwrap_or(1_000_000);
-        if metadata.len() > max_size {
-            local_findings.push(crate::scanner::utils::create_skipped_finding(
-                path,
-                RULE_ID_MAX_FILE_SIZE,
-                format!(
-                    "File size ({} bytes) exceeds limit ({} bytes)",
-                    metadata.len(),
-                    max_size
-                ),
-                crate::model::Severity::High,
-            ));
-            return local_findings;
-        }
-    }
+    let max_size = config
+        .core
+        .max_file_size
+        .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
+    let file_size = std::fs::metadata(path).ok().map(|metadata| metadata.len());
+    let oversized = file_size.is_some_and(|size| size > max_size);
 
     let score_params = ScoreParams::default();
 
     if let Ok(mut file) = File::open(path) {
-        // Binary Check
-        let mut buffer = [0; 1024];
+        // Binary checks happen before max-size classification so large binary assets
+        // remain ordinary binary skips instead of coverage-incomplete text skips.
+        let mut buffer = [0; 8192];
         let n = file.read(&mut buffer).unwrap_or(0);
         if buffer[..n].contains(&0) {
             local_findings.push(crate::scanner::utils::create_skipped_finding(
@@ -210,6 +222,20 @@ pub fn scan_file(
                 RULE_ID_BINARY_FILE,
                 "Binary file detected (skipped)".to_string(),
                 crate::model::Severity::Medium,
+            ));
+            return local_findings;
+        }
+
+        if oversized {
+            let size = file_size.unwrap_or(0);
+            local_findings.push(crate::scanner::utils::create_skipped_finding(
+                path,
+                RULE_ID_MAX_FILE_SIZE,
+                format!(
+                    "File size ({} bytes) exceeds limit ({} bytes)",
+                    size, max_size
+                ),
+                crate::model::Severity::High,
             ));
             return local_findings;
         }
@@ -228,28 +254,58 @@ pub fn scan_file(
                 }
             }
 
-            if let Ok(content) = line {
-                let line_findings = scan_line(
-                    &content,
-                    line_idx + 1,
-                    path,
-                    rules,
-                    config,
-                    &context_buffer,
-                    &score_params,
-                );
+            match line {
+                Ok(content) => {
+                    let line_findings = scan_line(
+                        &content,
+                        line_idx + 1,
+                        path,
+                        rules,
+                        config,
+                        &context_buffer,
+                        &score_params,
+                    );
 
-                if !line_findings.is_empty() {
-                    local_findings.extend(line_findings);
-                }
+                    if !line_findings.is_empty() {
+                        local_findings.extend(line_findings);
+                    }
 
-                // Context buffer maintenance
-                if context_buffer.len() >= 5 {
-                    context_buffer.pop_front();
+                    // Context buffer maintenance
+                    if context_buffer.len() >= 5 {
+                        context_buffer.pop_front();
+                    }
+                    context_buffer.push_back(content);
                 }
-                context_buffer.push_back(content);
+                Err(err) => {
+                    local_findings.clear();
+                    local_findings.push(crate::scanner::utils::create_skipped_finding(
+                        path,
+                        RULE_ID_READ_ERROR,
+                        format!("File could not be decoded as UTF-8 (skipped): {err}"),
+                        crate::model::Severity::High,
+                    ));
+                    return local_findings;
+                }
             }
         }
+    } else if oversized {
+        let size = file_size.unwrap_or(0);
+        local_findings.push(crate::scanner::utils::create_skipped_finding(
+            path,
+            RULE_ID_MAX_FILE_SIZE,
+            format!(
+                "File size ({} bytes) exceeds limit ({} bytes)",
+                size, max_size
+            ),
+            crate::model::Severity::High,
+        ));
+    } else {
+        local_findings.push(crate::scanner::utils::create_skipped_finding(
+            path,
+            RULE_ID_READ_ERROR,
+            "File could not be read (skipped)".to_string(),
+            crate::model::Severity::High,
+        ));
     }
 
     if local_findings.is_empty() {
@@ -538,5 +594,100 @@ mod tests {
         let content = "SECRET // veil:ignore=other";
         let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
         assert_eq!(findings.len(), 1, "Should NOT ignore if ID mismatch");
+    }
+
+    #[test]
+    fn scan_path_marks_max_file_size_skip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.txt");
+        std::fs::write(&path, "SECRET\n").unwrap();
+        let mut config = Config::default();
+        config.core.max_file_size = Some(3);
+
+        let result = scan_path(dir.path(), &[], &config);
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[test]
+    fn scan_path_treats_oversized_binary_as_binary_skip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.bin");
+        let mut data = vec![b'a'; 4096];
+        data[2048] = 0;
+        std::fs::write(&path, data).unwrap();
+        let mut config = Config::default();
+        config.core.max_file_size = Some(3);
+
+        let result = scan_path(dir.path(), &[], &config);
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_path_marks_unreadable_file_as_incomplete() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret.txt");
+        std::fs::write(&path, "SECRET\n").unwrap();
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o000);
+        std::fs::set_permissions(&path, permissions).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
+
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o644);
+        std::fs::set_permissions(&path, permissions).unwrap();
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[test]
+    fn scan_path_marks_line_decode_error_as_incomplete() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("latin1.txt");
+        std::fs::write(&path, [b'a', 0xE9, b'\n']).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_path_marks_unreadable_directory_as_incomplete() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let blocked_dir = dir.path().join("blocked");
+        std::fs::create_dir(&blocked_dir).unwrap();
+        std::fs::write(blocked_dir.join("secret.txt"), "SECRET\n").unwrap();
+        let mut permissions = std::fs::metadata(&blocked_dir).unwrap().permissions();
+        permissions.set_mode(0o000);
+        std::fs::set_permissions(&blocked_dir, permissions).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
+
+        let mut permissions = std::fs::metadata(&blocked_dir).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&blocked_dir, permissions).unwrap();
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
     }
 }

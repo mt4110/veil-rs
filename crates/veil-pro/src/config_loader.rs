@@ -47,6 +47,7 @@ pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayer
 }
 
 /// wrapper for backward compatibility
+#[allow(dead_code)]
 pub fn load_effective_config(config_path: Option<&PathBuf>) -> Result<Config> {
     Ok(load_config_layers(config_path)?.effective)
 }

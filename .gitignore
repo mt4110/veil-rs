@@ -71,6 +71,9 @@ crates/veil-cli/.veil/
 /localgc
 
 # private design docs (not committed)
-design/
+/design/
+/.design/
+/.private/
 node_modules/
 .svelte-kit/
+.codex/

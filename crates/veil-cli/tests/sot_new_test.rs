@@ -1,16 +1,14 @@
-use assert_cmd::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use std::fs;
-use std::process::Command;
 use tempfile::tempdir;
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_new_success() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let out_dir = temp.path().join("docs/pr");
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
 
     cmd.arg("sot")
         .arg("new")
@@ -37,12 +35,11 @@ fn test_sot_new_success() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_new_slug_dry_run() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let out_dir = temp.path().join("docs/pr");
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
 
     cmd.arg("sot")
         .arg("new")
@@ -72,7 +69,6 @@ fn test_sot_new_slug_dry_run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_new_force() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let out_dir = temp.path().join("docs/pr");
@@ -81,7 +77,7 @@ fn test_sot_new_force() -> Result<(), Box<dyn std::error::Error>> {
     let expected_file = out_dir.join("PR-TBD-v0.19.0-epic-a.md");
     fs::write(&expected_file, "old content")?;
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
 
     // Fail without force
     cmd.arg("sot")
@@ -97,7 +93,7 @@ fn test_sot_new_force() -> Result<(), Box<dyn std::error::Error>> {
         .stderr(predicate::str::contains("already exists"));
 
     // Success with force
-    let mut cmd2 = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd2 = cargo_bin_cmd!("veil");
     cmd2.arg("sot")
         .arg("new")
         .arg("--release")

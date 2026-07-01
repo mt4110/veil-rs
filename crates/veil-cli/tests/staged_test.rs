@@ -71,15 +71,16 @@ fn test_fail_score_env() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(&file_path)?;
     writeln!(file, "key = '{}'", secret)?;
 
-    // Case 1: Fail score 200 (Should Pass, exit 0)
+    // Case 1: Fail score 200 is out of range and should be a config error.
     #[allow(deprecated)]
-    let mut cmd_pass = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd_pass
+    let mut cmd_invalid = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd_invalid
         .current_dir(repo_path)
         .arg("scan")
         .env("VEIL_FAIL_SCORE", "200")
         .assert()
-        .success(); // Exit code 0
+        .failure()
+        .code(2);
 
     // Case 2: Fail score 50 (Should Fail, exit 1)
     #[allow(deprecated)]

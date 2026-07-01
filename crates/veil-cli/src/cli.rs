@@ -42,11 +42,11 @@ pub enum Commands {
         /// This compares against the single highest score among all findings.
         #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
         fail_score: Option<u32>,
-        /// Fail (exit 1) if any secrets found with severity at or above this level.
+        /// Fail (exit 1) if any finding score reaches this severity's score floor.
         /// Values: Low, Medium, High, Critical
         #[arg(long, value_parser = parse_severity)]
         fail_on_severity: Option<Severity>,
-        /// Fail (exit 1) if the total number of findings is at or above this threshold
+        /// Fail (exit 1) if the total number of findings is at or above this threshold (must be >= 1)
         #[arg(long)]
         fail_on_findings: Option<usize>,
         /// Scan a specific commit (SHA)
@@ -159,7 +159,7 @@ pub enum Commands {
         /// Fail (exit 1) if the scan was incomplete
         #[arg(long)]
         require_complete: bool,
-        /// Fail (exit 1) if findings exceed this threshold
+        /// Fail (exit 1) if findings are at or above this threshold (must be >= 1)
         #[arg(long)]
         fail_on_findings: Option<usize>,
         /// Expect this specific SHA-256 for the run_meta.json (External Anchor)

@@ -1,0 +1,7 @@
+flowchart TB
+  FS[(Local Repo)] --> Core[veil-core]
+  CLI[veil-cli] --> Core
+  LSP[veil-lsp] --> Core
+  UI[Svelte UI] --> API[Axum Local API] --> Core
+  Core --> Evidence[Evidence ZIP]
+  Evidence --> Verify[veil verify]

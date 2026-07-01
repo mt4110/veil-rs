@@ -47,7 +47,7 @@ impl HtmlFormatter {
         }
 
         let mut top_rules: Vec<_> = by_rule.into_iter().collect();
-        top_rules.sort_by(|a, b| b.1.cmp(&a.1));
+        top_rules.sort_by_key(|rule| std::cmp::Reverse(rule.1));
         top_rules.truncate(3);
 
         let severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
@@ -542,6 +542,8 @@ mod tests {
             baseline_suppressed: 0,
             limit_reached: false,
             file_limit_reached: false,
+            max_file_size_reached: false,
+            read_error_reached: false,
             duration_ms: 100,
             baseline_path: Some("baseline.json".to_string()),
             severity_counts: HashMap::new(),

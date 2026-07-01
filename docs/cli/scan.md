@@ -18,7 +18,7 @@ veil scan [OPTIONS] [PATHS]...
 | `--commit <SHA>`             | 特定のコミットのみスキャンします。                                                    |
 | `--format <FORMAT>`          | 出力フォーマット (`text`, `json`, `html`, `markdown`, `table`)。デフォルトは `text`。 |
 | `--fail-on-score <SCORE>`    | 指定したスコア以上の検出があった場合、終了コード 1 で終了します。                     |
-| `--fail-on-severity <LEVEL>` | 指定した重要度以上の検出があった場合、終了コード 1 で終了します。                     |
+| `--fail-on-severity <LEVEL>` | 指定severityの最小score以上の検出があった場合、終了コード 1 で終了します。            |
 
 ### Examples
 
@@ -52,3 +52,5 @@ veil scan --staged
 ```bash
 veil scan . --fail-on-score 80
 ```
+
+`--fail-on-severity High` は `--fail-on-score 70` と同義です。v4.4契約ではfail判定の正本は最終scoreで、severityはscore帯の別名として扱います。

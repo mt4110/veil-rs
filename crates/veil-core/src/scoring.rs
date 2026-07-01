@@ -76,6 +76,15 @@ pub fn grade_from_score(score: u32) -> Grade {
     }
 }
 
+pub fn severity_min_score(sev: &Severity) -> u32 {
+    match sev {
+        Severity::Low => 20,
+        Severity::Medium => 40,
+        Severity::High => 70,
+        Severity::Critical => 90,
+    }
+}
+
 fn severity_default(sev: &Severity) -> u32 {
     match sev {
         Severity::Low => 30,
@@ -174,5 +183,13 @@ mod tests {
         // Prod context
         finding.context_before = vec!["// production config".to_string()];
         assert_eq!(calculate_score(&rule, &finding, &params), 70); // 60 + 10
+    }
+
+    #[test]
+    fn severity_min_score_matches_contract_thresholds() {
+        assert_eq!(severity_min_score(&Severity::Low), 20);
+        assert_eq!(severity_min_score(&Severity::Medium), 40);
+        assert_eq!(severity_min_score(&Severity::High), 70);
+        assert_eq!(severity_min_score(&Severity::Critical), 90);
     }
 }

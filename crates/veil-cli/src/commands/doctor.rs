@@ -110,7 +110,7 @@ pub fn doctor() -> Result<()> {
     );
     println!(
         "  max_findings:   {}",
-        effective.output.max_findings.unwrap_or(std::usize::MAX)
+        effective.output.max_findings.unwrap_or(usize::MAX)
     );
 
     if let Err(err) = validate_config(effective) {

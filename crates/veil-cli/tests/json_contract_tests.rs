@@ -90,6 +90,9 @@ fn build_summary_json(result: &ScanResult) -> Value {
         "findings_count": result.findings.len(),
         "shown_findings": result.findings.len(), // No limit logic in this test harness
         "limit_reached": result.limit_reached,
+        "file_limit_reached": result.file_limit_reached,
+        "max_file_size_reached": result.max_file_size_reached,
+        "read_error_reached": result.read_error_reached,
         "duration_ms": 0, // Normalized
         "severity_counts": severity_counts
     })

@@ -4,7 +4,7 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, post},
-    Router,
+    Json, Router,
 };
 use base64::Engine;
 use clap::Parser;
@@ -82,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/runs/:run_id", get(api::get_run_meta))
         .route("/runs/:run_id/evidence.zip", get(api::export_evidence))
         .route("/policy", get(api::get_policy))
+        .route("/doctor", get(api::get_doctor))
         .route("/baseline", post(api::write_baseline))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth)); // Updated to require_auth
 
@@ -112,10 +113,8 @@ async fn main() -> anyhow::Result<()> {
     println!(" URL: {}", url);
     println!("=======================================================");
 
-    if !cli.no_open {
-        if open::that(&url).is_err() {
-            tracing::warn!("Failed to open browser automatically. Please open the URL manually.");
-        }
+    if !cli.no_open && open::that(&url).is_err() {
+        tracing::warn!("Failed to open browser automatically. Please open the URL manually.");
     }
 
     axum::serve(listener, app).await?;
@@ -125,6 +124,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[derive(RustEmbed)]
 #[folder = "frontend/dist/"]
+#[allow_missing = true]
 struct Asset;
 
 async fn static_handler(uri: Uri) -> impl IntoResponse {
@@ -174,7 +174,7 @@ async fn require_auth(
     session: Session,
     req: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, (StatusCode, Json<api::ErrorEnvelope>)> {
     // 1. Check Bearer Token
     let auth_header = req
         .headers()
@@ -195,7 +195,12 @@ async fn require_auth(
     }
 
     // Unauthorized
-    Err(StatusCode::UNAUTHORIZED)
+    Err(api::error_response(
+        StatusCode::UNAUTHORIZED,
+        api::ErrorCode::Unauthorized,
+        "Unauthorized",
+        Some(api::NextAction::CheckToken),
+    ))
 }
 
 #[cfg(test)]

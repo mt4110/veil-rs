@@ -1,7 +1,6 @@
-use assert_cmd::prelude::*;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use std::fs;
-use std::process::Command;
 use tempfile::tempdir;
 
 fn write_min_sot(path: &std::path::Path) -> std::io::Result<()> {
@@ -23,7 +22,6 @@ title: TBD
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_rename_success_autodetect() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let dir = temp.path().join("docs/pr");
@@ -32,7 +30,7 @@ fn test_sot_rename_success_autodetect() -> Result<(), Box<dyn std::error::Error>
     let src = dir.join("PR-TBD-v0.19.0-epic-a.md");
     write_min_sot(&src)?;
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("sot")
         .arg("rename")
         .arg("--pr")
@@ -55,7 +53,6 @@ fn test_sot_rename_success_autodetect() -> Result<(), Box<dyn std::error::Error>
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_rename_dry_run() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let dir = temp.path().join("docs/pr");
@@ -64,7 +61,7 @@ fn test_sot_rename_dry_run() -> Result<(), Box<dyn std::error::Error>> {
     let src = dir.join("PR-TBD-v0.19.0-epic-a.md");
     write_min_sot(&src)?;
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("sot")
         .arg("rename")
         .arg("--pr")
@@ -85,7 +82,6 @@ fn test_sot_rename_dry_run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[allow(deprecated)]
 fn test_sot_rename_multiple_candidates_requires_path() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempdir()?;
     let dir = temp.path().join("docs/pr");
@@ -96,7 +92,7 @@ fn test_sot_rename_multiple_candidates_requires_path() -> Result<(), Box<dyn std
     write_min_sot(&a)?;
     write_min_sot(&b)?;
 
-    let mut cmd = Command::new(assert_cmd::cargo::cargo_bin("veil"));
+    let mut cmd = cargo_bin_cmd!("veil");
     cmd.arg("sot")
         .arg("rename")
         .arg("--pr")
