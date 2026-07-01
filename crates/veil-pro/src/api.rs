@@ -357,6 +357,14 @@ pub async fn scan_project(
 ) -> Result<Json<ScanResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths.clone());
     let config = load_effective_config_for_paths(&paths_to_scan);
+    if let Some(ScanMode::Staged | ScanMode::Ci) = req.mode {
+        return Err(error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            "mode staged/ci is not implemented by the Local API in PR-0; use mode full or omit mode.",
+            None,
+        ));
+    }
     if let Some(preset) = req.preset {
         let preset_name = match preset {
             PresetName::StandardJp => "standard-jp",
@@ -948,6 +956,32 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
         assert!(body.error.message.contains("preset fintech-jp"));
+    }
+
+    #[tokio::test]
+    async fn scan_rejects_unimplemented_staged_and_ci_modes() {
+        for mode in [ScanMode::Staged, ScanMode::Ci] {
+            let state = Arc::new(AppState {
+                token: "test-token".to_string(),
+                run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                    1, 1024, 1,
+                ))),
+                oauth: Arc::new(crate::auth::init_oauth()),
+            });
+            let request = ScanRequest {
+                mode: Some(mode),
+                ..ScanRequest::default()
+            };
+
+            let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+            assert_eq!(
+                body.error.message,
+                "mode staged/ci is not implemented by the Local API in PR-0; use mode full or omit mode."
+            );
+        }
     }
 }
 

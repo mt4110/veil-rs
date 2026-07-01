@@ -229,16 +229,16 @@ pub fn verify_evidence_pack(
         )));
     }
 
+    let limit_reached = run_meta
+        .pointer("/result/limitReached")
+        .or_else(|| run_meta.pointer("/result/limit_reached"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
     let is_complete = run_meta
         .pointer("/result/summary/coverageComplete")
         .and_then(serde_json::Value::as_bool)
-        .unwrap_or_else(|| {
-            !run_meta
-                .pointer("/result/limitReached")
-                .or_else(|| run_meta.pointer("/result/limit_reached"))
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false)
-        });
+        .unwrap_or(!limit_reached)
+        && !limit_reached;
 
     let findings_count = run_meta
         .pointer("/result/summary/effectiveFindings")

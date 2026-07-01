@@ -504,6 +504,56 @@ fn test_require_complete_fail() {
         .stdout(predicates::str::contains("POLICY VIOLATION"));
 }
 
+#[test]
+fn test_require_complete_fails_when_limit_reached_contradicts_summary() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("contradictory_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let rule_config = b"";
+    let json_rep = b"";
+    let html_rep = b"";
+
+    let artifacts = serde_json::json!({
+        "effective_config": { "path": "effective_config.toml", "sha256": sha256_hex(rule_config) },
+        "report_json": { "path": "report.json", "sha256": sha256_hex(json_rep) },
+        "report_html": { "path": "report.html", "sha256": sha256_hex(html_rep) }
+    });
+
+    let run_meta = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "result": {
+            "limitReached": true,
+            "summary": {
+                "coverageComplete": true,
+                "effectiveFindings": 0
+            }
+        },
+        "artifacts": artifacts
+    })
+    .to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta.as_bytes()).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(html_rep).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(json_rep).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(rule_config).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path).arg("--require-complete");
+
+    cmd.assert()
+        .failure()
+        .code(1)
+        .stdout(predicates::str::contains("POLICY VIOLATION"));
+}
+
 // Note: test_duplicate_entries is intentionally omitted.
 // The zip 5.x writer API structurally prevents writing duplicate filenames
 // (it panics before the ZIP is created). The duplicate-entry runtime guard

@@ -198,7 +198,7 @@ pub fn scan_file(
     if let Ok(mut file) = File::open(path) {
         // Binary checks happen before max-size classification so large binary assets
         // remain ordinary binary skips instead of coverage-incomplete text skips.
-        let mut buffer = [0; 1024];
+        let mut buffer = [0; 8192];
         let n = file.read(&mut buffer).unwrap_or(0);
         if buffer[..n].contains(&0) {
             local_findings.push(crate::scanner::utils::create_skipped_finding(
@@ -580,7 +580,9 @@ mod tests {
     fn scan_path_treats_oversized_binary_as_binary_skip() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("large.bin");
-        std::fs::write(&path, [0_u8; 16]).unwrap();
+        let mut data = vec![b'a'; 4096];
+        data[2048] = 0;
+        std::fs::write(&path, data).unwrap();
         let mut config = Config::default();
         config.core.max_file_size = Some(3);
 
