@@ -110,23 +110,30 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         true
     });
 
-    let entries: Vec<_> = builder
-        .build()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|ft| ft.is_file()).unwrap_or(false))
-        .filter(|e| {
-            let path = e.path();
-            let path_str = path.to_string_lossy();
-            // User configured ignores (veil.toml)
-            for pattern in ignore_patterns {
-                if path_str.contains(pattern) {
-                    return false;
-                }
-            }
-            true
-        })
-        .take(file_limit)
-        .collect();
+    let mut walk_error_count = 0usize;
+    let mut entries = Vec::new();
+    for entry in builder.build() {
+        let Ok(entry) = entry else {
+            walk_error_count += 1;
+            continue;
+        };
+        if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let path_str = path.to_string_lossy();
+        // User configured ignores (veil.toml)
+        if ignore_patterns
+            .iter()
+            .any(|pattern| path_str.contains(pattern))
+        {
+            continue;
+        }
+        entries.push(entry);
+        if entries.len() >= file_limit {
+            break;
+        }
+    }
 
     let total_files = entries.len();
     let file_limit_reached = total_files == file_limit;
@@ -176,11 +183,11 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         findings,
         total_files,
         scanned_files: scanned_counter.load(Ordering::Relaxed),
-        skipped_files: skipped_counter.load(Ordering::Relaxed),
+        skipped_files: skipped_counter.load(Ordering::Relaxed) + walk_error_count,
         limit_reached: limit.check(),
         file_limit_reached,
         max_file_size_reached: max_file_size_counter.load(Ordering::Relaxed) > 0,
-        read_error_reached: read_error_counter.load(Ordering::Relaxed) > 0,
+        read_error_reached: read_error_counter.load(Ordering::Relaxed) > 0 || walk_error_count > 0,
         builtin_skips: std::sync::Arc::into_inner(skipped_builtins)
             .unwrap_or_default()
             .into_inner()
@@ -626,6 +633,31 @@ mod tests {
         let mut permissions = std::fs::metadata(&path).unwrap().permissions();
         permissions.set_mode(0o644);
         std::fs::set_permissions(&path, permissions).unwrap();
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_path_marks_unreadable_directory_as_incomplete() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let blocked_dir = dir.path().join("blocked");
+        std::fs::create_dir(&blocked_dir).unwrap();
+        std::fs::write(blocked_dir.join("secret.txt"), "SECRET\n").unwrap();
+        let mut permissions = std::fs::metadata(&blocked_dir).unwrap().permissions();
+        permissions.set_mode(0o000);
+        std::fs::set_permissions(&blocked_dir, permissions).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
+
+        let mut permissions = std::fs::metadata(&blocked_dir).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&blocked_dir, permissions).unwrap();
 
         assert_eq!(result.skipped_files, 1);
         assert!(result.read_error_reached);

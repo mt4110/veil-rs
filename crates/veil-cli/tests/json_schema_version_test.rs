@@ -1,13 +1,17 @@
 #![allow(deprecated)]
 use assert_cmd::Command;
 use serde_json::Value;
+use tempfile::tempdir;
 
 #[test]
 fn test_json_output_has_schema_version() {
+    let temp_dir = tempdir().unwrap();
+    std::fs::write(temp_dir.path().join("sample.txt"), "hello\n").unwrap();
+
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     let assert = cmd
         .arg("scan")
-        .arg("crates/veil-core/tests") // Scan a small directory
+        .arg(temp_dir.path())
         .arg("--format")
         .arg("json")
         .arg("--limit")
