@@ -61,6 +61,11 @@ struct BaselineFileInfo {
     snapshot: veil_core::baseline::BaselineSnapshot,
 }
 
+enum BaselineFileError {
+    PathDenied(String),
+    InvalidRequest(String),
+}
+
 struct FindingBuckets {
     all: Vec<SafeFindingApiV1>,
     effective: Vec<SafeFindingApiV1>,
@@ -134,14 +139,35 @@ fn load_effective_config_for_paths(
     Ok(load_config_layers_for_api(paths)?.effective)
 }
 
-fn resolve_baseline_file(requested_path: Option<&str>) -> Result<Option<BaselineFileInfo>, String> {
+fn baseline_file_error_response(error: BaselineFileError) -> ApiErrorResponse {
+    match error {
+        BaselineFileError::PathDenied(error) => error_response(
+            StatusCode::FORBIDDEN,
+            ErrorCode::PathDenied,
+            format!("Path denied: {error}"),
+            Some(NextAction::NarrowScope),
+        ),
+        BaselineFileError::InvalidRequest(error) => error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            error,
+            None,
+        ),
+    }
+}
+
+fn resolve_baseline_file(
+    requested_path: Option<&str>,
+) -> Result<Option<BaselineFileInfo>, BaselineFileError> {
     let root = repo_root();
     if let Some(requested_path) = requested_path {
-        let path = validate_safe_path(requested_path)?;
-        let content = std::fs::read_to_string(&path)
-            .map_err(|err| format!("Failed to read baselineFile: {err}"))?;
-        let snapshot = veil_core::baseline::load_baseline(&path)
-            .map_err(|err| format!("Failed to load baselineFile: {err}"))?;
+        let path = validate_safe_path(requested_path).map_err(BaselineFileError::PathDenied)?;
+        let content = std::fs::read_to_string(&path).map_err(|err| {
+            BaselineFileError::InvalidRequest(format!("Failed to read baselineFile: {err}"))
+        })?;
+        let snapshot = veil_core::baseline::load_baseline(&path).map_err(|err| {
+            BaselineFileError::InvalidRequest(format!("Failed to load baselineFile: {err}"))
+        })?;
 
         return Ok(Some(BaselineFileInfo { content, snapshot }));
     }
@@ -499,14 +525,8 @@ pub async fn scan_project(
     let config = load_effective_config_for_paths(&paths_to_scan)?;
     let rules = veil_core::get_all_rules(&config, vec![]);
     let rules_by_id = rule_lookup(&rules);
-    let baseline = resolve_baseline_file(req.baseline_file.as_deref()).map_err(|error| {
-        error_response(
-            StatusCode::BAD_REQUEST,
-            ErrorCode::InvalidRequest,
-            error,
-            None,
-        )
-    })?;
+    let baseline = resolve_baseline_file(req.baseline_file.as_deref())
+        .map_err(baseline_file_error_response)?;
 
     let aggregate = scan_paths_with_global_limit(paths_to_scan, &rules, &config)?;
 
@@ -1113,6 +1133,30 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
         assert_eq!(body.error.message, "failOnScore must be between 0 and 100");
+    }
+
+    #[tokio::test]
+    async fn scan_baseline_file_denial_returns_path_denied() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = ScanRequest {
+            baseline_file: Some("../veil.baseline.json".to_string()),
+            ..ScanRequest::default()
+        };
+
+        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        assert!(matches!(body.error.code, ErrorCode::PathDenied));
+        assert!(matches!(
+            body.error.next_action,
+            Some(NextAction::NarrowScope)
+        ));
     }
 
     #[tokio::test]
