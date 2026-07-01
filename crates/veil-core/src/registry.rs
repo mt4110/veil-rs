@@ -141,8 +141,7 @@ impl Registry {
     }
 
     pub fn save(&mut self, path: &Path) -> Result<(), RegistryError> {
-        self.exceptions
-            .sort_by_key(|exception| exception.id.clone());
+        self.exceptions.sort_by(|a, b| a.id.cmp(&b.id));
 
         // 先にディレクトリ確保（lock ファイル作成のため）
         let dir = path.parent().unwrap_or_else(|| Path::new("."));

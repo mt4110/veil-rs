@@ -528,6 +528,16 @@ pub fn scan(
                     .and_then(|c| c.core.fail_on_score)
             })
     };
+    let effective_findings_limit = limit.filter(|limit| *limit != 0).or_else(|| {
+        config
+            .as_ref()
+            .and_then(|c| c.output.max_findings)
+            .or_else(|| {
+                crate::config_loader::load_effective_config(None)
+                    .ok()
+                    .and_then(|c| c.output.max_findings)
+            })
+    });
 
     if !result.summary.builtin_skips.is_empty() {
         eprintln!(
@@ -558,7 +568,11 @@ pub fn scan(
     if result.summary.limit_reached {
         eprintln!();
         eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
-        eprintln!("Reached finding limit ({}).", result.summary.total_findings);
+        if let Some(limit) = effective_findings_limit {
+            eprintln!("Reached finding limit ({}).", limit);
+        } else {
+            eprintln!("Reached finding limit.");
+        }
         eprintln!("  What: The maximum findings limit (output.max_findings) was reached.");
         eprintln!("  Why:  Too many secrets were detected, risking OOM or unreadable reports.");
         eprintln!("        Passing CI with truncated findings hides remaining vulnerabilities.");

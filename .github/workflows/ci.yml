@@ -38,7 +38,10 @@ jobs:
             candidates="$(git ls-files '*.sh')"
           fi
 
-          forbidden="$(printf '%s\n' "${candidates}" | grep -Ev '^(ops/ci/|vendor/)' || true)"
+          forbidden=""
+          if [ -n "${candidates}" ]; then
+            forbidden="$(printf '%s\n' "${candidates}" | grep -Ev '^(ops/ci/|vendor/)' || true)"
+          fi
           if [ -n "${forbidden}" ]; then
             echo "Error: Shell scripts (.sh) are forbidden. Please use Go/Nix/Rust."
             echo "Exceptions: ops/ci/*.sh and vendor/**/*.sh are allowed."
