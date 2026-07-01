@@ -554,6 +554,178 @@ fn validate_evidence_report(report: &Value) -> Result<(), VerifyError> {
     Ok(())
 }
 
+fn new_severity_count_map() -> HashMap<&'static str, u64> {
+    HashMap::from([("Low", 0), ("Medium", 0), ("High", 0), ("Critical", 0)])
+}
+
+fn increment_severity_count(
+    counts: &mut HashMap<&'static str, u64>,
+    severity: &str,
+    context: &str,
+) -> Result<(), VerifyError> {
+    let severity = match severity {
+        "Low" => "Low",
+        "Medium" => "Medium",
+        "High" => "High",
+        "Critical" => "Critical",
+        _ => {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.severity must be one of Low, Medium, High, Critical"
+            )));
+        }
+    };
+    *counts.get_mut(severity).unwrap() += 1;
+    Ok(())
+}
+
+fn compare_summary_u64(
+    summary: &Value,
+    field: &str,
+    expected: u64,
+    context: &str,
+) -> Result<(), VerifyError> {
+    let actual = summary.get(field).and_then(Value::as_u64).ok_or_else(|| {
+        VerifyError::SchemaViolation(format!("{context}.{field} must be a non-negative integer"))
+    })?;
+    if actual != expected {
+        return Err(VerifyError::SchemaViolation(format!(
+            "{context}.{field} does not match findings baselineStatus"
+        )));
+    }
+    Ok(())
+}
+
+fn compare_summary_severity_counts(
+    summary: &Value,
+    field: &str,
+    expected: &HashMap<&'static str, u64>,
+    context: &str,
+) -> Result<(), VerifyError> {
+    let counts = summary
+        .get(field)
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation(format!("{context}.{field} must be an object"))
+        })?;
+    for severity in ["Low", "Medium", "High", "Critical"] {
+        let actual = counts
+            .get(severity)
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                VerifyError::SchemaViolation(format!(
+                    "{context}.{field}.{severity} must be a non-negative integer"
+                ))
+            })?;
+        if actual != expected[severity] {
+            return Err(VerifyError::SchemaViolation(format!(
+                "{context}.{field}.{severity} does not match findings baselineStatus"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_report_summary_matches_findings(report: &Value) -> Result<(), VerifyError> {
+    let summary = report
+        .get("summary")
+        .ok_or_else(|| VerifyError::SchemaViolation("report.json summary missing".to_string()))?;
+    let findings = report
+        .get("findings")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation("report.json findings must be an array".to_string())
+        })?;
+
+    let mut effective_counts = new_severity_count_map();
+    let mut all_counts = new_severity_count_map();
+    let mut suppressed_counts = new_severity_count_map();
+    let mut suppressed_findings = 0u64;
+
+    for (index, finding) in findings.iter().enumerate() {
+        let context = format!("report.json findings[{index}]");
+        let severity = finding
+            .get("severity")
+            .and_then(Value::as_str)
+            .ok_or_else(|| VerifyError::SchemaViolation(format!("{context}.severity missing")))?;
+        let baseline_status = finding
+            .get("baselineStatus")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                VerifyError::SchemaViolation(format!("{context}.baselineStatus missing"))
+            })?;
+
+        increment_severity_count(&mut all_counts, severity, &context)?;
+        if baseline_status == "suppressed" {
+            suppressed_findings += 1;
+            increment_severity_count(&mut suppressed_counts, severity, &context)?;
+        } else {
+            increment_severity_count(&mut effective_counts, severity, &context)?;
+        }
+    }
+
+    let total_findings = findings.len() as u64;
+    let effective_findings = total_findings - suppressed_findings;
+    compare_summary_u64(
+        summary,
+        "totalFindings",
+        total_findings,
+        "report.json summary",
+    )?;
+    compare_summary_u64(
+        summary,
+        "suppressedFindings",
+        suppressed_findings,
+        "report.json summary",
+    )?;
+    compare_summary_u64(
+        summary,
+        "effectiveFindings",
+        effective_findings,
+        "report.json summary",
+    )?;
+    compare_summary_severity_counts(
+        summary,
+        "severityCounts",
+        &effective_counts,
+        "report.json summary",
+    )?;
+    compare_summary_severity_counts(
+        summary,
+        "allSeverityCounts",
+        &all_counts,
+        "report.json summary",
+    )?;
+    compare_summary_severity_counts(
+        summary,
+        "suppressedSeverityCounts",
+        &suppressed_counts,
+        "report.json summary",
+    )?;
+    Ok(())
+}
+
+fn validate_report_matches_run_meta(run_meta: &Value, report: &Value) -> Result<(), VerifyError> {
+    if run_meta.get("runId") != report.get("runId") {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json runId does not match report.json runId".to_string(),
+        ));
+    }
+    if run_meta.get("generatedAtUtc") != report.get("generatedAtUtc") {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json generatedAtUtc does not match report.json generatedAtUtc".to_string(),
+        ));
+    }
+
+    validate_report_summary_matches_findings(report)?;
+
+    if run_meta.pointer("/result/summary") != report.get("summary") {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.summary does not match report.json summary".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 pub fn verify_evidence_pack(
     zip_path: &Path,
     options: &VerifyOptions,
@@ -792,6 +964,7 @@ pub fn verify_evidence_pack(
         .ok_or_else(|| VerifyError::MissingFile(report_json_path.clone()))?;
     let report_json: Value = serde_json::from_slice(report_json_buf)?;
     validate_evidence_report(&report_json)?;
+    validate_report_matches_run_meta(&run_meta, &report_json)?;
 
     // 6. Validate Application Policies
     if options.require_complete && !is_complete {

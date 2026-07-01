@@ -13,11 +13,32 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 fn severity_counts() -> serde_json::Value {
+    severity_counts_with_high(0)
+}
+
+fn severity_counts_with_high(high: usize) -> serde_json::Value {
     serde_json::json!({
         "Low": 0,
         "Medium": 0,
-        "High": 0,
+        "High": high,
         "Critical": 0
+    })
+}
+
+fn safe_finding(index: usize, baseline_status: &str) -> serde_json::Value {
+    serde_json::json!({
+        "findingId": format!("fx_test_{index}"),
+        "baselineFingerprint": format!("sha256:test-fingerprint-{index}"),
+        "path": format!("src/file_{index}.rs"),
+        "lineNumber": index + 1,
+        "ruleId": "creds.test",
+        "severity": "High",
+        "score": 80,
+        "grade": "High",
+        "maskedSnippet": "token = <REDACTED>",
+        "category": "credentials",
+        "tags": ["secret"],
+        "baselineStatus": baseline_status
     })
 }
 
@@ -39,8 +60,8 @@ fn run_result(
             "totalFindings": effective_findings,
             "suppressedFindings": 0,
             "effectiveFindings": effective_findings,
-            "severityCounts": severity_counts(),
-            "allSeverityCounts": severity_counts(),
+            "severityCounts": severity_counts_with_high(effective_findings),
+            "allSeverityCounts": severity_counts_with_high(effective_findings),
             "suppressedSeverityCounts": severity_counts(),
             "coverageComplete": coverage_complete
         }
@@ -48,6 +69,10 @@ fn run_result(
 }
 
 fn evidence_report(effective_findings: usize, coverage_complete: bool) -> Vec<u8> {
+    let findings = (0..effective_findings)
+        .map(|index| safe_finding(index, "new"))
+        .collect::<Vec<_>>();
+
     serde_json::json!({
         "schemaVersion": "veil-evidence-report-v1",
         "runId": "test-run",
@@ -56,12 +81,12 @@ fn evidence_report(effective_findings: usize, coverage_complete: bool) -> Vec<u8
             "totalFindings": effective_findings,
             "suppressedFindings": 0,
             "effectiveFindings": effective_findings,
-            "severityCounts": severity_counts(),
-            "allSeverityCounts": severity_counts(),
+            "severityCounts": severity_counts_with_high(effective_findings),
+            "allSeverityCounts": severity_counts_with_high(effective_findings),
             "suppressedSeverityCounts": severity_counts(),
             "coverageComplete": coverage_complete
         },
-        "findings": []
+        "findings": findings
     })
     .to_string()
     .into_bytes()
@@ -554,6 +579,93 @@ fn test_report_json_schema_is_rejected() {
         .code(2)
         .stdout(predicates::str::contains(
             "report.json missing required field: schemaVersion",
+        ));
+}
+
+#[test]
+fn test_run_meta_and_report_summary_mismatch_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("mismatched_summary_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(1, true);
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let run_meta_content = run_meta_json(artifacts, run_result(0, false, true));
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify")
+        .arg(&zip_path)
+        .arg("--fail-on-findings")
+        .arg("1");
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result.summary does not match report.json summary",
+        ));
+}
+
+#[test]
+fn test_report_summary_must_match_finding_statuses() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("bad_report_summary_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let mut report_json: serde_json::Value =
+        serde_json::from_slice(&evidence_report(1, true)).unwrap();
+    report_json["summary"]["effectiveFindings"] = serde_json::json!(0);
+    report_json["summary"]["severityCounts"]["High"] = serde_json::json!(0);
+    let report_json_content = serde_json::to_vec(&report_json).unwrap();
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let mut result = run_result(0, false, true);
+    result["summary"] = report_json["summary"].clone();
+    let run_meta_content = run_meta_json(artifacts, result);
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "report.json summary.effectiveFindings does not match findings baselineStatus",
         ));
 }
 
