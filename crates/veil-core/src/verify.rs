@@ -105,12 +105,15 @@ fn validate_v1_run_result(run_meta: &serde_json::Value) -> Result<(), VerifyErro
             )));
         }
     }
-    if !result
+    let valid_status = ["success", "violation", "incomplete", "error"];
+    if result
         .get("status")
-        .is_some_and(serde_json::Value::is_string)
+        .and_then(serde_json::Value::as_str)
+        .is_none_or(|status| !valid_status.contains(&status))
     {
         return Err(VerifyError::SchemaViolation(
-            "run_meta.json result.status must be a string".to_string(),
+            "run_meta.json result.status must be one of success, violation, incomplete, or error"
+                .to_string(),
         ));
     }
     if result

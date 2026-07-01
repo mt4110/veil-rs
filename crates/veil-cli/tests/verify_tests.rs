@@ -436,6 +436,64 @@ fn test_v1_run_meta_missing_limit_reasons_is_rejected() {
 }
 
 #[test]
+fn test_v1_run_meta_invalid_status_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("invalid_status_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = b"{\"findings\": []}";
+    let report_html_content = b"<html></html>";
+    let artifacts = serde_json::json!({
+        "effective_config": {
+            "path": "effective_config.toml",
+            "sha256": sha256_hex(effective_config_content),
+        },
+        "report_json": {
+            "path": "report.json",
+            "sha256": sha256_hex(report_json_content),
+        },
+        "report_html": {
+            "path": "report.html",
+            "sha256": sha256_hex(report_html_content),
+        }
+    });
+    let mut result = run_result(0, false, true);
+    result.as_object_mut().unwrap().insert(
+        "status".to_string(),
+        serde_json::Value::String("passed".to_string()),
+    );
+    let run_meta_content = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "result": result,
+        "artifacts": artifacts
+    })
+    .to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result.status must be one of success, violation, incomplete, or error",
+        ));
+}
+
+#[test]
 fn test_baseline_artifact_path_must_be_canonical() {
     let dir = TempDir::new().unwrap();
     let zip_path = dir.path().join("custom_baseline_path_evidence.zip");
