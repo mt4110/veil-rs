@@ -15,7 +15,7 @@ use veil_core::finding_id::SpanData;
 pub mod dto;
 pub use dto::*;
 
-use crate::AppState;
+use crate::{config_loader::ConfigLayers, AppState};
 
 type ApiErrorResponse = (StatusCode, Json<ErrorEnvelope>);
 
@@ -67,6 +67,15 @@ struct FindingBuckets {
     suppressed: Vec<SafeFindingApiV1>,
 }
 
+struct AggregatedScan {
+    findings: Vec<veil_core::Finding>,
+    scanned_files: usize,
+    skipped_files: usize,
+    limit_reached: bool,
+    limit_reasons: Vec<String>,
+    builtin_skips: Vec<String>,
+}
+
 fn repo_root() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
@@ -98,12 +107,31 @@ fn scan_path_for_request(requested: &str, safe_path: &FsPath) -> PathBuf {
     }
 }
 
-fn load_effective_config_for_paths(_paths: &[String]) -> veil_config::Config {
+fn config_error_response(error: impl std::fmt::Display) -> ApiErrorResponse {
+    error_response(
+        StatusCode::BAD_REQUEST,
+        ErrorCode::InvalidRequest,
+        format!("Failed to load configuration: {error}"),
+        None,
+    )
+}
+
+fn load_config_layers_for_api(_paths: &[String]) -> Result<ConfigLayers, ApiErrorResponse> {
     let repo_config = repo_root().join("veil.toml");
+    load_config_layers_from_repo_config(repo_config)
+}
+
+fn load_config_layers_from_repo_config(
+    repo_config: PathBuf,
+) -> Result<ConfigLayers, ApiErrorResponse> {
     let explicit_path = repo_config.is_file().then_some(repo_config);
-    crate::config_loader::load_config_layers(explicit_path.as_ref())
-        .map(|layers| layers.effective)
-        .unwrap_or_default()
+    crate::config_loader::load_config_layers(explicit_path.as_ref()).map_err(config_error_response)
+}
+
+fn load_effective_config_for_paths(
+    paths: &[String],
+) -> Result<veil_config::Config, ApiErrorResponse> {
+    Ok(load_config_layers_for_api(paths)?.effective)
 }
 
 fn resolve_baseline_file(requested_path: Option<&str>) -> Result<Option<BaselineFileInfo>, String> {
@@ -239,9 +267,8 @@ fn build_evidence_summary(buckets: &FindingBuckets, coverage_complete: bool) -> 
     }
 }
 
-fn policy_response() -> PolicyResponse {
-    let layers = crate::config_loader::load_config_layers(None).unwrap_or_default();
-    let config = layers.effective;
+fn policy_response_from_layers(layers: ConfigLayers) -> PolicyResponse {
+    let config = layers.effective.clone();
     let rules = veil_core::get_all_rules(&config, vec![]);
     let repo_config_path = repo_root().join("veil.toml");
     let org_config_path = std::env::var("VEIL_ORG_CONFIG").ok();
@@ -279,6 +306,12 @@ fn policy_response() -> PolicyResponse {
         ],
         conflicts: Vec::new(),
     }
+}
+
+fn policy_response() -> Result<PolicyResponse, ApiErrorResponse> {
+    Ok(policy_response_from_layers(load_config_layers_for_api(&[
+        ".".to_string(),
+    ])?))
 }
 
 fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
@@ -331,6 +364,67 @@ fn policy_violated(findings: &[SafeFindingApiV1], req: &ScanRequest) -> bool {
     }
 }
 
+fn scan_paths_with_global_limit(
+    paths_to_scan: Vec<String>,
+    rules: &[veil_core::Rule],
+    config: &veil_config::Config,
+) -> Result<AggregatedScan, ApiErrorResponse> {
+    let mut findings = Vec::new();
+    let mut scanned_files = 0;
+    let mut skipped_files = 0;
+    let mut limit_reached = false;
+    let mut limit_reasons = Vec::new();
+    let mut builtin_skips = Vec::new();
+    let max_findings = config.output.max_findings;
+    let mut raw_findings_count = 0usize;
+
+    for path in paths_to_scan {
+        if max_findings.is_some_and(|max| raw_findings_count >= max) {
+            limit_reached = true;
+            limit_reasons.push("result-limit".to_string());
+            break;
+        }
+        let safe_path = validate_safe_path(&path).map_err(|error| {
+            error_response(
+                StatusCode::FORBIDDEN,
+                ErrorCode::PathDenied,
+                format!("Path denied: {error}"),
+                Some(NextAction::NarrowScope),
+            )
+        })?;
+        let scan_path = scan_path_for_request(&path, &safe_path);
+        let mut run_config = config.clone();
+        if let Some(max) = max_findings {
+            run_config.output.max_findings = Some(max.saturating_sub(raw_findings_count));
+        }
+        let result = veil_core::scan_path(&scan_path, rules, &run_config);
+        scanned_files += result.scanned_files;
+        skipped_files += result.skipped_files;
+        limit_reached |= result.limit_reached
+            || result.file_limit_reached
+            || result.max_file_size_reached
+            || result.read_error_reached;
+        limit_reasons.extend(limit_reasons_for(&result));
+        builtin_skips.extend(result.builtin_skips);
+        raw_findings_count += result.findings.len();
+        findings.extend(result.findings);
+    }
+
+    limit_reasons.sort();
+    limit_reasons.dedup();
+    builtin_skips.sort();
+    builtin_skips.dedup();
+
+    Ok(AggregatedScan {
+        findings,
+        scanned_files,
+        skipped_files,
+        limit_reached,
+        limit_reasons,
+        builtin_skips,
+    })
+}
+
 // --- Endpoints ---
 
 pub async fn list_projects(State(_state): State<Arc<AppState>>) -> Json<ProjectsResponse> {
@@ -359,7 +453,6 @@ pub async fn scan_project(
     Json(req): Json<ScanRequest>,
 ) -> Result<Json<ScanResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths.clone());
-    let config = load_effective_config_for_paths(&paths_to_scan);
     if let Some(ScanMode::Staged | ScanMode::Ci) = req.mode {
         return Err(error_response(
             StatusCode::BAD_REQUEST,
@@ -402,6 +495,7 @@ pub async fn scan_project(
         ));
     }
 
+    let config = load_effective_config_for_paths(&paths_to_scan)?;
     let rules = veil_core::get_all_rules(&config, vec![]);
     let rules_by_id = rule_lookup(&rules);
     let baseline = resolve_baseline_file(req.baseline_file.as_deref()).map_err(|error| {
@@ -413,48 +507,16 @@ pub async fn scan_project(
         )
     })?;
 
-    let mut findings = Vec::new();
-    let mut scanned_files = 0;
-    let mut skipped_files = 0;
-    let mut limit_reached = false;
-    let mut limit_reasons = Vec::new();
-    let mut builtin_skips = Vec::new();
-
-    for path in paths_to_scan {
-        let safe_path = validate_safe_path(&path).map_err(|error| {
-            error_response(
-                StatusCode::FORBIDDEN,
-                ErrorCode::PathDenied,
-                format!("Path denied: {error}"),
-                Some(NextAction::NarrowScope),
-            )
-        })?;
-        let scan_path = scan_path_for_request(&path, &safe_path);
-        let result = veil_core::scan_path(&scan_path, &rules, &config);
-        scanned_files += result.scanned_files;
-        skipped_files += result.skipped_files;
-        limit_reached |= result.limit_reached
-            || result.file_limit_reached
-            || result.max_file_size_reached
-            || result.read_error_reached;
-        limit_reasons.extend(limit_reasons_for(&result));
-        builtin_skips.extend(result.builtin_skips);
-        findings.extend(result.findings);
-    }
-
-    limit_reasons.sort();
-    limit_reasons.dedup();
-    builtin_skips.sort();
-    builtin_skips.dedup();
+    let aggregate = scan_paths_with_global_limit(paths_to_scan, &rules, &config)?;
 
     let buckets = bucket_findings(
-        findings,
+        aggregate.findings,
         baseline.as_ref().map(|info| &info.snapshot),
         &rules_by_id,
     );
-    let coverage_complete = !limit_reached;
+    let coverage_complete = !aggregate.limit_reached;
     let summary = build_evidence_summary(&buckets, coverage_complete);
-    let status = if limit_reached {
+    let status = if aggregate.limit_reached {
         RunStatus::Incomplete
     } else if policy_violated(&buckets.effective, &req) {
         RunStatus::Violation
@@ -473,10 +535,10 @@ pub async fn scan_project(
         &buckets.all,
         summary.clone(),
         status,
-        limit_reached,
-        limit_reasons.clone(),
-        scanned_files,
-        skipped_files,
+        aggregate.limit_reached,
+        aggregate.limit_reasons.clone(),
+        aggregate.scanned_files,
+        aggregate.skipped_files,
         150,
         baseline.map(|info| info.content),
     );
@@ -492,8 +554,8 @@ pub async fn scan_project(
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
         run_id,
         status,
-        scanned_files,
-        skipped_files,
+        scanned_files: aggregate.scanned_files,
+        skipped_files: aggregate.skipped_files,
         total_findings: summary.total_findings,
         suppressed_findings: summary.suppressed_findings,
         effective_findings: summary.effective_findings,
@@ -501,20 +563,25 @@ pub async fn scan_project(
         severity_counts: summary.severity_counts,
         all_severity_counts: summary.all_severity_counts,
         suppressed_severity_counts: summary.suppressed_severity_counts,
-        limit_reached,
-        limit_reasons,
-        builtin_skips,
+        limit_reached: aggregate.limit_reached,
+        limit_reasons: aggregate.limit_reasons,
+        builtin_skips: aggregate.builtin_skips,
         findings: response_findings,
         expires_at_utc: (Utc::now() + Duration::minutes(30)).to_rfc3339(),
     }))
 }
 
-pub async fn get_policy(State(_state): State<Arc<AppState>>) -> Json<PolicyResponse> {
-    Json(policy_response())
+pub async fn get_policy(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<PolicyResponse>, ApiErrorResponse> {
+    Ok(Json(policy_response()?))
 }
 
-pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorResponse> {
-    let config = load_effective_config_for_paths(&[".".to_string()]);
+pub async fn get_doctor(
+    State(_state): State<Arc<AppState>>,
+) -> Result<Json<DoctorResponse>, ApiErrorResponse> {
+    let layers = load_config_layers_for_api(&[".".to_string()])?;
+    let config = layers.effective.clone();
     let mut bounds = BTreeMap::new();
     bounds.insert(
         "maxFileCount".to_string(),
@@ -539,12 +606,12 @@ pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorRespo
         BoundValue::Number(config.output.max_findings.unwrap_or(1_000) as u64),
     );
 
-    Json(DoctorResponse {
+    Ok(Json(DoctorResponse {
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
         product_version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
         rust_version: option_env!("RUSTC_VERSION").map(str::to_string),
-        config: policy_response(),
+        config: policy_response_from_layers(layers),
         bounds,
         rule_packs: vec![DoctorRulePack {
             name: "default".to_string(),
@@ -553,7 +620,7 @@ pub async fn get_doctor(State(_state): State<Arc<AppState>>) -> Json<DoctorRespo
         }],
         network_mode: NetworkMode::LocalOnly,
         warnings: Vec::new(),
-    })
+    }))
 }
 
 pub async fn write_baseline(
@@ -561,7 +628,7 @@ pub async fn write_baseline(
     Json(req): Json<BaselineRequest>,
 ) -> Result<Json<BaselineResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths);
-    let config = load_effective_config_for_paths(&paths_to_scan);
+    let config = load_effective_config_for_paths(&paths_to_scan)?;
     let rules = veil_core::get_all_rules(&config, vec![]);
     let mut all_findings = Vec::new();
 
@@ -727,6 +794,19 @@ pub async fn export_evidence(
 mod tests {
     use super::*;
 
+    fn unique_target_dir(name: &str) -> PathBuf {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = repo_root().join("target").join(format!(
+            "veil-pro-api-{name}-{}-{suffix}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     fn policy_finding(score: u32, severity: SeverityName) -> SafeFindingApiV1 {
         SafeFindingApiV1 {
             finding_id: format!("fx_{score}"),
@@ -888,6 +968,64 @@ mod tests {
         assert_eq!(limit_reasons_for(&result), vec!["read-error".to_string()]);
     }
 
+    #[test]
+    fn invalid_repo_config_returns_error_instead_of_defaulting() {
+        let dir = unique_target_dir("invalid-config");
+        let config_path = dir.join("veil.toml");
+        std::fs::write(&config_path, "[output]\nmax_findings = 0\n").unwrap();
+
+        let (status, Json(body)) = load_config_layers_from_repo_config(config_path).unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body
+            .error
+            .message
+            .contains("Invalid config field 'output.max_findings'"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn scan_paths_share_result_limit_across_requested_paths() {
+        let root = unique_target_dir("global-limit");
+        let first = root.join("first");
+        let second = root.join("second");
+        std::fs::create_dir_all(&first).unwrap();
+        std::fs::create_dir_all(&second).unwrap();
+        std::fs::write(first.join("secret.txt"), "aws_key = AKIA1234567890123456\n").unwrap();
+        std::fs::write(
+            second.join("secret.txt"),
+            "aws_key = AKIA9999999999999999\n",
+        )
+        .unwrap();
+
+        let repo = repo_root();
+        let first_path = first
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let second_path = second
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut config = veil_config::Config::default();
+        config.output.max_findings = Some(1);
+        let rules = veil_core::get_all_rules(&config, vec![]);
+
+        let aggregate =
+            scan_paths_with_global_limit(vec![first_path, second_path], &rules, &config).unwrap();
+
+        assert!(aggregate.limit_reached);
+        assert_eq!(aggregate.findings.len(), 1);
+        assert_eq!(aggregate.scanned_files, 1);
+        assert!(aggregate
+            .limit_reasons
+            .contains(&"result-limit".to_string()));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     #[tokio::test]
     async fn fail_on_findings_zero_returns_error_envelope() {
         let state = Arc::new(AppState {
@@ -940,7 +1078,7 @@ mod tests {
             oauth: Arc::new(crate::auth::init_oauth()),
         });
 
-        let Json(body) = get_doctor(State(state)).await;
+        let Json(body) = get_doctor(State(state)).await.unwrap();
 
         assert!(matches!(
             body.bounds.get("maxFileCount"),
