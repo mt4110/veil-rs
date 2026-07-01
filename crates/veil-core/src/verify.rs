@@ -970,11 +970,16 @@ pub fn verify_evidence_pack(
         .pointer("/result/limitReached")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
+    let result_status = run_meta
+        .pointer("/result/status")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("error");
     let is_complete = run_meta
         .pointer("/result/summary/coverageComplete")
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(!limit_reached)
-        && !limit_reached;
+        && !limit_reached
+        && matches!(result_status, "success" | "violation");
 
     let findings_count = run_meta
         .pointer("/result/summary/effectiveFindings")
@@ -1065,8 +1070,9 @@ pub fn verify_evidence_pack(
             status: VerifyStatus::PolicyViolation,
             is_complete,
             findings_count,
-            message: "Policy Violation: Evidence pack is incomplete (limit reached during scan)."
-                .to_string(),
+            message:
+                "Policy Violation: Evidence pack is incomplete (run status or coverage is incomplete)."
+                    .to_string(),
         });
     }
 

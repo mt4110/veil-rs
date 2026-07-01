@@ -30,7 +30,7 @@ jobs:
 
 Control when the CI job fails:
 
-*   `--fail-on-severity <LEVEL>`: Fail if any finding matches or exceeds level (Low | Medium | High | Critical).
+*   `--fail-on-severity <LEVEL>`: Fail if any finding score reaches that level's score floor (Low=20, Medium=40, High=70, Critical=90).
 *   `--fail-on-score <INT>`: Fail if any finding score >= threshold (0-100).
 *   `--fail-on-findings <N>`: Fail if the total number of findings >= N. Useful for monitoring "explosive" increases.
 
