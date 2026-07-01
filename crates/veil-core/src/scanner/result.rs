@@ -9,5 +9,6 @@ pub struct ScanResult {
     pub limit_reached: bool,
     pub file_limit_reached: bool,
     pub max_file_size_reached: bool,
+    pub read_error_reached: bool,
     pub builtin_skips: std::collections::HashSet<String>,
 }

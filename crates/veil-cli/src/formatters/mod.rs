@@ -30,6 +30,8 @@ pub struct Summary {
     pub file_limit_reached: bool,
     /// Indicates whether a text/source file exceeded max_file_size.
     pub max_file_size_reached: bool,
+    /// Indicates whether at least one file could not be read.
+    pub read_error_reached: bool,
     pub duration_ms: u128,
     pub baseline_path: Option<String>,
     pub severity_counts: HashMap<Severity, usize>,
@@ -48,6 +50,7 @@ impl Summary {
         limit_reached: bool,
         file_limit_reached: bool,
         max_file_size_reached: bool,
+        read_error_reached: bool,
         duration: std::time::Duration,
         baseline_path: Option<String>,
         severity_counts: HashMap<Severity, usize>,
@@ -63,6 +66,7 @@ impl Summary {
             limit_reached,
             file_limit_reached,
             max_file_size_reached,
+            read_error_reached,
             duration_ms: duration.as_millis(),
             baseline_path,
             severity_counts,

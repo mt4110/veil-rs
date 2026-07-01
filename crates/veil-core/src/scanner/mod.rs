@@ -76,6 +76,7 @@ use result::ScanResult;
 
 pub const RULE_ID_BINARY_FILE: &str = "BINARY_FILE";
 pub const RULE_ID_MAX_FILE_SIZE: &str = "MAX_FILE_SIZE";
+pub const RULE_ID_READ_ERROR: &str = "READ_ERROR";
 pub const DEFAULT_MAX_FILE_COUNT: usize = 1_000_000;
 pub const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 1_000_000;
 
@@ -132,6 +133,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let scanned_counter = AtomicUsize::new(0);
     let skipped_counter = AtomicUsize::new(0);
     let max_file_size_counter = AtomicUsize::new(0);
+    let read_error_counter = AtomicUsize::new(0);
 
     // 2. Process files in parallel
     let findings: Vec<Finding> = entries
@@ -146,11 +148,17 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
             // Check if file was skipped due to binary/size
             let mut is_skipped = false;
             if let Some(first) = file_findings.first() {
-                if first.rule_id == RULE_ID_BINARY_FILE || first.rule_id == RULE_ID_MAX_FILE_SIZE {
+                if first.rule_id == RULE_ID_BINARY_FILE
+                    || first.rule_id == RULE_ID_MAX_FILE_SIZE
+                    || first.rule_id == RULE_ID_READ_ERROR
+                {
                     is_skipped = true;
                 }
                 if first.rule_id == RULE_ID_MAX_FILE_SIZE {
                     max_file_size_counter.fetch_add(1, Ordering::Relaxed);
+                }
+                if first.rule_id == RULE_ID_READ_ERROR {
+                    read_error_counter.fetch_add(1, Ordering::Relaxed);
                 }
             }
 
@@ -172,6 +180,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         limit_reached: limit.check(),
         file_limit_reached,
         max_file_size_reached: max_file_size_counter.load(Ordering::Relaxed) > 0,
+        read_error_reached: read_error_counter.load(Ordering::Relaxed) > 0,
         builtin_skips: std::sync::Arc::into_inner(skipped_builtins)
             .unwrap_or_default()
             .into_inner()
@@ -269,6 +278,13 @@ pub fn scan_file(
                 "File size ({} bytes) exceeds limit ({} bytes)",
                 size, max_size
             ),
+            crate::model::Severity::High,
+        ));
+    } else {
+        local_findings.push(crate::scanner::utils::create_skipped_finding(
+            path,
+            RULE_ID_READ_ERROR,
+            "File could not be read (skipped)".to_string(),
             crate::model::Severity::High,
         ));
     }
@@ -589,6 +605,30 @@ mod tests {
         let result = scan_path(dir.path(), &[], &config);
 
         assert_eq!(result.skipped_files, 1);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scan_path_marks_unreadable_file_as_incomplete() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret.txt");
+        std::fs::write(&path, "SECRET\n").unwrap();
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o000);
+        std::fs::set_permissions(&path, permissions).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
+
+        let mut permissions = std::fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o644);
+        std::fs::set_permissions(&path, permissions).unwrap();
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
         assert!(!result.max_file_size_reached);
         assert!(!result.file_limit_reached);
     }

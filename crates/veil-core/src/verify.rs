@@ -75,6 +75,132 @@ fn sha256_hex(data: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn validate_v1_run_result(run_meta: &serde_json::Value) -> Result<(), VerifyError> {
+    let result = run_meta
+        .get("result")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation(
+                "run_meta.json result must be an object for veil-pro-run-meta-v1".to_string(),
+            )
+        })?;
+    let result_fields = [
+        "status",
+        "exitCode",
+        "limitReached",
+        "limitReasons",
+        "summary",
+    ];
+    for key in result.keys() {
+        if !result_fields.contains(&key.as_str()) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result contains unknown field: {key}"
+            )));
+        }
+    }
+    for field in result_fields {
+        if !result.contains_key(field) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result missing required field: {field}"
+            )));
+        }
+    }
+    if !result
+        .get("status")
+        .is_some_and(serde_json::Value::is_string)
+    {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.status must be a string".to_string(),
+        ));
+    }
+    if result
+        .get("exitCode")
+        .and_then(serde_json::Value::as_u64)
+        .is_none_or(|code| code > 2)
+    {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.exitCode must be 0, 1, or 2".to_string(),
+        ));
+    }
+    if !result
+        .get("limitReached")
+        .is_some_and(serde_json::Value::is_boolean)
+    {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.limitReached must be a boolean".to_string(),
+        ));
+    }
+    if !result
+        .get("limitReasons")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|reasons| reasons.iter().all(serde_json::Value::is_string))
+    {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.limitReasons must be an array of strings".to_string(),
+        ));
+    }
+
+    let summary = result
+        .get("summary")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation(
+                "run_meta.json result.summary must be an object".to_string(),
+            )
+        })?;
+    let summary_fields = [
+        "totalFindings",
+        "suppressedFindings",
+        "effectiveFindings",
+        "severityCounts",
+        "allSeverityCounts",
+        "suppressedSeverityCounts",
+        "coverageComplete",
+    ];
+    for key in summary.keys() {
+        if !summary_fields.contains(&key.as_str()) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result.summary contains unknown field: {key}"
+            )));
+        }
+    }
+    for field in summary_fields {
+        if !summary.contains_key(field) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result.summary missing required field: {field}"
+            )));
+        }
+    }
+    for field in ["totalFindings", "suppressedFindings", "effectiveFindings"] {
+        if !summary.get(field).is_some_and(serde_json::Value::is_u64) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result.summary.{field} must be a non-negative integer"
+            )));
+        }
+    }
+    for field in [
+        "severityCounts",
+        "allSeverityCounts",
+        "suppressedSeverityCounts",
+    ] {
+        if !summary.get(field).is_some_and(serde_json::Value::is_object) {
+            return Err(VerifyError::SchemaViolation(format!(
+                "run_meta.json result.summary.{field} must be an object"
+            )));
+        }
+    }
+    if !summary
+        .get("coverageComplete")
+        .is_some_and(serde_json::Value::is_boolean)
+    {
+        return Err(VerifyError::SchemaViolation(
+            "run_meta.json result.summary.coverageComplete must be a boolean".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 pub fn verify_evidence_pack(
     zip_path: &Path,
     options: &VerifyOptions,
@@ -228,10 +354,10 @@ pub fn verify_evidence_pack(
             schema_ver
         )));
     }
+    validate_v1_run_result(&run_meta)?;
 
     let limit_reached = run_meta
         .pointer("/result/limitReached")
-        .or_else(|| run_meta.pointer("/result/limit_reached"))
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let is_complete = run_meta
@@ -242,9 +368,6 @@ pub fn verify_evidence_pack(
 
     let findings_count = run_meta
         .pointer("/result/summary/effectiveFindings")
-        .or_else(|| run_meta.pointer("/result/summary/totalFindings"))
-        .or_else(|| run_meta.pointer("/result/summary/findingsCount"))
-        .or_else(|| run_meta.pointer("/result/summary/findings_count"))
         .and_then(serde_json::Value::as_u64)
         .map(|count| count as usize)
         .unwrap_or(0);

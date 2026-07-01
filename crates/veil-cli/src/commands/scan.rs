@@ -124,6 +124,7 @@ pub fn collect_findings(
 
     let mut any_file_limit_reached = false;
     let mut any_max_file_size_reached = false;
+    let mut any_read_error_reached = false;
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -271,6 +272,7 @@ pub fn collect_findings(
                         false,
                         false,
                         false,
+                        false,
                         start_time.elapsed(),
                         None, // baseline_path
                         HashMap::new(),
@@ -344,6 +346,7 @@ pub fn collect_findings(
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
             any_file_limit_reached |= result.file_limit_reached;
             any_max_file_size_reached |= result.max_file_size_reached;
+            any_read_error_reached |= result.read_error_reached;
             all_builtin_skips.extend(result.builtin_skips);
             let count = result.findings.len();
             all_findings.extend(result.findings);
@@ -404,6 +407,7 @@ pub fn collect_findings(
         is_truncated,
         any_file_limit_reached,
         any_max_file_size_reached,
+        any_read_error_reached,
         duration,
         baseline_path.map(|p| p.to_string_lossy().to_string()),
         severity_counts,
@@ -594,6 +598,19 @@ pub fn scan(
         eprintln!("{}", "  How to fix:".bold());
         eprintln!("    A) Reduce the scanning scope or ignore generated text artifacts.");
         eprintln!("    B) Increase core.max_file_size if the file is legitimate source input.");
+        std::process::exit(2);
+    }
+
+    if result.summary.read_error_reached {
+        eprintln!();
+        eprintln!("{}", "❌ Scan Incomplete (Exit Code 2)".red().bold());
+        eprintln!("At least one file could not be read.");
+        eprintln!("  What: Veil could not open a file in the scan scope.");
+        eprintln!("  Why:  Passing CI with unread source files can hide secrets.");
+        eprintln!();
+        eprintln!("{}", "  How to fix:".bold());
+        eprintln!("    A) Narrow the scan scope or ignore files that cannot be read.");
+        eprintln!("    B) Fix file permissions and re-run the scan.");
         std::process::exit(2);
     }
 
@@ -800,6 +817,15 @@ impl Formatter for TextFormatterWrapper {
             println!(
                 "{}",
                 "  (Scan incomplete: skipped text/source file over max_file_size)"
+                    .red()
+                    .bold()
+            );
+        }
+
+        if summary.read_error_reached {
+            println!(
+                "{}",
+                "  (Scan incomplete: one or more files could not be read)"
                     .red()
                     .bold()
             );

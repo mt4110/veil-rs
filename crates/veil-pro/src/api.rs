@@ -289,6 +289,9 @@ fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
     if result.max_file_size_reached {
         reasons.push("max-file-size".to_string());
     }
+    if result.read_error_reached {
+        reasons.push("read-error".to_string());
+    }
     if result.limit_reached && !result.file_limit_reached {
         reasons.push("result-limit".to_string());
     }
@@ -430,8 +433,10 @@ pub async fn scan_project(
         let result = veil_core::scan_path(&scan_path, &rules, &config);
         scanned_files += result.scanned_files;
         skipped_files += result.skipped_files;
-        limit_reached |=
-            result.limit_reached || result.file_limit_reached || result.max_file_size_reached;
+        limit_reached |= result.limit_reached
+            || result.file_limit_reached
+            || result.max_file_size_reached
+            || result.read_error_reached;
         limit_reasons.extend(limit_reasons_for(&result));
         builtin_skips.extend(result.builtin_skips);
         findings.extend(result.findings);
@@ -871,6 +876,16 @@ mod tests {
             limit_reasons_for(&result),
             vec!["max-file-size".to_string()]
         );
+    }
+
+    #[test]
+    fn read_error_has_dedicated_limit_reason() {
+        let result = veil_core::ScanResult {
+            read_error_reached: true,
+            ..veil_core::ScanResult::default()
+        };
+
+        assert_eq!(limit_reasons_for(&result), vec!["read-error".to_string()]);
     }
 
     #[tokio::test]

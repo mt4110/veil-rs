@@ -12,6 +12,41 @@ fn sha256_hex(data: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn severity_counts() -> serde_json::Value {
+    serde_json::json!({
+        "Low": 0,
+        "Medium": 0,
+        "High": 0,
+        "Critical": 0
+    })
+}
+
+fn run_result(
+    effective_findings: usize,
+    limit_reached: bool,
+    coverage_complete: bool,
+) -> serde_json::Value {
+    serde_json::json!({
+        "status": if limit_reached { "incomplete" } else { "success" },
+        "exitCode": if limit_reached { 2 } else { 0 },
+        "limitReached": limit_reached,
+        "limitReasons": if limit_reached {
+            serde_json::json!(["result-limit"])
+        } else {
+            serde_json::json!([])
+        },
+        "summary": {
+            "totalFindings": effective_findings,
+            "suppressedFindings": 0,
+            "effectiveFindings": effective_findings,
+            "severityCounts": severity_counts(),
+            "allSeverityCounts": severity_counts(),
+            "suppressedSeverityCounts": severity_counts(),
+            "coverageComplete": coverage_complete
+        }
+    })
+}
+
 fn create_golden_zip(dir: &TempDir) -> std::path::PathBuf {
     create_zip_with_effective_findings(dir, 0)
 }
@@ -53,14 +88,7 @@ fn create_zip_with_effective_findings(
 
     let run_meta_content = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
-        "result": {
-            "limit_reached": false,
-            "summary": {
-                "effectiveFindings": effective_findings,
-                "totalFindings": effective_findings,
-                "findings_count": effective_findings
-            }
-        },
+        "result": run_result(effective_findings, false, true),
         "artifacts": artifacts
     })
     .to_string();
@@ -160,6 +188,7 @@ fn test_hash_mismatch() {
 
     let run_meta_content = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
+        "result": run_result(0, false, true),
         "artifacts": artifacts
     })
     .to_string();
@@ -219,6 +248,7 @@ fn test_declared_baseline_must_exist_in_zip() {
 
     let run_meta_content = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
+        "result": run_result(0, false, true),
         "artifacts": artifacts
     })
     .to_string();
@@ -299,6 +329,113 @@ fn test_legacy_run_meta_schema_is_rejected() {
 }
 
 #[test]
+fn test_v1_run_meta_missing_result_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("missing_result_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = b"{\"findings\": []}";
+    let report_html_content = b"<html></html>";
+    let artifacts = serde_json::json!({
+        "effective_config": {
+            "path": "effective_config.toml",
+            "sha256": sha256_hex(effective_config_content),
+        },
+        "report_json": {
+            "path": "report.json",
+            "sha256": sha256_hex(report_json_content),
+        },
+        "report_html": {
+            "path": "report.html",
+            "sha256": sha256_hex(report_html_content),
+        }
+    });
+    let run_meta_content = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "artifacts": artifacts
+    })
+    .to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result must be an object",
+        ));
+}
+
+#[test]
+fn test_v1_run_meta_missing_limit_reasons_is_rejected() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("missing_limit_reasons_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = b"{\"findings\": []}";
+    let report_html_content = b"<html></html>";
+    let artifacts = serde_json::json!({
+        "effective_config": {
+            "path": "effective_config.toml",
+            "sha256": sha256_hex(effective_config_content),
+        },
+        "report_json": {
+            "path": "report.json",
+            "sha256": sha256_hex(report_json_content),
+        },
+        "report_html": {
+            "path": "report.html",
+            "sha256": sha256_hex(report_html_content),
+        }
+    });
+    let mut result = run_result(0, false, true);
+    result.as_object_mut().unwrap().remove("limitReasons");
+    let run_meta_content = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "result": result,
+        "artifacts": artifacts
+    })
+    .to_string();
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result missing required field: limitReasons",
+        ));
+}
+
+#[test]
 fn test_baseline_artifact_path_must_be_canonical() {
     let dir = TempDir::new().unwrap();
     let zip_path = dir.path().join("custom_baseline_path_evidence.zip");
@@ -332,6 +469,7 @@ fn test_baseline_artifact_path_must_be_canonical() {
 
     let run_meta_content = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
+        "result": run_result(0, false, true),
         "artifacts": artifacts
     })
     .to_string();
@@ -390,9 +528,12 @@ fn test_zip_slip() {
         "report_json": { "path": "report.json", "sha256": ".." },
         "effective_config": { "path": "effective_config.toml", "sha256": ".." },
     });
-    let run_meta =
-        serde_json::json!({ "schemaVersion": "veil-pro-run-meta-v1", "artifacts": artifacts })
-            .to_string();
+    let run_meta = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "result": run_result(0, false, true),
+        "artifacts": artifacts
+    })
+    .to_string();
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
@@ -430,9 +571,12 @@ fn test_token_leakage() {
         "report_json": { "path": "report.json", "sha256": ".." },
         "effective_config": { "path": "effective_config.toml", "sha256": ".." },
     });
-    let run_meta =
-        serde_json::json!({ "schemaVersion": "veil-pro-run-meta-v1", "artifacts": artifacts })
-            .to_string();
+    let run_meta = serde_json::json!({
+        "schemaVersion": "veil-pro-run-meta-v1",
+        "result": run_result(0, false, true),
+        "artifacts": artifacts
+    })
+    .to_string();
 
     zip.start_file("run_meta.json", options).unwrap();
     zip.write_all(run_meta.as_bytes()).unwrap();
@@ -475,12 +619,7 @@ fn test_require_complete_fail() {
 
     let run_meta = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
-        "result": {
-            "limit_reached": true, // <--- IMPORTANT FLAG
-            "summary": {
-                "findings_count": 5
-            }
-        },
+        "result": run_result(5, true, false),
         "artifacts": artifacts
     })
     .to_string();
@@ -524,13 +663,7 @@ fn test_require_complete_fails_when_limit_reached_contradicts_summary() {
 
     let run_meta = serde_json::json!({
         "schemaVersion": "veil-pro-run-meta-v1",
-        "result": {
-            "limitReached": true,
-            "summary": {
-                "coverageComplete": true,
-                "effectiveFindings": 0
-            }
-        },
+        "result": run_result(0, true, true),
         "artifacts": artifacts
     })
     .to_string();

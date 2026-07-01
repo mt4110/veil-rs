@@ -20,7 +20,7 @@ pub use rules::grade::{calculate_grade, Grade};
 pub use scanner::result::ScanResult;
 pub use scanner::{
     scan_content, scan_file, scan_path, utils::scan_data, DEFAULT_MAX_FILE_COUNT,
-    DEFAULT_MAX_FILE_SIZE_BYTES, RULE_ID_BINARY_FILE, RULE_ID_MAX_FILE_SIZE,
+    DEFAULT_MAX_FILE_SIZE_BYTES, RULE_ID_BINARY_FILE, RULE_ID_MAX_FILE_SIZE, RULE_ID_READ_ERROR,
 };
 pub use scoring::{calculate_score, grade_from_score, ScoreParams};
 pub use verify::{verify_evidence_pack, VerifyError, VerifyOptions, VerifyResult, VerifyStatus};
