@@ -254,26 +254,38 @@ pub fn scan_file(
                 }
             }
 
-            if let Ok(content) = line {
-                let line_findings = scan_line(
-                    &content,
-                    line_idx + 1,
-                    path,
-                    rules,
-                    config,
-                    &context_buffer,
-                    &score_params,
-                );
+            match line {
+                Ok(content) => {
+                    let line_findings = scan_line(
+                        &content,
+                        line_idx + 1,
+                        path,
+                        rules,
+                        config,
+                        &context_buffer,
+                        &score_params,
+                    );
 
-                if !line_findings.is_empty() {
-                    local_findings.extend(line_findings);
-                }
+                    if !line_findings.is_empty() {
+                        local_findings.extend(line_findings);
+                    }
 
-                // Context buffer maintenance
-                if context_buffer.len() >= 5 {
-                    context_buffer.pop_front();
+                    // Context buffer maintenance
+                    if context_buffer.len() >= 5 {
+                        context_buffer.pop_front();
+                    }
+                    context_buffer.push_back(content);
                 }
-                context_buffer.push_back(content);
+                Err(err) => {
+                    local_findings.clear();
+                    local_findings.push(crate::scanner::utils::create_skipped_finding(
+                        path,
+                        RULE_ID_READ_ERROR,
+                        format!("File could not be decoded as UTF-8 (skipped): {err}"),
+                        crate::model::Severity::High,
+                    ));
+                    return local_findings;
+                }
             }
         }
     } else if oversized {
@@ -633,6 +645,20 @@ mod tests {
         let mut permissions = std::fs::metadata(&path).unwrap().permissions();
         permissions.set_mode(0o644);
         std::fs::set_permissions(&path, permissions).unwrap();
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.read_error_reached);
+        assert!(!result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
+    }
+
+    #[test]
+    fn scan_path_marks_line_decode_error_as_incomplete() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("latin1.txt");
+        std::fs::write(&path, [b'a', 0xE9, b'\n']).unwrap();
+
+        let result = scan_path(dir.path(), &[], &Config::default());
 
         assert_eq!(result.skipped_files, 1);
         assert!(result.read_error_reached);

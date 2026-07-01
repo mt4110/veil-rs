@@ -62,6 +62,16 @@ impl From<&veil_core::Grade> for GradeName {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "PascalCase")]
+pub enum FindingGradeName {
+    Safe,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum BaselineStatus {
     None,
@@ -564,15 +574,23 @@ pub struct FindingV1 {
     #[schemars(range(min = 1))]
     #[schema(minimum = 1)]
     pub line_number: usize,
+    pub line_content: String,
     pub rule_id: String,
+    pub matched_content: String,
     pub severity: SeverityName,
     #[schemars(range(min = 0, max = 100))]
     #[schema(minimum = 0, maximum = 100)]
     pub score: u32,
+    pub grade: FindingGradeName,
     pub masked_snippet: String,
+    pub context_before: Vec<String>,
+    pub context_after: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    pub tags: Vec<String>,
+    pub commit_sha: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
 }
 
 #[cfg(test)]

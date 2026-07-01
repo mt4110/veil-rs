@@ -690,13 +690,20 @@ pub async fn write_baseline(
         veil_core::baseline::default_baseline_path(&repo_root())
     };
 
-    let written = veil_core::baseline::save_baseline(&output_path, &snapshot).is_ok();
+    veil_core::baseline::save_baseline(&output_path, &snapshot).map_err(|err| {
+        error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            format!("Failed to write baseline: {err}"),
+            Some(NextAction::NarrowScope),
+        )
+    })?;
 
     Ok(Json(BaselineResponse {
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
         file_path: output_path.to_string_lossy().to_string(),
         findings_count: snapshot.entries.len(),
-        written,
+        written: true,
         next_action: NextAction::CommitBaseline,
     }))
 }
@@ -1293,6 +1300,41 @@ mod tests {
             Some(NextAction::NarrowScope)
         ));
         assert!(!output.exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn write_baseline_returns_error_when_save_fails() {
+        let root = unique_target_dir("baseline-save-fails");
+        let repo = repo_root();
+        let path = root
+            .strip_prefix(&repo)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = BaselineRequest {
+            paths: Some(vec![path.clone()]),
+            output_path: Some(path),
+        };
+
+        let (status, Json(body)) = write_baseline(State(state), Json(request))
+            .await
+            .unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body.error.message.contains("Failed to write baseline:"));
+        assert!(matches!(
+            body.error.next_action,
+            Some(NextAction::NarrowScope)
+        ));
         let _ = std::fs::remove_dir_all(root);
     }
 

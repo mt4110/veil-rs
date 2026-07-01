@@ -335,17 +335,47 @@ components:
       - suppressedSeverityCounts
       - coverageComplete
       type: object
+    FindingGradeName:
+      enum:
+      - Safe
+      - Low
+      - Medium
+      - High
+      - Critical
+      type: string
     FindingV1:
       additionalProperties: false
       properties:
-        category:
+        author:
           type:
           - string
           - 'null'
+        commit_sha:
+          type:
+          - string
+          - 'null'
+        context_after:
+          items:
+            type: string
+          type: array
+        context_before:
+          items:
+            type: string
+          type: array
+        date:
+          type:
+          - string
+          - 'null'
+        grade:
+          $ref: '#/components/schemas/FindingGradeName'
+        line_content:
+          type: string
         line_number:
           minimum: 1
           type: integer
         masked_snippet:
+          type: string
+        matched_content:
           type: string
         path:
           type: string
@@ -358,18 +388,18 @@ components:
           type: integer
         severity:
           $ref: '#/components/schemas/SeverityName'
-        tags:
-          items:
-            type: string
-          type: array
       required:
       - path
       - line_number
+      - line_content
       - rule_id
+      - matched_content
       - severity
       - score
+      - grade
       - masked_snippet
-      - tags
+      - context_before
+      - context_after
       type: object
     GradeName:
       enum:
