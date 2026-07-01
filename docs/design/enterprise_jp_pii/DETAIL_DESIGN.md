@@ -165,6 +165,7 @@ python scripts/check_generated_schemas.py
 - `--preset` は “base layer” として適用し、`VEIL_ORG_CONFIG`, repo config, explicit CLI flags が上書きできる。
 - この直感ズレは `veil config explain` で必ず説明する。
 - `veil scan --preset ...` 実行時、repo config が preset由来値を上書きした場合は stderr に説明を出す。
+- PR-0でpreset layerを実装しないsurfaceは、preset指定を HTTP 400 `INVALID_REQUEST` として拒否する。presetを受け取って黙って無視してはならない。
 
 ## D-007 Score / Grade / Severity / Fail Conditions
 

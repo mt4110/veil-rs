@@ -25,6 +25,20 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+    const err = await res.json().catch(() => ({}));
+    if (typeof err?.error === 'string') {
+      return err.error;
+    }
+    if (typeof err?.error?.message === 'string') {
+      return err.error.message;
+    }
+    if (typeof err?.message === 'string') {
+      return err.message;
+    }
+    return fallback;
+  }
+
   async function triggerScan() {
     currentState = 'Running';
     errorMsg = null;
@@ -56,8 +70,7 @@
       }
       if (res.status === 400 || res.status === 422) {
         currentState = 'ErrorConfig';
-        const err = await res.json().catch(() => ({}));
-        errorMsg = err.error || 'Configuration error or invalid path.';
+        errorMsg = await readErrorMessage(res, 'Configuration error or invalid path.');
         return;
       }
       if (res.status === 413) {
@@ -66,8 +79,7 @@
         return;
       }
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        errorMsg = err.error || `HTTP ${res.status}`;
+        errorMsg = await readErrorMessage(res, `HTTP ${res.status}`);
         currentState = 'ErrorUnknown';
         return;
       }
@@ -118,7 +130,10 @@
       }
       if (!res.ok) {
         currentState = 'ErrorUnknown';
-        errorMsg = `Failed to download evidence pack (HTTP ${res.status}).`;
+        errorMsg = await readErrorMessage(
+          res,
+          `Failed to download evidence pack (HTTP ${res.status}).`
+        );
         return;
       }
       

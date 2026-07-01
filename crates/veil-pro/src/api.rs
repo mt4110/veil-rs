@@ -266,6 +266,9 @@ fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
     if result.file_limit_reached {
         reasons.push("file-limit".to_string());
     }
+    if result.max_file_size_reached {
+        reasons.push("max-file-size".to_string());
+    }
     if result.limit_reached && !result.file_limit_reached {
         reasons.push("result-limit".to_string());
     }
@@ -334,6 +337,23 @@ pub async fn scan_project(
 ) -> Result<Json<ScanResponse>, ApiErrorResponse> {
     let paths_to_scan = normalized_paths(req.paths.clone());
     let config = load_effective_config_for_paths(&paths_to_scan);
+    if let Some(preset) = req.preset {
+        let preset_name = match preset {
+            PresetName::StandardJp => "standard-jp",
+            PresetName::FintechJp => "fintech-jp",
+            PresetName::GovJp => "gov-jp",
+            PresetName::SiVendorJp => "si-vendor-jp",
+            PresetName::LogsJp => "logs-jp",
+        };
+        return Err(error_response(
+            StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest,
+            format!(
+                "preset {preset_name} is not implemented by the Local API in PR-0; configure rules through veil.toml for this contract alignment release."
+            ),
+            None,
+        ));
+    }
     if req.fail_on_findings == Some(0) {
         return Err(error_response(
             StatusCode::BAD_REQUEST,
@@ -373,7 +393,8 @@ pub async fn scan_project(
         let result = veil_core::scan_path(&safe_path, &rules, &config);
         scanned_files += result.scanned_files;
         skipped_files += result.skipped_files;
-        limit_reached |= result.limit_reached || result.file_limit_reached;
+        limit_reached |=
+            result.limit_reached || result.file_limit_reached || result.max_file_size_reached;
         limit_reasons.extend(limit_reasons_for(&result));
         builtin_skips.extend(result.builtin_skips);
         findings.extend(result.findings);
@@ -776,6 +797,19 @@ mod tests {
         assert_eq!(limit_reasons_for(&result), vec!["file-limit".to_string()]);
     }
 
+    #[test]
+    fn max_file_size_skip_has_dedicated_limit_reason() {
+        let result = veil_core::ScanResult {
+            max_file_size_reached: true,
+            ..veil_core::ScanResult::default()
+        };
+
+        assert_eq!(
+            limit_reasons_for(&result),
+            vec!["max-file-size".to_string()]
+        );
+    }
+
     #[tokio::test]
     async fn fail_on_findings_zero_returns_error_envelope() {
         let state = Arc::new(AppState {
@@ -795,6 +829,27 @@ mod tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
         assert_eq!(body.error.message, "failOnFindings must be >= 1");
+    }
+
+    #[tokio::test]
+    async fn scan_rejects_unimplemented_preset() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let request = ScanRequest {
+            preset: Some(PresetName::FintechJp),
+            ..ScanRequest::default()
+        };
+
+        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body.error.message.contains("preset fintech-jp"));
     }
 }
 

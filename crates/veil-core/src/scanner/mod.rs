@@ -129,6 +129,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
     let file_limit_reached = total_files == file_limit;
     let scanned_counter = AtomicUsize::new(0);
     let skipped_counter = AtomicUsize::new(0);
+    let max_file_size_counter = AtomicUsize::new(0);
 
     // 2. Process files in parallel
     let findings: Vec<Finding> = entries
@@ -145,6 +146,9 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
             if let Some(first) = file_findings.first() {
                 if first.rule_id == RULE_ID_BINARY_FILE || first.rule_id == RULE_ID_MAX_FILE_SIZE {
                     is_skipped = true;
+                }
+                if first.rule_id == RULE_ID_MAX_FILE_SIZE {
+                    max_file_size_counter.fetch_add(1, Ordering::Relaxed);
                 }
             }
 
@@ -165,6 +169,7 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
         skipped_files: skipped_counter.load(Ordering::Relaxed),
         limit_reached: limit.check(),
         file_limit_reached,
+        max_file_size_reached: max_file_size_counter.load(Ordering::Relaxed) > 0,
         builtin_skips: std::sync::Arc::into_inner(skipped_builtins)
             .unwrap_or_default()
             .into_inner()
@@ -538,5 +543,20 @@ mod tests {
         let content = "SECRET // veil:ignore=other";
         let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
         assert_eq!(findings.len(), 1, "Should NOT ignore if ID mismatch");
+    }
+
+    #[test]
+    fn scan_path_marks_max_file_size_skip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("large.txt");
+        std::fs::write(&path, "SECRET\n").unwrap();
+        let mut config = Config::default();
+        config.core.max_file_size = Some(3);
+
+        let result = scan_path(dir.path(), &[], &config);
+
+        assert_eq!(result.skipped_files, 1);
+        assert!(result.max_file_size_reached);
+        assert!(!result.file_limit_reached);
     }
 }
