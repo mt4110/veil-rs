@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{rejection::JsonRejection, Path, State},
     http::{header, StatusCode},
     response::IntoResponse,
     Json,
@@ -34,6 +34,15 @@ pub fn error_response(
                 next_action,
             },
         }),
+    )
+}
+
+fn json_rejection_response(rejection: JsonRejection) -> ApiErrorResponse {
+    error_response(
+        StatusCode::BAD_REQUEST,
+        ErrorCode::InvalidRequest,
+        format!("Invalid JSON request body: {rejection}"),
+        None,
     )
 }
 
@@ -478,8 +487,9 @@ pub async fn list_projects(State(_state): State<Arc<AppState>>) -> Json<Projects
 
 pub async fn scan_project(
     State(state): State<Arc<AppState>>,
-    Json(req): Json<ScanRequest>,
+    request: Result<Json<ScanRequest>, JsonRejection>,
 ) -> Result<Json<ScanResponse>, ApiErrorResponse> {
+    let Json(req) = request.map_err(json_rejection_response)?;
     let paths_to_scan = normalized_paths(req.paths.clone());
     if let Some(ScanMode::Staged | ScanMode::Ci) = req.mode {
         return Err(error_response(
@@ -655,8 +665,9 @@ pub async fn get_doctor(
 
 pub async fn write_baseline(
     State(_state): State<Arc<AppState>>,
-    Json(req): Json<BaselineRequest>,
+    request: Result<Json<BaselineRequest>, JsonRejection>,
 ) -> Result<Json<BaselineResponse>, ApiErrorResponse> {
+    let Json(req) = request.map_err(json_rejection_response)?;
     let paths_to_scan = normalized_paths(req.paths);
     let config = load_effective_config_for_paths(&paths_to_scan)?;
     let rules = veil_core::get_all_rules(&config, vec![]);
@@ -1141,7 +1152,9 @@ mod tests {
             ..ScanRequest::default()
         };
 
-        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+            .await
+            .unwrap_err();
 
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
@@ -1162,11 +1175,55 @@ mod tests {
             ..ScanRequest::default()
         };
 
-        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+            .await
+            .unwrap_err();
 
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
         assert_eq!(body.error.message, "failOnScore must be between 0 and 100");
+    }
+
+    #[tokio::test]
+    async fn scan_json_rejection_returns_error_envelope() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let rejection =
+            Json::<ScanRequest>::from_bytes(br#"{"failOnSeverity":"Severe"}"#).unwrap_err();
+
+        let (status, Json(body)) = scan_project(State(state), Err(rejection))
+            .await
+            .unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body.error.message.contains("Invalid JSON request body:"));
+    }
+
+    #[tokio::test]
+    async fn baseline_json_rejection_returns_error_envelope() {
+        let state = Arc::new(AppState {
+            token: "test-token".to_string(),
+            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
+                1, 1024, 1,
+            ))),
+            oauth: Arc::new(crate::auth::init_oauth()),
+        });
+        let rejection =
+            Json::<BaselineRequest>::from_bytes(br#"{"unexpectedField":true}"#).unwrap_err();
+
+        let (status, Json(body)) = write_baseline(State(state), Err(rejection))
+            .await
+            .unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body.error.message.contains("Invalid JSON request body:"));
     }
 
     #[tokio::test]
@@ -1183,7 +1240,9 @@ mod tests {
             ..ScanRequest::default()
         };
 
-        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+            .await
+            .unwrap_err();
 
         assert_eq!(status, StatusCode::FORBIDDEN);
         assert!(matches!(body.error.code, ErrorCode::PathDenied));
@@ -1215,7 +1274,9 @@ mod tests {
             ..ScanRequest::default()
         };
 
-        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+            .await
+            .unwrap_err();
 
         assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
         assert!(matches!(body.error.code, ErrorCode::RunTooLarge));
@@ -1240,7 +1301,7 @@ mod tests {
             ..BaselineRequest::default()
         };
 
-        let (status, Json(body)) = write_baseline(State(state), Json(request))
+        let (status, Json(body)) = write_baseline(State(state), Ok(Json(request)))
             .await
             .unwrap_err();
 
@@ -1285,7 +1346,7 @@ mod tests {
             output_path: Some(output_path),
         };
 
-        let (status, Json(body)) = write_baseline(State(state), Json(request))
+        let (status, Json(body)) = write_baseline(State(state), Ok(Json(request)))
             .await
             .unwrap_err();
 
@@ -1324,7 +1385,7 @@ mod tests {
             output_path: Some(path),
         };
 
-        let (status, Json(body)) = write_baseline(State(state), Json(request))
+        let (status, Json(body)) = write_baseline(State(state), Ok(Json(request)))
             .await
             .unwrap_err();
 
@@ -1374,7 +1435,9 @@ mod tests {
             ..ScanRequest::default()
         };
 
-        let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+            .await
+            .unwrap_err();
 
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
@@ -1396,7 +1459,9 @@ mod tests {
                 ..ScanRequest::default()
             };
 
-            let (status, Json(body)) = scan_project(State(state), Json(request)).await.unwrap_err();
+            let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
+                .await
+                .unwrap_err();
 
             assert_eq!(status, StatusCode::BAD_REQUEST);
             assert!(matches!(body.error.code, ErrorCode::InvalidRequest));

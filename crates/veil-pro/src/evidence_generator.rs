@@ -40,8 +40,7 @@ pub fn generate_evidence_pack(
         serde_json::to_string_pretty(&report).expect("failed to serialize evidence report.json");
     let json_sha = sha256_str(&json_content);
 
-    let config_content =
-        toml::to_string_pretty(config).expect("failed to serialize effective_config.toml");
+    let config_content = sanitized_effective_config_toml(config);
     let config_sha = sha256_str(&config_content);
 
     let baseline_meta = baseline_content.as_ref().map(|text| BaselineArtifactMeta {
@@ -127,6 +126,65 @@ fn sha256_str(data: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())
+}
+
+fn sanitized_effective_config_toml(config: &veil_config::Config) -> String {
+    let mut value =
+        toml::Value::try_from(config).expect("failed to convert effective config to TOML value");
+    redact_toml_value(None, &mut value);
+    toml::to_string_pretty(&value).expect("failed to serialize effective_config.toml")
+}
+
+fn redact_toml_value(key: Option<&str>, value: &mut toml::Value) {
+    match value {
+        toml::Value::String(text)
+            if key.is_some_and(is_sensitive_config_key) || contains_secret_marker(text) =>
+        {
+            *text = "<REDACTED>".to_string();
+        }
+        toml::Value::Array(values) => {
+            for value in values {
+                redact_toml_value(key, value);
+            }
+        }
+        toml::Value::Table(table) => {
+            for (key, value) in table.iter_mut() {
+                redact_toml_value(Some(key), value);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_sensitive_config_key(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    key.contains("password")
+        || key.contains("secret")
+        || key.contains("token")
+        || key.contains("api_key")
+        || key.contains("apikey")
+        || key.contains("authorization")
+        || key.contains("private_key")
+        || key.contains("access_key")
+}
+
+fn contains_secret_marker(value: &str) -> bool {
+    let value = value.to_ascii_lowercase();
+    [
+        "?token=",
+        "&token=",
+        "#token=",
+        "access_token=",
+        "api_key=",
+        "apikey=",
+        "client_secret=",
+        "password=",
+        "secret=",
+        "authorization: bearer ",
+    ]
+    .iter()
+    .any(|marker| value.contains(marker))
+        || value.trim_start().starts_with("bearer ")
 }
 
 fn generate_html_report(
@@ -266,5 +324,43 @@ mod tests {
         assert_eq!(report["findings"][1]["baselineStatus"], "suppressed");
         assert!(!report.to_string().contains("matched_content"));
         assert!(!report.to_string().contains("line_content"));
+    }
+
+    #[test]
+    fn effective_config_redacts_token_bearing_values() {
+        let token = "sensitive_token_leakage_test_123456789";
+        let mut config = veil_config::Config::default();
+        config.core.remote_rules_url = Some(format!("https://example.test/rules?token={token}"));
+        let summary = EvidenceSummary {
+            total_findings: 0,
+            suppressed_findings: 0,
+            effective_findings: 0,
+            severity_counts: SeverityCounts::zero(),
+            all_severity_counts: SeverityCounts::zero(),
+            suppressed_severity_counts: SeverityCounts::zero(),
+            coverage_complete: true,
+        };
+
+        let (meta, cached) = generate_evidence_pack(
+            &config,
+            &[],
+            summary,
+            RunStatus::Success,
+            false,
+            Vec::new(),
+            1,
+            0,
+            1,
+            None,
+        );
+
+        assert!(!cached.effective_config.contains(token));
+        assert!(!cached.effective_config.contains("?token="));
+        assert!(cached.effective_config.contains("remote_rules_url"));
+        assert!(cached.effective_config.contains("<REDACTED>"));
+        assert_eq!(
+            meta.artifacts.effective_config.sha256,
+            sha256_str(&cached.effective_config)
+        );
     }
 }
