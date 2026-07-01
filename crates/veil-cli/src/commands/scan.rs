@@ -668,18 +668,16 @@ fn determine_exit_code(
 
     // 2) fail-on-severity
     if let Some(min_level) = fail_on_severity {
-        if findings.iter().any(|f| &f.severity >= min_level) {
-            let count = findings.iter().filter(|f| &f.severity >= min_level).count();
-            let max_sev = findings
-                .iter()
-                .map(|f| &f.severity)
-                .max()
-                .unwrap_or(min_level);
-            eprintln!(
-                "CI failed: found {} findings >= severity {} (max: {})",
-                count, min_level, max_sev
-            );
-            return true;
+        let min_score = veil_core::severity_min_score(min_level);
+        if let Some(max_score) = findings.iter().map(|f| f.score).max() {
+            if max_score >= min_score {
+                let count = findings.iter().filter(|f| f.score >= min_score).count();
+                eprintln!(
+                    "CI failed: found {} finding(s) with score >= {} for severity {} (max: {})",
+                    count, min_score, min_level, max_score
+                );
+                return true;
+            }
         }
     }
 
@@ -832,5 +830,99 @@ impl Formatter for TextFormatterWrapper {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn summary(new_findings: usize) -> Summary {
+        Summary::new(
+            0,
+            0,
+            0,
+            new_findings,
+            new_findings,
+            0,
+            false,
+            false,
+            false,
+            false,
+            Duration::from_millis(0),
+            None,
+            HashMap::new(),
+            Vec::new(),
+        )
+    }
+
+    fn finding(score: u32, severity: veil_core::Severity) -> veil_core::Finding {
+        veil_core::Finding {
+            path: PathBuf::from("src/config.rs"),
+            line_number: 1,
+            line_content: "token = secret".to_string(),
+            rule_id: "creds.test".to_string(),
+            matched_content: "secret".to_string(),
+            masked_snippet: "token = <REDACTED>".to_string(),
+            severity,
+            score,
+            grade: veil_core::grade_from_score(score),
+            context_before: Vec::new(),
+            context_after: Vec::new(),
+            commit_sha: None,
+            author: None,
+            date: None,
+        }
+    }
+
+    #[test]
+    fn fail_on_severity_uses_score_thresholds() {
+        let boosted_medium = vec![finding(70, veil_core::Severity::Medium)];
+        let lowered_high = vec![finding(60, veil_core::Severity::High)];
+        let below_low = vec![finding(19, veil_core::Severity::Critical)];
+        let low_score = vec![finding(20, veil_core::Severity::Low)];
+
+        assert!(determine_exit_code(
+            &summary(boosted_medium.len()),
+            &boosted_medium,
+            None,
+            Some(&veil_core::Severity::High),
+            None,
+        ));
+        assert!(!determine_exit_code(
+            &summary(lowered_high.len()),
+            &lowered_high,
+            None,
+            Some(&veil_core::Severity::High),
+            None,
+        ));
+        assert!(!determine_exit_code(
+            &summary(below_low.len()),
+            &below_low,
+            None,
+            Some(&veil_core::Severity::Low),
+            None,
+        ));
+        assert!(determine_exit_code(
+            &summary(low_score.len()),
+            &low_score,
+            None,
+            Some(&veil_core::Severity::Low),
+            None,
+        ));
+    }
+
+    #[test]
+    fn fail_on_severity_miss_still_allows_fail_on_score() {
+        let findings = vec![finding(80, veil_core::Severity::High)];
+
+        assert!(determine_exit_code(
+            &summary(findings.len()),
+            &findings,
+            None,
+            Some(&veil_core::Severity::Critical),
+            Some(80),
+        ));
     }
 }

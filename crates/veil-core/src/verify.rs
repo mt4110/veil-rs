@@ -265,14 +265,30 @@ fn validate_v1_run_result(run_meta: &Value) -> Result<(), VerifyError> {
         &["success", "violation", "incomplete", "error"],
         "run_meta.json result",
     )?;
-    if result
+    let status = result.get("status").and_then(Value::as_str).unwrap();
+    let exit_code = result
         .get("exitCode")
         .and_then(Value::as_u64)
-        .is_none_or(|code| code > 2)
-    {
+        .ok_or_else(|| {
+            VerifyError::SchemaViolation(
+                "run_meta.json result.exitCode must be 0, 1, or 2".to_string(),
+            )
+        })?;
+    if exit_code > 2 {
         return Err(VerifyError::SchemaViolation(
             "run_meta.json result.exitCode must be 0, 1, or 2".to_string(),
         ));
+    }
+    let expected_exit_code = match status {
+        "success" => 0,
+        "violation" => 1,
+        "incomplete" | "error" => 2,
+        _ => unreachable!("status enum validation already ran"),
+    };
+    if exit_code != expected_exit_code {
+        return Err(VerifyError::SchemaViolation(format!(
+            "run_meta.json result.exitCode must be {expected_exit_code} when status is {status}"
+        )));
     }
     validate_bool_field(result, "limitReached", "run_meta.json result")?;
     if !result

@@ -331,13 +331,14 @@ fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
     reasons
 }
 
-fn severity_rank(severity: SeverityName) -> u8 {
-    match severity {
-        SeverityName::Low => 0,
-        SeverityName::Medium => 1,
-        SeverityName::High => 2,
-        SeverityName::Critical => 3,
-    }
+fn severity_score_threshold(severity: SeverityName) -> u32 {
+    let severity = match severity {
+        SeverityName::Low => veil_core::Severity::Low,
+        SeverityName::Medium => veil_core::Severity::Medium,
+        SeverityName::High => veil_core::Severity::High,
+        SeverityName::Critical => veil_core::Severity::Critical,
+    };
+    veil_core::severity_min_score(&severity)
 }
 
 fn policy_violated(findings: &[SafeFindingApiV1], req: &ScanRequest) -> bool {
@@ -351,10 +352,10 @@ fn policy_violated(findings: &[SafeFindingApiV1], req: &ScanRequest) -> bool {
         .fail_on_score
         .is_some_and(|threshold| findings.iter().any(|finding| finding.score >= threshold));
     let severity_threshold = req.fail_on_severity.is_some_and(|threshold| {
-        let threshold_rank = severity_rank(threshold);
+        let threshold_score = severity_score_threshold(threshold);
         findings
             .iter()
-            .any(|finding| severity_rank(finding.severity) >= threshold_rank)
+            .any(|finding| finding.score >= threshold_score)
     });
 
     if has_thresholds {
@@ -918,6 +919,10 @@ mod tests {
     #[test]
     fn fail_on_score_and_severity_respect_thresholds() {
         let findings = vec![policy_finding(60, SeverityName::Medium)];
+        let below_low = vec![policy_finding(19, SeverityName::Critical)];
+        let low_score = vec![policy_finding(20, SeverityName::Low)];
+        let boosted_medium = vec![policy_finding(70, SeverityName::Medium)];
+        let lowered_high = vec![policy_finding(60, SeverityName::High)];
 
         assert!(!policy_violated(
             &findings,
@@ -944,6 +949,34 @@ mod tests {
             &findings,
             &ScanRequest {
                 fail_on_severity: Some(SeverityName::Medium),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(policy_violated(
+            &low_score,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::Low),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(!policy_violated(
+            &below_low,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::Low),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(policy_violated(
+            &boosted_medium,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::High),
+                ..ScanRequest::default()
+            }
+        ));
+        assert!(!policy_violated(
+            &lowered_high,
+            &ScanRequest {
+                fail_on_severity: Some(SeverityName::High),
                 ..ScanRequest::default()
             }
         ));

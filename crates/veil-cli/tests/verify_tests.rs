@@ -502,6 +502,47 @@ fn test_v1_run_meta_invalid_status_is_rejected() {
 }
 
 #[test]
+fn test_v1_run_meta_status_and_exit_code_must_match() {
+    let dir = TempDir::new().unwrap();
+    let zip_path = dir.path().join("mismatched_status_exit_evidence.zip");
+    let file = File::create(&zip_path).unwrap();
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+
+    let effective_config_content = b"rules = []";
+    let report_json_content = evidence_report(0, true);
+    let report_html_content = b"<html></html>";
+    let artifacts = artifacts_json(
+        effective_config_content,
+        &report_json_content,
+        report_html_content,
+    );
+    let mut result = run_result(0, false, true);
+    result["exitCode"] = serde_json::json!(2);
+    let run_meta_content = run_meta_json(artifacts, result);
+
+    zip.start_file("run_meta.json", options).unwrap();
+    zip.write_all(run_meta_content.as_bytes()).unwrap();
+    zip.start_file("effective_config.toml", options).unwrap();
+    zip.write_all(effective_config_content).unwrap();
+    zip.start_file("report.json", options).unwrap();
+    zip.write_all(&report_json_content).unwrap();
+    zip.start_file("report.html", options).unwrap();
+    zip.write_all(report_html_content).unwrap();
+    zip.finish().unwrap();
+
+    let mut cmd = cargo_bin_cmd!("veil");
+    cmd.arg("verify").arg(&zip_path);
+
+    cmd.assert()
+        .failure()
+        .code(2)
+        .stdout(predicates::str::contains(
+            "run_meta.json result.exitCode must be 0 when status is success",
+        ));
+}
+
+#[test]
 fn test_v1_run_meta_missing_top_level_required_is_rejected() {
     let dir = TempDir::new().unwrap();
     let zip_path = dir.path().join("missing_run_id_evidence.zip");

@@ -45,7 +45,7 @@ fn test_fail_on_severity() {
         .assert()
         .failure();
 
-    // Fail on severity CRITICAL -> should PASS (max is HIGH in current model)
+    // Fail on severity CRITICAL is a score gate; this fixture reaches score 100.
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.current_dir(root)
         .arg("scan")
@@ -55,17 +55,7 @@ fn test_fail_on_severity() {
         .arg("--fail-on-severity")
         .arg("CRITICAL")
         .assert()
-        .success();
-
-    // 4. Fail on Severity Critical:
-    // If AWS key is High, this should PASS (exit 0).
-    // If AWS key is Critical, this should FAIL.
-    // Let's inspect the output to know what it is, but for now let's assume High.
-    // To be safe, let's use a "Medium" severity trigger test.
-    // Or we can construct a test case where we check JSON output first to know severity.
-
-    // Let's use `password = "..."` which is usually Medium/Low or not detected if default rules are strict.
-    // Actually, `veil-rs` rules for Generic API Key are usually High.
+        .failure();
 }
 
 #[test]
