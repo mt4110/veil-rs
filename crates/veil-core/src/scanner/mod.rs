@@ -387,7 +387,7 @@ fn scan_line(
             .rules
             .get(&rule.id)
             .map(|r| r.enabled)
-            .unwrap_or(true);
+            .unwrap_or(rule.enabled);
         if !rule_enabled {
             continue;
         }
@@ -423,6 +423,9 @@ fn scan_line(
         // Raw matching preserves existing custom-rule semantics.
         for mat in rule.pattern.find_iter(content) {
             let matched_str = mat.as_str();
+            if should_suppress_match(rule, content) {
+                continue;
+            }
             if let Some(validator) = rule.validator {
                 if !validator(matched_str) {
                     continue;
@@ -449,6 +452,9 @@ fn scan_line(
         // returning original byte spans for masking and editor ranges.
         for mat in rule.pattern.find_iter(&normalized.normalized) {
             let matched_str = mat.as_str();
+            if should_suppress_match(rule, content) {
+                continue;
+            }
             if let Some(validator) = rule.validator {
                 if !validator(matched_str) {
                     continue;
@@ -557,6 +563,28 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
         || rule.tags.iter().any(|tag| tag == "jp" || tag == "jp_pii")
 }
 
+pub fn should_suppress_match(rule: &Rule, content: &str) -> bool {
+    let lowered = content.to_lowercase();
+
+    match rule.id.as_str() {
+        "pii.jp.mynumber.unlabeled" => [
+            "注文番号",
+            "受付番号",
+            "伝票番号",
+            "order",
+            "order_id",
+            "receipt",
+            "ticket",
+        ]
+        .iter()
+        .any(|marker| lowered.contains(marker)),
+        "pii.jp.postal_code" => ["version", "build", "release", "rev", "commit", "バージョン"]
+            .iter()
+            .any(|marker| lowered.contains(marker)),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -567,6 +595,7 @@ mod tests {
     fn test_context_capture() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -576,6 +605,7 @@ mod tests {
             base_score: None,
             context_lines_before: 2,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -601,6 +631,7 @@ mod tests {
     fn test_context_capture_start_of_file() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -610,6 +641,7 @@ mod tests {
             base_score: None,
             context_lines_before: 2,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -629,6 +661,7 @@ mod tests {
     fn test_inline_ignore() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -638,6 +671,7 @@ mod tests {
             base_score: None,
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -677,6 +711,7 @@ mod tests {
     fn scan_content_detects_normalized_jp_pii_with_original_span() {
         let rule = Rule {
             id: "pii.jp.mynumber.keyword".to_string(),
+            enabled: true,
             pattern: Regex::new(r"個人番号[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -686,6 +721,7 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -720,6 +756,7 @@ mod tests {
     fn scan_content_preserves_choonpu_in_normalized_jp_keywords() {
         let rule = Rule {
             id: "pii.jp.mynumber.keyword".to_string(),
+            enabled: true,
             pattern: Regex::new(
                 r"(?:(?:基礎)?マイナンバー|個人番号|My\s*Number)[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}",
             )
@@ -732,6 +769,7 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -750,6 +788,7 @@ mod tests {
     fn scan_content_does_not_apply_jp_normalization_to_secret_rules() {
         let rule = Rule {
             id: "creds.aws.access_key_id".to_string(),
+            enabled: true,
             pattern: Regex::new(r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b")
                 .unwrap(),
             description: "test".to_string(),
@@ -764,6 +803,7 @@ mod tests {
             base_score: Some(85),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };

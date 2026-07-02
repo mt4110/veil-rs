@@ -1,0 +1,2 @@
+release version v1.2.3
+build 2026.07.02 rev 1234567

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
-use veil_core::get_all_rules;
+use veil_core::try_get_all_rules;
 
 pub struct ScanResultForCli {
     pub summary: Summary,
@@ -103,7 +103,7 @@ pub fn collect_findings(
         }
     }
 
-    let rules = get_all_rules(&config, remote_rules);
+    let rules = try_get_all_rules(&config, remote_rules)?;
 
     // Stats counters
     let scanned_files_atomic = AtomicUsize::new(0);

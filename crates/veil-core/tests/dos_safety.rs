@@ -14,6 +14,7 @@ fn test_large_input_performance() {
 
     let rule = Rule {
         id: "test_large".to_string(),
+        enabled: true,
         pattern: regex::Regex::new("SECRET_KEY=\\d+").unwrap(),
         description: "test".to_string(),
         severity: Severity::High,
@@ -23,6 +24,7 @@ fn test_large_input_performance() {
         base_score: None,
         context_lines_before: 2,
         context_lines_after: 0,
+        validator_id: None,
         validator: None,
         placeholder: None,
     };
@@ -53,6 +55,7 @@ fn test_many_matches_dos() {
 
     let rule = Rule {
         id: "aws".to_string(),
+        enabled: true,
         pattern: regex::Regex::new("AWS_ACCESS_KEY_ID=AKIA[0-9A-Z]{16}").unwrap(),
         description: "aws".to_string(),
         severity: Severity::High,
@@ -62,6 +65,7 @@ fn test_many_matches_dos() {
         base_score: None,
         context_lines_before: 0,
         context_lines_after: 0,
+        validator_id: None,
         validator: None,
         placeholder: None,
     };

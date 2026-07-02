@@ -46,12 +46,14 @@ pub fn fetch_remote_rules(url: &str, timeout_secs: u64) -> Result<Vec<Rule>, Rem
 
         rules.push(Rule {
             id: rr.id,
+            enabled: true,
             pattern,
             description: rr.description,
             severity: Severity::from(rr.severity.as_str()),
             score: rr.score,
             category: rr.category.unwrap_or_else(|| "remote".to_string()),
             tags: rr.tags.unwrap_or_default(),
+            validator_id: None,
             validator: None, // Remote rules cannot have code validators
             base_score: None,
             placeholder: None,

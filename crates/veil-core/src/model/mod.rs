@@ -38,6 +38,7 @@ impl From<&str> for Severity {
 #[derive(Clone)]
 pub struct Rule {
     pub id: String,
+    pub enabled: bool,
     pub pattern: regex::Regex,
     pub description: String,
     pub severity: Severity,
@@ -54,6 +55,7 @@ pub struct Rule {
     pub context_lines_after: u8,
 
     // Optional additional validation function (e.g. check digits)
+    pub validator_id: Option<String>,
     pub validator: Option<fn(&str) -> bool>,
 
     pub placeholder: Option<String>,
@@ -81,6 +83,7 @@ impl fmt::Debug for Rule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Rule")
             .field("id", &self.id)
+            .field("enabled", &self.enabled)
             .field("pattern", &self.pattern)
             .field("description", &self.description)
             .field("severity", &self.severity)
@@ -90,6 +93,7 @@ impl fmt::Debug for Rule {
             .field("tags", &self.tags)
             .field("context_lines_before", &self.context_lines_before)
             .field("context_lines_after", &self.context_lines_after)
+            .field("validator_id", &self.validator_id)
             .field(
                 "validator",
                 &if self.validator.is_some() {

@@ -14,7 +14,7 @@ fn test_filter_config_default_placeholder() {
 
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("aws_<REDACTED>"));
+        .stdout(predicates::str::contains("aws_key=<REDACTED>"));
 }
 
 #[test]
@@ -38,7 +38,7 @@ placeholder = "[SECRET]"
 
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("aws_[SECRET]"));
+        .stdout(predicates::str::contains("aws_key=[SECRET]"));
 }
 
 #[test]

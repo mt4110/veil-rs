@@ -1,4 +1,5 @@
 use crate::model::Rule;
+use crate::validators::resolve_validator;
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::Deserialize;
@@ -32,6 +33,7 @@ struct RuleFile {
 #[derive(Debug, Deserialize)]
 struct RuleConfigRaw {
     id: String,
+    enabled: Option<bool>,
     description: String,
     pattern: String,
     severity: Option<String>,
@@ -41,6 +43,7 @@ struct RuleConfigRaw {
     base_score: Option<u32>,
     context_lines_before: Option<u8>,
     context_lines_after: Option<u8>,
+    validator: Option<String>,
     // placeholder is optional, but we will enforce canonicalization later
     placeholder: Option<String>,
 }
@@ -122,8 +125,20 @@ pub fn load_rules_from_content(
         let regex = Regex::new(&raw.pattern)
             .with_context(|| format!("Invalid regex for rule {}: {}", raw.id, raw.pattern))?;
 
+        let validator_id = raw.validator.clone();
+        let validator = match validator_id.as_deref() {
+            Some(id) => Some(resolve_validator(id).with_context(|| {
+                format!(
+                    "Unknown validator '{}' for rule '{}' (source: {:?})",
+                    id, raw.id, source
+                )
+            })?),
+            None => None,
+        };
+
         let rule = Rule {
             id: raw.id.clone(),
+            enabled: raw.enabled.unwrap_or(true),
             pattern: regex,
             description: raw.description,
             severity: raw.severity.as_deref().unwrap_or("medium").into(),
@@ -133,7 +148,8 @@ pub fn load_rules_from_content(
             base_score: raw.base_score,
             context_lines_before: raw.context_lines_before.unwrap_or(0),
             context_lines_after: raw.context_lines_after.unwrap_or(0),
-            validator: None, // No validators from TOML
+            validator_id,
+            validator,
             placeholder: raw.placeholder,
         };
 
@@ -278,5 +294,63 @@ pattern = "b"
             .unwrap_err()
             .to_string()
             .contains("Duplicate rule ID found"));
+    }
+
+    #[test]
+    fn test_unknown_validator_errors() {
+        let mut rules = Vec::new();
+        let mut ids = HashSet::new();
+        let content = r#"
+[[rules]]
+id = "rule.with.unknown.validator"
+description = "Unknown validator"
+pattern = "a"
+validator = "missing_validator"
+"#;
+
+        let res = load_rules_from_content(content, &mut rules, &mut ids, None);
+
+        assert!(res.is_err());
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown validator 'missing_validator'"));
+    }
+
+    #[test]
+    fn test_known_validator_is_resolved() {
+        let mut rules = Vec::new();
+        let mut ids = HashSet::new();
+        let content = r#"
+[[rules]]
+id = "rule.with.known.validator"
+description = "Known validator"
+pattern = "[0-9]{16}"
+validator = "luhn"
+"#;
+
+        load_rules_from_content(content, &mut rules, &mut ids, None).unwrap();
+
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].validator_id.as_deref(), Some("luhn"));
+        assert!(rules[0].validator.is_some());
+    }
+
+    #[test]
+    fn test_rule_enabled_flag_is_loaded() {
+        let mut rules = Vec::new();
+        let mut ids = HashSet::new();
+        let content = r#"
+[[rules]]
+id = "rule.disabled"
+enabled = false
+description = "Disabled by default"
+pattern = "a"
+"#;
+
+        load_rules_from_content(content, &mut rules, &mut ids, None).unwrap();
+
+        assert_eq!(rules.len(), 1);
+        assert!(!rules[0].enabled);
     }
 }

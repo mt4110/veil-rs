@@ -14,7 +14,7 @@ pub fn scan(args: &GitScanArgs) -> Result<()> {
     let config = crate::config_loader::load_effective_config(Some(&root.join("veil.toml")))?;
 
     // Use all built-in rules
-    let all_rules = veil_core::get_all_rules(&config, vec![]);
+    let all_rules = veil_core::try_get_all_rules(&config, vec![])?;
 
     // Determine range
     let range = if args.pr {

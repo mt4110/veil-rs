@@ -15,6 +15,7 @@ veil-rs-latest.tar.gz
 dist/
 
 # Local/Tooling
+.codex/
 .trunk/
 result/
 dist/
@@ -76,4 +77,3 @@ crates/veil-cli/.veil/
 /.private/
 node_modules/
 .svelte-kit/
-.codex/
