@@ -125,6 +125,8 @@ conflict_resolution = "later_wins"
 
 declared = [
 "luhn",
+"jp_mynumber_len12",
+"jp_phone_mobile",
 "uuid",
 "base64ish",
 "hex",

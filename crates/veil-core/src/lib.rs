@@ -9,13 +9,14 @@ pub mod rules;
 pub mod scanner;
 pub mod scoring;
 pub mod summary;
+pub mod validators;
 pub mod verify;
 
 pub use crate::masking::{apply_masks, apply_masks_spans, MaskSpan, DEFAULT_PLACEHOLDER};
 pub use finding_id::FindingId;
 pub use model::{Finding, FindingSpan, Position, Range, Rule, Severity};
 pub use registry::Registry;
-pub use rules::builtin::{get_all_rules, get_default_rules};
+pub use rules::builtin::{get_all_rules, get_default_rules, try_get_all_rules};
 pub use rules::grade::{calculate_grade, Grade};
 pub use scanner::result::ScanResult;
 pub use scanner::{

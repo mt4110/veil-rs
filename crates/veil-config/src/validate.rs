@@ -102,6 +102,7 @@ mod tests {
             base_score: None,
             context_lines_before: None,
             context_lines_after: None,
+            validator: None,
             description: None,
             placeholder: None,
         };

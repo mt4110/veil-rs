@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use std::path::PathBuf;
 // veil_core::rules::Rule needs to be imported directly or via public path
-use veil_core::{get_all_rules, Rule};
+use veil_core::{try_get_all_rules, Rule};
 
 pub fn check(config_path: Option<&PathBuf>) -> Result<bool> {
     println!("🔍 Validating configuration...");
@@ -31,7 +31,7 @@ pub fn check(config_path: Option<&PathBuf>) -> Result<bool> {
         }
     }
 
-    let rules = get_all_rules(&config, remote_rules);
+    let rules = try_get_all_rules(&config, remote_rules)?;
     println!("   - Total Active Rules: {}", rules.len());
 
     // 3. Validate Rules (Regex Safety)

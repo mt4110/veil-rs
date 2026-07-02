@@ -42,11 +42,12 @@ tags = ["jp", "mynumber", "government"]
 base_score = 92
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_mynumber_len12"
 
 [[rules]]
 id = "pii.jp.mynumber.unlabeled"
 description = "My Number (12 digits) unlabeled (higher FP risk)"
-pattern = '''[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}'''
+pattern = '''\b[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}\b'''
 severity = "MEDIUM"
 score = 72
 category = "pii"
@@ -54,6 +55,7 @@ tags = ["jp", "mynumber", "heuristic"]
 base_score = 72
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_mynumber_len12"
 
 [[rules]]
 id = "pii.jp.pension.basic_number"
@@ -106,6 +108,7 @@ tags = ["jp", "phone", "mobile"]
 base_score = 66
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_phone_mobile"
 
 [[rules]]
 id = "pii.jp.phone.landline.keyword"
@@ -138,7 +141,7 @@ context_lines_after = 1
 [[rules]]
 id = "pii.jp.postal_code"
 description = "JP postal code (NNN-NNNN)"
-pattern = '''[0-9]{3}-?[0-9]{4}'''
+pattern = '''\b[0-9]{3}-?[0-9]{4}\b'''
 severity = "LOW"
 score = 34
 category = "pii"
@@ -186,6 +189,7 @@ tags = ["payment", "card"]
 base_score = 90
 context_lines_before = 1
 context_lines_after = 1
+validator = "luhn"
 
 [[rules]]
 id = "pii.fin.bank_account.keyword"

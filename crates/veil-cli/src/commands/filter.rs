@@ -3,14 +3,14 @@ use anyhow::Result;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use veil_config::MaskMode;
-use veil_core::{apply_masks_spans, get_all_rules, MaskSpan};
+use veil_core::{apply_masks_spans, try_get_all_rules, MaskSpan};
 
 pub fn filter(config_path: Option<&PathBuf>) -> Result<()> {
     // Load effective config (layered)
     let config = load_effective_config(config_path)?;
 
     // Use unified rules (config + empty internal rules for now)
-    let rules = get_all_rules(&config, vec![]);
+    let rules = try_get_all_rules(&config, vec![])?;
 
     // Apply masking config
     let mask_mode = config.output.mask_mode.unwrap_or(MaskMode::Redact);
@@ -35,6 +35,10 @@ pub fn filter(config_path: Option<&PathBuf>) -> Result<()> {
             // DEBUG
             // eprintln!("DEBUG: Rule: {}, Placeholder: {:?}", rule.id, rule.placeholder);
 
+            if veil_core::scanner::should_suppress_match(rule, &line) {
+                continue;
+            }
+
             // Determine placeholder
             // Rule > Config > Default (Config usually has default)
             let ph = rule
@@ -44,6 +48,12 @@ pub fn filter(config_path: Option<&PathBuf>) -> Result<()> {
                 .clone();
 
             for mat in rule.pattern.find_iter(&line) {
+                if let Some(validator) = rule.validator {
+                    if !validator(mat.as_str()) {
+                        continue;
+                    }
+                }
+
                 spans.push(MaskSpan {
                     start: mat.start(),
                     end: mat.end(),

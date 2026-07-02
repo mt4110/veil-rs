@@ -155,6 +155,7 @@ pub struct RuleConfig {
     pub base_score: Option<u32>,
     pub context_lines_before: Option<u8>,
     pub context_lines_after: Option<u8>,
+    pub validator: Option<String>,
     pub description: Option<String>,
     pub placeholder: Option<String>,
 }

@@ -20,7 +20,8 @@ Raw Line
 | 全角数字 `１２３` | 半角数字 `123` |
 | 全角英字 | 半角英字 |
 | 全角スペース | 半角スペース or preserve map |
-| ハイフン `－ー―‐‑–—` | `-` |
+| ハイフン類 `－―‐‑–—` | `-` |
+| 長音符 `ー` | 常に `-` へ畳まない。JP-aware ruleが明示的に許可する場合のみ候補文字として扱う |
 | コロン `：` | `:` |
 | 丸括弧全角 | 半角 |
 | 旧字体/異体字 | v1では扱わず辞書拡張点 |
@@ -28,7 +29,6 @@ Raw Line
 ### NormalizedText
 ```rust
 pub struct NormalizedText {
-    pub original: String,
     pub normalized: String,
     pub index_map: Vec<OriginalSpan>,
 }
@@ -44,6 +44,8 @@ pub struct OriginalSpan {
 ### 必須要件
 - Findingの `line_number` / `masked_snippet` は **original** を基準にする。
 - 検知は normalized 上で行っても、マスク範囲は `index_map` で original span に戻す。
+- `NormalizedText` は original本文を保持しない。originalは呼び出し側が所有し、`index_map` だけでspanを復元する。
+- normalized matching は全ルールの既定挙動にしない。JP-aware ruleとして明示されたルールだけが normalized variant を使える。
 - LSP rangeも UTF-16位置へ変換する。
 
 ## 4.3 マイナンバー検知
@@ -170,6 +172,7 @@ context_lines_before = 1
 context_lines_after = 1
 ```
 
+`ー` はこの例のようにルール側で明示した場合にだけ候補として扱う。汎用正規化層で常に `-` へ畳むと、日本語本文の意味を壊し、original span mappingの説明責任も弱くなる。
 
 ## 4.12 Score / Severity確定規則
 
