@@ -438,6 +438,8 @@ pub fn scan(
     fail_on_severity: Option<veil_core::Severity>,
     write_baseline: Option<PathBuf>,
     baseline: Option<PathBuf>,
+    preset: Option<String>,
+    quiet: bool,
     no_color: bool, // Passed from cli args
 ) -> Result<bool> {
     let format: Format = format_str.as_str().into();
@@ -454,8 +456,20 @@ pub fn scan(
     }
 
     // Load config here for scan command to support --config arg
-    let config = if let Some(path) = config_path {
-        Some(crate::config_loader::load_effective_config(Some(path))?)
+    let config = if config_path.is_some() || preset.is_some() {
+        let loaded = crate::config_loader::load_effective_config_with_preset(
+            config_path,
+            preset.as_deref(),
+        )?;
+        if let Some(preset_id) = preset.as_deref() {
+            if !quiet {
+                eprintln!(
+                    "Using preset '{}' as the base config layer; user/org/repo config may override it.",
+                    preset_id
+                );
+            }
+        }
+        Some(loaded)
     } else {
         None
     };

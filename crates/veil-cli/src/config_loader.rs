@@ -4,6 +4,7 @@ use veil_config::{load_config, Config};
 
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
+    pub preset: Option<Config>,
     pub org: Option<Config>,
     pub user: Option<Config>,
     pub repo: Option<Config>,
@@ -12,12 +13,22 @@ pub struct ConfigLayers {
 
 /// New entry point for loading configuration with layers
 pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayers> {
+    load_config_layers_with_preset(explicit_path, None)
+}
+
+pub fn load_config_layers_with_preset(
+    explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+) -> Result<ConfigLayers> {
+    let preset = preset_id
+        .map(veil_config::builtin_preset_config)
+        .transpose()?;
     let org = load_org_config()?;
     let user = load_user_config()?;
     let repo = load_repo_config(explicit_path)?;
 
-    // Merge logic: User -> Org -> Repo (later overrides earlier)
-    let mut effective = merge_configs(org.as_ref(), user.as_ref(), repo.as_ref());
+    // Merge logic: Preset -> User -> Org -> Repo (later overrides earlier)
+    let mut effective = merge_configs(preset.as_ref(), org.as_ref(), user.as_ref(), repo.as_ref());
 
     // Process rules_dir: Resolve to absolute path but do NOT load here.
     // Core will load the rule pack.
@@ -45,6 +56,7 @@ pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayer
     }
 
     Ok(ConfigLayers {
+        preset,
         org,
         user,
         repo,
@@ -57,8 +69,25 @@ pub fn load_effective_config(config_path: Option<&PathBuf>) -> Result<Config> {
     Ok(load_config_layers(config_path)?.effective)
 }
 
-fn merge_configs(org: Option<&Config>, user: Option<&Config>, repo: Option<&Config>) -> Config {
+pub fn load_effective_config_with_preset(
+    config_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+) -> Result<Config> {
+    Ok(load_config_layers_with_preset(config_path, preset_id)?.effective)
+}
+
+fn merge_configs(
+    preset: Option<&Config>,
+    org: Option<&Config>,
+    user: Option<&Config>,
+    repo: Option<&Config>,
+) -> Config {
     let mut final_config = Config::default();
+
+    // Layer 0: Preset Config (Product default for a scenario)
+    if let Some(preset_cfg) = preset {
+        final_config.merge(preset_cfg.clone());
+    }
 
     // Layer 1: User Config (Base Preferences)
     if let Some(user_cfg) = user {

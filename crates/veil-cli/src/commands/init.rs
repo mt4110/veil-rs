@@ -174,6 +174,7 @@ pub fn init(
     non_interactive: bool,
     ci_provider: Option<String>,
     profile_override: Option<String>,
+    preset: Option<String>,
     pin_tag: String,
 ) -> Result<()> {
     if let Some(provider) = ci_provider {
@@ -214,6 +215,8 @@ pub fn init(
                 "application" | "app" => Profile::Application,
                 _ => Profile::Application,
             }
+        } else if preset.as_deref() == Some("logs-jp") {
+            Profile::Logs
         } else {
             Profile::Application
         };
@@ -253,7 +256,18 @@ pub fn init(
         }
     };
 
-    let config = build_config(&answers);
+    let mut config = build_config(&answers);
+    if let Some(preset_id) = preset.as_deref() {
+        config = veil_config::apply_builtin_preset_as_base(config, preset_id)?;
+        println!(
+            "{}",
+            format!(
+                "Applied preset '{}' as the base config layer; generated config can override it.",
+                preset_id
+            )
+            .dimmed()
+        );
+    }
     let toml_str = toml::to_string_pretty(&config)?;
 
     let path = answers.target_path.as_deref().unwrap_or(path);

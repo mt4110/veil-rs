@@ -90,3 +90,42 @@ fn test_init_app_profile_defaults() {
     // Default app profile should have fail_on_score = 80
     assert!(config_content.contains("fail_on_score = 80"));
 }
+
+#[test]
+fn test_init_fintech_preset_writes_rule_overrides() {
+    let dir = tempdir().unwrap();
+    let dir_path = dir.path();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir_path)
+        .arg("init")
+        .arg("--preset")
+        .arg("fintech-jp")
+        .assert()
+        .success();
+
+    let config_content = fs::read_to_string(dir_path.join("veil.toml")).unwrap();
+    assert!(config_content.contains("[rules.\"pii.fin.credit_card.keyword\"]"));
+    assert!(config_content.contains("base_score = 85"));
+    assert!(!config_content.contains("severity ="));
+}
+
+#[test]
+fn test_init_logs_preset_generates_log_pack() {
+    let dir = tempdir().unwrap();
+    let dir_path = dir.path();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir_path)
+        .arg("init")
+        .arg("--preset")
+        .arg("logs-jp")
+        .assert()
+        .success();
+
+    let config_content = fs::read_to_string(dir_path.join("veil.toml")).unwrap();
+    assert!(config_content.contains("rules_dir = \"rules/log\""));
+    assert!(config_content.contains("[rules.\"log.pii.credit_card\"]"));
+    assert!(config_content.contains("base_score = 88"));
+    assert!(dir_path.join("rules/log/00_manifest.toml").exists());
+}
