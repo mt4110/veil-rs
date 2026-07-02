@@ -1,0 +1,11 @@
+[rules."pii.jp.mynumber.unlabeled"]
+enabled = true
+base_score = 72
+
+[rules."pii.fin.credit_card.keyword"]
+enabled = true
+base_score = 85
+
+[rules."pii.fin.bank_account.keyword"]
+enabled = true
+base_score = 80
