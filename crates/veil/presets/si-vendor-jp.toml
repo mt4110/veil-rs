@@ -1,0 +1,7 @@
+[rules."pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 92
+
+[rules."pii.jp.address.prefecture_heuristic"]
+enabled = true
+base_score = 55

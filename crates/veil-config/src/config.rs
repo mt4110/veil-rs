@@ -160,6 +160,25 @@ pub struct RuleConfig {
     pub placeholder: Option<String>,
 }
 
+impl Default for RuleConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            severity: None,
+            pattern: None,
+            score: None,
+            category: None,
+            tags: None,
+            base_score: None,
+            context_lines_before: None,
+            context_lines_after: None,
+            validator: None,
+            description: None,
+            placeholder: None,
+        }
+    }
+}
+
 fn default_true() -> bool {
     true
 }
