@@ -441,6 +441,9 @@ fn scan_line(
         let Some(normalized) = &normalized else {
             continue;
         };
+        if !uses_jp_normalization(rule) {
+            continue;
+        }
 
         // Normalized matching adds JP width/separator tolerance while still
         // returning original byte spans for masking and editor ranges.
@@ -545,6 +548,13 @@ fn utf16_range_for_span(line_number: usize, content: &str, span: FindingSpan) ->
 
 fn utf16_units_before(content: &str, byte_offset: usize) -> u32 {
     content[..byte_offset].encode_utf16().count() as u32
+}
+
+fn uses_jp_normalization(rule: &Rule) -> bool {
+    rule.id.starts_with("pii.jp.")
+        || rule.id.starts_with("jp.")
+        || rule.category == "jp_pii"
+        || rule.tags.iter().any(|tag| tag == "jp" || tag == "jp_pii")
 }
 
 #[cfg(test)]
@@ -734,6 +744,36 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "pii.jp.mynumber.keyword");
         assert_eq!(findings[0].matched_content, content);
+    }
+
+    #[test]
+    fn scan_content_does_not_apply_jp_normalization_to_secret_rules() {
+        let rule = Rule {
+            id: "creds.aws.access_key_id".to_string(),
+            pattern: Regex::new(r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b")
+                .unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 85,
+            category: "secret".to_string(),
+            tags: vec![
+                "credential".to_string(),
+                "cloud".to_string(),
+                "aws".to_string(),
+            ],
+            base_score: Some(85),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+        let content = "ＡＫＩＡ１２３４５６７８９０ＡＢＣＤＥＦ";
+
+        let findings = scan_content(content, Path::new("secrets.txt"), &rules, &config);
+
+        assert!(findings.is_empty());
     }
 
     #[test]
