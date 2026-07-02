@@ -1,27 +1,26 @@
 use crate::model::FindingSpan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NormalizedText {
-    pub original: String,
-    pub normalized: String,
-    pub index_map: Vec<OriginalSpan>,
+pub(super) struct NormalizedText {
+    pub(super) normalized: String,
+    index_map: Vec<OriginalSpan>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OriginalSpan {
-    pub normalized_start: usize,
-    pub normalized_end: usize,
-    pub original_start: usize,
-    pub original_end: usize,
+struct OriginalSpan {
+    normalized_start: usize,
+    normalized_end: usize,
+    original_start: usize,
+    original_end: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NormalizationPolicy {
-    pub fullwidth_alnum: bool,
-    pub fullwidth_space: bool,
-    pub hyphen: bool,
-    pub colon: bool,
-    pub parentheses: bool,
+pub(super) struct NormalizationPolicy {
+    fullwidth_alnum: bool,
+    fullwidth_space: bool,
+    hyphen: bool,
+    colon: bool,
+    parentheses: bool,
 }
 
 impl Default for NormalizationPolicy {
@@ -37,7 +36,7 @@ impl Default for NormalizationPolicy {
 }
 
 impl NormalizedText {
-    pub fn original_span(
+    pub(super) fn original_span(
         &self,
         normalized_start: usize,
         normalized_end: usize,
@@ -62,9 +61,13 @@ impl NormalizedText {
     }
 }
 
-pub fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> NormalizedText {
+pub(super) fn contains_jp_normalizable_char(input: &str, policy: NormalizationPolicy) -> bool {
+    input.chars().any(|ch| normalize_char(ch, policy) != ch)
+}
+
+pub(super) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> NormalizedText {
     let mut normalized = String::with_capacity(input.len());
-    let mut index_map = Vec::with_capacity(input.chars().count());
+    let mut index_map = Vec::new();
 
     for (original_start, ch) in input.char_indices() {
         let original_end = original_start + ch.len_utf8();
@@ -82,7 +85,6 @@ pub fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> Normalized
     }
 
     NormalizedText {
-        original: input.to_string(),
         normalized,
         index_map,
     }
@@ -135,7 +137,15 @@ mod tests {
         let normalized = normalize_jp_text(input, NormalizationPolicy::default());
 
         assert_eq!(normalized.normalized, "個人番号:1234-5678-9012 (Ab9)");
-        assert_eq!(normalized.original, input);
+    }
+
+    #[test]
+    fn detects_when_jp_normalization_is_needed() {
+        let policy = NormalizationPolicy::default();
+
+        assert!(!contains_jp_normalizable_char("abc-123", policy));
+        assert!(contains_jp_normalizable_char("１２３", policy));
+        assert!(contains_jp_normalizable_char("個人番号：1234", policy));
     }
 
     #[test]

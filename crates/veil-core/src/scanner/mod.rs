@@ -1,5 +1,7 @@
 use crate::model::{Finding, FindingSpan, Position, Range, Rule};
-use crate::scanner::jp_normalize::{normalize_jp_text, NormalizationPolicy};
+use crate::scanner::jp_normalize::{
+    contains_jp_normalizable_char, normalize_jp_text, NormalizationPolicy,
+};
 use crate::scoring::{calculate_score, grade_from_score, ScoreParams};
 use ignore::WalkBuilder;
 use rayon::prelude::*;
@@ -71,7 +73,7 @@ impl ScanLimit {
     }
 }
 
-pub mod jp_normalize;
+mod jp_normalize;
 pub mod result;
 pub mod utils;
 use result::ScanResult;
@@ -376,7 +378,9 @@ fn scan_line(
     // 1. Collect all matches
     let mut all_matches = Vec::new();
     let mut seen_matches = HashSet::new();
-    let normalized = normalize_jp_text(content, NormalizationPolicy::default());
+    let normalization_policy = NormalizationPolicy::default();
+    let normalized = contains_jp_normalizable_char(content, normalization_policy)
+        .then(|| normalize_jp_text(content, normalization_policy));
 
     for rule in rules {
         let rule_enabled = config
@@ -434,9 +438,9 @@ fn scan_line(
             }
         }
 
-        if normalized.normalized == content {
+        let Some(normalized) = &normalized else {
             continue;
-        }
+        };
 
         // Normalized matching adds JP width/separator tolerance while still
         // returning original byte spans for masking and editor ranges.
