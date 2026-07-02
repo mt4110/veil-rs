@@ -59,6 +59,24 @@ pub struct Rule {
     pub placeholder: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default, Hash)]
+pub struct FindingSpan {
+    pub byte_start: usize,
+    pub byte_end: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default, Hash)]
+pub struct Position {
+    pub line: u32,
+    pub character: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default, Hash)]
+pub struct Range {
+    pub start: Position,
+    pub end: Position,
+}
+
 impl fmt::Debug for Rule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Rule")
@@ -97,6 +115,11 @@ pub struct Finding {
     // New fields for Phase 2
     pub score: u32,
     pub grade: Grade,
+
+    #[serde(skip)]
+    pub span: FindingSpan,
+    #[serde(skip)]
+    pub utf16_range: Range,
 
     // New context fields
     #[serde(default)]

@@ -868,6 +868,8 @@ mod tests {
             severity,
             score,
             grade: veil_core::grade_from_score(score),
+            span: Default::default(),
+            utf16_range: Default::default(),
             context_before: Vec::new(),
             context_after: Vec::new(),
             commit_sha: None,

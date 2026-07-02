@@ -72,6 +72,8 @@ pub fn create_skipped_finding(
         } else {
             Grade::Safe
         },
+        span: Default::default(),
+        utf16_range: Default::default(),
         context_before: vec![],
         context_after: vec![],
         commit_sha: None,
