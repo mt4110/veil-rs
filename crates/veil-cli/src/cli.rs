@@ -30,6 +30,9 @@ pub enum Commands {
         /// Paths to scan
         #[arg(default_value = ".")]
         paths: Vec<PathBuf>,
+        /// Apply a built-in preset as the base config layer
+        #[arg(long, value_name = "ID")]
+        preset: Option<String>,
         /// Output format (text, json, html, markdown, table)
         ///
         /// - text:     Standard colorful terminal output (default)
@@ -109,6 +112,9 @@ pub enum Commands {
         /// Initialize with a specific profile (e.g. "Logs") without wizard
         #[arg(long)]
         profile: Option<String>,
+        /// Apply a built-in preset to the generated config
+        #[arg(long, value_name = "ID")]
+        preset: Option<String>,
         /// Pin the GitHub Actions workflow to a specific version tag.
         /// - "auto" (default): Use current version (if stable) or display warning (if prerelease)
         /// - "none": Do not pin version (use latest from main/master)
@@ -282,8 +288,12 @@ pub enum ConfigCommand {
         #[arg(long)]
         config_path: Option<PathBuf>,
     },
-    /// Dump configuration (org/user/repo/effective)
+    /// Dump configuration (preset/org/user/repo/effective)
     Dump {
+        /// Apply a built-in preset before other config layers
+        #[arg(long, value_name = "ID")]
+        preset: Option<String>,
+
         /// Which layer to dump (default: effective)
         #[arg(long, value_enum)]
         layer: Option<ConfigLayer>,
@@ -296,6 +306,7 @@ pub enum ConfigCommand {
 
 #[derive(clap::ValueEnum, Copy, Clone, Debug)]
 pub enum ConfigLayer {
+    Preset,
     Org,
     User,
     Repo,

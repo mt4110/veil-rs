@@ -41,6 +41,7 @@ fn main() -> anyhow::Result<()> {
     let result = match &cli.command {
         Some(Commands::Scan {
             paths,
+            preset,
             format,
             fail_score,
             commit,
@@ -73,6 +74,8 @@ fn main() -> anyhow::Result<()> {
                 fail_on_severity.clone(),
                 write_baseline.clone(),
                 baseline.clone(),
+                preset.clone(),
+                cli.quiet,
                 cli.no_color,
             )
         }
@@ -89,12 +92,14 @@ fn main() -> anyhow::Result<()> {
             non_interactive,
             ci,
             profile,
+            preset,
             pin_tag,
         }) => commands::init::init(
             *wizard,
             *non_interactive,
             ci.clone(),
             profile.clone(),
+            preset.clone(),
             pin_tag.clone(),
         )
         .map(|_| false),
@@ -106,9 +111,12 @@ fn main() -> anyhow::Result<()> {
                 let path = config_path.clone().or_else(|| cli.config.clone());
                 commands::config::check(path.as_ref())
             }
-            crate::cli::ConfigCommand::Dump { layer, format } => {
-                commands::config::dump(cli.config.as_ref(), *layer, *format).map(|_| false)
-            }
+            crate::cli::ConfigCommand::Dump {
+                preset,
+                layer,
+                format,
+            } => commands::config::dump(cli.config.as_ref(), preset.as_deref(), *layer, *format)
+                .map(|_| false),
         },
         Some(Commands::PreCommit(cmd)) => match cmd {
             crate::cli::PreCommitCommand::Init => commands::pre_commit::init().map(|_| false),

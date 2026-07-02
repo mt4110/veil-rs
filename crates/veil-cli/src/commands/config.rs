@@ -101,16 +101,18 @@ fn check_rule_safety(rule: &Rule) -> Result<(), SafetyIssue> {
 
 pub fn dump(
     explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
     layer: Option<crate::cli::ConfigLayer>,
     format: Option<crate::cli::ConfigFormat>,
 ) -> Result<()> {
     use crate::cli::{ConfigFormat, ConfigLayer};
-    use crate::config_loader::load_config_layers;
+    use crate::config_loader::load_config_layers_with_preset;
     use veil_config::Config;
 
-    let layers = load_config_layers(explicit_path)?;
+    let layers = load_config_layers_with_preset(explicit_path, preset_id)?;
 
     let selected: Option<&Config> = match layer.unwrap_or(ConfigLayer::Effective) {
+        ConfigLayer::Preset => layers.preset.as_ref(),
         ConfigLayer::Org => layers.org.as_ref(),
         ConfigLayer::User => layers.user.as_ref(),
         ConfigLayer::Repo => layers.repo.as_ref(),

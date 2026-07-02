@@ -36,6 +36,50 @@ fail_on_score = 88
 }
 
 #[test]
+fn config_dump_preset_layer_json() {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.arg("config")
+        .arg("dump")
+        .arg("--preset")
+        .arg("fintech-jp")
+        .arg("--layer")
+        .arg("preset");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("pii.fin.credit_card.keyword"))
+        .stdout(predicate::str::contains("\"base_score\": 85"));
+}
+
+#[test]
+fn config_dump_effective_shows_repo_override_over_preset() {
+    let dir = tempdir().unwrap();
+    let config_path = dir.path().join("veil.toml");
+
+    let config_toml = r#"
+[rules."pii.fin.credit_card.keyword"]
+enabled = true
+base_score = 99
+"#;
+    let mut file = File::create(&config_path).unwrap();
+    writeln!(file, "{}", config_toml).unwrap();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir.path())
+        .arg("config")
+        .arg("dump")
+        .arg("--preset")
+        .arg("fintech-jp")
+        .arg("--layer")
+        .arg("effective");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("\"base_score\": 99"))
+        .stdout(predicate::str::contains("\"base_score\": 85").not());
+}
+
+#[test]
 fn config_dump_org_is_empty_by_default() {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("config").arg("dump").arg("--layer").arg("org");
