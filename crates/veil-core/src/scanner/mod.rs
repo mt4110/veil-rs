@@ -707,6 +707,36 @@ mod tests {
     }
 
     #[test]
+    fn scan_content_preserves_choonpu_in_normalized_jp_keywords() {
+        let rule = Rule {
+            id: "pii.jp.mynumber.keyword".to_string(),
+            pattern: Regex::new(
+                r"(?:(?:基礎)?マイナンバー|個人番号|My\s*Number)[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}",
+            )
+            .unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 92,
+            category: "pii".to_string(),
+            tags: vec!["jp".to_string(), "mynumber".to_string()],
+            base_score: Some(92),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+        let content = "マイナンバー：１２３４－５６７８ー９０１２";
+
+        let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].rule_id, "pii.jp.mynumber.keyword");
+        assert_eq!(findings[0].matched_content, content);
+    }
+
+    #[test]
     fn scan_path_marks_max_file_size_skip() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("large.txt");

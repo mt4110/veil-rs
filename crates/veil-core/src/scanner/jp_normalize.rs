@@ -62,19 +62,34 @@ impl NormalizedText {
 }
 
 pub(super) fn contains_jp_normalizable_char(input: &str, policy: NormalizationPolicy) -> bool {
-    input.chars().any(|ch| normalize_char(ch, policy) != ch)
+    let mut chars = input.chars().peekable();
+    let mut previous = None;
+
+    while let Some(ch) = chars.next() {
+        let next = chars.peek().copied();
+        if normalize_char(ch, policy, previous, next) != ch {
+            return true;
+        }
+        previous = Some(ch);
+    }
+
+    false
 }
 
 pub(super) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> NormalizedText {
     let mut normalized = String::with_capacity(input.len());
     let mut index_map = Vec::new();
+    let mut chars = input.char_indices().peekable();
+    let mut previous = None;
 
-    for (original_start, ch) in input.char_indices() {
+    while let Some((original_start, ch)) = chars.next() {
         let original_end = original_start + ch.len_utf8();
-        let mapped = normalize_char(ch, policy);
+        let next = chars.peek().map(|(_, ch)| *ch);
+        let mapped = normalize_char(ch, policy, previous, next);
         let normalized_start = normalized.len();
         normalized.push(mapped);
         let normalized_end = normalized.len();
+        previous = Some(ch);
 
         index_map.push(OriginalSpan {
             normalized_start,
@@ -90,7 +105,12 @@ pub(super) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> Nor
     }
 }
 
-fn normalize_char(ch: char, policy: NormalizationPolicy) -> char {
+fn normalize_char(
+    ch: char,
+    policy: NormalizationPolicy,
+    previous: Option<char>,
+    next: Option<char>,
+) -> char {
     if policy.fullwidth_alnum {
         if let Some(mapped) = normalize_fullwidth_alnum(ch) {
             return mapped;
@@ -101,7 +121,15 @@ fn normalize_char(ch: char, policy: NormalizationPolicy) -> char {
         return ' ';
     }
 
-    if policy.hyphen && matches!(ch, '－' | 'ー' | '―' | '‐' | '‑' | '–' | '—') {
+    if policy.hyphen && ch == 'ー' {
+        if previous.is_some_and(is_digit_for_separator) && next.is_some_and(is_digit_for_separator)
+        {
+            return '-';
+        }
+        return ch;
+    }
+
+    if policy.hyphen && matches!(ch, '－' | '―' | '‐' | '‑' | '–' | '—') {
         return '-';
     }
 
@@ -118,6 +146,10 @@ fn normalize_char(ch: char, policy: NormalizationPolicy) -> char {
     }
 
     ch
+}
+
+fn is_digit_for_separator(ch: char) -> bool {
+    ch.is_ascii_digit() || matches!(ch, '０'..='９')
 }
 
 fn normalize_fullwidth_alnum(ch: char) -> Option<char> {
@@ -140,11 +172,24 @@ mod tests {
     }
 
     #[test]
+    fn preserves_choonpu_inside_jp_keywords() {
+        let input = "マイナンバー：１２３４－５６７８ー９０１２ パスポート：ＡＢ１２３４５６７";
+        let normalized = normalize_jp_text(input, NormalizationPolicy::default());
+
+        assert_eq!(
+            normalized.normalized,
+            "マイナンバー:1234-5678-9012 パスポート:AB1234567"
+        );
+    }
+
+    #[test]
     fn detects_when_jp_normalization_is_needed() {
         let policy = NormalizationPolicy::default();
 
         assert!(!contains_jp_normalizable_char("abc-123", policy));
+        assert!(!contains_jp_normalizable_char("マイナンバー", policy));
         assert!(contains_jp_normalizable_char("１２３", policy));
+        assert!(contains_jp_normalizable_char("1234ー5678", policy));
         assert!(contains_jp_normalizable_char("個人番号：1234", policy));
     }
 
