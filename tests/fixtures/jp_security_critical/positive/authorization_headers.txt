@@ -1,0 +1,4 @@
+# EXPECT: log.jp.secret.bearer_token.kv
+# EXPECT: log.jp.secret.basic_auth.kv
+"Authorization": "Bearer VEILTESTFAKEBEARERTOKEN123456"
+Authorization: Basic dXNlcjpwYXNz
