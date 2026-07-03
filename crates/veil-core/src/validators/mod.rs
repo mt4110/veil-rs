@@ -12,10 +12,16 @@ pub fn resolve_validator(id: &str) -> Option<ValidatorFn> {
 }
 
 pub fn luhn(candidate: &str) -> bool {
-    card_digit_runs(candidate).into_iter().any(luhn_values)
+    let chars: Vec<char> = candidate.chars().collect();
+    chars
+        .iter()
+        .enumerate()
+        .filter(|(_, ch)| digit_value(**ch).is_some())
+        .filter_map(|(index, _)| card_digit_run_from(&chars, index))
+        .any(|values| luhn_values(&values))
 }
 
-fn luhn_values(values: Vec<u8>) -> bool {
+fn luhn_values(values: &[u8]) -> bool {
     let mut sum = 0u32;
     let mut double = false;
     for digit in values.iter().rev() {
@@ -33,27 +39,50 @@ fn luhn_values(values: Vec<u8>) -> bool {
     sum % 10 == 0
 }
 
-fn card_digit_runs(candidate: &str) -> Vec<Vec<u8>> {
-    let mut runs = Vec::new();
+fn card_digit_run_from(chars: &[char], start: usize) -> Option<Vec<u8>> {
     let mut current = Vec::new();
+    let mut group_len = 0usize;
+    let mut first_group_len = None;
+    let mut saw_separator = false;
+    let mut last_was_separator = false;
 
-    for ch in candidate.chars() {
-        if let Some(digit) = digit_value(ch) {
+    for ch in &chars[start..] {
+        if let Some(digit) = digit_value(*ch) {
             current.push(digit);
+            group_len += 1;
+            last_was_separator = false;
+            if current.len() > 19 {
+                return None;
+            }
             continue;
         }
 
-        if is_luhn_candidate(&current) {
-            runs.push(current);
+        if is_card_separator(*ch) && !current.is_empty() && !last_was_separator {
+            if first_group_len.is_none() {
+                first_group_len = Some(group_len);
+            }
+            group_len = 0;
+            saw_separator = true;
+            last_was_separator = true;
+            continue;
         }
-        current = Vec::new();
+
+        break;
     }
 
-    if is_luhn_candidate(&current) {
-        runs.push(current);
+    if last_was_separator || !is_luhn_candidate(&current) {
+        return None;
     }
 
-    runs
+    if saw_separator && first_group_len.unwrap_or(group_len) < 4 {
+        return None;
+    }
+
+    Some(current)
+}
+
+fn is_card_separator(ch: char) -> bool {
+    matches!(ch, ' ' | '\t' | '-' | '\u{3000}')
 }
 
 fn is_luhn_candidate(values: &[u8]) -> bool {
@@ -119,6 +148,8 @@ mod tests {
         assert!(luhn("JCB: 3511111122223333"));
         assert!(luhn("card_1: 4111222233334448"));
         assert!(luhn("card 2 ... 4111222233334448"));
+        assert!(luhn("VISA: 4111-2222-3333-4448"));
+        assert!(luhn("VISA: 4111 2222 3333 4448"));
     }
 
     #[test]
