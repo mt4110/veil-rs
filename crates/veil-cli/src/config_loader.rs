@@ -29,6 +29,7 @@ pub fn load_config_layers_with_preset(
 
     // Merge logic: Preset -> User -> Org -> Repo (later overrides earlier)
     let mut effective = merge_configs(preset.as_ref(), org.as_ref(), user.as_ref(), repo.as_ref());
+    apply_preset_runtime_defaults(&mut effective, preset_id)?;
 
     // Process rules_dir: Resolve to absolute path but do NOT load here.
     // Core will load the rule pack.
@@ -74,6 +75,29 @@ pub fn load_effective_config_with_preset(
     preset_id: Option<&str>,
 ) -> Result<Config> {
     Ok(load_config_layers_with_preset(config_path, preset_id)?.effective)
+}
+
+fn apply_preset_runtime_defaults(config: &mut Config, preset_id: Option<&str>) -> Result<()> {
+    if preset_id == Some("logs-jp") && config.core.rules_dir.is_none() {
+        let rules_dir = bundled_log_rules_dir();
+        if !rules_dir.is_dir() {
+            anyhow::bail!(
+                "Preset 'logs-jp' requires the log rule pack. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\"."
+            );
+        }
+        config.core.rules_dir = Some(rules_dir.to_string_lossy().to_string());
+    }
+
+    Ok(())
+}
+
+fn bundled_log_rules_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap_or(Path::new("."))
+        .join("veil")
+        .join("rules")
+        .join("log")
 }
 
 fn merge_configs(

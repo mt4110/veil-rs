@@ -46,3 +46,30 @@ fn scan_unknown_preset_fails_fast() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("Unknown preset 'minimal-ci'"));
 }
+
+#[test]
+fn scan_logs_preset_loads_log_rule_pack() {
+    let dir = tempdir().unwrap();
+    fs::write(dir.path().join("app.log"), "payment=4111222233334448\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .arg("--quiet")
+        .arg("scan")
+        .arg(".")
+        .arg("--preset")
+        .arg("logs-jp")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(0));
+    let json: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let findings = json["findings"].as_array().unwrap();
+    let log_card = findings
+        .iter()
+        .find(|finding| finding["rule_id"] == "log.pii.credit_card")
+        .unwrap();
+    assert!(log_card["score"].as_u64().unwrap() >= 88);
+}
