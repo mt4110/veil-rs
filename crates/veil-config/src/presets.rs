@@ -11,6 +11,13 @@ pub const BUILTIN_PRESET_IDS: &[&str] = &[
     "si-vendor-jp",
 ];
 
+pub const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
+    "log.pii.jp.mynumber.keyword",
+    "log.pii.credit_card",
+    "log.pii.jp.phone.keyword",
+    "log.pii.jp.postal.keyword",
+];
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PresetFile {
@@ -109,6 +116,19 @@ mod tests {
             assert!(config.core.include.is_empty());
             assert!(config.core.ignore.is_empty());
             assert!(config.core.rules_dir.is_none());
+        }
+    }
+
+    #[test]
+    fn logs_jp_required_rule_ids_are_present_in_preset_overrides() {
+        let config = builtin_preset_config("logs-jp").unwrap();
+
+        for required_id in LOGS_JP_REQUIRED_RULE_IDS {
+            assert!(
+                config.rules.contains_key(*required_id),
+                "logs-jp preset should override required log rule '{}'",
+                required_id
+            );
         }
     }
 

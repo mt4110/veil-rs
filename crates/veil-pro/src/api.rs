@@ -101,6 +101,16 @@ fn normalized_paths(paths: Option<Vec<String>>) -> Vec<String> {
     }
 }
 
+fn preset_name(preset: PresetName) -> &'static str {
+    match preset {
+        PresetName::StandardJp => "standard-jp",
+        PresetName::FintechJp => "fintech-jp",
+        PresetName::GovJp => "gov-jp",
+        PresetName::SiVendorJp => "si-vendor-jp",
+        PresetName::LogsJp => "logs-jp",
+    }
+}
+
 fn scan_path_for_request(requested: &str, safe_path: &FsPath) -> PathBuf {
     let requested_path = PathBuf::from(requested);
     if !requested_path.is_absolute() {
@@ -142,7 +152,29 @@ fn rules_error_response(error: impl std::fmt::Display) -> ApiErrorResponse {
 fn load_rules_for_api(
     config: &veil_config::Config,
 ) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
-    veil_core::try_get_all_rules(config, vec![]).map_err(rules_error_response)
+    load_rules_for_api_with_extra(config, Vec::new())
+}
+
+fn load_rules_for_api_with_extra(
+    config: &veil_config::Config,
+    extra_rules: Vec<veil_core::Rule>,
+) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
+    veil_core::try_get_all_rules(config, extra_rules).map_err(rules_error_response)
+}
+
+fn load_rules_for_scan_with_preset(
+    config: &veil_config::Config,
+    preset: Option<PresetName>,
+) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
+    let preset_name = preset.map(preset_name);
+    let extra_rules = validate_preset_runtime_assets_for_api(config, preset_name)?;
+    if extra_rules.is_empty() {
+        return load_rules_for_api(config);
+    }
+
+    let mut config_without_rules_dir = config.clone();
+    config_without_rules_dir.core.rules_dir = None;
+    load_rules_for_api_with_extra(&config_without_rules_dir, extra_rules)
 }
 
 fn load_config_layers_for_api(_paths: &[String]) -> Result<ConfigLayers, ApiErrorResponse> {
@@ -161,6 +193,87 @@ fn load_effective_config_for_paths(
     paths: &[String],
 ) -> Result<veil_config::Config, ApiErrorResponse> {
     Ok(load_config_layers_for_api(paths)?.effective)
+}
+
+fn load_effective_config_for_paths_with_preset(
+    paths: &[String],
+    preset: Option<PresetName>,
+) -> Result<veil_config::Config, ApiErrorResponse> {
+    let config = load_effective_config_for_paths(paths)?;
+    apply_request_preset_for_api(config, preset)
+}
+
+fn apply_request_preset_for_api(
+    config: veil_config::Config,
+    preset: Option<PresetName>,
+) -> Result<veil_config::Config, ApiErrorResponse> {
+    let Some(preset) = preset else {
+        return Ok(config);
+    };
+    let preset_name = preset_name(preset);
+    let config = veil_config::apply_builtin_preset_as_base(config, preset_name)
+        .map_err(config_error_response)?;
+
+    Ok(config)
+}
+
+fn validate_preset_runtime_assets_for_api(
+    config: &veil_config::Config,
+    preset_name: Option<&str>,
+) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
+    if preset_name == Some("logs-jp") {
+        return validate_logs_preset_rule_pack_for_api(config);
+    }
+
+    Ok(Vec::new())
+}
+
+fn logs_preset_config_error(message: impl Into<String>) -> ApiErrorResponse {
+    error_response(
+        StatusCode::BAD_REQUEST,
+        ErrorCode::InvalidRequest,
+        message,
+        None,
+    )
+}
+
+fn validate_logs_preset_rule_pack_for_api(
+    config: &veil_config::Config,
+) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
+    let Some(rules_dir) = &config.core.rules_dir else {
+        return Err(logs_preset_config_error(
+            "Preset 'logs-jp' requires the log rule pack. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+        ));
+    };
+
+    let path = FsPath::new(rules_dir);
+    if !path.is_dir() {
+        return Err(logs_preset_config_error(format!(
+            "Preset 'logs-jp' requires the log rule pack at {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+            path.display()
+        )));
+    }
+
+    let rules = veil_core::rules::pack::load_rule_pack(path).map_err(|err| {
+        logs_preset_config_error(format!(
+            "Preset 'logs-jp' requires a valid log rule pack at {}: {err}",
+            path.display()
+        ))
+    })?;
+    let missing_ids: Vec<_> = veil_config::LOGS_JP_REQUIRED_RULE_IDS
+        .iter()
+        .copied()
+        .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))
+        .collect();
+    if !missing_ids.is_empty() {
+        return Err(logs_preset_config_error(format!(
+            "Preset 'logs-jp' requires a log rule pack containing these rules at {}: {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+            path.display(),
+            missing_ids.join(", ")
+        )));
+    }
+
+    Ok(rules)
 }
 
 fn baseline_file_error_response(error: BaselineFileError) -> ApiErrorResponse {
@@ -524,23 +637,6 @@ pub async fn scan_project(
             None,
         ));
     }
-    if let Some(preset) = req.preset {
-        let preset_name = match preset {
-            PresetName::StandardJp => "standard-jp",
-            PresetName::FintechJp => "fintech-jp",
-            PresetName::GovJp => "gov-jp",
-            PresetName::SiVendorJp => "si-vendor-jp",
-            PresetName::LogsJp => "logs-jp",
-        };
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            ErrorCode::InvalidRequest,
-            format!(
-                "preset {preset_name} is not implemented by the Local API in PR-0; configure rules through veil.toml for this contract alignment release."
-            ),
-            None,
-        ));
-    }
     if req.fail_on_findings == Some(0) {
         return Err(error_response(
             StatusCode::BAD_REQUEST,
@@ -558,8 +654,8 @@ pub async fn scan_project(
         ));
     }
 
-    let config = load_effective_config_for_paths(&paths_to_scan)?;
-    let rules = load_rules_for_api(&config)?;
+    let config = load_effective_config_for_paths_with_preset(&paths_to_scan, req.preset)?;
+    let rules = load_rules_for_scan_with_preset(&config, req.preset)?;
     let rules_by_id = rule_lookup(&rules);
     let baseline = resolve_baseline_file(req.baseline_file.as_deref())
         .map_err(baseline_file_error_response)?;
@@ -1160,6 +1256,40 @@ mod tests {
     }
 
     #[test]
+    fn local_api_preset_names_match_builtin_preset_ids() {
+        let api_ids: std::collections::BTreeSet<_> = [
+            PresetName::StandardJp,
+            PresetName::FintechJp,
+            PresetName::GovJp,
+            PresetName::SiVendorJp,
+            PresetName::LogsJp,
+        ]
+        .into_iter()
+        .map(preset_name)
+        .collect();
+        let builtin_ids: std::collections::BTreeSet<_> =
+            veil_config::BUILTIN_PRESET_IDS.iter().copied().collect();
+
+        assert_eq!(api_ids, builtin_ids);
+    }
+
+    #[test]
+    fn local_api_fintech_preset_applies_base_score_override() {
+        let config = apply_request_preset_for_api(
+            veil_config::Config::default(),
+            Some(PresetName::FintechJp),
+        )
+        .unwrap();
+        let rules = load_rules_for_api(&config).unwrap();
+        let card_rule = rules
+            .iter()
+            .find(|rule| rule.id == "pii.fin.credit_card.keyword")
+            .unwrap();
+
+        assert_eq!(card_rule.base_score, Some(85));
+    }
+
+    #[test]
     fn discovered_invalid_baseline_returns_error() {
         let root = unique_target_dir("invalid-discovered-baseline");
         std::fs::write(
@@ -1529,27 +1659,21 @@ mod tests {
         ));
     }
 
-    #[tokio::test]
-    async fn scan_rejects_unimplemented_preset() {
-        let state = Arc::new(AppState {
-            token: "test-token".to_string(),
-            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
-                1, 1024, 1,
-            ))),
-            oauth: Arc::new(crate::auth::init_oauth()),
-        });
-        let request = ScanRequest {
-            preset: Some(PresetName::FintechJp),
-            ..ScanRequest::default()
-        };
-
-        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
-            .await
-            .unwrap_err();
+    #[test]
+    fn local_api_logs_preset_without_rule_pack_returns_guidance() {
+        let config =
+            apply_request_preset_for_api(veil_config::Config::default(), Some(PresetName::LogsJp))
+                .unwrap();
+        let (status, Json(body)) =
+            load_rules_for_scan_with_preset(&config, Some(PresetName::LogsJp)).unwrap_err();
 
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
-        assert!(body.error.message.contains("preset fintech-jp"));
+        assert!(body
+            .error
+            .message
+            .contains("Preset 'logs-jp' requires the log rule pack"));
+        assert!(body.error.message.contains("veil init --preset logs-jp"));
     }
 
     #[tokio::test]
