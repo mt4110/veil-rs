@@ -304,7 +304,7 @@ pub enum ConfigCommand {
     },
 }
 
-#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+#[derive(clap::ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ConfigLayer {
     Preset,
     Org,

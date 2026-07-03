@@ -52,6 +52,25 @@ fn config_dump_preset_layer_json() {
 }
 
 #[test]
+fn config_dump_preset_layer_ignores_external_config_errors() {
+    let dir = tempdir().unwrap();
+    let missing_org_config = dir.path().join("missing-org.toml");
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.env("VEIL_ORG_CONFIG", missing_org_config)
+        .arg("config")
+        .arg("dump")
+        .arg("--preset")
+        .arg("fintech-jp")
+        .arg("--layer")
+        .arg("preset");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("pii.fin.credit_card.keyword"));
+}
+
+#[test]
 fn config_dump_effective_shows_repo_override_over_preset() {
     let dir = tempdir().unwrap();
     let config_path = dir.path().join("veil.toml");

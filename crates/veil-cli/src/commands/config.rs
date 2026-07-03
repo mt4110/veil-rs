@@ -109,14 +109,26 @@ pub fn dump(
     use crate::config_loader::load_config_layers_with_preset;
     use veil_config::Config;
 
-    let layers = load_config_layers_with_preset(explicit_path, preset_id)?;
+    let selected_layer = layer.unwrap_or(ConfigLayer::Effective);
+    let preset_only = if selected_layer == ConfigLayer::Preset {
+        preset_id
+            .map(veil_config::builtin_preset_config)
+            .transpose()?
+    } else {
+        None
+    };
+    let layers = if selected_layer == ConfigLayer::Preset {
+        None
+    } else {
+        Some(load_config_layers_with_preset(explicit_path, preset_id)?)
+    };
 
-    let selected: Option<&Config> = match layer.unwrap_or(ConfigLayer::Effective) {
-        ConfigLayer::Preset => layers.preset.as_ref(),
-        ConfigLayer::Org => layers.org.as_ref(),
-        ConfigLayer::User => layers.user.as_ref(),
-        ConfigLayer::Repo => layers.repo.as_ref(),
-        ConfigLayer::Effective => Some(&layers.effective),
+    let selected: Option<&Config> = match selected_layer {
+        ConfigLayer::Preset => preset_only.as_ref(),
+        ConfigLayer::Org => layers.as_ref().and_then(|layers| layers.org.as_ref()),
+        ConfigLayer::User => layers.as_ref().and_then(|layers| layers.user.as_ref()),
+        ConfigLayer::Repo => layers.as_ref().and_then(|layers| layers.repo.as_ref()),
+        ConfigLayer::Effective => layers.as_ref().map(|layers| &layers.effective),
     };
 
     let Some(config) = selected else {

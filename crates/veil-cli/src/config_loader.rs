@@ -4,6 +4,7 @@ use veil_config::{load_config, Config};
 
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
+    #[allow(dead_code)]
     pub preset: Option<Config>,
     pub org: Option<Config>,
     pub user: Option<Config>,
