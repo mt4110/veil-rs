@@ -564,25 +564,42 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
 }
 
 pub fn should_suppress_match(rule: &Rule, content: &str) -> bool {
-    let lowered = content.to_lowercase();
-
     match rule.id.as_str() {
-        "pii.jp.mynumber.unlabeled" => [
-            "注文番号",
-            "受付番号",
-            "伝票番号",
-            "order",
-            "order_id",
-            "receipt",
-            "ticket",
-        ]
-        .iter()
-        .any(|marker| lowered.contains(marker)),
-        "pii.jp.postal_code" => ["version", "build", "release", "rev", "commit", "バージョン"]
-            .iter()
-            .any(|marker| lowered.contains(marker)),
+        "pii.jp.mynumber.unlabeled" => {
+            contains_any_literal(content, &["注文番号", "受付番号", "伝票番号"])
+                || contains_any_ascii_case_insensitive(
+                    content,
+                    &["order", "order_id", "receipt", "ticket"],
+                )
+        }
+        "pii.jp.postal_code" => {
+            content.contains("バージョン")
+                || contains_any_ascii_case_insensitive(
+                    content,
+                    &["version", "build", "release", "rev", "commit"],
+                )
+        }
         _ => false,
     }
+}
+
+fn contains_any_literal(content: &str, markers: &[&str]) -> bool {
+    markers.iter().any(|marker| content.contains(marker))
+}
+
+fn contains_any_ascii_case_insensitive(content: &str, markers: &[&str]) -> bool {
+    markers
+        .iter()
+        .any(|marker| contains_ascii_case_insensitive(content, marker))
+}
+
+fn contains_ascii_case_insensitive(content: &str, marker: &str) -> bool {
+    let marker = marker.as_bytes();
+    !marker.is_empty()
+        && content
+            .as_bytes()
+            .windows(marker.len())
+            .any(|window| window.eq_ignore_ascii_case(marker))
 }
 
 #[cfg(test)]

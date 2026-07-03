@@ -12,16 +12,10 @@ pub fn resolve_validator(id: &str) -> Option<ValidatorFn> {
 }
 
 pub fn luhn(candidate: &str) -> bool {
-    let values = digit_values(candidate);
-    if !(13..=19).contains(&values.len()) {
-        return false;
-    }
+    card_digit_runs(candidate).into_iter().any(luhn_values)
+}
 
-    let digits = digits_only(candidate);
-    if is_known_test_card(&digits) {
-        return false;
-    }
-
+fn luhn_values(values: Vec<u8>) -> bool {
     let mut sum = 0u32;
     let mut double = false;
     for digit in values.iter().rev() {
@@ -37,6 +31,37 @@ pub fn luhn(candidate: &str) -> bool {
     }
 
     sum % 10 == 0
+}
+
+fn card_digit_runs(candidate: &str) -> Vec<Vec<u8>> {
+    let mut runs = Vec::new();
+    let mut current = Vec::new();
+
+    for ch in candidate.chars() {
+        if let Some(digit) = digit_value(ch) {
+            current.push(digit);
+            continue;
+        }
+
+        if is_luhn_candidate(&current) {
+            runs.push(current);
+        }
+        current = Vec::new();
+    }
+
+    if is_luhn_candidate(&current) {
+        runs.push(current);
+    }
+
+    runs
+}
+
+fn is_luhn_candidate(values: &[u8]) -> bool {
+    if !(13..=19).contains(&values.len()) {
+        return false;
+    }
+
+    !is_known_test_card(&digits_from_values(values))
 }
 
 fn is_known_test_card(digits: &str) -> bool {
@@ -59,8 +84,16 @@ fn is_known_test_card(digits: &str) -> bool {
 pub(crate) fn digits_only(candidate: &str) -> String {
     digit_values(candidate)
         .into_iter()
-        .map(|digit| char::from(b'0' + digit))
+        .map(ascii_digit)
         .collect()
+}
+
+fn digits_from_values(values: &[u8]) -> String {
+    values.iter().copied().map(ascii_digit).collect()
+}
+
+fn ascii_digit(digit: u8) -> char {
+    char::from(b'0' + digit)
 }
 
 fn digit_values(candidate: &str) -> Vec<u8> {
@@ -84,6 +117,8 @@ mod tests {
         assert!(luhn("VISA: 4111222233334448"));
         assert!(luhn("AMEX 371112345678902"));
         assert!(luhn("JCB: 3511111122223333"));
+        assert!(luhn("card_1: 4111222233334448"));
+        assert!(luhn("card 2 ... 4111222233334448"));
     }
 
     #[test]

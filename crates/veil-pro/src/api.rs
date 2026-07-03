@@ -130,6 +130,21 @@ fn config_error_response(error: impl std::fmt::Display) -> ApiErrorResponse {
     )
 }
 
+fn rules_error_response(error: impl std::fmt::Display) -> ApiErrorResponse {
+    error_response(
+        StatusCode::BAD_REQUEST,
+        ErrorCode::InvalidRequest,
+        format!("Failed to load rules: {error}"),
+        None,
+    )
+}
+
+fn load_rules_for_api(
+    config: &veil_config::Config,
+) -> Result<Vec<veil_core::Rule>, ApiErrorResponse> {
+    veil_core::try_get_all_rules(config, vec![]).map_err(rules_error_response)
+}
+
 fn load_config_layers_for_api(_paths: &[String]) -> Result<ConfigLayers, ApiErrorResponse> {
     let repo_config = repo_root().join("veil.toml");
     load_config_layers_from_repo_config(repo_config)
@@ -314,13 +329,13 @@ fn build_evidence_summary(buckets: &FindingBuckets, coverage_complete: bool) -> 
     }
 }
 
-fn policy_response_from_layers(layers: ConfigLayers) -> PolicyResponse {
+fn policy_response_from_layers(layers: ConfigLayers) -> Result<PolicyResponse, ApiErrorResponse> {
     let config = layers.effective.clone();
-    let rules = veil_core::get_all_rules(&config, vec![]);
+    let rules = load_rules_for_api(&config)?;
     let repo_config_path = repo_root().join("veil.toml");
     let org_config_path = std::env::var("VEIL_ORG_CONFIG").ok();
 
-    PolicyResponse {
+    Ok(PolicyResponse {
         schema_version: LocalApiSchemaVersion::VeilProLocalApiV1,
         has_org_config: layers.org.is_some(),
         org_config_path,
@@ -352,13 +367,11 @@ fn policy_response_from_layers(layers: ConfigLayers) -> PolicyResponse {
             },
         ],
         conflicts: Vec::new(),
-    }
+    })
 }
 
 fn policy_response() -> Result<PolicyResponse, ApiErrorResponse> {
-    Ok(policy_response_from_layers(load_config_layers_for_api(&[
-        ".".to_string(),
-    ])?))
+    policy_response_from_layers(load_config_layers_for_api(&[".".to_string()])?)
 }
 
 fn limit_reasons_for(result: &veil_core::ScanResult) -> Vec<String> {
@@ -546,7 +559,7 @@ pub async fn scan_project(
     }
 
     let config = load_effective_config_for_paths(&paths_to_scan)?;
-    let rules = veil_core::get_all_rules(&config, vec![]);
+    let rules = load_rules_for_api(&config)?;
     let rules_by_id = rule_lookup(&rules);
     let baseline = resolve_baseline_file(req.baseline_file.as_deref())
         .map_err(baseline_file_error_response)?;
@@ -663,7 +676,7 @@ pub async fn get_doctor(
         product_version: env!("CARGO_PKG_VERSION").to_string(),
         os: std::env::consts::OS.to_string(),
         rust_version: option_env!("RUSTC_VERSION").map(str::to_string),
-        config: policy_response_from_layers(layers),
+        config: policy_response_from_layers(layers)?,
         bounds,
         rule_packs: vec![DoctorRulePack {
             name: "default".to_string(),
@@ -682,7 +695,7 @@ pub async fn write_baseline(
     let Json(req) = request.map_err(json_rejection_response)?;
     let paths_to_scan = normalized_paths(req.paths);
     let config = load_effective_config_for_paths(&paths_to_scan)?;
-    let rules = veil_core::get_all_rules(&config, vec![]);
+    let rules = load_rules_for_api(&config)?;
     let aggregate = scan_paths_with_global_limit(paths_to_scan, &rules, &config)?;
     if aggregate.limit_reached {
         let reasons = if aggregate.limit_reasons.is_empty() {
@@ -1111,6 +1124,38 @@ mod tests {
             .message
             .contains("Invalid config field 'output.max_findings'"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn invalid_rule_validator_returns_error_instead_of_empty_rules() {
+        let mut config = veil_config::Config::default();
+        config.rules.insert(
+            "custom.invalid_validator".to_string(),
+            veil_config::RuleConfig {
+                enabled: true,
+                severity: None,
+                pattern: Some("SECRET".to_string()),
+                score: None,
+                category: None,
+                tags: None,
+                base_score: None,
+                context_lines_before: None,
+                context_lines_after: None,
+                validator: Some("unknown_validator".to_string()),
+                description: None,
+                placeholder: None,
+            },
+        );
+
+        let (status, Json(body)) = load_rules_for_api(&config).unwrap_err();
+
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
+        assert!(body.error.message.contains("Failed to load rules"));
+        assert!(body
+            .error
+            .message
+            .contains("Unknown validator 'unknown_validator'"));
     }
 
     #[test]

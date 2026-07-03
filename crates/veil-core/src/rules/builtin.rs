@@ -89,8 +89,11 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
     match try_get_all_rules(config, extra_rules) {
         Ok(rules) => rules,
         Err(e) => {
-            eprintln!("Error loading rules: {}", e);
-            vec![]
+            eprintln!(
+                "Error loading rules: {}; falling back to embedded default rules only.",
+                e
+            );
+            get_default_rules()
         }
     }
 }
@@ -209,4 +212,48 @@ pub fn try_get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Result<Vec<
                 .unwrap_or(r.enabled)
         })
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use veil_config::RuleConfig;
+
+    fn rule_config_with_unknown_validator() -> Config {
+        let mut config = Config::default();
+        config.rules.insert(
+            "custom.invalid_validator".to_string(),
+            RuleConfig {
+                enabled: true,
+                severity: None,
+                pattern: Some("SECRET".to_string()),
+                score: None,
+                category: None,
+                tags: None,
+                base_score: None,
+                context_lines_before: None,
+                context_lines_after: None,
+                validator: Some("unknown_validator".to_string()),
+                description: None,
+                placeholder: None,
+            },
+        );
+        config
+    }
+
+    #[test]
+    fn try_get_all_rules_rejects_unknown_validators() {
+        let err = try_get_all_rules(&rule_config_with_unknown_validator(), vec![]).unwrap_err();
+
+        assert!(err
+            .to_string()
+            .contains("Unknown validator 'unknown_validator'"));
+    }
+
+    #[test]
+    fn get_all_rules_never_returns_empty_rules_on_load_error() {
+        let rules = get_all_rules(&rule_config_with_unknown_validator(), vec![]);
+
+        assert!(!rules.is_empty());
+    }
 }
