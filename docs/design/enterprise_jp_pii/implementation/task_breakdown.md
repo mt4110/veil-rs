@@ -5,7 +5,8 @@
 - [x] `crates/veil-pro/src/api/dto.rs` を追加し、Local API DTOを集約する。
 - [x] DTOに `serde`, `schemars`, `utoipa` deriveを付ける。
 - [x] `crates/veil-pro/src/bin/export_local_api_schema.rs` を追加し、OpenAPI / JSON Schema を repo root `schemas/` へ生成する。
-- [x] `scripts/check_generated_schemas.py` を追加し、生成schemaとtracked schemaの差分をCIで検出する。
+- [x] `scripts/check_generated_schemas.py` を追加し、生成schemaとtracked schemaの差分を検出可能にする。
+- [ ] `scripts/check_generated_schemas.py` または `scripts/check_contract_acceptance.py` をCI workflowへ配線する。
 - [x] `schemas/json-schema.report.json` を生成物として追加し、`$defs.SafeFindingApiV1` を内包する。
 - [x] `schemas/json-schema.run-meta.json` から `artifacts.runMeta` を排除する。
 - [x] `ScanRequest.paths` missing/empty -> `["."]` 正規化test。
