@@ -573,15 +573,34 @@ pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> b
                     &["order", "order_id", "receipt", "ticket"],
                 )
         }
-        "pii.jp.postal_code" => {
-            content.contains("バージョン")
-                || contains_any_ascii_token_case_insensitive(
-                    content,
-                    &["version", "build", "release", "rev", "commit"],
-                )
-        }
+        "pii.jp.postal_code" => has_adjacent_postal_version_marker(content, span),
         _ => false,
     }
+}
+
+fn has_adjacent_postal_version_marker(content: &str, span: FindingSpan) -> bool {
+    let Some(before_match) = content.get(..span.byte_start) else {
+        return false;
+    };
+    let marker = trim_postal_marker_separator_suffix(before_match);
+
+    marker.ends_with("バージョン")
+        || ends_with_ascii_token_case_insensitive(
+            marker,
+            &["version", "build", "release", "rev", "commit"],
+        )
+}
+
+fn trim_postal_marker_separator_suffix(mut content: &str) -> &str {
+    while let Some(ch) = content.chars().next_back() {
+        if ch.is_whitespace() || matches!(ch, ':' | '=' | '-' | '：' | '＝') {
+            content = &content[..content.len() - ch.len_utf8()];
+        } else {
+            break;
+        }
+    }
+
+    content
 }
 
 fn nearby_match_context(
@@ -644,34 +663,30 @@ fn contains_ascii_case_insensitive(content: &str, marker: &str) -> bool {
             .any(|window| window.eq_ignore_ascii_case(marker))
 }
 
-fn contains_any_ascii_token_case_insensitive(content: &str, markers: &[&str]) -> bool {
+fn ends_with_ascii_token_case_insensitive(content: &str, markers: &[&str]) -> bool {
     markers
         .iter()
-        .any(|marker| contains_ascii_token_case_insensitive(content, marker))
+        .any(|marker| ends_with_ascii_token(content, marker))
 }
 
-fn contains_ascii_token_case_insensitive(content: &str, marker: &str) -> bool {
+fn ends_with_ascii_token(content: &str, marker: &str) -> bool {
     let marker = marker.as_bytes();
     if marker.is_empty() {
         return false;
     }
 
     let bytes = content.as_bytes();
-    bytes
-        .windows(marker.len())
-        .enumerate()
-        .any(|(index, window)| {
-            if !window.eq_ignore_ascii_case(marker) {
-                return false;
-            }
+    if bytes.len() < marker.len() {
+        return false;
+    }
 
-            let before = index
+    let start = bytes.len() - marker.len();
+    bytes[start..].eq_ignore_ascii_case(marker)
+        && is_ascii_token_boundary(
+            start
                 .checked_sub(1)
-                .and_then(|previous| bytes.get(previous).copied());
-            let after = bytes.get(index + marker.len()).copied();
-
-            is_ascii_token_boundary(before) && is_ascii_token_boundary(after)
-        })
+                .and_then(|index| bytes.get(index).copied()),
+        )
 }
 
 fn is_ascii_token_boundary(byte: Option<u8>) -> bool {
@@ -818,39 +833,26 @@ mod tests {
             validator: None,
             placeholder: None,
         };
+        let span = |content: &str| {
+            let byte_start = content.find("100-0001").unwrap();
+            FindingSpan {
+                byte_start,
+                byte_end: byte_start + "100-0001".len(),
+            }
+        };
 
-        assert!(!should_suppress_match(
-            &rule,
-            "building: 100-0001",
-            FindingSpan {
-                byte_start: 10,
-                byte_end: 18,
-            },
-        ));
-        assert!(!should_suppress_match(
-            &rule,
-            "preversion: 100-0001",
-            FindingSpan {
-                byte_start: 12,
-                byte_end: 20,
-            },
-        ));
-        assert!(should_suppress_match(
-            &rule,
-            "build: 100-0001",
-            FindingSpan {
-                byte_start: 7,
-                byte_end: 15,
-            },
-        ));
-        assert!(should_suppress_match(
-            &rule,
-            "version=100-0001",
-            FindingSpan {
-                byte_start: 8,
-                byte_end: 16,
-            },
-        ));
+        let content = "building: 100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "preversion: 100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "version=2 address=100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "build: 100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
+        let content = "version=100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
+        let content = "バージョン: 100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
     }
 
     #[test]
