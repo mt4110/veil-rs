@@ -10,6 +10,7 @@
 - Promote 37 critical `secret` / `finance` `kv` templates from the inactive `jp_security_templates_1000` corpus.
 - Add fixture-backed tests for representative hits and label-only false positives.
 - Document the pack boundary and the exact promotion command.
+- Address AI review findings by accepting standard `Authorization: Bearer ...` / `Authorization: Basic ...` headers, removing the bare `sid` session alias from the critical pack, and aligning score tests to the documented `score >= 90` contract.
 
 ## Why
 - #108 added the promotion mechanism and inactive template corpus.
@@ -33,6 +34,7 @@
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 - `python scripts/check_generated_schemas.py`
 - `python` pack manifest/TOML consistency check: `rows=37 toml=37 manifest_files=37 missing=0 extra=0 manifest_missing=0 manifest_extra=0`
+- `python` template corpus manifest/TOML consistency check: `rows=1000 toml=1000 missing=0 extra=0`
 - `npm --prefix crates/veil-pro/frontend ci`
 - `npm --prefix crates/veil-pro/frontend run build`
 
@@ -41,3 +43,4 @@
 - `rules list` loads 37 promoted `log.jp.*` rules when `[core].rules_dir` points to `jp_security_critical`.
 - Positive fixtures use dummy values only.
 - Negative fixtures assert label-only text does not trigger promoted rules.
+- Negative fixtures cover `bssid` / `ssid` so Wi-Fi identifiers do not trigger the promoted session ID rule.

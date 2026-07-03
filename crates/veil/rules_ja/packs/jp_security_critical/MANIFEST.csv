@@ -30,7 +30,7 @@ rules/secret/kv/log.jp.secret.password.kv.toml,log.jp.secret.password.kv,パス�
 rules/secret/kv/log.jp.secret.private_key.kv.toml,log.jp.secret.private_key.kv,秘密鍵,private_key,kv,secret,critical,97,秘密鍵|private_key|secret_key
 rules/secret/kv/log.jp.secret.redis_password.kv.toml,log.jp.secret.redis_password.kv,Redisパスワード,redis_password,kv,secret,critical,97,Redisパスワード|REDIS_PASSWORD|redis_password
 rules/secret/kv/log.jp.secret.refresh_token.kv.toml,log.jp.secret.refresh_token.kv,リフレッシュトークン,refresh_token,kv,secret,critical,97,リフレッシュトークン|refresh_token
-rules/secret/kv/log.jp.secret.session_id.kv.toml,log.jp.secret.session_id.kv,セッションID,session_id,kv,secret,critical,97,セッションID|session_id|sid
+rules/secret/kv/log.jp.secret.session_id.kv.toml,log.jp.secret.session_id.kv,セッションID,session_id,kv,secret,critical,97,セッションID|session_id
 rules/secret/kv/log.jp.secret.signing_secret.kv.toml,log.jp.secret.signing_secret.kv,署名シークレット,signing_secret,kv,secret,critical,97,署名シークレット|署名鍵|signing_secret
 rules/secret/kv/log.jp.secret.slack_webhook_url.kv.toml,log.jp.secret.slack_webhook_url.kv,Slack Webhook URL,slack_webhook_url,kv,secret,critical,97,Slack Webhook URL|slack_webhook_url|incoming_webhook
 rules/secret/kv/log.jp.secret.smtp_password.kv.toml,log.jp.secret.smtp_password.kv,SMTPパスワード,smtp_password,kv,secret,critical,97,SMTPパスワード|SMTP_PASSWORD|smtp_password

@@ -4,3 +4,5 @@ card_number column is nullable in the migration note.
 口座番号の入力欄は任意項目です。
 CVVは保存しない運用です。
 password policy requires rotation.
+bssid=00:11:22:33:44:55
+ssid=OfficeNetwork123456
