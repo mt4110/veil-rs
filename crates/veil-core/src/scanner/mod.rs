@@ -574,7 +574,7 @@ pub fn should_suppress_match(rule: &Rule, content: &str) -> bool {
         }
         "pii.jp.postal_code" => {
             content.contains("バージョン")
-                || contains_any_ascii_case_insensitive(
+                || contains_any_ascii_token_case_insensitive(
                     content,
                     &["version", "build", "release", "rev", "commit"],
                 )
@@ -600,6 +600,40 @@ fn contains_ascii_case_insensitive(content: &str, marker: &str) -> bool {
             .as_bytes()
             .windows(marker.len())
             .any(|window| window.eq_ignore_ascii_case(marker))
+}
+
+fn contains_any_ascii_token_case_insensitive(content: &str, markers: &[&str]) -> bool {
+    markers
+        .iter()
+        .any(|marker| contains_ascii_token_case_insensitive(content, marker))
+}
+
+fn contains_ascii_token_case_insensitive(content: &str, marker: &str) -> bool {
+    let marker = marker.as_bytes();
+    if marker.is_empty() {
+        return false;
+    }
+
+    let bytes = content.as_bytes();
+    bytes
+        .windows(marker.len())
+        .enumerate()
+        .any(|(index, window)| {
+            if !window.eq_ignore_ascii_case(marker) {
+                return false;
+            }
+
+            let before = index
+                .checked_sub(1)
+                .and_then(|previous| bytes.get(previous).copied());
+            let after = bytes.get(index + marker.len()).copied();
+
+            is_ascii_token_boundary(before) && is_ascii_token_boundary(after)
+        })
+}
+
+fn is_ascii_token_boundary(byte: Option<u8>) -> bool {
+    byte.map_or(true, |byte| !byte.is_ascii_alphanumeric() && byte != b'_')
 }
 
 #[cfg(test)]
@@ -722,6 +756,31 @@ mod tests {
         let content = "SECRET // veil:ignore=other";
         let findings = scan_content(content, Path::new("test.rs"), &rules, &config);
         assert_eq!(findings.len(), 1, "Should NOT ignore if ID mismatch");
+    }
+
+    #[test]
+    fn postal_code_suppression_requires_version_marker_token_boundaries() {
+        let rule = Rule {
+            id: "pii.jp.postal_code".to_string(),
+            enabled: true,
+            pattern: Regex::new(r"[0-9]{3}-[0-9]{4}").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::Low,
+            score: 40,
+            category: "jp_pii".to_string(),
+            tags: vec!["jp".to_string(), "postal_code".to_string()],
+            base_score: Some(40),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator_id: None,
+            validator: None,
+            placeholder: None,
+        };
+
+        assert!(!should_suppress_match(&rule, "building: 100-0001"));
+        assert!(!should_suppress_match(&rule, "preversion: 100-0001"));
+        assert!(should_suppress_match(&rule, "build: 100-0001"));
+        assert!(should_suppress_match(&rule, "version=100-0001"));
     }
 
     #[test]
