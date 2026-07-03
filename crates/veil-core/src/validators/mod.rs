@@ -100,7 +100,8 @@ fn has_card_run_prefix(chars: &[char], start: usize) -> bool {
         return false;
     }
 
-    digit_group_len_before(chars, index) >= 4
+    let prefix_len = digit_group_len_before(chars, index);
+    prefix_len >= 4 && prefix_len + card_digit_run_len_from(chars, start) <= 19
 }
 
 fn digit_group_len_before(chars: &[char], end: usize) -> usize {
@@ -113,6 +114,28 @@ fn digit_group_len_before(chars: &[char], end: usize) -> usize {
         } else {
             break;
         }
+    }
+
+    len
+}
+
+fn card_digit_run_len_from(chars: &[char], start: usize) -> usize {
+    let mut len = 0;
+    let mut last_was_separator = false;
+
+    for ch in &chars[start..] {
+        if digit_value(*ch).is_some() {
+            len += 1;
+            last_was_separator = false;
+            continue;
+        }
+
+        if is_card_separator(*ch) && len > 0 && !last_was_separator {
+            last_was_separator = true;
+            continue;
+        }
+
+        break;
     }
 
     len
@@ -186,6 +209,8 @@ mod tests {
         assert!(luhn("card_1: 4111222233334448"));
         assert!(luhn("card 2 4111222233334448"));
         assert!(luhn("card 2 ... 4111222233334448"));
+        assert!(luhn("card exp 2026: 4111222233334448"));
+        assert!(luhn("card exp 2026 4111222233334448"));
         assert!(luhn("VISA: 4111-2222-3333-4448"));
         assert!(luhn("VISA: 4111 2222 3333 4448"));
     }
@@ -195,7 +220,7 @@ mod tests {
         assert!(!luhn("411122223333"));
         assert!(!luhn("4111222233334444"));
         assert!(!luhn("card: 4000000000000000"));
-        assert!(!luhn("batch 1234 4111222233334448"));
+        assert!(!luhn("batch 12344111222233334448"));
         assert!(!luhn("4111111111111111"));
         assert!(!luhn("5555555555554444"));
     }
