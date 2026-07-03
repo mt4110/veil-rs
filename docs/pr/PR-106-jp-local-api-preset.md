@@ -47,7 +47,7 @@ npm --prefix crates/veil-pro/frontend run build
 
 ### Notes / Evidence
 - `api::tests::local_api_fintech_preset_applies_base_score_override` verifies that `fintech-jp` base score overrides apply in the Local API scan path.
-- `api::tests::scan_logs_preset_without_rule_pack_returns_guidance` verifies that `logs-jp` returns explicit guidance when `rules/log` is absent.
+- `api::tests::local_api_logs_preset_without_rule_pack_returns_guidance` verifies that `logs-jp` returns explicit guidance when `rules/log` is absent.
 - Existing CLI preset tests pass after moving `LOGS_JP_REQUIRED_RULE_IDS` into `veil-config`.
 - `scripts/check_generated_schemas.py` passes; generated schema output remains stable.
 - `npm --prefix crates/veil-pro/frontend ci` was run locally before the frontend build to restore dependencies.

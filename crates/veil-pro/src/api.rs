@@ -178,6 +178,13 @@ fn load_effective_config_for_paths_with_preset(
     preset: Option<PresetName>,
 ) -> Result<veil_config::Config, ApiErrorResponse> {
     let config = load_effective_config_for_paths(paths)?;
+    apply_request_preset_for_api(config, preset)
+}
+
+fn apply_request_preset_for_api(
+    config: veil_config::Config,
+    preset: Option<PresetName>,
+) -> Result<veil_config::Config, ApiErrorResponse> {
     let Some(preset) = preset else {
         return Ok(config);
     };
@@ -1229,8 +1236,8 @@ mod tests {
 
     #[test]
     fn local_api_fintech_preset_applies_base_score_override() {
-        let config = load_effective_config_for_paths_with_preset(
-            &[".".to_string()],
+        let config = apply_request_preset_for_api(
+            veil_config::Config::default(),
             Some(PresetName::FintechJp),
         )
         .unwrap();
@@ -1613,23 +1620,11 @@ mod tests {
         ));
     }
 
-    #[tokio::test]
-    async fn scan_logs_preset_without_rule_pack_returns_guidance() {
-        let state = Arc::new(AppState {
-            token: "test-token".to_string(),
-            run_cache: Arc::new(tokio::sync::RwLock::new(crate::evidence::RunCache::new(
-                1, 1024, 1,
-            ))),
-            oauth: Arc::new(crate::auth::init_oauth()),
-        });
-        let request = ScanRequest {
-            preset: Some(PresetName::LogsJp),
-            ..ScanRequest::default()
-        };
-
-        let (status, Json(body)) = scan_project(State(state), Ok(Json(request)))
-            .await
-            .unwrap_err();
+    #[test]
+    fn local_api_logs_preset_without_rule_pack_returns_guidance() {
+        let (status, Json(body)) =
+            apply_request_preset_for_api(veil_config::Config::default(), Some(PresetName::LogsJp))
+                .unwrap_err();
 
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(matches!(body.error.code, ErrorCode::InvalidRequest));
