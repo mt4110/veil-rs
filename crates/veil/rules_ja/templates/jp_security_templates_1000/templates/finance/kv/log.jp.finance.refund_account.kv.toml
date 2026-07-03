@@ -3,7 +3,7 @@
 
 [[rules]]
 id = "log.jp.finance.refund_account.kv"
-pattern = "(?i)[\"\\'`]?((?:refund_account|返金先口座|返金口座))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+pattern = "(?i)[\"\\'`]?((?:refund_account|返金先口座|返金口座))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９][0-9０-９\\-\\s　]{3,39})[\"\\'`」』】\\]]?"
 description = "返金先口座 - JSON/YAML/env風キー値"
 severity = "critical"
 score = 97

@@ -3,7 +3,7 @@
 
 [[rules]]
 id = "log.jp.finance.bank_account_number.kv"
-pattern = "(?i)[\"\\'`]?((?:bank_account_number|account_number|銀行口座番号|口座番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+pattern = "(?i)[\"\\'`]?((?:bank_account_number|account_number|銀行口座番号|口座番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９][0-9０-９\\-\\s　]{3,39})[\"\\'`」』】\\]]?"
 description = "銀行口座番号 - JSON/YAML/env風キー値"
 severity = "critical"
 score = 97

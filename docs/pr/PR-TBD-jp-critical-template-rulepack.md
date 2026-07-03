@@ -12,6 +12,7 @@
 - Document the pack boundary and the exact promotion command.
 - Address AI review findings by accepting standard `Authorization: Bearer ...` / `Authorization: Basic ...` headers, removing the bare `sid` session alias from the critical pack, and aligning score tests to the documented `score >= 90` contract.
 - Address follow-up AI review findings by accepting quoted serialized Authorization header values and shorter valid Basic auth base64 credentials.
+- Address follow-up AI review findings by requiring bank-account-like finance values to start with a digit instead of matching blank or separator-only fields.
 
 ## Why
 - #108 added the promotion mechanism and inactive template corpus.
@@ -45,4 +46,5 @@
 - Positive fixtures use dummy values only.
 - Negative fixtures assert label-only text does not trigger promoted rules.
 - Negative fixtures cover `bssid` / `ssid` so Wi-Fi identifiers do not trigger the promoted session ID rule.
+- Negative fixtures cover blank and separator-only account fields so they do not trigger critical finance rules.
 - Positive fixtures cover serialized `"Authorization": "Bearer ..."` headers and short `Authorization: Basic dXNlcjpwYXNz` credentials.

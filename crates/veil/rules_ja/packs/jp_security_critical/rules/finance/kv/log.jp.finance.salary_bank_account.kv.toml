@@ -3,7 +3,7 @@
 
 [[rules]]
 id = "log.jp.finance.salary_bank_account.kv"
-pattern = "(?i)[\"\\'`]?((?:salary_bank_account|給与振込口座|給与口座))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+pattern = "(?i)[\"\\'`]?((?:salary_bank_account|給与振込口座|給与口座))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９][0-9０-９\\-\\s　]{3,39})[\"\\'`」』】\\]]?"
 description = "給与振込口座 - JSON/YAML/env風キー値"
 severity = "critical"
 score = 97
