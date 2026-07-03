@@ -633,7 +633,7 @@ fn contains_ascii_token_case_insensitive(content: &str, marker: &str) -> bool {
 }
 
 fn is_ascii_token_boundary(byte: Option<u8>) -> bool {
-    byte.map_or(true, |byte| !byte.is_ascii_alphanumeric() && byte != b'_')
+    byte.is_none_or(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
 }
 
 #[cfg(test)]
