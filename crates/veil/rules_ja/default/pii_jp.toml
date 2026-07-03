@@ -109,7 +109,7 @@ context_lines_after = 1
 [[rules]]
 id = "pii.jp.postal_code"
 description = "郵便番号（NNN-NNNN）"
-pattern = '''\b[0-9]{3}-?[0-9]{4}\b'''
+pattern = '''(?-u:\b)[0-9]{3}-?[0-9]{4}(?-u:\b)'''
 severity = "LOW"
 score = 34
 category = "pii"

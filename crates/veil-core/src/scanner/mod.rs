@@ -423,7 +423,11 @@ fn scan_line(
         // Raw matching preserves existing custom-rule semantics.
         for mat in rule.pattern.find_iter(content) {
             let matched_str = mat.as_str();
-            if should_suppress_match(rule, content) {
+            let span = FindingSpan {
+                byte_start: mat.start(),
+                byte_end: mat.end(),
+            };
+            if should_suppress_match(rule, content, span) {
                 continue;
             }
             if let Some(validator) = rule.validator {
@@ -432,10 +436,6 @@ fn scan_line(
                 }
             }
 
-            let span = FindingSpan {
-                byte_start: mat.start(),
-                byte_end: mat.end(),
-            };
             if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
                 all_matches.push(LineMatch { rule, span });
             }
@@ -452,7 +452,10 @@ fn scan_line(
         // returning original byte spans for masking and editor ranges.
         for mat in rule.pattern.find_iter(&normalized.normalized) {
             let matched_str = mat.as_str();
-            if should_suppress_match(rule, content) {
+            let Some(span) = normalized.original_span(mat.start(), mat.end()) else {
+                continue;
+            };
+            if should_suppress_match(rule, content, span) {
                 continue;
             }
             if let Some(validator) = rule.validator {
@@ -461,9 +464,6 @@ fn scan_line(
                 }
             }
 
-            let Some(span) = normalized.original_span(mat.start(), mat.end()) else {
-                continue;
-            };
             if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
                 all_matches.push(LineMatch { rule, span });
             }
@@ -563,12 +563,13 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
         || rule.tags.iter().any(|tag| tag == "jp" || tag == "jp_pii")
 }
 
-pub fn should_suppress_match(rule: &Rule, content: &str) -> bool {
+pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> bool {
     match rule.id.as_str() {
         "pii.jp.mynumber.unlabeled" => {
-            contains_any_literal(content, &["注文番号", "受付番号", "伝票番号"])
+            let context = nearby_match_context(content, span, 24, 16);
+            contains_any_literal(context, &["注文番号", "受付番号", "伝票番号"])
                 || contains_any_ascii_case_insensitive(
-                    content,
+                    context,
                     &["order", "order_id", "receipt", "ticket"],
                 )
         }
@@ -581,6 +582,47 @@ pub fn should_suppress_match(rule: &Rule, content: &str) -> bool {
         }
         _ => false,
     }
+}
+
+fn nearby_match_context(
+    content: &str,
+    span: FindingSpan,
+    before_chars: usize,
+    after_chars: usize,
+) -> &str {
+    let start = byte_index_before_chars(content, span.byte_start, before_chars);
+    let end = byte_index_after_chars(content, span.byte_end, after_chars);
+    &content[start..end]
+}
+
+fn byte_index_before_chars(content: &str, byte_end: usize, count: usize) -> usize {
+    if count == 0 {
+        return byte_end;
+    }
+
+    let mut seen = 0;
+    for (index, _) in content[..byte_end].char_indices().rev() {
+        seen += 1;
+        if seen == count {
+            return index;
+        }
+    }
+    0
+}
+
+fn byte_index_after_chars(content: &str, byte_start: usize, count: usize) -> usize {
+    if count == 0 {
+        return byte_start;
+    }
+
+    let mut end = byte_start;
+    for (seen, (index, ch)) in content[byte_start..].char_indices().enumerate() {
+        if seen == count {
+            break;
+        }
+        end = byte_start + index + ch.len_utf8();
+    }
+    end
 }
 
 fn contains_any_literal(content: &str, markers: &[&str]) -> bool {
@@ -777,10 +819,76 @@ mod tests {
             placeholder: None,
         };
 
-        assert!(!should_suppress_match(&rule, "building: 100-0001"));
-        assert!(!should_suppress_match(&rule, "preversion: 100-0001"));
-        assert!(should_suppress_match(&rule, "build: 100-0001"));
-        assert!(should_suppress_match(&rule, "version=100-0001"));
+        assert!(!should_suppress_match(
+            &rule,
+            "building: 100-0001",
+            FindingSpan {
+                byte_start: 10,
+                byte_end: 18,
+            },
+        ));
+        assert!(!should_suppress_match(
+            &rule,
+            "preversion: 100-0001",
+            FindingSpan {
+                byte_start: 12,
+                byte_end: 20,
+            },
+        ));
+        assert!(should_suppress_match(
+            &rule,
+            "build: 100-0001",
+            FindingSpan {
+                byte_start: 7,
+                byte_end: 15,
+            },
+        ));
+        assert!(should_suppress_match(
+            &rule,
+            "version=100-0001",
+            FindingSpan {
+                byte_start: 8,
+                byte_end: 16,
+            },
+        ));
+    }
+
+    #[test]
+    fn mynumber_unlabeled_suppression_is_scoped_to_candidate_context() {
+        let rule = Rule {
+            id: "pii.jp.mynumber.unlabeled".to_string(),
+            enabled: true,
+            pattern: Regex::new(r"[0-9]{4}-[0-9]{4}-[0-9]{4}").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 90,
+            category: "jp_pii".to_string(),
+            tags: vec!["jp".to_string(), "mynumber".to_string()],
+            base_score: Some(90),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator_id: None,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+
+        let findings = scan_content(
+            r#"{"order_id":"A1","customer_id":"1234-5678-9012"}"#,
+            Path::new("jp.json"),
+            &rules,
+            &config,
+        );
+        assert_eq!(findings.len(), 1);
+
+        let suppressed = scan_content(
+            r#"{"order_id":"1234-5678-9012"}"#,
+            Path::new("jp.json"),
+            &rules,
+            &config,
+        );
+        assert!(suppressed.is_empty());
     }
 
     #[test]
