@@ -38,11 +38,11 @@ pub fn apply_builtin_preset_as_base(config: Config, preset_id: &str) -> Result<C
 
 fn builtin_preset_source(preset_id: &str) -> Result<&'static str> {
     match preset_id {
-        "standard-jp" => Ok(include_str!("../../veil/presets/standard-jp.toml")),
-        "fintech-jp" => Ok(include_str!("../../veil/presets/fintech-jp.toml")),
-        "gov-jp" => Ok(include_str!("../../veil/presets/gov-jp.toml")),
-        "logs-jp" => Ok(include_str!("../../veil/presets/logs-jp.toml")),
-        "si-vendor-jp" => Ok(include_str!("../../veil/presets/si-vendor-jp.toml")),
+        "standard-jp" => Ok(include_str!("../presets/standard-jp.toml")),
+        "fintech-jp" => Ok(include_str!("../presets/fintech-jp.toml")),
+        "gov-jp" => Ok(include_str!("../presets/gov-jp.toml")),
+        "logs-jp" => Ok(include_str!("../presets/logs-jp.toml")),
+        "si-vendor-jp" => Ok(include_str!("../presets/si-vendor-jp.toml")),
         _ => bail!(
             "Unknown preset '{}'. Built-in presets: {}",
             preset_id,

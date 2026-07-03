@@ -1,0 +1,15 @@
+[rules."log.pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 90
+
+[rules."log.pii.credit_card"]
+enabled = true
+base_score = 88
+
+[rules."log.pii.jp.phone.keyword"]
+enabled = true
+base_score = 70
+
+[rules."log.pii.jp.postal.keyword"]
+enabled = true
+base_score = 75
