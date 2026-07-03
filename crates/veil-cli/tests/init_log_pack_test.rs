@@ -200,6 +200,7 @@ tags = ["log", "pii"]
         .unwrap();
 
     assert_eq!(output.status.code(), Some(2));
+    assert!(!dir_path.join("veil.toml").exists());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("missing required logs-jp rules"));
     assert!(stderr.contains("log.pii.credit_card"));

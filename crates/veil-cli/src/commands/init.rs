@@ -273,34 +273,20 @@ pub fn init(
     }
     let toml_str = toml::to_string_pretty(&config)?;
 
+    let should_init_log_pack =
+        answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp");
+    let log_pack_rules_dir = Path::new("rules/log");
+    let log_pack_created_any = if should_init_log_pack {
+        Some(ensure_log_pack_for_init(log_pack_rules_dir)?)
+    } else {
+        None
+    };
+
     let path = answers.target_path.as_deref().unwrap_or(path);
     fs::write(path, toml_str)?;
 
     // Post-generation for Logs profile or logs preset
-    if answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp") {
-        let rules_dir = Path::new("rules/log");
-        if !rules_dir.exists() {
-            fs::create_dir_all(rules_dir)?;
-            println!(
-                "{}",
-                format!("Created directory {}", rules_dir.display()).green()
-            );
-        }
-
-        let mut created_any = false;
-        for file in LogPackAssets::iter() {
-            let file_path = rules_dir.join(file.as_ref());
-            if !file_path.exists() {
-                if let Some(content) = LogPackAssets::get(file.as_ref()) {
-                    fs::write(&file_path, content.data.as_ref())?;
-                    println!("  - Created {}", file.as_ref());
-                    created_any = true;
-                }
-            }
-        }
-
-        validate_log_pack_for_init(rules_dir)?;
-
+    if let Some(created_any) = log_pack_created_any {
         if created_any {
             println!(
                 "{}",
@@ -315,7 +301,7 @@ pub fn init(
                 "{}",
                 format!(
                     "Directory {} already contains a usable log RulePack.",
-                    rules_dir.display()
+                    log_pack_rules_dir.display()
                 )
                 .yellow()
             );
@@ -333,6 +319,32 @@ pub fn init(
     }
 
     Ok(())
+}
+
+fn ensure_log_pack_for_init(rules_dir: &Path) -> Result<bool> {
+    if !rules_dir.exists() {
+        fs::create_dir_all(rules_dir)?;
+        println!(
+            "{}",
+            format!("Created directory {}", rules_dir.display()).green()
+        );
+    }
+
+    let mut created_any = false;
+    for file in LogPackAssets::iter() {
+        let file_path = rules_dir.join(file.as_ref());
+        if !file_path.exists() {
+            if let Some(content) = LogPackAssets::get(file.as_ref()) {
+                fs::write(&file_path, content.data.as_ref())?;
+                println!("  - Created {}", file.as_ref());
+                created_any = true;
+            }
+        }
+    }
+
+    validate_log_pack_for_init(rules_dir)?;
+
+    Ok(created_any)
 }
 
 fn validate_log_pack_for_init(rules_dir: &Path) -> Result<()> {
