@@ -206,7 +206,7 @@ impl Default for RuleConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            enabled_is_set: false,
+            enabled_is_set: true,
             severity: None,
             pattern: None,
             score: None,
@@ -442,6 +442,32 @@ enabled = false
         base.merge(other);
 
         assert!(!base.rules["pii.fin.credit_card.keyword"].enabled);
+    }
+
+    #[test]
+    fn merge_treats_programmatic_enabled_true_as_explicit_enable() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                enabled: false,
+                enabled_is_set: true,
+                base_score: Some(85),
+                ..RuleConfig::default()
+            },
+        );
+        let mut other = Config::default();
+        other.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                enabled: true,
+                ..RuleConfig::default()
+            },
+        );
+
+        base.merge(other);
+
+        assert!(base.rules["pii.fin.credit_card.keyword"].enabled);
     }
 
     #[test]
