@@ -238,10 +238,10 @@ pub fn init(
             "{}",
             "Tip: Run `veil init --wizard` for an interactive setup (recommended).".dimmed()
         );
-        if profile == Profile::Logs {
+        if profile == Profile::Logs || preset.as_deref() == Some("logs-jp") {
             println!(
                 "{}",
-                "Note: This profile generates a log-focused RulePack under rules/log.".dimmed()
+                "Note: This setup generates a log-focused RulePack under rules/log.".dimmed()
             );
         }
 
@@ -259,6 +259,9 @@ pub fn init(
     let mut config = build_config(&answers);
     if let Some(preset_id) = preset.as_deref() {
         config = veil_config::apply_builtin_preset_as_base(config, preset_id)?;
+        if preset_id == "logs-jp" && config.core.rules_dir.is_none() {
+            config.core.rules_dir = Some("rules/log".to_string());
+        }
         println!(
             "{}",
             format!(
@@ -283,8 +286,8 @@ pub fn init(
         println!("Policy: Fail on score >= {}", score);
     }
 
-    // Post-generation for Logs profile
-    if answers.profile == Profile::Logs {
+    // Post-generation for Logs profile or logs preset
+    if answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp") {
         let rules_dir = Path::new("rules/log");
         if !rules_dir.exists() {
             fs::create_dir_all(rules_dir)?;
