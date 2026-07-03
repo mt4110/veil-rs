@@ -3,7 +3,7 @@ use colored::*;
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use veil_config::config::{Config, CoreConfig, MaskingConfig};
 
 #[derive(RustEmbed)]
@@ -273,16 +273,16 @@ pub fn init(
     }
     let toml_str = toml::to_string_pretty(&config)?;
 
+    let path = answers.target_path.as_deref().unwrap_or(path);
     let should_init_log_pack =
         answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp");
-    let log_pack_rules_dir = Path::new("rules/log");
+    let log_pack_rules_dir = log_pack_rules_dir_for_config(path);
     let log_pack_created_any = if should_init_log_pack {
-        Some(ensure_log_pack_for_init(log_pack_rules_dir)?)
+        Some(ensure_log_pack_for_init(&log_pack_rules_dir)?)
     } else {
         None
     };
 
-    let path = answers.target_path.as_deref().unwrap_or(path);
     fs::write(path, toml_str)?;
 
     // Post-generation for Logs profile or logs preset
@@ -290,11 +290,19 @@ pub fn init(
         if created_any {
             println!(
                 "{}",
-                "Log RulePack initialized at rules/log (wired via core.rules_dir).".green()
+                format!(
+                    "Log RulePack initialized at {} (wired via core.rules_dir).",
+                    log_pack_rules_dir.display()
+                )
+                .green()
             );
             println!(
                 "{}",
-                "Tip: In rules/log/00_manifest.toml, uncomment the `ext = \"aggressive\"` line to enable aggressive rules.".bright_black()
+                format!(
+                    "Tip: In {}/00_manifest.toml, uncomment the `ext = \"aggressive\"` line to enable aggressive rules.",
+                    log_pack_rules_dir.display()
+                )
+                .bright_black()
             );
         } else {
             println!(
@@ -319,6 +327,14 @@ pub fn init(
     }
 
     Ok(())
+}
+
+fn log_pack_rules_dir_for_config(config_path: &Path) -> PathBuf {
+    config_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.join("rules/log"))
+        .unwrap_or_else(|| PathBuf::from("rules/log"))
 }
 
 fn ensure_log_pack_for_init(rules_dir: &Path) -> Result<bool> {
@@ -362,9 +378,10 @@ fn validate_log_pack_for_init(rules_dir: &Path) -> Result<()> {
 
     if !missing_ids.is_empty() {
         anyhow::bail!(
-            "Existing log RulePack at {} is missing required logs-jp rules: {}. Repair or remove rules/log, then rerun `veil init --preset logs-jp`.",
+            "Existing log RulePack at {} is missing required logs-jp rules: {}. Repair or remove {}, then rerun `veil init --preset logs-jp`.",
             rules_dir.display(),
-            missing_ids.join(", ")
+            missing_ids.join(", "),
+            rules_dir.display()
         );
     }
 
@@ -691,5 +708,17 @@ mod tests {
         let config = build_config(&answers);
         assert_eq!(config.core.fail_on_score, Some(80)); // App default
         assert!(!config.core.ignore.contains(&"tests".to_string()));
+    }
+
+    #[test]
+    fn log_pack_rules_dir_follows_config_parent() {
+        assert_eq!(
+            log_pack_rules_dir_for_config(Path::new("veil.toml")),
+            PathBuf::from("rules/log")
+        );
+        assert_eq!(
+            log_pack_rules_dir_for_config(Path::new("configs/veil.logs.toml")),
+            PathBuf::from("configs/rules/log")
+        );
     }
 }
