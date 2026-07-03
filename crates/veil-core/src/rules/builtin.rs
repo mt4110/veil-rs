@@ -178,6 +178,9 @@ pub fn try_get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Result<Vec<
                 if let Some(score) = rule_conf.score {
                     rule.score = score as u32;
                 }
+                if let Some(base_score) = rule_conf.base_score {
+                    rule.base_score = Some(base_score);
+                }
                 if let Some(cat) = &rule_conf.category {
                     rule.category = cat.clone();
                 }
@@ -225,6 +228,7 @@ mod tests {
             "custom.invalid_validator".to_string(),
             RuleConfig {
                 enabled: true,
+                enabled_is_set: true,
                 severity: None,
                 pattern: Some("SECRET".to_string()),
                 score: None,
@@ -255,5 +259,53 @@ mod tests {
         let rules = get_all_rules(&rule_config_with_unknown_validator(), vec![]);
 
         assert!(!rules.is_empty());
+    }
+
+    #[test]
+    fn builtin_preset_base_score_override_is_applied() {
+        let config = veil_config::builtin_preset_config("fintech-jp").unwrap();
+        let rules = try_get_all_rules(&config, vec![]).unwrap();
+        let card = rules
+            .iter()
+            .find(|rule| rule.id == "pii.fin.credit_card.keyword")
+            .unwrap();
+
+        assert_eq!(card.base_score, Some(85));
+    }
+
+    #[test]
+    fn builtin_preset_enabled_override_filters_rule() {
+        let mut config = veil_config::builtin_preset_config("fintech-jp").unwrap();
+        config
+            .rules
+            .get_mut("pii.fin.credit_card.keyword")
+            .unwrap()
+            .enabled = false;
+
+        let rules = try_get_all_rules(&config, vec![]).unwrap();
+
+        assert!(!rules
+            .iter()
+            .any(|rule| rule.id == "pii.fin.credit_card.keyword"));
+    }
+
+    #[test]
+    fn logs_preset_overrides_loaded_log_rule_pack() {
+        let mut config = veil_config::builtin_preset_config("logs-jp").unwrap();
+        let rules_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("veil")
+            .join("rules")
+            .join("log");
+        config.core.rules_dir = Some(rules_dir.to_string_lossy().to_string());
+
+        let rules = try_get_all_rules(&config, vec![]).unwrap();
+        let log_card = rules
+            .iter()
+            .find(|rule| rule.id == "log.pii.credit_card")
+            .unwrap();
+
+        assert_eq!(log_card.base_score, Some(88));
     }
 }

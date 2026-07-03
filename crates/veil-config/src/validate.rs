@@ -94,6 +94,7 @@ mod tests {
 
         let rule = crate::config::RuleConfig {
             enabled: true,
+            enabled_is_set: true,
             severity: Some("high".to_string()),
             pattern: Some(long_pattern),
             score: Some(10),
