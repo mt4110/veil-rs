@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.driver_license_number.kv"
+pattern = "(?i)[\"\\'`]?((?:driver_license_number|運転免許証番号|免許証番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+description = "運転免許証番号 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "government"
+tags = ["log", "jp", "government", "key_value", "license"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

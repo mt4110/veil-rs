@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.employee_number.leak"
+pattern = "(?i)(?:(?:employee_number|employee_id|従業員番号|社員番号)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:employee_number|employee_id|従業員番号|社員番号))"
+description = "社員番号 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "high"
+score = 80
+base_score = 80
+category = "hr"
+tags = ["log", "jp", "hr", "leak_marker", "employee", "identifier"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

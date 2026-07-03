@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.blood_type.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:blood_type|血液型)|(?:blood_type|血液型)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "血液型 - CSV/DBスキーマ上の機微カラム名"
+severity = "medium"
+score = 54
+base_score = 54
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "schema_marker", "blood_type"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 0
+context_lines_after = 0

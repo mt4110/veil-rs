@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.transcript.kv"
+pattern = "(?i)[\"\\'`]?((?:transcript|単位修得証明書|成績証明書))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "成績証明書 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "education"
+tags = ["log", "jp", "education", "key_value", "transcript"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

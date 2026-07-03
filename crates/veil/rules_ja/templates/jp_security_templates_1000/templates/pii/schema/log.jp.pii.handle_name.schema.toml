@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.handle_name.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:display_name|screen_name|nickname|ハンドルネーム|ニックネーム|表示名)|(?:display_name|screen_name|nickname|ハンドルネーム|ニックネーム|表示名)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "ハンドルネーム - CSV/DBスキーマ上の機微カラム名"
+severity = "low"
+score = 22
+base_score = 22
+category = "pii"
+tags = ["log", "jp", "pii", "schema_marker", "identity", "screen_name"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 0
+context_lines_after = 0

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.employee_number.kv"
+pattern = "(?i)[\"\\'`]?((?:employee_number|employee_id|従業員番号|社員番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "社員番号 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "hr"
+tags = ["log", "jp", "hr", "key_value", "employee", "identifier"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

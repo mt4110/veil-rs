@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.surgery_record.lv"
+pattern = "(?i)(?:surgery_record|手術記録|手術歴)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "手術記録 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "label_value", "surgery"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

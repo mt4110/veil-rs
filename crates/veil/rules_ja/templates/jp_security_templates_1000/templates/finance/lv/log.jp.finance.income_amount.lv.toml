@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.income_amount.lv"
+pattern = "(?i)(?:income_amount|所得金額|収入額|年収)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９,，]{3,}\\s*(?:円|JPY|万円|千円|億円)?)[\"」』】\\]]?"
+description = "所得金額 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "income"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

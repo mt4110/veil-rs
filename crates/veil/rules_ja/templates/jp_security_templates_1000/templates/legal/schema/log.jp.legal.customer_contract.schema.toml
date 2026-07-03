@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.customer_contract.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:customer_contract|取引先契約書|顧客契約書)|(?:customer_contract|取引先契約書|顧客契約書)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "顧客契約書 - CSV/DBスキーマ上の機微カラム名"
+severity = "high"
+score = 70
+base_score = 70
+category = "legal"
+tags = ["log", "jp", "legal", "schema_marker", "contract", "customer"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 0
+context_lines_after = 0

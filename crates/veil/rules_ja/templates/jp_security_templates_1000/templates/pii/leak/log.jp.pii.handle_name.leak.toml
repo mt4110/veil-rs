@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.handle_name.leak"
+pattern = "(?i)(?:(?:display_name|screen_name|nickname|ハンドルネーム|ニックネーム|表示名)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:display_name|screen_name|nickname|ハンドルネーム|ニックネーム|表示名))"
+description = "ハンドルネーム - ログ・通知・外部送信に出る漏えい兆候"
+severity = "low"
+score = 32
+base_score = 32
+category = "pii"
+tags = ["log", "jp", "pii", "leak_marker", "identity", "screen_name"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

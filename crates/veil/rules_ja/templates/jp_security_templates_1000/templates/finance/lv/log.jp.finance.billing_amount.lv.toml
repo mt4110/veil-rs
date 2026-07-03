@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.billing_amount.lv"
+pattern = "(?i)(?:billing_amount|請求金額|課金額)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９,，]{3,}\\s*(?:円|JPY|万円|千円|億円)?)[\"」』】\\]]?"
+description = "請求金額 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "billing", "amount"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

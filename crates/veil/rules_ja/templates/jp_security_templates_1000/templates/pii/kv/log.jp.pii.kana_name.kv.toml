@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.kana_name.kv"
+pattern = "(?i)[\"\\'`]?((?:kana_name|furigana|氏名カナ|フリガナ|ふりがな|カナ氏名|カナ名))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"\\'`」』】\\]]?"
+description = "氏名カナ - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identity", "kana"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

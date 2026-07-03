@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.card_expiry.lv"
+pattern = "(?i)(?:expiration_date|card_expiry|カード有効期限|有効期限)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９]{2,4}[年/\\-\\.][0-9０-９]{1,2}[月/\\-\\.]?[0-9０-９]{0,2}日?)[\"」』】\\]]?"
+description = "カード有効期限 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "payment", "card"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

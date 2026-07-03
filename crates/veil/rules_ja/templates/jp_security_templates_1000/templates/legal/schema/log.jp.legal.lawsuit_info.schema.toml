@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.lawsuit_info.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:lawsuit_info|係争情報|訴訟情報)|(?:lawsuit_info|係争情報|訴訟情報)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "訴訟情報 - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "legal"
+tags = ["log", "jp", "legal", "schema_marker", "lawsuit"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 0
+context_lines_after = 0

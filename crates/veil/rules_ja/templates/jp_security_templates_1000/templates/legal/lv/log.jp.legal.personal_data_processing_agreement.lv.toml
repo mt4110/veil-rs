@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.personal_data_processing_agreement.lv"
+pattern = "(?i)(?:personal_data_processing_agreement|個人データ取扱契約|DPA)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "個人データ取扱契約 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "privacy", "dpa"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

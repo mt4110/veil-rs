@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.payment_id.lv"
+pattern = "(?i)(?:payment_id|決済ID|決済番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "決済ID - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "payment"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

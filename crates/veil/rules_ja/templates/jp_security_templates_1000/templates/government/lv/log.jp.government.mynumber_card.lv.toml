@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.mynumber_card.lv"
+pattern = "(?i)(?:my_number_card|マイナンバーカード|個人番号カード)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "マイナンバーカード - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "government"
+tags = ["log", "jp", "government", "label_value", "mynumber_card"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

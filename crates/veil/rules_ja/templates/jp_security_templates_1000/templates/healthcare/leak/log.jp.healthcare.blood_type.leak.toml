@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.blood_type.leak"
+pattern = "(?i)(?:(?:blood_type|血液型)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:blood_type|血液型))"
+description = "血液型 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "medium"
+score = 64
+base_score = 64
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "leak_marker", "blood_type"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

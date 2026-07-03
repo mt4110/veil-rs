@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.contract_draft.lv"
+pattern = "(?i)(?:contract_draft|契約書ドラフト|契約草案)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "契約書ドラフト - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "contract"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

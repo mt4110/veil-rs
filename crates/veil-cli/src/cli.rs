@@ -237,6 +237,55 @@ pub enum RulesCommand {
         /// Rule ID (e.g. creds.aws.access_key_id)
         rule_id: String,
     },
+    /// Promote selected inactive JP templates into an executable RulePack
+    PromoteTemplates(TemplatePromoteArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct TemplatePromoteArgs {
+    /// Template pack root containing MANIFEST.csv and templates/
+    #[arg(long)]
+    pub templates_dir: PathBuf,
+
+    /// Output RulePack directory to create or update
+    #[arg(long)]
+    pub out_dir: PathBuf,
+
+    /// Include only these categories. Repeat for multiple categories.
+    #[arg(long)]
+    pub category: Vec<String>,
+
+    /// Include only these variants. Repeat for multiple variants.
+    #[arg(long)]
+    pub variant: Vec<String>,
+
+    /// Include only these severities. Repeat for multiple severities.
+    #[arg(long, value_parser = parse_severity)]
+    pub severity: Vec<Severity>,
+
+    /// Include only templates with score >= this value.
+    #[arg(long)]
+    pub min_score: Option<u32>,
+
+    /// Include only templates with score <= this value.
+    #[arg(long)]
+    pub max_score: Option<u32>,
+
+    /// RulePack id written to 00_manifest.toml.
+    #[arg(long, default_value = "veil.jp.security.promoted")]
+    pub pack_id: String,
+
+    /// Preview selected templates without writing files.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Overwrite generated manifests and selected template copies in an existing output directory.
+    #[arg(long)]
+    pub force: bool,
+
+    /// Allow promotion with no filters, selecting every template.
+    #[arg(long)]
+    pub allow_all: bool,
 }
 
 #[derive(Subcommand)]

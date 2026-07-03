@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.security_group_open.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:security_group_open|Security[\\s　]*Group全開放|セキュリティグループ全許可)|(?:security_group_open|Security[\\s　]*Group全開放|セキュリティグループ全許可)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "Security Group全開放 - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "security"
+tags = ["log", "jp", "security", "schema_marker", "aws", "security_group"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 0
+context_lines_after = 0

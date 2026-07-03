@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.genetic_info.kv"
+pattern = "(?i)[\"\\'`]?((?:genetic_info|ゲノム情報|遺伝情報))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9._~+/=@:%\\-]{8,240})[\"\\'`」』】\\]]?"
+description = "遺伝情報 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "key_value", "genetic"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.child_allowance_number.lv"
+pattern = "(?i)(?:child_allowance_number|児童手当認定番号|児童手当番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "児童手当認定番号 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "government"
+tags = ["log", "jp", "government", "label_value", "child"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

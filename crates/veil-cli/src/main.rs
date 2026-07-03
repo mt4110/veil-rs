@@ -134,6 +134,9 @@ fn main() -> anyhow::Result<()> {
             RulesCommand::Explain { rule_id } => {
                 commands::rules::explain(cli.config.as_ref(), rule_id).map(|_| false)
             }
+            RulesCommand::PromoteTemplates(args) => {
+                commands::rules::promote_templates(args).map(|_| false)
+            }
         },
         Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
         Some(Commands::Sot(cmd)) => commands::sot::run(cmd).map(|_| false),

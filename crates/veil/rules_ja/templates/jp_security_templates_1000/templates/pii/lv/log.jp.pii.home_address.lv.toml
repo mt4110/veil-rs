@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.home_address.lv"
+pattern = "(?i)(?:home_address|address|自宅住所|現住所|住所)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９A-Za-zぁ-んァ-ヶ一-龠々〆〇ー・のノ\\s　\\-丁目番地号都道府県市区町村郡大字小字]{6,180})[\"」』】\\]]?"
+description = "自宅住所 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "contact", "address"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

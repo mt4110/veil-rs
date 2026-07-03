@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.guardian_name.lv"
+pattern = "(?i)(?:guardian_name|保護者氏名|親権者氏名)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"」』】\\]]?"
+description = "保護者氏名 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "identity", "guardian"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.vaccination_info.lv"
+pattern = "(?i)(?:vaccination_info|ワクチン接種情報|予防接種履歴)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "ワクチン接種情報 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "label_value", "vaccination"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

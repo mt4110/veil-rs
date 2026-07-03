@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.public_s3_bucket.kv"
+pattern = "(?i)[\"\\'`]?((?:public_s3_bucket|公開S3バケット|S3公開))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "公開S3バケット - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "security"
+tags = ["log", "jp", "security", "key_value", "s3", "public"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

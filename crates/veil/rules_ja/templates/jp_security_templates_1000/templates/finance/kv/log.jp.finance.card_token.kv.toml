@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.card_token.kv"
+pattern = "(?i)[\"\\'`]?((?:card_token|カードトークン))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9._~+/=@:%\\-]{16,300})[\"\\'`」』】\\]]?"
+description = "カードトークン - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "payment", "token"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

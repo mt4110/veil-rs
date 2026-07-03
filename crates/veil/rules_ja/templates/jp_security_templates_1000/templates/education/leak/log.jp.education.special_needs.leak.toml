@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.special_needs.leak"
+pattern = "(?i)(?:(?:special_needs|特別支援情報|配慮事項)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:special_needs|特別支援情報|配慮事項))"
+description = "特別支援情報 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "critical"
+score = 87
+base_score = 87
+category = "education"
+tags = ["log", "jp", "education", "leak_marker", "special_needs"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

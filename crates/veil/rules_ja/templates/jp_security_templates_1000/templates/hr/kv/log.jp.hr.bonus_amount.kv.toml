@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.bonus_amount.kv"
+pattern = "(?i)[\"\\'`]?((?:bonus_amount|ボーナス額|賞与額))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９,，]{3,}\\s*(?:円|JPY|万円|千円|億円)?)[\"\\'`」』】\\]]?"
+description = "賞与額 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "hr"
+tags = ["log", "jp", "hr", "key_value", "bonus"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

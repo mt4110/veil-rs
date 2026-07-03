@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.spouse_name.lv"
+pattern = "(?i)(?:spouse_name|配偶者氏名|配偶者名)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"」』】\\]]?"
+description = "配偶者氏名 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "identity", "family"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

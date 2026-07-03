@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.nda.kv"
+pattern = "(?i)[\"\\'`]?((?:non_disclosure_agreement|秘密保持契約|NDA))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "秘密保持契約 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "legal"
+tags = ["log", "jp", "legal", "key_value", "nda"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

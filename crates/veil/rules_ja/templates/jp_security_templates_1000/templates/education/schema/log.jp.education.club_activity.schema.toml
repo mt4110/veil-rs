@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.club_activity.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:club_activity|部活動情報|所属部活動)|(?:club_activity|部活動情報|所属部活動)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "部活動情報 - CSV/DBスキーマ上の機微カラム名"
+severity = "low"
+score = 22
+base_score = 22
+category = "education"
+tags = ["log", "jp", "education", "schema_marker", "club"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 0
+context_lines_after = 0

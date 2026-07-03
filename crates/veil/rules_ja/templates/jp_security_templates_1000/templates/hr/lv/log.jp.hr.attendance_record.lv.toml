@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.attendance_record.lv"
+pattern = "(?i)(?:attendance_record|出退勤記録|勤怠記録)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "勤怠記録 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "hr"
+tags = ["log", "jp", "hr", "label_value", "attendance"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

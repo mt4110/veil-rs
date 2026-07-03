@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.leave_reason.lv"
+pattern = "(?i)(?:leave_reason|休暇理由|休職理由)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "休職・休暇理由 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "hr"
+tags = ["log", "jp", "hr", "label_value", "leave"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

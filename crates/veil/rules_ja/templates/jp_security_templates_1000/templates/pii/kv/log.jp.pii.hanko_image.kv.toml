@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.hanko_image.kv"
+pattern = "(?i)[\"\\'`]?((?:hanko_image|seal_image|ハンコ画像|印鑑画像|押印画像|印影))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "印影・ハンコ画像 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identity", "hanko"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

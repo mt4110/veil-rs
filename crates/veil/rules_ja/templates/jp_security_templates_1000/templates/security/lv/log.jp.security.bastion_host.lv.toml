@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.bastion_host.lv"
+pattern = "(?i)(?:bastion_host|踏み台サーバー|踏台ホスト)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "踏み台サーバー情報 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "security"
+tags = ["log", "jp", "security", "label_value", "bastion"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.juminhyo_code.kv"
+pattern = "(?i)[\"\\'`]?((?:resident_record_code|juminhyo_code|住民票コード))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+description = "住民票コード - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "government"
+tags = ["log", "jp", "government", "key_value", "resident"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

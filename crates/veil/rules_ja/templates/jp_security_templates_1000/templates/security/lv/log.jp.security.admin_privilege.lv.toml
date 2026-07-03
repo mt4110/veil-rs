@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.admin_privilege.lv"
+pattern = "(?i)(?:admin_privilege|administrator|admin権限|管理者権限)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:(?:true|false|有効|無効|許可|拒否|公開|非公開|全許可|制限なし|なし|あり|ON|OFF))[\"」』】\\]]?"
+description = "管理者権限 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "security"
+tags = ["log", "jp", "security", "label_value", "access_control"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

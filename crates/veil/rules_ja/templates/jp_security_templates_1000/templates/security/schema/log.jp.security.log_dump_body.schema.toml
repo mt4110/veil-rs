@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.log_dump_body.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:log_dump_body|body_dump|リクエスト本文|レスポンス本文)|(?:log_dump_body|body_dump|リクエスト本文|レスポンス本文)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "リクエスト本文ログ出力 - CSV/DBスキーマ上の機微カラム名"
+severity = "high"
+score = 70
+base_score = 70
+category = "security"
+tags = ["log", "jp", "security", "schema_marker", "logging", "body_dump"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 0
+context_lines_after = 0

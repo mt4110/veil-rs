@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.customer_contract.leak"
+pattern = "(?i)(?:(?:customer_contract|取引先契約書|顧客契約書)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:customer_contract|取引先契約書|顧客契約書))"
+description = "顧客契約書 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "high"
+score = 80
+base_score = 80
+category = "legal"
+tags = ["log", "jp", "legal", "leak_marker", "contract", "customer"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

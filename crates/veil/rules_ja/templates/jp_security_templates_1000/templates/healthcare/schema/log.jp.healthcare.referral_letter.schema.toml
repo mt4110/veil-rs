@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.referral_letter.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:referral_letter|診療情報提供書|紹介状)|(?:referral_letter|診療情報提供書|紹介状)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "紹介状 - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "schema_marker", "referral"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 0
+context_lines_after = 0

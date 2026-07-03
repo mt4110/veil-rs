@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.debug_mode.kv"
+pattern = "(?i)[\"\\'`]?((?:debug_mode|デバッグモード|DEBUG))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:(?:true|false|有効|無効|許可|拒否|公開|非公開|全許可|制限なし|なし|あり|ON|OFF))[\"\\'`」』】\\]]?"
+description = "デバッグモード - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "security"
+tags = ["log", "jp", "security", "key_value", "debug"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.overtime_hours.kv"
+pattern = "(?i)[\"\\'`]?((?:overtime_hours|時間外労働|残業時間))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"\\'`」』】\\]]?"
+description = "残業時間 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "hr"
+tags = ["log", "jp", "hr", "key_value", "overtime"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

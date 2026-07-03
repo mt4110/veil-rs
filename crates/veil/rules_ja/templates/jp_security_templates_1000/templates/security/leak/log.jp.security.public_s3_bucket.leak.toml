@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.public_s3_bucket.leak"
+pattern = "(?i)(?:(?:public_s3_bucket|公開S3バケット|S3公開)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:public_s3_bucket|公開S3バケット|S3公開))"
+description = "公開S3バケット - ログ・通知・外部送信に出る漏えい兆候"
+severity = "high"
+score = 80
+base_score = 80
+category = "security"
+tags = ["log", "jp", "security", "leak_marker", "s3", "public"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

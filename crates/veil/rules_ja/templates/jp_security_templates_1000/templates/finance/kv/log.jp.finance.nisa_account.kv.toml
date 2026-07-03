@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.nisa_account.kv"
+pattern = "(?i)[\"\\'`]?((?:nisa_account|NISA番号|NISA口座))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "NISA口座 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "nisa"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

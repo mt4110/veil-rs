@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.household_name.kv"
+pattern = "(?i)[\"\\'`]?((?:household_head_name|世帯主氏名|世帯主名))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"\\'`」』】\\]]?"
+description = "世帯主氏名 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identity", "household"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

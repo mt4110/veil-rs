@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.ipv6_address.kv"
+pattern = "(?i)[\"\\'`]?((?:ipv6_address|IPv6アドレス|IPv6))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:(?:[0-9A-Fa-f]{1,4}:){2,7}[0-9A-Fa-f]{1,4})[\"\\'`」』】\\]]?"
+description = "IPv6アドレス - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "network", "ipv6"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

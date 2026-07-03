@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.prescription_number.leak"
+pattern = "(?i)(?:(?:prescription_number|処方箋番号|処方番号)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:prescription_number|処方箋番号|処方番号))"
+description = "処方箋番号 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "high"
+score = 80
+base_score = 80
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "leak_marker", "prescription"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

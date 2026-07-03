@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.direct_debit_id.kv"
+pattern = "(?i)[\"\\'`]?((?:direct_debit_id|振替依頼番号|口座振替ID))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "口座振替ID - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "direct_debit"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

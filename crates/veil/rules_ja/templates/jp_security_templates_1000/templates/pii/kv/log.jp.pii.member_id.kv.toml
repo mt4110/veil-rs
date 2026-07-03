@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.member_id.kv"
+pattern = "(?i)[\"\\'`]?((?:membership_id|member_id|メンバーID|会員ID|会員番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "会員番号 - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identifier", "member"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

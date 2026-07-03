@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.residence_certificate.lv"
+pattern = "(?i)(?:residence_certificate|住民票の写し|住民票写し)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "住民票写し - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "government"
+tags = ["log", "jp", "government", "label_value", "resident"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

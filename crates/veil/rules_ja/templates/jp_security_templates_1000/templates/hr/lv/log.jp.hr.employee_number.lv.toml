@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.employee_number.lv"
+pattern = "(?i)(?:employee_number|employee_id|従業員番号|社員番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "社員番号 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "hr"
+tags = ["log", "jp", "hr", "label_value", "employee", "identifier"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

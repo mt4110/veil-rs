@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.tax_number.kv"
+pattern = "(?i)[\"\\'`]?((?:tax_number|納税者番号|税務番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "納税者番号 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "government"
+tags = ["log", "jp", "government", "key_value", "tax"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

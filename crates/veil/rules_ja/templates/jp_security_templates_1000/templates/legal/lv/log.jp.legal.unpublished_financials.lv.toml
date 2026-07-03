@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.unpublished_financials.lv"
+pattern = "(?i)(?:unpublished_financials|未公開決算情報|未発表決算)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９,，]{3,}\\s*(?:円|JPY|万円|千円|億円)?)[\"」』】\\]]?"
+description = "未公開決算情報 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "insider", "finance"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

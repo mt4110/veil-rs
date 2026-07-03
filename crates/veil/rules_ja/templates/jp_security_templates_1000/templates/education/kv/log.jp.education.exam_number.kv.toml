@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.exam_number.kv"
+pattern = "(?i)[\"\\'`]?((?:exam_number|受験番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "受験番号 - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "education"
+tags = ["log", "jp", "education", "key_value", "exam"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

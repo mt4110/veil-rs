@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.resume.kv"
+pattern = "(?i)[\"\\'`]?((?:resume|職務経歴書|履歴書|cv))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "履歴書 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "hr"
+tags = ["log", "jp", "hr", "key_value", "resume"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

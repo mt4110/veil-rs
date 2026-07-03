@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.fax_number.kv"
+pattern = "(?i)[\"\\'`]?((?:fax_number|ファックス番号|FAX番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:0[0-9０-９]{1,4}[-ー\\s　]?[0-9０-９]{1,4}[-ー\\s　]?[0-9０-９]{3,4})[\"\\'`」』】\\]]?"
+description = "FAX番号 - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "contact", "fax"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.legal_opinion.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:legal_opinion|弁護士見解|法務見解)|(?:legal_opinion|弁護士見解|法務見解)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "法務見解 - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "legal"
+tags = ["log", "jp", "legal", "schema_marker", "legal_opinion"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 0
+context_lines_after = 0

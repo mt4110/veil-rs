@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.log_dump_body.kv"
+pattern = "(?i)[\"\\'`]?((?:log_dump_body|body_dump|リクエスト本文|レスポンス本文))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "リクエスト本文ログ出力 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "security"
+tags = ["log", "jp", "security", "key_value", "logging", "body_dump"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1
