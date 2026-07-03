@@ -3,7 +3,8 @@
   
   // Strict State Machine for UI prediction and tracking (no implicit states)
   type ScanState = 'Idle' | 'Running' | 'SuccessNoFindings' | 'Violation' | 'Incomplete' | 'ErrorAuth' | 'ErrorConfig' | 'ErrorExpired' | 'ErrorOOM' | 'ErrorUnknown';
-  type ScanPreset = '' | 'standard-jp' | 'fintech-jp' | 'gov-jp' | 'si-vendor-jp' | 'logs-jp';
+  type ScanPresetId = 'standard-jp' | 'fintech-jp' | 'gov-jp' | 'si-vendor-jp' | 'logs-jp';
+  type ScanPreset = '' | ScanPresetId;
   let currentState = $state<ScanState>('Idle');
   
   let scanPath = $state('');
@@ -59,7 +60,7 @@
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const requestBody: { paths: string[]; preset?: ScanPreset } = { paths: [targetPath] };
+      const requestBody: { paths: string[]; preset?: ScanPresetId } = { paths: [targetPath] };
       if (scanPreset !== '') {
         requestBody.preset = scanPreset;
       }
