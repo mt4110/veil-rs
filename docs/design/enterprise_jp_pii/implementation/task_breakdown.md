@@ -1,65 +1,80 @@
 # Implementation Task Breakdown
 
-## PR-0 Contract Alignment（最初に実装）
+## Contract Alignment（実装済み）
 
-- [ ] `crates/veil-pro/src/api/dto.rs` を追加し、Local API DTOを集約する。
-- [ ] DTOに `serde`, `schemars`, `utoipa` deriveを付ける。
-- [ ] `crates/veil-pro/src/bin/export_local_api_schema.rs` を追加し、OpenAPI / JSON Schema を repo root `schemas/` へ生成する。
-- [ ] `scripts/check_generated_schemas.py` を追加し、生成schemaとtracked schemaの差分をCIで検出する。
-- [ ] `schemas/json-schema.report.json` を生成物として追加し、`$defs.SafeFindingApiV1` を内包する。
-- [ ] `schemas/json-schema.run-meta.json` から `artifacts.runMeta` を排除する。
-- [ ] `ScanRequest.paths` missing/empty -> `["."]` 正規化test。
-- [ ] Evidence ZIP baseline entryを `veil.baseline.json` に統一し、schema/verifyで `path const` を検査する。
-- [ ] `EvidenceSummary.suppressedSeverityCounts` を API/report/run_meta すべてで必須化する。
-- [ ] `--fail-on-findings N` を `effectiveFindings >= N` に固定するtest。
-- [ ] `failOnFindings=0` の CLI Exit 2 / Local API 400 test。
-- [ ] Rule schemaを `base_score` に統一するmigration/test。
-- [ ] preset TOML の `severity` を全廃し `base_score` にする。
-- [ ] LSP `Range { start, end }` UTF-16変換test。
-- [ ] `RunMetaResponse` が full RunMetaV1 と一致するtest。
-- [ ] `max_findings` 到達時の `coverageComplete=false` / status incomplete / Exit 2 test。
-- [ ] `.gitignore` に `.codex/` を追加する。
+- [x] `crates/veil-pro/src/api/dto.rs` を追加し、Local API DTOを集約する。
+- [x] DTOに `serde`, `schemars`, `utoipa` deriveを付ける。
+- [x] `crates/veil-pro/src/bin/export_local_api_schema.rs` を追加し、OpenAPI / JSON Schema を repo root `schemas/` へ生成する。
+- [x] `scripts/check_generated_schemas.py` を追加し、生成schemaとtracked schemaの差分を検出可能にする。
+- [ ] `scripts/check_generated_schemas.py` または `scripts/check_contract_acceptance.py` をCI workflowへ配線する。
+- [x] `schemas/json-schema.report.json` を生成物として追加し、`$defs.SafeFindingApiV1` を内包する。
+- [x] `schemas/json-schema.run-meta.json` から `artifacts.runMeta` を排除する。
+- [x] `ScanRequest.paths` missing/empty -> `["."]` 正規化test。
+- [x] Evidence ZIP baseline entryを `veil.baseline.json` に統一し、schema/verifyで `path const` を検査する。
+- [x] `EvidenceSummary.suppressedSeverityCounts` を API/report/run_meta すべてで必須化する。
+- [x] `--fail-on-findings N` を `effectiveFindings >= N` に固定するtest。
+- [x] `failOnFindings=0` の CLI Exit 2 / Local API 400 test。
+- [x] Rule schemaを `base_score` に統一するmigration/test。
+- [x] preset TOML の `severity` を全廃し `base_score` にする。
+- [x] LSP `Range { start, end }` UTF-16変換test。
+- [x] `RunMetaResponse` が full RunMetaV1 と一致するtest。
+- [x] `max_findings` 到達時の `coverageComplete=false` / status incomplete / Exit 2 test。
+- [x] `.gitignore` に `.codex/` を追加する。
 
-## PR-1 JP正規化基盤
+## #101 JP正規化基盤（merge済み）
 
-- [ ] `crates/veil-core/src/scanner/jp_normalize.rs`
-- [ ] 全角数字/英字/記号/スペース正規化
-- [ ] normalized span -> original byte span mapping
-- [ ] UTF-16 Range mapping utility
+- [x] `crates/veil-core/src/scanner/jp_normalize.rs`
+- [x] 全角数字/英字/記号/スペース正規化
+- [x] normalized span -> original byte span mapping
+- [x] UTF-16 Range mapping utility
 
-## PR-2 JP-PII RulePack migration
+## #102 JP-PII validators / fixtures（merge済み）
 
-- [ ] 既存RulePackの `score` を `base_score` へ移行
-- [ ] 互換読み込みwarning
-- [ ] MyNumber validator / Luhn validator
-- [ ] Positive/Negative fixtures追加
+- [x] 既存RulePackの `score` を `base_score` へ移行
+- [x] 互換読み込みwarning
+- [x] MyNumber validator / Luhn validator / mobile validator
+- [x] Positive/Negative fixtures追加
+- [ ] Address validatorは未実装。現状はvalidatorなしの住所ヒューリスティックのみ。
+- [ ] Name validatorは未実装。現状はvalidatorなしのラベル付き氏名ヒューリスティックのみ。
+- [ ] J-LIS MyNumberチェックデジットは feature flag `jp_mynumber_checksum` の後続実装。
 
-## PR-3 Evidence / Verify contract
+## #103 JP preset override resolver（merge済み）
 
-- [ ] `report.json` schema validation
-- [ ] `run_meta.json` external anchor flow
-- [ ] `veil.baseline.json` artifact naming
-- [ ] ZipSlip/Bomb/duplicate entry tests
+- [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` builtin preset TOMLを追加。
+- [x] preset TOMLを `enabled` / `base_score` だけに制限。
+- [x] presetをbase layerとして適用し、repo/org config overrideを維持。
+- [x] 新規presetに `severity` を書かない契約をtestで固定。
 
-## PR-4 Local API / UI
+## #104 JP preset CLI UX（merge済み）
 
-- [ ] OpenAPI generated schemaをUI clientへ反映
+- [x] `veil scan --preset`
+- [x] `veil init --preset`
+- [x] `veil config dump --preset --layer preset`
+- [x] `logs-jp` initで `rules/log` を生成。
+- [x] `--ci` と `--preset` / `--profile` / `--wizard` の同時指定を拒否。
+
+## Next: Local API / UI preset support
+
+- [ ] Local API scanで `PresetName` を builtin preset configへ解決する。
+- [ ] `logs-jp` scanではCLIと同じく `rules/log` RulePackを必須にする。
+- [ ] OpenAPI generated schemaをUI clientへ反映。
+- [ ] UI scan requestでpresetを渡せる最小導線を確認する。
 - [ ] `includeSuppressed` UI toggle
 - [ ] limit reached / coverageComplete UI表示
 
-## PR-5 LSP
+## Later: LSP
 
 - [ ] `crates/veil-lsp` 追加
 - [ ] Diagnostics / CodeAction / ignore comments
 - [ ] JSONでinline ignore actionを出さないtest
 
 
-## v4.4 sync tasks
+## Contract polish sync tasks
 
-- [ ] `coverageComplete` を DTO説明・OpenAPI・schema・testで同期。
-- [ ] `SeverityCounts` を4キー必須に変更。
-- [ ] legacy severity migration tableをloader testへ追加。
-- [ ] acceptance gateを `cargo run -p veil-cli -- verify` へ更新。
-- [ ] Evidence report fixtureに suppressed finding を含める。
+- [x] `coverageComplete` を DTO説明・OpenAPI・schema・testで同期。
+- [x] `SeverityCounts` を4キー必須に変更。
+- [x] legacy severity migration tableをloader testへ追加。
+- [x] acceptance gateを `cargo run -p veil-cli -- verify` へ更新。
+- [x] Evidence report fixtureに suppressed finding を含める。
 
-- [ ] Verify generated JSON Schema/OpenAPI require `RunMeta.result.limitReasons` and reject unknown result keys.
+- [x] Verify that generated JSON Schema/OpenAPI require `RunMeta.result.limitReasons` and reject unknown result keys.

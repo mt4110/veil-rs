@@ -4,46 +4,48 @@
 
 - [x] Local-first / Evidence / Verify / GTM SOT確定
 - [x] check_gtmで禁止語・版ブレ防止
-- [ ] この設計書を `docs/design/enterprise_jp_pii/` へ格納
-- [ ] `.gitignore` に `.codex/`, `.design/`, `.private/` があることを確認
+- [x] この設計書を `docs/design/enterprise_jp_pii/` へ格納
+- [x] `.gitignore` に `.codex/`, `.design/`, `.private/` があることを確認
 
 ## Phase 0.5: Contract Alignment PR
 
-- [ ] Rust DTOを `crates/veil-pro/src/api/dto.rs` に集約
-- [ ] OpenAPI/JSON Schema生成タスクを追加
-- [ ] Evidence ZIP baseline entryを `veil.baseline.json` に統一
-- [ ] score/grade/severity mapping testを追加
-- [ ] skip/incomplete分類 testを追加
-- [ ] LSP span/range internal modelを追加
-- [ ] `scripts/check_generated_schemas.py` 名称に統一
-- [ ] schema出力先を repo root `schemas/` に固定
-- [ ] `EvidenceSummary.suppressedSeverityCounts` を必須化
-- [ ] `RunMetaResponse` を full RunMetaV1 として実装
-- [ ] `coverageComplete` を API/report/run_meta に追加
-- [ ] `json-schema.report.json` に `$defs.SafeFindingApiV1` を埋め込む
+- [x] Rust DTOを `crates/veil-pro/src/api/dto.rs` に集約
+- [x] OpenAPI/JSON Schema生成タスクを追加
+- [x] Evidence ZIP baseline entryを `veil.baseline.json` に統一
+- [x] score/grade/severity mapping testを追加
+- [x] skip/incomplete分類 testを追加
+- [x] LSP span/range internal modelを追加
+- [x] `scripts/check_generated_schemas.py` 名称に統一
+- [x] schema出力先を repo root `schemas/` に固定
+- [x] `EvidenceSummary.suppressedSeverityCounts` を必須化
+- [x] `RunMetaResponse` を full RunMetaV1 として実装
+- [x] `coverageComplete` を API/report/run_meta に追加
+- [x] `json-schema.report.json` に `$defs.SafeFindingApiV1` を埋め込む
 - [ ] `14_bulk_implementation_safety.md` のAcceptance GateをCIへ追加
 
 ## Phase 1: JP-PII Engine Hardening
 
-- [ ] `jp_normalize` 実装
-- [ ] span mapping導入
-- [ ] MyNumber validator / Luhn validator
-- [ ] `fintech-jp`, `gov-jp`, `logs-jp` presets追加
-- [ ] Positive/Negative fixtures追加
+- [x] `jp_normalize` 実装
+- [x] span mapping導入
+- [x] MyNumber validator / Luhn validator / mobile validator
+- [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` presets追加
+- [x] Positive/Negative fixtures追加
 - [ ] score調整
 
 PR分割:
-1. `feat(core): add jp normalization and span mapping`
-2. `feat(rules): add fintech-jp/gov-jp/logs-jp presets`
-3. `test(jp-pii): add positive and negative fixtures`
+1. #101 `feat(core): add jp normalization and span mapping`
+2. #102 `test(jp-pii): add validators and fixtures`
+3. #103 `feat(config): add JP preset override resolver`
 
 ## Phase 2: Zero-Config & Preset UX
 
-- [ ] `CoreConfig.preset` 追加
-- [ ] `veil init --preset` 実装
-- [ ] `veil scan --preset` 実装
+- [ ] `CoreConfig.preset` 追加（急がない。#105時点ではCLI引数のbase layer適用を正本とし、Local APIは後続PRで対応する）
+- [x] `veil init --preset` 実装
+- [x] `veil scan --preset` 実装
 - [ ] wizard推論ロジック
 - [ ] docs/README更新
+- [x] `veil config dump --preset` 実装
+- [ ] Local API / UI の preset対応
 
 ## Phase 3: Interactive CLI
 
@@ -109,8 +111,8 @@ DTO/schema生成 → Core model移行 → Evidence契約 → CLI exit契約 → 
 
 ## Contract polish acceptance tasks
 
-- [ ] `coverageComplete` を Local API DTO / OpenAPI / JSON Schema / examples で必須化。
-- [ ] `SeverityCounts` を zero-filled 4-key object に固定。
-- [ ] legacy `severity` migration tableを実装。
-- [ ] acceptance gate を `cargo run -p veil-cli -- verify ...` に固定。
-- [ ] Evidence `report.json` が raw-free all findings を含むことをfixtureで検証。
+- [x] `coverageComplete` を Local API DTO / OpenAPI / JSON Schema / examples で必須化。
+- [x] `SeverityCounts` を zero-filled 4-key object に固定。
+- [x] legacy `severity` migration tableを実装。
+- [x] acceptance gate を `cargo run -p veil-cli -- verify ...` に固定。
+- [x] Evidence `report.json` が raw-free all findings を含むことをfixtureで検証。
