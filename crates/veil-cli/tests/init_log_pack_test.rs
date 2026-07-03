@@ -151,3 +151,56 @@ fn test_init_logs_preset_with_application_profile_generates_log_pack() {
     assert!(config_content.contains("[rules.\"log.pii.credit_card\"]"));
     assert!(dir_path.join("rules/log/00_manifest.toml").exists());
 }
+
+#[test]
+fn test_init_logs_preset_fills_existing_empty_log_pack_dir() {
+    let dir = tempdir().unwrap();
+    let dir_path = dir.path();
+    fs::create_dir_all(dir_path.join("rules/log")).unwrap();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir_path)
+        .arg("init")
+        .arg("--preset")
+        .arg("logs-jp")
+        .assert()
+        .success();
+
+    assert!(dir_path.join("rules/log/00_manifest.toml").exists());
+    assert!(dir_path.join("rules/log/pii.toml").exists());
+}
+
+#[test]
+fn test_init_logs_preset_fails_existing_stale_log_pack() {
+    let dir = tempdir().unwrap();
+    let dir_path = dir.path();
+    let rules_dir = dir_path.join("rules/log");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("pii.toml"),
+        r#"
+[[rules]]
+id = "log.pii.email"
+description = "Email in logs"
+pattern = '''[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'''
+severity = "LOW"
+score = 40
+category = "log_pii"
+tags = ["log", "pii"]
+"#,
+    )
+    .unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir_path)
+        .arg("init")
+        .arg("--preset")
+        .arg("logs-jp")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("missing required logs-jp rules"));
+    assert!(stderr.contains("log.pii.credit_card"));
+}

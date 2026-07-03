@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use veil_config::{load_config, Config};
 
-const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
+pub(crate) const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
     "log.pii.jp.mynumber.keyword",
     "log.pii.credit_card",
     "log.pii.jp.phone.keyword",

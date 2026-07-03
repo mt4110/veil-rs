@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use colored::*;
 use rust_embed::RustEmbed;
 use std::collections::HashMap;
@@ -276,6 +276,52 @@ pub fn init(
     let path = answers.target_path.as_deref().unwrap_or(path);
     fs::write(path, toml_str)?;
 
+    // Post-generation for Logs profile or logs preset
+    if answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp") {
+        let rules_dir = Path::new("rules/log");
+        if !rules_dir.exists() {
+            fs::create_dir_all(rules_dir)?;
+            println!(
+                "{}",
+                format!("Created directory {}", rules_dir.display()).green()
+            );
+        }
+
+        let mut created_any = false;
+        for file in LogPackAssets::iter() {
+            let file_path = rules_dir.join(file.as_ref());
+            if !file_path.exists() {
+                if let Some(content) = LogPackAssets::get(file.as_ref()) {
+                    fs::write(&file_path, content.data.as_ref())?;
+                    println!("  - Created {}", file.as_ref());
+                    created_any = true;
+                }
+            }
+        }
+
+        validate_log_pack_for_init(rules_dir)?;
+
+        if created_any {
+            println!(
+                "{}",
+                "Log RulePack initialized at rules/log (wired via core.rules_dir).".green()
+            );
+            println!(
+                "{}",
+                "Tip: In rules/log/00_manifest.toml, uncomment the `ext = \"aggressive\"` line to enable aggressive rules.".bright_black()
+            );
+        } else {
+            println!(
+                "{}",
+                format!(
+                    "Directory {} already contains a usable log RulePack.",
+                    rules_dir.display()
+                )
+                .yellow()
+            );
+        }
+    }
+
     println!(
         "{}",
         format!("Successfully created {}", path.display())
@@ -286,46 +332,30 @@ pub fn init(
         println!("Policy: Fail on score >= {}", score);
     }
 
-    // Post-generation for Logs profile or logs preset
-    if answers.profile == Profile::Logs || preset.as_deref() == Some("logs-jp") {
-        let rules_dir = Path::new("rules/log");
-        if !rules_dir.exists() {
-            fs::create_dir_all(rules_dir)?;
-            println!(
-                "{}",
-                format!("Created directory {}", rules_dir.display()).green()
-            );
-            let mut created_any = false;
-            for file in LogPackAssets::iter() {
-                let file_path = rules_dir.join(file.as_ref());
-                if let Some(content) = LogPackAssets::get(file.as_ref()) {
-                    fs::write(&file_path, content.data.as_ref())?;
-                    println!("  - Created {}", file.as_ref());
-                    created_any = true;
-                }
-            }
+    Ok(())
+}
 
-            if created_any {
-                println!(
-                    "{}",
-                    "Log RulePack initialized at rules/log (wired via core.rules_dir).".green()
-                );
-                println!(
-                    "{}",
-                    "Tip: In rules/log/00_manifest.toml, uncomment the `ext = \"aggressive\"` line to enable aggressive rules.".bright_black()
-                );
-            }
-        } else {
-            println!(
-                "{}",
-                format!(
-                    "Directory {} already exists, skipping rule pack generation.",
-                    rules_dir.display()
-                )
-                .yellow()
-            );
-        }
+fn validate_log_pack_for_init(rules_dir: &Path) -> Result<()> {
+    let rules = veil_core::rules::pack::load_rule_pack(rules_dir).with_context(|| {
+        format!(
+            "Existing log RulePack at {} is not valid",
+            rules_dir.display()
+        )
+    })?;
+    let missing_ids: Vec<_> = crate::config_loader::LOGS_JP_REQUIRED_RULE_IDS
+        .iter()
+        .copied()
+        .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))
+        .collect();
+
+    if !missing_ids.is_empty() {
+        anyhow::bail!(
+            "Existing log RulePack at {} is missing required logs-jp rules: {}. Repair or remove rules/log, then rerun `veil init --preset logs-jp`.",
+            rules_dir.display(),
+            missing_ids.join(", ")
+        );
     }
+
     Ok(())
 }
 
