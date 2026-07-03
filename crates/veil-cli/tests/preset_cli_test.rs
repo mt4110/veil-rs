@@ -101,3 +101,29 @@ fn scan_logs_preset_without_rule_pack_fails_with_guidance() {
     assert!(stderr.contains("Preset 'logs-jp' requires the log rule pack"));
     assert!(stderr.contains("veil init --preset logs-jp"));
 }
+
+#[test]
+fn scan_logs_preset_with_empty_rules_dir_fails_with_guidance() {
+    let dir = tempdir().unwrap();
+    fs::create_dir_all(dir.path().join("rules/empty")).unwrap();
+    fs::write(
+        dir.path().join("veil.toml"),
+        "[core]\nrules_dir = \"rules/empty\"\n",
+    )
+    .unwrap();
+    fs::write(dir.path().join("app.log"), "payment=4111222233334448\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .arg("scan")
+        .arg(".")
+        .arg("--preset")
+        .arg("logs-jp")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("log.pii.*"));
+    assert!(stderr.contains("veil init --preset logs-jp"));
+}

@@ -106,7 +106,7 @@ pub fn dump(
     format: Option<crate::cli::ConfigFormat>,
 ) -> Result<()> {
     use crate::cli::{ConfigFormat, ConfigLayer};
-    use crate::config_loader::load_config_layers_with_preset;
+    use crate::config_loader::load_config_layers_with_preset_for_dump;
     use veil_config::Config;
 
     let selected_layer = layer.unwrap_or(ConfigLayer::Effective);
@@ -120,7 +120,10 @@ pub fn dump(
     let layers = if selected_layer == ConfigLayer::Preset {
         None
     } else {
-        Some(load_config_layers_with_preset(explicit_path, preset_id)?)
+        Some(load_config_layers_with_preset_for_dump(
+            explicit_path,
+            preset_id,
+        )?)
     };
 
     let selected: Option<&Config> = match selected_layer {

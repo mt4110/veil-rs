@@ -71,6 +71,24 @@ fn config_dump_preset_layer_ignores_external_config_errors() {
 }
 
 #[test]
+fn config_dump_logs_preset_effective_skips_rule_pack_validation() {
+    let dir = tempdir().unwrap();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(dir.path())
+        .arg("config")
+        .arg("dump")
+        .arg("--preset")
+        .arg("logs-jp")
+        .arg("--layer")
+        .arg("effective");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("log.pii.credit_card"));
+}
+
+#[test]
 fn config_dump_effective_shows_repo_override_over_preset() {
     let dir = tempdir().unwrap();
     let config_path = dir.path().join("veil.toml");
