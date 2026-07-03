@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -13,14 +13,15 @@ pub struct Config {
     pub rules: HashMap<String, RuleConfig>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct OutputConfig {
     #[serde(default)]
     pub mask_mode: Option<MaskMode>,
     #[serde(default = "default_true")]
     pub show_snippets: bool,
-    #[serde(default = "default_max_findings")]
     pub max_findings: Option<usize>,
+    #[serde(skip)]
+    pub max_findings_is_set: bool,
 }
 
 impl Default for OutputConfig {
@@ -29,7 +30,36 @@ impl Default for OutputConfig {
             mask_mode: None,
             show_snippets: true,
             max_findings: Some(1000),
+            max_findings_is_set: false,
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for OutputConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RawOutputConfig {
+            #[serde(default)]
+            mask_mode: Option<MaskMode>,
+            #[serde(default = "default_true")]
+            show_snippets: bool,
+            #[serde(default)]
+            max_findings: Option<Option<usize>>,
+        }
+
+        let raw = RawOutputConfig::deserialize(deserializer)?;
+        let max_findings_is_set = raw.max_findings.is_some();
+        let max_findings = raw.max_findings.unwrap_or_else(default_max_findings);
+
+        Ok(Self {
+            mask_mode: raw.mask_mode,
+            show_snippets: raw.show_snippets,
+            max_findings,
+            max_findings_is_set,
+        })
     }
 }
 
@@ -103,8 +133,9 @@ impl Config {
         if !other.output.show_snippets {
             self.output.show_snippets = false;
         }
-        if other.output.max_findings != default_max_findings() {
+        if other.output.max_findings_is_set || other.output.max_findings != default_max_findings() {
             self.output.max_findings = other.output.max_findings;
+            self.output.max_findings_is_set = other.output.max_findings_is_set;
         }
     }
 }
@@ -213,6 +244,23 @@ mod tests {
         base.merge(other);
 
         assert_eq!(base.output.max_findings, Some(25));
+    }
+
+    #[test]
+    fn merge_copies_explicit_default_max_findings() {
+        let mut base = Config::default();
+        base.output.max_findings = Some(25);
+        let other: Config = toml::from_str(
+            r#"
+[output]
+max_findings = 1000
+"#,
+        )
+        .unwrap();
+
+        base.merge(other);
+
+        assert_eq!(base.output.max_findings, Some(1000));
     }
 
     #[test]
