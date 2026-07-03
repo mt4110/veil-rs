@@ -178,6 +178,24 @@ pub fn init(
     pin_tag: String,
 ) -> Result<()> {
     if let Some(provider) = ci_provider {
+        if preset.is_some() {
+            anyhow::bail!(
+                "--preset cannot be combined with --ci. Run `veil init --preset <preset>` first, then `veil init --ci {}`.",
+                provider
+            );
+        }
+        if profile_override.is_some() {
+            anyhow::bail!(
+                "--profile cannot be combined with --ci. Run `veil init --profile <profile>` first, then `veil init --ci {}`.",
+                provider
+            );
+        }
+        if wizard {
+            anyhow::bail!(
+                "--wizard cannot be combined with --ci. Run `veil init --wizard` first, then `veil init --ci {}`.",
+                provider
+            );
+        }
         return generate_ci_template(&provider, &pin_tag);
     }
 
