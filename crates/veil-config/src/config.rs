@@ -1,4 +1,5 @@
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -115,9 +116,14 @@ impl Config {
             self.core.rules_dir = Some(val);
         }
 
-        // Merge Rules (Override/Insert)
+        // Merge Rules (field-wise override/insert)
         for (id, rule) in other.rules {
-            self.rules.insert(id, rule);
+            match self.rules.entry(id) {
+                Entry::Occupied(mut entry) => entry.get_mut().merge(rule),
+                Entry::Vacant(entry) => {
+                    entry.insert(rule);
+                }
+            }
         }
 
         // Merge Masking (Simple override for now as fields are not Option)
@@ -177,10 +183,12 @@ fn default_placeholder() -> String {
     "<REDACTED>".to_string()
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct RuleConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(skip)]
+    pub enabled_is_set: bool,
     pub severity: Option<String>,
     pub pattern: Option<String>,
     pub score: Option<u8>,
@@ -198,6 +206,7 @@ impl Default for RuleConfig {
     fn default() -> Self {
         Self {
             enabled: true,
+            enabled_is_set: false,
             severity: None,
             pattern: None,
             score: None,
@@ -209,6 +218,90 @@ impl Default for RuleConfig {
             validator: None,
             description: None,
             placeholder: None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for RuleConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct RawRuleConfig {
+            enabled: Option<bool>,
+            severity: Option<String>,
+            pattern: Option<String>,
+            score: Option<u8>,
+            category: Option<String>,
+            tags: Option<Vec<String>>,
+            base_score: Option<u32>,
+            context_lines_before: Option<u8>,
+            context_lines_after: Option<u8>,
+            validator: Option<String>,
+            description: Option<String>,
+            placeholder: Option<String>,
+        }
+
+        let raw = RawRuleConfig::deserialize(deserializer)?;
+        let enabled_is_set = raw.enabled.is_some();
+
+        Ok(Self {
+            enabled: raw.enabled.unwrap_or(true),
+            enabled_is_set,
+            severity: raw.severity,
+            pattern: raw.pattern,
+            score: raw.score,
+            category: raw.category,
+            tags: raw.tags,
+            base_score: raw.base_score,
+            context_lines_before: raw.context_lines_before,
+            context_lines_after: raw.context_lines_after,
+            validator: raw.validator,
+            description: raw.description,
+            placeholder: raw.placeholder,
+        })
+    }
+}
+
+impl RuleConfig {
+    fn merge(&mut self, other: RuleConfig) {
+        if other.enabled_is_set {
+            self.enabled = other.enabled;
+            self.enabled_is_set = true;
+        }
+        if other.severity.is_some() {
+            self.severity = other.severity;
+        }
+        if other.pattern.is_some() {
+            self.pattern = other.pattern;
+        }
+        if other.score.is_some() {
+            self.score = other.score;
+        }
+        if other.category.is_some() {
+            self.category = other.category;
+        }
+        if other.tags.is_some() {
+            self.tags = other.tags;
+        }
+        if other.base_score.is_some() {
+            self.base_score = other.base_score;
+        }
+        if other.context_lines_before.is_some() {
+            self.context_lines_before = other.context_lines_before;
+        }
+        if other.context_lines_after.is_some() {
+            self.context_lines_after = other.context_lines_after;
+        }
+        if other.validator.is_some() {
+            self.validator = other.validator;
+        }
+        if other.description.is_some() {
+            self.description = other.description;
+        }
+        if other.placeholder.is_some() {
+            self.placeholder = other.placeholder;
         }
     }
 }
@@ -272,5 +365,56 @@ max_findings = 1000
         base.merge(other);
 
         assert_eq!(base.output.max_findings, Some(25));
+    }
+
+    #[test]
+    fn merge_combines_rule_fields_without_erasing_lower_layer_values() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                enabled: false,
+                enabled_is_set: true,
+                base_score: Some(85),
+                ..RuleConfig::default()
+            },
+        );
+        let other: Config = toml::from_str(
+            r#"
+[rules."pii.fin.credit_card.keyword"]
+description = "repo-specific copy"
+"#,
+        )
+        .unwrap();
+
+        base.merge(other);
+        let rule = base.rules.get("pii.fin.credit_card.keyword").unwrap();
+
+        assert!(!rule.enabled);
+        assert_eq!(rule.base_score, Some(85));
+        assert_eq!(rule.description.as_deref(), Some("repo-specific copy"));
+    }
+
+    #[test]
+    fn merge_applies_explicit_rule_enabled_override() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                base_score: Some(85),
+                ..RuleConfig::default()
+            },
+        );
+        let other: Config = toml::from_str(
+            r#"
+[rules."pii.fin.credit_card.keyword"]
+enabled = false
+"#,
+        )
+        .unwrap();
+
+        base.merge(other);
+
+        assert!(!base.rules["pii.fin.credit_card.keyword"].enabled);
     }
 }

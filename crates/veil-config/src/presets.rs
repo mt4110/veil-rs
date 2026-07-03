@@ -75,6 +75,7 @@ fn parse_preset_config(preset_id: &str, source: &str) -> Result<Config> {
 
         let rule_config = RuleConfig {
             enabled: rule_override.enabled.unwrap_or(true),
+            enabled_is_set: rule_override.enabled.is_some(),
             base_score: rule_override.base_score,
             ..RuleConfig::default()
         };
@@ -139,6 +140,7 @@ severity = "high"
             "pii.fin.credit_card.keyword".to_string(),
             RuleConfig {
                 enabled: false,
+                enabled_is_set: true,
                 base_score: Some(99),
                 ..RuleConfig::default()
             },
@@ -159,5 +161,22 @@ severity = "high"
         let merged = apply_builtin_preset_as_base(config, "fintech-jp").unwrap();
 
         assert_eq!(merged.output.max_findings, Some(25));
+    }
+
+    #[test]
+    fn apply_builtin_preset_as_base_preserves_rule_fields_for_partial_override() {
+        let config: Config = toml::from_str(
+            r#"
+[rules."pii.fin.credit_card.keyword"]
+description = "repo-specific copy"
+"#,
+        )
+        .unwrap();
+
+        let merged = apply_builtin_preset_as_base(config, "fintech-jp").unwrap();
+        let rule = merged.rules.get("pii.fin.credit_card.keyword").unwrap();
+
+        assert_eq!(rule.base_score, Some(85));
+        assert_eq!(rule.description.as_deref(), Some("repo-specific copy"));
     }
 }

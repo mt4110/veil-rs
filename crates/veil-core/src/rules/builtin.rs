@@ -228,6 +228,7 @@ mod tests {
             "custom.invalid_validator".to_string(),
             RuleConfig {
                 enabled: true,
+                enabled_is_set: true,
                 severity: None,
                 pattern: Some("SECRET".to_string()),
                 score: None,
