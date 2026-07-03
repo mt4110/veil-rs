@@ -1,0 +1,38 @@
+path,id,concept,slug,variant,category,severity,score,terms
+rules/finance/kv/log.jp.finance.account_holder_name.kv.toml,log.jp.finance.account_holder_name.kv,口座名義,account_holder_name,kv,finance,critical,97,口座名義|口座名義人|account_holder_name
+rules/finance/kv/log.jp.finance.bank_account_number.kv.toml,log.jp.finance.bank_account_number.kv,銀行口座番号,bank_account_number,kv,finance,critical,97,銀行口座番号|口座番号|bank_account_number|account_number
+rules/finance/kv/log.jp.finance.card_cvv.kv.toml,log.jp.finance.card_cvv.kv,セキュリティコード,card_cvv,kv,finance,critical,97,セキュリティコード|CVV|CVC|card_cvv
+rules/finance/kv/log.jp.finance.card_token.kv.toml,log.jp.finance.card_token.kv,カードトークン,card_token,kv,finance,critical,97,カードトークン|card_token
+rules/finance/kv/log.jp.finance.credit_card_number.kv.toml,log.jp.finance.credit_card_number.kv,クレジットカード番号,credit_card_number,kv,finance,critical,97,クレジットカード番号|カード番号|credit_card_number|card_number
+rules/finance/kv/log.jp.finance.debit_card_number.kv.toml,log.jp.finance.debit_card_number.kv,デビットカード番号,debit_card_number,kv,finance,critical,97,デビットカード番号|debit_card_number
+rules/finance/kv/log.jp.finance.payment_token.kv.toml,log.jp.finance.payment_token.kv,決済トークン,payment_token,kv,finance,critical,97,決済トークン|payment_token
+rules/finance/kv/log.jp.finance.refund_account.kv.toml,log.jp.finance.refund_account.kv,返金先口座,refund_account,kv,finance,critical,97,返金先口座|返金口座|refund_account
+rules/finance/kv/log.jp.finance.salary_bank_account.kv.toml,log.jp.finance.salary_bank_account.kv,給与振込口座,salary_bank_account,kv,finance,critical,97,給与振込口座|給与口座|salary_bank_account
+rules/secret/kv/log.jp.secret.access_token.kv.toml,log.jp.secret.access_token.kv,アクセストークン,access_token,kv,secret,critical,97,アクセストークン|access_token
+rules/secret/kv/log.jp.secret.api_key.kv.toml,log.jp.secret.api_key.kv,APIキー,api_key,kv,secret,critical,97,APIキー|api_key|apikey|API_KEY
+rules/secret/kv/log.jp.secret.aws_access_key_id.kv.toml,log.jp.secret.aws_access_key_id.kv,AWSアクセスキーID,aws_access_key_id,kv,secret,critical,97,AWSアクセスキーID|AWS_ACCESS_KEY_ID|aws_access_key_id
+rules/secret/kv/log.jp.secret.aws_secret_access_key.kv.toml,log.jp.secret.aws_secret_access_key.kv,AWSシークレットアクセスキー,aws_secret_access_key,kv,secret,critical,97,AWSシークレットアクセスキー|AWS_SECRET_ACCESS_KEY|aws_secret_access_key
+rules/secret/kv/log.jp.secret.azure_client_secret.kv.toml,log.jp.secret.azure_client_secret.kv,Azureクライアントシークレット,azure_client_secret,kv,secret,critical,97,Azureクライアントシークレット|AZURE_CLIENT_SECRET|azure_client_secret
+rules/secret/kv/log.jp.secret.basic_auth.kv.toml,log.jp.secret.basic_auth.kv,Basic認証情報,basic_auth,kv,secret,critical,97,Basic認証|basic_auth|Authorization Basic
+rules/secret/kv/log.jp.secret.bearer_token.kv.toml,log.jp.secret.bearer_token.kv,Bearerトークン,bearer_token,kv,secret,critical,97,Bearerトークン|bearer_token|Authorization Bearer
+rules/secret/kv/log.jp.secret.cookie_secret.kv.toml,log.jp.secret.cookie_secret.kv,Cookieシークレット,cookie_secret,kv,secret,critical,97,Cookieシークレット|cookie_secret
+rules/secret/kv/log.jp.secret.database_password.kv.toml,log.jp.secret.database_password.kv,DBパスワード,database_password,kv,secret,critical,97,DBパスワード|データベースパスワード|database_password|db_password
+rules/secret/kv/log.jp.secret.encryption_key.kv.toml,log.jp.secret.encryption_key.kv,暗号化キー,encryption_key,kv,secret,critical,97,暗号化キー|復号キー|encryption_key|decryption_key
+rules/secret/kv/log.jp.secret.gcp_service_account_key.kv.toml,log.jp.secret.gcp_service_account_key.kv,GCPサービスアカウントキー,gcp_service_account_key,kv,secret,critical,97,GCPサービスアカウントキー|サービスアカウントキー|gcp_service_account_key
+rules/secret/kv/log.jp.secret.github_token.kv.toml,log.jp.secret.github_token.kv,GitHubトークン,github_token,kv,secret,critical,97,GitHubトークン|github_token|GITHUB_TOKEN
+rules/secret/kv/log.jp.secret.gitlab_token.kv.toml,log.jp.secret.gitlab_token.kv,GitLabトークン,gitlab_token,kv,secret,critical,97,GitLabトークン|gitlab_token|GITLAB_TOKEN
+rules/secret/kv/log.jp.secret.id_token.kv.toml,log.jp.secret.id_token.kv,IDトークン,id_token,kv,secret,critical,97,IDトークン|id_token
+rules/secret/kv/log.jp.secret.jwt.kv.toml,log.jp.secret.jwt.kv,JWT,jwt,kv,secret,critical,97,JWT|Json Web Token|jwt
+rules/secret/kv/log.jp.secret.mfa_backup_code.kv.toml,log.jp.secret.mfa_backup_code.kv,MFAバックアップコード,mfa_backup_code,kv,secret,critical,97,MFAバックアップコード|リカバリーコード|mfa_backup_code
+rules/secret/kv/log.jp.secret.oauth_client_secret.kv.toml,log.jp.secret.oauth_client_secret.kv,OAuthクライアントシークレット,oauth_client_secret,kv,secret,critical,97,OAuthクライアントシークレット|client_secret|oauth_client_secret
+rules/secret/kv/log.jp.secret.otp_code.kv.toml,log.jp.secret.otp_code.kv,ワンタイムパスワード,otp_code,kv,secret,critical,97,ワンタイムパスワード|認証コード|OTP|otp_code
+rules/secret/kv/log.jp.secret.password.kv.toml,log.jp.secret.password.kv,パスワード,password,kv,secret,critical,97,パスワード|暗証番号|password|passwd|pwd
+rules/secret/kv/log.jp.secret.private_key.kv.toml,log.jp.secret.private_key.kv,秘密鍵,private_key,kv,secret,critical,97,秘密鍵|private_key|secret_key
+rules/secret/kv/log.jp.secret.redis_password.kv.toml,log.jp.secret.redis_password.kv,Redisパスワード,redis_password,kv,secret,critical,97,Redisパスワード|REDIS_PASSWORD|redis_password
+rules/secret/kv/log.jp.secret.refresh_token.kv.toml,log.jp.secret.refresh_token.kv,リフレッシュトークン,refresh_token,kv,secret,critical,97,リフレッシュトークン|refresh_token
+rules/secret/kv/log.jp.secret.session_id.kv.toml,log.jp.secret.session_id.kv,セッションID,session_id,kv,secret,critical,97,セッションID|session_id|sid
+rules/secret/kv/log.jp.secret.signing_secret.kv.toml,log.jp.secret.signing_secret.kv,署名シークレット,signing_secret,kv,secret,critical,97,署名シークレット|署名鍵|signing_secret
+rules/secret/kv/log.jp.secret.slack_webhook_url.kv.toml,log.jp.secret.slack_webhook_url.kv,Slack Webhook URL,slack_webhook_url,kv,secret,critical,97,Slack Webhook URL|slack_webhook_url|incoming_webhook
+rules/secret/kv/log.jp.secret.smtp_password.kv.toml,log.jp.secret.smtp_password.kv,SMTPパスワード,smtp_password,kv,secret,critical,97,SMTPパスワード|SMTP_PASSWORD|smtp_password
+rules/secret/kv/log.jp.secret.ssh_private_key.kv.toml,log.jp.secret.ssh_private_key.kv,SSH秘密鍵,ssh_private_key,kv,secret,critical,97,SSH秘密鍵|ssh_private_key
+rules/secret/kv/log.jp.secret.webhook_secret.kv.toml,log.jp.secret.webhook_secret.kv,Webhookシークレット,webhook_secret,kv,secret,critical,97,Webhookシークレット|webhook_secret

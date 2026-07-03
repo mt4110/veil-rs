@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.account_holder_name.kv"
+pattern = "(?i)[\"\\'`]?((?:account_holder_name|口座名義人|口座名義))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"\\'`」』】\\]]?"
+description = "口座名義 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "bank", "name"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,6 @@
+API_KEY is documented in the internal integration guide.
+access_token field is described in the OpenAPI schema.
+card_number column is nullable in the migration note.
+口座番号の入力欄は任意項目です。
+CVVは保存しない運用です。
+password policy requires rotation.
