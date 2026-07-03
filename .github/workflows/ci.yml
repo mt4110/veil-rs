@@ -206,6 +206,10 @@ jobs:
     name: contract-acceptance
     runs-on: ubuntu-latest
     needs: [stable]
+    env:
+      CARGO_NET_RETRY: "10"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_HTTP_TIMEOUT: "600"
     steps:
       - uses: actions/checkout@v4
         with:
