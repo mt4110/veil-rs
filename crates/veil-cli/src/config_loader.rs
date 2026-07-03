@@ -1,9 +1,18 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use veil_config::{load_config, Config};
 
+pub(crate) const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
+    "log.pii.jp.mynumber.keyword",
+    "log.pii.credit_card",
+    "log.pii.jp.phone.keyword",
+    "log.pii.jp.postal.keyword",
+];
+
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
+    #[allow(dead_code)]
+    pub preset: Option<Config>,
     pub org: Option<Config>,
     pub user: Option<Config>,
     pub repo: Option<Config>,
@@ -12,15 +21,39 @@ pub struct ConfigLayers {
 
 /// New entry point for loading configuration with layers
 pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayers> {
+    load_config_layers_with_preset(explicit_path, None)
+}
+
+pub fn load_config_layers_with_preset(
+    explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+) -> Result<ConfigLayers> {
+    load_config_layers_with_preset_inner(explicit_path, preset_id, true)
+}
+
+pub fn load_config_layers_with_preset_for_dump(
+    explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+) -> Result<ConfigLayers> {
+    load_config_layers_with_preset_inner(explicit_path, preset_id, false)
+}
+
+fn load_config_layers_with_preset_inner(
+    explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+    validate_runtime_assets: bool,
+) -> Result<ConfigLayers> {
+    let preset = preset_id
+        .map(veil_config::builtin_preset_config)
+        .transpose()?;
     let org = load_org_config()?;
     let user = load_user_config()?;
     let repo = load_repo_config(explicit_path)?;
 
-    // Merge logic: User -> Org -> Repo (later overrides earlier)
-    let mut effective = merge_configs(org.as_ref(), user.as_ref(), repo.as_ref());
+    // Merge logic: Preset -> User -> Org -> Repo (later overrides earlier)
+    let mut effective = merge_configs(preset.as_ref(), org.as_ref(), user.as_ref(), repo.as_ref());
 
-    // Process rules_dir: Resolve to absolute path but do NOT load here.
-    // Core will load the rule pack.
+    // Resolve rules_dir before optional runtime asset validation and rule loading.
     if let Some(dir_str) = &effective.core.rules_dir {
         let base_dir = if let Some(p) = explicit_path {
             if p.is_file() {
@@ -44,7 +77,12 @@ pub fn load_config_layers(explicit_path: Option<&PathBuf>) -> Result<ConfigLayer
         }
     }
 
+    if validate_runtime_assets {
+        validate_preset_runtime_assets(&effective, preset_id)?;
+    }
+
     Ok(ConfigLayers {
+        preset,
         org,
         user,
         repo,
@@ -57,8 +95,70 @@ pub fn load_effective_config(config_path: Option<&PathBuf>) -> Result<Config> {
     Ok(load_config_layers(config_path)?.effective)
 }
 
-fn merge_configs(org: Option<&Config>, user: Option<&Config>, repo: Option<&Config>) -> Config {
+pub fn load_effective_config_with_preset(
+    config_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
+) -> Result<Config> {
+    Ok(load_config_layers_with_preset(config_path, preset_id)?.effective)
+}
+
+fn validate_preset_runtime_assets(config: &Config, preset_id: Option<&str>) -> Result<()> {
+    if preset_id == Some("logs-jp") {
+        validate_logs_preset_rule_pack(config)?;
+    }
+
+    Ok(())
+}
+
+fn validate_logs_preset_rule_pack(config: &Config) -> Result<()> {
+    let Some(rules_dir) = &config.core.rules_dir else {
+        anyhow::bail!(
+            "Preset 'logs-jp' requires the log rule pack. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\"."
+        );
+    };
+
+    let path = Path::new(rules_dir);
+    if !path.is_dir() {
+        anyhow::bail!(
+            "Preset 'logs-jp' requires the log rule pack at {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+            path.display()
+        );
+    }
+
+    let rules = veil_core::rules::pack::load_rule_pack(path).with_context(|| {
+        format!(
+            "Preset 'logs-jp' requires a valid log rule pack at {}",
+            path.display()
+        )
+    })?;
+    let missing_ids: Vec<_> = LOGS_JP_REQUIRED_RULE_IDS
+        .iter()
+        .copied()
+        .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))
+        .collect();
+    if !missing_ids.is_empty() {
+        anyhow::bail!(
+            "Preset 'logs-jp' requires a log rule pack containing these rules at {}: {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+            path.display(),
+            missing_ids.join(", ")
+        );
+    }
+
+    Ok(())
+}
+
+fn merge_configs(
+    preset: Option<&Config>,
+    org: Option<&Config>,
+    user: Option<&Config>,
+    repo: Option<&Config>,
+) -> Config {
     let mut final_config = Config::default();
+
+    // Layer 0: Preset Config (Product default for a scenario)
+    if let Some(preset_cfg) = preset {
+        final_config.merge(preset_cfg.clone());
+    }
 
     // Layer 1: User Config (Base Preferences)
     if let Some(user_cfg) = user {

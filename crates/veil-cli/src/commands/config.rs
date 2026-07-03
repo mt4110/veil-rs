@@ -101,20 +101,37 @@ fn check_rule_safety(rule: &Rule) -> Result<(), SafetyIssue> {
 
 pub fn dump(
     explicit_path: Option<&PathBuf>,
+    preset_id: Option<&str>,
     layer: Option<crate::cli::ConfigLayer>,
     format: Option<crate::cli::ConfigFormat>,
 ) -> Result<()> {
     use crate::cli::{ConfigFormat, ConfigLayer};
-    use crate::config_loader::load_config_layers;
+    use crate::config_loader::load_config_layers_with_preset_for_dump;
     use veil_config::Config;
 
-    let layers = load_config_layers(explicit_path)?;
+    let selected_layer = layer.unwrap_or(ConfigLayer::Effective);
+    let preset_only = if selected_layer == ConfigLayer::Preset {
+        preset_id
+            .map(veil_config::builtin_preset_config)
+            .transpose()?
+    } else {
+        None
+    };
+    let layers = if selected_layer == ConfigLayer::Preset {
+        None
+    } else {
+        Some(load_config_layers_with_preset_for_dump(
+            explicit_path,
+            preset_id,
+        )?)
+    };
 
-    let selected: Option<&Config> = match layer.unwrap_or(ConfigLayer::Effective) {
-        ConfigLayer::Org => layers.org.as_ref(),
-        ConfigLayer::User => layers.user.as_ref(),
-        ConfigLayer::Repo => layers.repo.as_ref(),
-        ConfigLayer::Effective => Some(&layers.effective),
+    let selected: Option<&Config> = match selected_layer {
+        ConfigLayer::Preset => preset_only.as_ref(),
+        ConfigLayer::Org => layers.as_ref().and_then(|layers| layers.org.as_ref()),
+        ConfigLayer::User => layers.as_ref().and_then(|layers| layers.user.as_ref()),
+        ConfigLayer::Repo => layers.as_ref().and_then(|layers| layers.repo.as_ref()),
+        ConfigLayer::Effective => layers.as_ref().map(|layers| &layers.effective),
     };
 
     let Some(config) = selected else {

@@ -69,3 +69,25 @@ fn test_init_ci_unsupported() {
         .failure()
         .stderr(predicate::str::contains("Unsupported CI provider"));
 }
+
+#[test]
+fn test_init_ci_rejects_preset_combination() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_path = temp_dir.path();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.current_dir(temp_path)
+        .arg("init")
+        .arg("--preset")
+        .arg("logs-jp")
+        .arg("--ci")
+        .arg("github");
+
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "--preset cannot be combined with --ci",
+    ));
+
+    assert!(!temp_path.join("veil.toml").exists());
+    assert!(!temp_path.join("rules/log").exists());
+    assert!(!temp_path.join(".github/workflows/veil.yml").exists());
+}
