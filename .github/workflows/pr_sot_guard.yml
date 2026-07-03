@@ -33,7 +33,7 @@ jobs:
 
           # Check if changes are only in docs/ or .github/
           # We filter out docs/ and .github/ lines. If nothing remains, it's a docs-only PR.
-          code_changes="$(echo "${changed_files}" | grep -vE '^(docs/|\.github/)' || true)"
+          code_changes="$(grep -vE '^(docs/|\.github/)' <<< "${changed_files}" || true)"
 
           if [ -z "${code_changes}" ]; then
             echo "✅ Docs/CI only changes. SOT not required."
@@ -41,8 +41,8 @@ jobs:
           fi
 
           echo "⚠️ Code changes detected:"
-          echo "${code_changes}" | head -n 5
-          if [ "$(echo "${code_changes}" | wc -l)" -gt 5 ]; then echo "..."; fi
+          awk 'NR <= 5 { print }' <<< "${code_changes}"
+          if [ "$(wc -l <<< "${code_changes}")" -gt 5 ]; then echo "..."; fi
           echo ""
 
           # Look for SOT in docs/pr/ (must be part of this PR's changed files)
@@ -51,7 +51,7 @@ jobs:
 
           sot_found=0
           for f in ${sot_files}; do
-            if echo "${changed_files}" | grep -Fqx "${f}"; then
+            if grep -Fqx "${f}" <<< "${changed_files}"; then
               sot_found=1
               echo "✅ SOT found in PR: ${f}"
               break
