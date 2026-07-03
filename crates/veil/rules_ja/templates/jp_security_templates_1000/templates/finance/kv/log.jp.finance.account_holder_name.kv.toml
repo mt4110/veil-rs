@@ -3,7 +3,7 @@
 
 [[rules]]
 id = "log.jp.finance.account_holder_name.kv"
-pattern = "(?i)[\"\\'`]?((?:account_holder_name|口座名義人|口座名義))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{2,40})[\"\\'`」』】\\]]?"
+pattern = "(?i)[\"\\'`]?((?:account_holder_name|口座名義人|口座名義))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[ぁ-んァ-ヶ一-龠々〆〇ー・][ぁ-んァ-ヶ一-龠々〆〇ー・\\s　]{1,39})[\"\\'`」』】\\]]?"
 description = "口座名義 - JSON/YAML/env風キー値"
 severity = "critical"
 score = 97

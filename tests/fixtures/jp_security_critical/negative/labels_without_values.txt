@@ -9,3 +9,7 @@ ssid=OfficeNetwork123456
 口座番号:　　
 refund_account=----
 給与口座: 　
+口座名義:　　
+account_holder_name="  "
+otp_code=----
+OTP:　　
