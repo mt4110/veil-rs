@@ -6,7 +6,7 @@
 - [x] DTOに `serde`, `schemars`, `utoipa` deriveを付ける。
 - [x] `crates/veil-pro/src/bin/export_local_api_schema.rs` を追加し、OpenAPI / JSON Schema を repo root `schemas/` へ生成する。
 - [x] `scripts/check_generated_schemas.py` を追加し、生成schemaとtracked schemaの差分を検出可能にする。
-- [ ] `scripts/check_generated_schemas.py` または `scripts/check_contract_acceptance.py` をCI workflowへ配線する。
+- [x] `scripts/check_generated_schemas.py` または `scripts/check_contract_acceptance.py` をCI workflowへ配線する。
 - [x] `schemas/json-schema.report.json` を生成物として追加し、`$defs.SafeFindingApiV1` を内包する。
 - [x] `schemas/json-schema.run-meta.json` から `artifacts.runMeta` を排除する。
 - [x] `ScanRequest.paths` missing/empty -> `["."]` 正規化test。
@@ -53,12 +53,12 @@
 - [x] `logs-jp` initで `rules/log` を生成。
 - [x] `--ci` と `--preset` / `--profile` / `--wizard` の同時指定を拒否。
 
-## Next: Local API / UI preset support
+## #106 Local API / UI preset support（merge済み）
 
-- [ ] Local API scanで `PresetName` を builtin preset configへ解決する。
-- [ ] `logs-jp` scanではCLIと同じく `rules/log` RulePackを必須にする。
+- [x] Local API scanで `PresetName` を builtin preset configへ解決する。
+- [x] `logs-jp` scanではCLIと同じく `rules/log` RulePackを必須にする。
 - [ ] OpenAPI generated schemaをUI clientへ反映。
-- [ ] UI scan requestでpresetを渡せる最小導線を確認する。
+- [x] UI scan requestでpresetを渡せる最小導線を確認する。
 - [ ] `includeSuppressed` UI toggle
 - [ ] limit reached / coverageComplete UI表示
 
