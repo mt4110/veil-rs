@@ -76,4 +76,4 @@
 - [x] acceptance gateを `cargo run -p veil-cli -- verify` へ更新。
 - [x] Evidence report fixtureに suppressed finding を含める。
 
-- [x] Verify generated JSON Schema/OpenAPI require `RunMeta.result.limitReasons` and reject unknown result keys.
+- [x] Verify that generated JSON Schema/OpenAPI require `RunMeta.result.limitReasons` and reject unknown result keys.
