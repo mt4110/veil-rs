@@ -266,15 +266,17 @@ impl<'de> Deserialize<'de> for RuleConfig {
 
 impl RuleConfig {
     fn merge(&mut self, other: RuleConfig) {
+        if other.pattern.is_some() {
+            *self = other;
+            return;
+        }
+
         if other.enabled_is_set {
             self.enabled = other.enabled;
             self.enabled_is_set = true;
         }
         if other.severity.is_some() {
             self.severity = other.severity;
-        }
-        if other.pattern.is_some() {
-            self.pattern = other.pattern;
         }
         if other.score.is_some() {
             self.score = other.score;
@@ -416,5 +418,65 @@ enabled = false
         base.merge(other);
 
         assert!(!base.rules["pii.fin.credit_card.keyword"].enabled);
+    }
+
+    #[test]
+    fn merge_pattern_replacement_reenables_rule_by_default() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "custom.replacement".to_string(),
+            RuleConfig {
+                enabled: false,
+                enabled_is_set: true,
+                validator: Some("luhn".to_string()),
+                ..RuleConfig::default()
+            },
+        );
+        let other: Config = toml::from_str(
+            r#"
+[rules."custom.replacement"]
+pattern = "password"
+"#,
+        )
+        .unwrap();
+
+        base.merge(other);
+        let rule = base.rules.get("custom.replacement").unwrap();
+
+        assert!(rule.enabled);
+        assert_eq!(rule.pattern.as_deref(), Some("password"));
+    }
+
+    #[test]
+    fn merge_pattern_replacement_clears_omitted_lower_layer_fields() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "custom.replacement".to_string(),
+            RuleConfig {
+                validator: Some("luhn".to_string()),
+                placeholder: Some("<CARD>".to_string()),
+                base_score: Some(90),
+                context_lines_before: Some(3),
+                context_lines_after: Some(1),
+                ..RuleConfig::default()
+            },
+        );
+        let other: Config = toml::from_str(
+            r#"
+[rules."custom.replacement"]
+pattern = "password"
+"#,
+        )
+        .unwrap();
+
+        base.merge(other);
+        let rule = base.rules.get("custom.replacement").unwrap();
+
+        assert_eq!(rule.pattern.as_deref(), Some("password"));
+        assert!(rule.validator.is_none());
+        assert!(rule.placeholder.is_none());
+        assert!(rule.base_score.is_none());
+        assert!(rule.context_lines_before.is_none());
+        assert!(rule.context_lines_after.is_none());
     }
 }
