@@ -124,6 +124,48 @@ fn scan_logs_preset_with_empty_rules_dir_fails_with_guidance() {
 
     assert_eq!(output.status.code(), Some(2));
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("log.pii.*"));
+    assert!(stderr.contains("log.pii.credit_card"));
+    assert!(stderr.contains("veil init --preset logs-jp"));
+}
+
+#[test]
+fn scan_logs_preset_requires_overridden_log_rule_ids() {
+    let dir = tempdir().unwrap();
+    let rules_dir = dir.path().join("rules/custom");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("custom.toml"),
+        r#"
+[[rules]]
+id = "log.pii.email"
+description = "Email in logs"
+pattern = '''[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'''
+severity = "LOW"
+score = 40
+category = "log_pii"
+tags = ["log", "pii"]
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("veil.toml"),
+        "[core]\nrules_dir = \"rules/custom\"\n",
+    )
+    .unwrap();
+    fs::write(dir.path().join("app.log"), "payment=4111222233334448\n").unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .arg("scan")
+        .arg(".")
+        .arg("--preset")
+        .arg("logs-jp")
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("log.pii.credit_card"));
+    assert!(stderr.contains("log.pii.jp.mynumber.keyword"));
     assert!(stderr.contains("veil init --preset logs-jp"));
 }

@@ -2,6 +2,13 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use veil_config::{load_config, Config};
 
+const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
+    "log.pii.jp.mynumber.keyword",
+    "log.pii.credit_card",
+    "log.pii.jp.phone.keyword",
+    "log.pii.jp.postal.keyword",
+];
+
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
     #[allow(dead_code)]
@@ -124,10 +131,16 @@ fn validate_logs_preset_rule_pack(config: &Config) -> Result<()> {
             path.display()
         )
     })?;
-    if !rules.iter().any(|rule| rule.id.starts_with("log.pii.")) {
+    let missing_ids: Vec<_> = LOGS_JP_REQUIRED_RULE_IDS
+        .iter()
+        .copied()
+        .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))
+        .collect();
+    if !missing_ids.is_empty() {
         anyhow::bail!(
-            "Preset 'logs-jp' requires a log rule pack containing log.pii.* rules at {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
-            path.display()
+            "Preset 'logs-jp' requires a log rule pack containing these rules at {}: {}. Run `veil init --preset logs-jp` or set [core] rules_dir = \"rules/log\".",
+            path.display(),
+            missing_ids.join(", ")
         );
     }
 
