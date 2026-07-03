@@ -21,7 +21,7 @@
 - [x] `RunMetaResponse` を full RunMetaV1 として実装
 - [x] `coverageComplete` を API/report/run_meta に追加
 - [x] `json-schema.report.json` に `$defs.SafeFindingApiV1` を埋め込む
-- [x] `14_bulk_implementation_safety.md` のAcceptance GateをCIへ追加
+- [ ] `14_bulk_implementation_safety.md` のAcceptance GateをCIへ追加
 
 ## Phase 1: JP-PII Engine Hardening
 
@@ -39,7 +39,7 @@ PR分割:
 
 ## Phase 2: Zero-Config & Preset UX
 
-- [ ] `CoreConfig.preset` 追加（急がない。現状はCLI/API引数のbase layer適用を正本とする）
+- [ ] `CoreConfig.preset` 追加（急がない。#105時点ではCLI引数のbase layer適用を正本とし、Local APIは後続PRで対応する）
 - [x] `veil init --preset` 実装
 - [x] `veil scan --preset` 実装
 - [ ] wizard推論ロジック
