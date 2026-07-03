@@ -79,6 +79,7 @@ tags = ["log", "pii", "jp", "mynumber", "government"]
 placeholder = "<REDACTED:PII>"
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_mynumber_len12"
 
 [[rules]]
 id = "log.pii.credit_card"
@@ -92,3 +93,4 @@ tags = ["log", "pii", "payment", "card"]
 placeholder = "<REDACTED:PII>"
 context_lines_before = 1
 context_lines_after = 1
+validator = "luhn"

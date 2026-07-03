@@ -3,7 +3,7 @@ use anyhow::{bail, Result};
 use colored::Colorize;
 use prettytable::{format, Cell, Row, Table};
 use std::path::PathBuf;
-use veil_core::{get_all_rules, Rule, Severity};
+use veil_core::{try_get_all_rules, Rule, Severity};
 
 fn load_rules(config_path: Option<&PathBuf>) -> Result<(veil_config::Config, Vec<Rule>)> {
     let config = load_effective_config(config_path)?;
@@ -24,7 +24,7 @@ fn load_rules(config_path: Option<&PathBuf>) -> Result<(veil_config::Config, Vec
         }
     }
 
-    let rules = get_all_rules(&config, remote_rules);
+    let rules = try_get_all_rules(&config, remote_rules)?;
     Ok((config, rules))
 }
 

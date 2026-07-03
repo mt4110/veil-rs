@@ -107,6 +107,7 @@ mod tests {
             base_score: None,
             // ... other fields via struct literal or helper helper
             id: "test".to_string(),
+            enabled: true,
             pattern: regex::Regex::new(".").unwrap(),
             description: "".to_string(),
             score: 0,
@@ -114,6 +115,7 @@ mod tests {
             tags: vec![],
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -146,6 +148,7 @@ mod tests {
             severity: Severity::Medium, // 60
             base_score: None,
             id: "test".to_string(),
+            enabled: true,
             pattern: regex::Regex::new(".").unwrap(),
             description: "".to_string(),
             score: 0,
@@ -153,6 +156,7 @@ mod tests {
             tags: vec![],
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };

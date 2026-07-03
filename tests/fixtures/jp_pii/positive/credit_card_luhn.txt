@@ -1,0 +1,3 @@
+# EXPECT: pii.fin.credit_card.keyword
+
+カード: 4111222233334448

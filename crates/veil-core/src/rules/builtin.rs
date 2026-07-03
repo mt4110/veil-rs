@@ -1,5 +1,7 @@
 use crate::model::Rule;
 use crate::rules::pack::{load_rules_from_content, parse_manifest};
+use crate::validators::resolve_validator;
+use anyhow::{Context, Result};
 use regex::Regex;
 use rust_embed::RustEmbed;
 use std::collections::{HashMap, HashSet};
@@ -84,6 +86,19 @@ fn load_auto(rules: &mut Vec<Rule>, ids: &mut HashSet<String>) -> anyhow::Result
 }
 
 pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
+    match try_get_all_rules(config, extra_rules) {
+        Ok(rules) => rules,
+        Err(e) => {
+            eprintln!(
+                "Error loading rules: {}; falling back to embedded default rules only.",
+                e
+            );
+            get_default_rules()
+        }
+    }
+}
+
+pub fn try_get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Result<Vec<Rule>> {
     // defaults is Vec<Rule> (cloned from static, loaded from assets)
     let defaults = get_default_rules();
     let mut rule_map: HashMap<String, Rule> =
@@ -93,14 +108,11 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
     if let Some(rules_dir) = &config.core.rules_dir {
         let path = std::path::Path::new(rules_dir);
         if path.exists() {
-            match crate::rules::pack::load_rule_pack(path) {
-                Ok(rules) => {
-                    // Merge pack rules (override defaults by ID)
-                    for r in rules {
-                        rule_map.insert(r.id.clone(), r);
-                    }
-                }
-                Err(e) => eprintln!("Error loading rule pack from {:?}: {}", path, e),
+            let rules = crate::rules::pack::load_rule_pack(path)
+                .with_context(|| format!("Error loading rule pack from {:?}", path))?;
+            // Merge pack rules (override defaults by ID)
+            for r in rules {
+                rule_map.insert(r.id.clone(), r);
             }
         }
     }
@@ -117,8 +129,23 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
         if let Some(pattern_str) = &rule_conf.pattern {
             // New rule or Overwrite pattern (Pure TOML Rule)
             if let Ok(regex) = Regex::new(pattern_str) {
+                let validator_id = rule_conf.validator.clone();
+                let validator = match validator_id.as_deref() {
+                    Some(validator_name) => match resolve_validator(validator_name) {
+                        Some(validator) => Some(validator),
+                        None => {
+                            anyhow::bail!(
+                                "Unknown validator '{}' for rule '{}'",
+                                validator_name,
+                                id
+                            );
+                        }
+                    },
+                    None => None,
+                };
                 let rule = Rule {
                     id: id.clone(),
+                    enabled: rule_conf.enabled,
                     pattern: regex,
                     description: rule_conf
                         .description
@@ -131,7 +158,8 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
                     base_score: rule_conf.base_score,
                     context_lines_before: rule_conf.context_lines_before.unwrap_or(2),
                     context_lines_after: rule_conf.context_lines_after.unwrap_or(0),
-                    validator: None,
+                    validator_id,
+                    validator,
                     placeholder: rule_conf.placeholder.clone(),
                 };
                 rule_map.insert(id.clone(), rule);
@@ -159,12 +187,73 @@ pub fn get_all_rules(config: &Config, extra_rules: Vec<Rule>) -> Vec<Rule> {
                 if let Some(ph) = &rule_conf.placeholder {
                     rule.placeholder = Some(ph.clone());
                 }
+                if let Some(validator_id) = &rule_conf.validator {
+                    match resolve_validator(validator_id) {
+                        Some(validator) => {
+                            rule.validator_id = Some(validator_id.clone());
+                            rule.validator = Some(validator);
+                        }
+                        None => {
+                            anyhow::bail!("Unknown validator '{}' for rule '{}'", validator_id, id);
+                        }
+                    }
+                }
             }
         }
     }
 
-    rule_map
+    Ok(rule_map
         .into_values()
-        .filter(|r| config.rules.get(&r.id).map(|rc| rc.enabled).unwrap_or(true))
-        .collect()
+        .filter(|r| {
+            config
+                .rules
+                .get(&r.id)
+                .map(|rc| rc.enabled)
+                .unwrap_or(r.enabled)
+        })
+        .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use veil_config::RuleConfig;
+
+    fn rule_config_with_unknown_validator() -> Config {
+        let mut config = Config::default();
+        config.rules.insert(
+            "custom.invalid_validator".to_string(),
+            RuleConfig {
+                enabled: true,
+                severity: None,
+                pattern: Some("SECRET".to_string()),
+                score: None,
+                category: None,
+                tags: None,
+                base_score: None,
+                context_lines_before: None,
+                context_lines_after: None,
+                validator: Some("unknown_validator".to_string()),
+                description: None,
+                placeholder: None,
+            },
+        );
+        config
+    }
+
+    #[test]
+    fn try_get_all_rules_rejects_unknown_validators() {
+        let err = try_get_all_rules(&rule_config_with_unknown_validator(), vec![]).unwrap_err();
+
+        assert!(err
+            .to_string()
+            .contains("Unknown validator 'unknown_validator'"));
+    }
+
+    #[test]
+    fn get_all_rules_never_returns_empty_rules_on_load_error() {
+        let rules = get_all_rules(&rule_config_with_unknown_validator(), vec![]);
+
+        assert!(!rules.is_empty());
+    }
 }

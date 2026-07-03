@@ -14,6 +14,7 @@ fn get_rules() -> Vec<Rule> {
     vec![
         Rule {
             id: "AWS_ACCESS_KEY".to_string(),
+            enabled: true,
             pattern: Regex::new(
                 r"(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
             )
@@ -24,6 +25,7 @@ fn get_rules() -> Vec<Rule> {
             base_score: None,
             category: "Cloud Provider".to_string(),
             tags: vec![],
+            validator_id: None,
             validator: None, // No validator for bench to isolate regex perf
             context_lines_before: 2,
             context_lines_after: 0,
@@ -31,6 +33,7 @@ fn get_rules() -> Vec<Rule> {
         },
         Rule {
             id: "Generic_API_Key".to_string(),
+            enabled: true,
             pattern: Regex::new(
                 r#"(?i)(api[_-]?key|apikey)['"]?\s*[:=]\s*['"]?[a-zA-Z0-9]{32}['"]?"#,
             )
@@ -41,6 +44,7 @@ fn get_rules() -> Vec<Rule> {
             base_score: None,
             category: "Generic".to_string(),
             tags: vec![],
+            validator_id: None,
             validator: None,
             context_lines_before: 2,
             context_lines_after: 0,

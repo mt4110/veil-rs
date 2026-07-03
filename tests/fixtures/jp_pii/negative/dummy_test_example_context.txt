@@ -1,0 +1,3 @@
+dummy personal-number fixture: 1234-5678
+example mobile fixture: 0901234567
+sample card fixture: 4111222233334

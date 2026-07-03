@@ -8,3 +8,6 @@ VISA: 411122223333
 VISA: 9111222233334444
 # No keyword
 4111222233334444
+# Known test card numbers are intentionally ignored by the default luhn validator
+VISA: 4111111111111111
+Mastercard: 5555555555554444

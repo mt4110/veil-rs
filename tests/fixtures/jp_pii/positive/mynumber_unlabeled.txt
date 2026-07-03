@@ -1,0 +1,3 @@
+# EXPECT: pii.jp.mynumber.unlabeled
+
+1234 5678 9012

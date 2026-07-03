@@ -387,7 +387,7 @@ fn scan_line(
             .rules
             .get(&rule.id)
             .map(|r| r.enabled)
-            .unwrap_or(true);
+            .unwrap_or(rule.enabled);
         if !rule_enabled {
             continue;
         }
@@ -423,16 +423,19 @@ fn scan_line(
         // Raw matching preserves existing custom-rule semantics.
         for mat in rule.pattern.find_iter(content) {
             let matched_str = mat.as_str();
+            let span = FindingSpan {
+                byte_start: mat.start(),
+                byte_end: mat.end(),
+            };
+            if should_suppress_match(rule, content, span) {
+                continue;
+            }
             if let Some(validator) = rule.validator {
                 if !validator(matched_str) {
                     continue;
                 }
             }
 
-            let span = FindingSpan {
-                byte_start: mat.start(),
-                byte_end: mat.end(),
-            };
             if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
                 all_matches.push(LineMatch { rule, span });
             }
@@ -449,15 +452,18 @@ fn scan_line(
         // returning original byte spans for masking and editor ranges.
         for mat in rule.pattern.find_iter(&normalized.normalized) {
             let matched_str = mat.as_str();
+            let Some(span) = normalized.original_span(mat.start(), mat.end()) else {
+                continue;
+            };
+            if should_suppress_match(rule, content, span) {
+                continue;
+            }
             if let Some(validator) = rule.validator {
                 if !validator(matched_str) {
                     continue;
                 }
             }
 
-            let Some(span) = normalized.original_span(mat.start(), mat.end()) else {
-                continue;
-            };
             if seen_matches.insert((rule.id.clone(), span.byte_start, span.byte_end)) {
                 all_matches.push(LineMatch { rule, span });
             }
@@ -557,6 +563,136 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
         || rule.tags.iter().any(|tag| tag == "jp" || tag == "jp_pii")
 }
 
+pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> bool {
+    match rule.id.as_str() {
+        "pii.jp.mynumber.unlabeled" => {
+            let context = nearby_match_context(content, span, 24, 16);
+            contains_any_literal(context, &["注文番号", "受付番号", "伝票番号"])
+                || contains_any_ascii_case_insensitive(
+                    context,
+                    &["order", "order_id", "receipt", "ticket"],
+                )
+        }
+        "pii.jp.postal_code" => has_adjacent_postal_version_marker(content, span),
+        _ => false,
+    }
+}
+
+fn has_adjacent_postal_version_marker(content: &str, span: FindingSpan) -> bool {
+    let Some(before_match) = content.get(..span.byte_start) else {
+        return false;
+    };
+    let marker = trim_postal_marker_separator_suffix(before_match);
+
+    marker.ends_with("バージョン")
+        || ends_with_ascii_token_case_insensitive(
+            marker,
+            &["version", "build", "release", "rev", "commit"],
+        )
+}
+
+fn trim_postal_marker_separator_suffix(mut content: &str) -> &str {
+    while let Some(ch) = content.chars().next_back() {
+        if ch.is_whitespace() || matches!(ch, ':' | '=' | '-' | '：' | '＝') {
+            content = &content[..content.len() - ch.len_utf8()];
+        } else {
+            break;
+        }
+    }
+
+    content
+}
+
+fn nearby_match_context(
+    content: &str,
+    span: FindingSpan,
+    before_chars: usize,
+    after_chars: usize,
+) -> &str {
+    let start = byte_index_before_chars(content, span.byte_start, before_chars);
+    let end = byte_index_after_chars(content, span.byte_end, after_chars);
+    &content[start..end]
+}
+
+fn byte_index_before_chars(content: &str, byte_end: usize, count: usize) -> usize {
+    if count == 0 {
+        return byte_end;
+    }
+
+    let mut seen = 0;
+    for (index, _) in content[..byte_end].char_indices().rev() {
+        seen += 1;
+        if seen == count {
+            return index;
+        }
+    }
+    0
+}
+
+fn byte_index_after_chars(content: &str, byte_start: usize, count: usize) -> usize {
+    if count == 0 {
+        return byte_start;
+    }
+
+    let mut end = byte_start;
+    for (seen, (index, ch)) in content[byte_start..].char_indices().enumerate() {
+        if seen == count {
+            break;
+        }
+        end = byte_start + index + ch.len_utf8();
+    }
+    end
+}
+
+fn contains_any_literal(content: &str, markers: &[&str]) -> bool {
+    markers.iter().any(|marker| content.contains(marker))
+}
+
+fn contains_any_ascii_case_insensitive(content: &str, markers: &[&str]) -> bool {
+    markers
+        .iter()
+        .any(|marker| contains_ascii_case_insensitive(content, marker))
+}
+
+fn contains_ascii_case_insensitive(content: &str, marker: &str) -> bool {
+    let marker = marker.as_bytes();
+    !marker.is_empty()
+        && content
+            .as_bytes()
+            .windows(marker.len())
+            .any(|window| window.eq_ignore_ascii_case(marker))
+}
+
+fn ends_with_ascii_token_case_insensitive(content: &str, markers: &[&str]) -> bool {
+    markers
+        .iter()
+        .any(|marker| ends_with_ascii_token(content, marker))
+}
+
+fn ends_with_ascii_token(content: &str, marker: &str) -> bool {
+    let marker = marker.as_bytes();
+    if marker.is_empty() {
+        return false;
+    }
+
+    let bytes = content.as_bytes();
+    if bytes.len() < marker.len() {
+        return false;
+    }
+
+    let start = bytes.len() - marker.len();
+    bytes[start..].eq_ignore_ascii_case(marker)
+        && is_ascii_token_boundary(
+            start
+                .checked_sub(1)
+                .and_then(|index| bytes.get(index).copied()),
+        )
+}
+
+fn is_ascii_token_boundary(byte: Option<u8>) -> bool {
+    byte.is_none_or(|byte| !byte.is_ascii_alphanumeric() && byte != b'_')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -567,6 +703,7 @@ mod tests {
     fn test_context_capture() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -576,6 +713,7 @@ mod tests {
             base_score: None,
             context_lines_before: 2,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -601,6 +739,7 @@ mod tests {
     fn test_context_capture_start_of_file() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -610,6 +749,7 @@ mod tests {
             base_score: None,
             context_lines_before: 2,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -629,6 +769,7 @@ mod tests {
     fn test_inline_ignore() {
         let rule = Rule {
             id: "test".to_string(),
+            enabled: true,
             pattern: Regex::new("SECRET").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -638,6 +779,7 @@ mod tests {
             base_score: None,
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -674,9 +816,88 @@ mod tests {
     }
 
     #[test]
+    fn postal_code_suppression_requires_version_marker_token_boundaries() {
+        let rule = Rule {
+            id: "pii.jp.postal_code".to_string(),
+            enabled: true,
+            pattern: Regex::new(r"[0-9]{3}-[0-9]{4}").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::Low,
+            score: 40,
+            category: "jp_pii".to_string(),
+            tags: vec!["jp".to_string(), "postal_code".to_string()],
+            base_score: Some(40),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator_id: None,
+            validator: None,
+            placeholder: None,
+        };
+        let span = |content: &str| {
+            let byte_start = content.find("100-0001").unwrap();
+            FindingSpan {
+                byte_start,
+                byte_end: byte_start + "100-0001".len(),
+            }
+        };
+
+        let content = "building: 100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "preversion: 100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "version=2 address=100-0001";
+        assert!(!should_suppress_match(&rule, content, span(content)));
+        let content = "build: 100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
+        let content = "version=100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
+        let content = "バージョン: 100-0001";
+        assert!(should_suppress_match(&rule, content, span(content)));
+    }
+
+    #[test]
+    fn mynumber_unlabeled_suppression_is_scoped_to_candidate_context() {
+        let rule = Rule {
+            id: "pii.jp.mynumber.unlabeled".to_string(),
+            enabled: true,
+            pattern: Regex::new(r"[0-9]{4}-[0-9]{4}-[0-9]{4}").unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 90,
+            category: "jp_pii".to_string(),
+            tags: vec!["jp".to_string(), "mynumber".to_string()],
+            base_score: Some(90),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator_id: None,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule];
+        let config = Config::default();
+
+        let findings = scan_content(
+            r#"{"order_id":"A1","customer_id":"1234-5678-9012"}"#,
+            Path::new("jp.json"),
+            &rules,
+            &config,
+        );
+        assert_eq!(findings.len(), 1);
+
+        let suppressed = scan_content(
+            r#"{"order_id":"1234-5678-9012"}"#,
+            Path::new("jp.json"),
+            &rules,
+            &config,
+        );
+        assert!(suppressed.is_empty());
+    }
+
+    #[test]
     fn scan_content_detects_normalized_jp_pii_with_original_span() {
         let rule = Rule {
             id: "pii.jp.mynumber.keyword".to_string(),
+            enabled: true,
             pattern: Regex::new(r"個人番号[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}").unwrap(),
             description: "test".to_string(),
             severity: Severity::High,
@@ -686,6 +907,7 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -720,6 +942,7 @@ mod tests {
     fn scan_content_preserves_choonpu_in_normalized_jp_keywords() {
         let rule = Rule {
             id: "pii.jp.mynumber.keyword".to_string(),
+            enabled: true,
             pattern: Regex::new(
                 r"(?:(?:基礎)?マイナンバー|個人番号|My\s*Number)[^0-9]{0,24}[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}",
             )
@@ -732,6 +955,7 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
@@ -750,6 +974,7 @@ mod tests {
     fn scan_content_does_not_apply_jp_normalization_to_secret_rules() {
         let rule = Rule {
             id: "creds.aws.access_key_id".to_string(),
+            enabled: true,
             pattern: Regex::new(r"\b(AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA)[0-9A-Z]{16}\b")
                 .unwrap(),
             description: "test".to_string(),
@@ -764,6 +989,7 @@ mod tests {
             base_score: Some(85),
             context_lines_before: 0,
             context_lines_after: 0,
+            validator_id: None,
             validator: None,
             placeholder: None,
         };
