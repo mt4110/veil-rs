@@ -1,4 +1,4 @@
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
@@ -14,15 +14,34 @@ pub struct Config {
     pub rules: HashMap<String, RuleConfig>,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct OutputConfig {
-    #[serde(default)]
     pub mask_mode: Option<MaskMode>,
-    #[serde(default = "default_true")]
     pub show_snippets: bool,
     pub max_findings: Option<usize>,
-    #[serde(skip)]
     pub max_findings_is_set: bool,
+}
+
+impl Serialize for OutputConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let field_count = usize::from(self.mask_mode.is_some())
+            + 1
+            + usize::from(self.max_findings_is_set && self.max_findings.is_some());
+        let mut state = serializer.serialize_struct("OutputConfig", field_count)?;
+        if let Some(mask_mode) = self.mask_mode {
+            state.serialize_field("mask_mode", &mask_mode)?;
+        }
+        state.serialize_field("show_snippets", &self.show_snippets)?;
+        if self.max_findings_is_set {
+            if let Some(max_findings) = self.max_findings {
+                state.serialize_field("max_findings", &max_findings)?;
+            }
+        }
+        state.end()
+    }
 }
 
 impl Default for OutputConfig {
@@ -183,11 +202,9 @@ fn default_placeholder() -> String {
     "<REDACTED>".to_string()
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct RuleConfig {
-    #[serde(default = "default_true")]
     pub enabled: bool,
-    #[serde(skip)]
     pub enabled_is_set: bool,
     pub severity: Option<String>,
     pub pattern: Option<String>,
@@ -200,6 +217,64 @@ pub struct RuleConfig {
     pub validator: Option<String>,
     pub description: Option<String>,
     pub placeholder: Option<String>,
+}
+
+impl Serialize for RuleConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let field_count = usize::from(self.enabled_is_set)
+            + usize::from(self.severity.is_some())
+            + usize::from(self.pattern.is_some())
+            + usize::from(self.score.is_some())
+            + usize::from(self.category.is_some())
+            + usize::from(self.tags.is_some())
+            + usize::from(self.base_score.is_some())
+            + usize::from(self.context_lines_before.is_some())
+            + usize::from(self.context_lines_after.is_some())
+            + usize::from(self.validator.is_some())
+            + usize::from(self.description.is_some())
+            + usize::from(self.placeholder.is_some());
+        let mut state = serializer.serialize_struct("RuleConfig", field_count)?;
+        if self.enabled_is_set {
+            state.serialize_field("enabled", &self.enabled)?;
+        }
+        if let Some(severity) = &self.severity {
+            state.serialize_field("severity", severity)?;
+        }
+        if let Some(pattern) = &self.pattern {
+            state.serialize_field("pattern", pattern)?;
+        }
+        if let Some(score) = self.score {
+            state.serialize_field("score", &score)?;
+        }
+        if let Some(category) = &self.category {
+            state.serialize_field("category", category)?;
+        }
+        if let Some(tags) = &self.tags {
+            state.serialize_field("tags", tags)?;
+        }
+        if let Some(base_score) = self.base_score {
+            state.serialize_field("base_score", &base_score)?;
+        }
+        if let Some(context_lines_before) = self.context_lines_before {
+            state.serialize_field("context_lines_before", &context_lines_before)?;
+        }
+        if let Some(context_lines_after) = self.context_lines_after {
+            state.serialize_field("context_lines_after", &context_lines_after)?;
+        }
+        if let Some(validator) = &self.validator {
+            state.serialize_field("validator", validator)?;
+        }
+        if let Some(description) = &self.description {
+            state.serialize_field("description", description)?;
+        }
+        if let Some(placeholder) = &self.placeholder {
+            state.serialize_field("placeholder", placeholder)?;
+        }
+        state.end()
+    }
 }
 
 impl Default for RuleConfig {
@@ -370,6 +445,42 @@ max_findings = 1000
     }
 
     #[test]
+    fn serialize_omits_implicit_max_findings() {
+        let config: Config = toml::from_str(
+            r#"
+[output]
+show_snippets = true
+"#,
+        )
+        .unwrap();
+
+        let saved = toml::to_string(&config).unwrap();
+        let reparsed: Config = toml::from_str(&saved).unwrap();
+
+        assert!(!saved.contains("max_findings"));
+        assert_eq!(reparsed.output.max_findings, Some(1000));
+        assert!(!reparsed.output.max_findings_is_set);
+    }
+
+    #[test]
+    fn serialize_preserves_explicit_default_max_findings() {
+        let config: Config = toml::from_str(
+            r#"
+[output]
+max_findings = 1000
+"#,
+        )
+        .unwrap();
+
+        let saved = toml::to_string(&config).unwrap();
+        let reparsed: Config = toml::from_str(&saved).unwrap();
+
+        assert!(saved.contains("max_findings = 1000"));
+        assert_eq!(reparsed.output.max_findings, Some(1000));
+        assert!(reparsed.output.max_findings_is_set);
+    }
+
+    #[test]
     fn merge_combines_rule_fields_without_erasing_lower_layer_values() {
         let mut base = Config::default();
         base.rules.insert(
@@ -468,6 +579,45 @@ enabled = false
         base.merge(other);
 
         assert!(base.rules["pii.fin.credit_card.keyword"].enabled);
+    }
+
+    #[test]
+    fn serialize_omits_implicit_rule_enabled() {
+        let config: Config = toml::from_str(
+            r#"
+[rules."pii.fin.credit_card.keyword"]
+base_score = 85
+"#,
+        )
+        .unwrap();
+
+        let saved = toml::to_string(&config).unwrap();
+        let reparsed: Config = toml::from_str(&saved).unwrap();
+        let rule = reparsed.rules.get("pii.fin.credit_card.keyword").unwrap();
+
+        assert!(!saved.contains("enabled"));
+        assert!(rule.enabled);
+        assert!(!rule.enabled_is_set);
+    }
+
+    #[test]
+    fn serialize_preserves_explicit_rule_enabled_true() {
+        let config: Config = toml::from_str(
+            r#"
+[rules."pii.fin.credit_card.keyword"]
+enabled = true
+base_score = 85
+"#,
+        )
+        .unwrap();
+
+        let saved = toml::to_string(&config).unwrap();
+        let reparsed: Config = toml::from_str(&saved).unwrap();
+        let rule = reparsed.rules.get("pii.fin.credit_card.keyword").unwrap();
+
+        assert!(saved.contains("enabled = true"));
+        assert!(rule.enabled);
+        assert!(rule.enabled_is_set);
     }
 
     #[test]
