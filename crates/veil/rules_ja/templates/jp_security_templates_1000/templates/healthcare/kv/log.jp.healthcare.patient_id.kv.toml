@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.patient_id.kv"
+pattern = "(?i)[\"\\'`]?((?:patient_id|患者番号|患者ID))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "患者ID - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "key_value", "patient"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

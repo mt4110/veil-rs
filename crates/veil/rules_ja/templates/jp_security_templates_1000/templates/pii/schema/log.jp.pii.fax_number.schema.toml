@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.fax_number.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:fax_number|ファックス番号|FAX番号)|(?:fax_number|ファックス番号|FAX番号)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "FAX番号 - CSV/DBスキーマ上の機微カラム名"
+severity = "medium"
+score = 54
+base_score = 54
+category = "pii"
+tags = ["log", "jp", "pii", "schema_marker", "contact", "fax"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 0
+context_lines_after = 0

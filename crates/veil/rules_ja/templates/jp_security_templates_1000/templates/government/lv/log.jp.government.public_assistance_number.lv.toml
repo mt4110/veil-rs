@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.public_assistance_number.lv"
+pattern = "(?i)(?:public_assistance_number|生活保護受給者番号|受給者番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "生活保護受給者番号 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "government"
+tags = ["log", "jp", "government", "label_value", "welfare"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

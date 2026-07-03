@@ -1,0 +1,16 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.mynumber.kv"
+pattern = "(?i)[\"\\'`]?((?:individual_number|my_number|マイナンバー|個人番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９]{4}[-\\s　]?[0-9０-９]{4}[-\\s　]?[0-9０-９]{4})[\"\\'`」』】\\]]?"
+description = "マイナンバー - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "government"
+tags = ["log", "jp", "government", "key_value", "mynumber"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1
+validator = "jp_mynumber_len12"

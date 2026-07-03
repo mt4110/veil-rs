@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.internal_url.kv"
+pattern = "(?i)[\"\\'`]?((?:internal_url|社内URL|内部URL))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "内部URL - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "security"
+tags = ["log", "jp", "security", "key_value", "internal_url"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.bank_account_number.lv"
+pattern = "(?i)(?:bank_account_number|account_number|銀行口座番号|口座番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"」』】\\]]?"
+description = "銀行口座番号 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "bank", "account"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

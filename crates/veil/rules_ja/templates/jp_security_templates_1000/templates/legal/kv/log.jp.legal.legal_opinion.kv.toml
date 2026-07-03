@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.legal_opinion.kv"
+pattern = "(?i)[\"\\'`]?((?:legal_opinion|弁護士見解|法務見解))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "法務見解 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "legal"
+tags = ["log", "jp", "legal", "key_value", "legal_opinion"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

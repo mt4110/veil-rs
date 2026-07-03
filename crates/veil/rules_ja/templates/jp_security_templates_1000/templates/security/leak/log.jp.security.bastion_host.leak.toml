@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.bastion_host.leak"
+pattern = "(?i)(?:(?:bastion_host|踏み台サーバー|踏台ホスト)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:bastion_host|踏み台サーバー|踏台ホスト))"
+description = "踏み台サーバー情報 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "medium"
+score = 64
+base_score = 64
+category = "security"
+tags = ["log", "jp", "security", "leak_marker", "bastion"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

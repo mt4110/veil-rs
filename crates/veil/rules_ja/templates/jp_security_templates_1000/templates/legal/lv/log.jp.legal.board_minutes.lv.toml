@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.board_minutes.lv"
+pattern = "(?i)(?:board_minutes|取締役会議事録|役員会議事録)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "取締役会議事録 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "board"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

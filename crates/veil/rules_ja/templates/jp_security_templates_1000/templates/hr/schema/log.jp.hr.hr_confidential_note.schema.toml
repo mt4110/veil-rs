@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.hr_confidential_note.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:hr_confidential_note|人事機密メモ|人事メモ)|(?:hr_confidential_note|人事機密メモ|人事メモ)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "人事機密メモ - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "hr"
+tags = ["log", "jp", "hr", "schema_marker", "confidential"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 0
+context_lines_after = 0

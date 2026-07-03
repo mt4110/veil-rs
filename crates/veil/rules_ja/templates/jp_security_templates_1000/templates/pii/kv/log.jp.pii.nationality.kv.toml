@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.nationality.kv"
+pattern = "(?i)[\"\\'`]?((?:country_of_citizenship|nationality|在留資格国籍|国籍))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "国籍 - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identity", "nationality"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

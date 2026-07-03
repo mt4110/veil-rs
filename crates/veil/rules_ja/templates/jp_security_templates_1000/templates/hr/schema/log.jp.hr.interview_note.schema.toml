@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.interview_note.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:interview_note|面接評価|面接メモ)|(?:interview_note|面接評価|面接メモ)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "面接メモ - CSV/DBスキーマ上の機微カラム名"
+severity = "critical"
+score = 77
+base_score = 77
+category = "hr"
+tags = ["log", "jp", "hr", "schema_marker", "interview"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 0
+context_lines_after = 0

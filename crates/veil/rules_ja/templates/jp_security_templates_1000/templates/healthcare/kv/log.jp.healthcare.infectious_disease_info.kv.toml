@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.infectious_disease_info.kv"
+pattern = "(?i)[\"\\'`]?((?:infectious_disease_info|感染症情報|感染症名))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "感染症情報 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "key_value", "infectious_disease"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

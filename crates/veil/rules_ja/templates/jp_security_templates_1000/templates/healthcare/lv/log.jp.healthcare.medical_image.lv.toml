@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.medical_image.lv"
+pattern = "(?i)(?:medical_image|レントゲン画像|MRI画像|医用画像)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "医用画像 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "label_value", "image"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

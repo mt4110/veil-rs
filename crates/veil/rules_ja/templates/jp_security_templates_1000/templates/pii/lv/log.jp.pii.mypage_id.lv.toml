@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.mypage_id.lv"
+pattern = "(?i)(?:portal_user_id|mypage_id|マイページID|マイページ番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "マイページID - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "identifier", "portal"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

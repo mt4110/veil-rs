@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.contact_preference.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:contact_preference|連絡可能時間|希望連絡先|連絡希望)|(?:contact_preference|連絡可能時間|希望連絡先|連絡希望)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "連絡希望情報 - CSV/DBスキーマ上の機微カラム名"
+severity = "low"
+score = 22
+base_score = 22
+category = "pii"
+tags = ["log", "jp", "pii", "schema_marker", "contact", "preference"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 0
+context_lines_after = 0

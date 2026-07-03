@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.terminal_id.kv"
+pattern = "(?i)[\"\\'`]?((?:terminal_id|決済端末ID|端末番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "決済端末ID - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "terminal"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

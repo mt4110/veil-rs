@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.contact_preference.lv"
+pattern = "(?i)(?:contact_preference|連絡可能時間|希望連絡先|連絡希望)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "連絡希望情報 - 日本語ラベル付き値"
+severity = "low"
+score = 40
+base_score = 40
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "contact", "preference"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.lawsuit_info.lv"
+pattern = "(?i)(?:lawsuit_info|係争情報|訴訟情報)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "訴訟情報 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "lawsuit"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

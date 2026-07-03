@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.fraud_score.lv"
+pattern = "(?i)(?:fraud_score|risk_score|不正検知スコア)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"」』】\\]]?"
+description = "不正検知スコア - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "fraud"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

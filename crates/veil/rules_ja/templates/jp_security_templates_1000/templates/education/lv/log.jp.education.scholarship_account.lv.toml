@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.scholarship_account.lv"
+pattern = "(?i)(?:scholarship_account|奨学金口座)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"」』】\\]]?"
+description = "奨学金口座 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "education"
+tags = ["log", "jp", "education", "label_value", "scholarship", "bank"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

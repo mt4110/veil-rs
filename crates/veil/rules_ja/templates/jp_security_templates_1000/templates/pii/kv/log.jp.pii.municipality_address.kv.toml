@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.municipality_address.kv"
+pattern = "(?i)[\"\\'`]?((?:resident_address|住民登録住所|住民票住所))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９A-Za-zぁ-んァ-ヶ一-龠々〆〇ー・のノ\\s　\\-丁目番地号都道府県市区町村郡大字小字]{6,180})[\"\\'`」』】\\]]?"
+description = "住民票住所 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "contact", "government"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

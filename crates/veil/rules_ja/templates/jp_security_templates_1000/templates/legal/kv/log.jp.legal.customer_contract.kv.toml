@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.customer_contract.kv"
+pattern = "(?i)[\"\\'`]?((?:customer_contract|取引先契約書|顧客契約書))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "顧客契約書 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "legal"
+tags = ["log", "jp", "legal", "key_value", "contract", "customer"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.unpublished_financials.leak"
+pattern = "(?i)(?:(?:unpublished_financials|未公開決算情報|未発表決算)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:unpublished_financials|未公開決算情報|未発表決算))"
+description = "未公開決算情報 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "critical"
+score = 87
+base_score = 87
+category = "legal"
+tags = ["log", "jp", "legal", "leak_marker", "insider", "finance"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

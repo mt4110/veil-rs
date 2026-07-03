@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.employee_number.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:employee_number|employee_id|従業員番号|社員番号)|(?:employee_number|employee_id|従業員番号|社員番号)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "社員番号 - CSV/DBスキーマ上の機微カラム名"
+severity = "high"
+score = 70
+base_score = 70
+category = "hr"
+tags = ["log", "jp", "hr", "schema_marker", "employee", "identifier"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 0
+context_lines_after = 0

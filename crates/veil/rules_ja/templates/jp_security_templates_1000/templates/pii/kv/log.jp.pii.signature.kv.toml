@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.signature.kv"
+pattern = "(?i)[\"\\'`]?((?:sign_image|signature|サイン|自署|署名))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "署名 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "identity", "signature"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

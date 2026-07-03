@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.homeroom.lv"
+pattern = "(?i)(?:homeroom|クラス|学級|組)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "クラス・組 - 日本語ラベル付き値"
+severity = "low"
+score = 40
+base_score = 40
+category = "education"
+tags = ["log", "jp", "education", "label_value", "class"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

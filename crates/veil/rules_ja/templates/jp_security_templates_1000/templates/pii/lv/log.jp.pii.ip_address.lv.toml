@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.ip_address.lv"
+pattern = "(?i)(?:remote_addr|ip_address|アクセス元IP|IPアドレス|接続元IP)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9]))[\"」』】\\]]?"
+description = "IPアドレス - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "network", "ip"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.applicant_resume.lv"
+pattern = "(?i)(?:applicant_resume|応募者履歴書|応募書類)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "応募者履歴書 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "hr"
+tags = ["log", "jp", "hr", "label_value", "applicant"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

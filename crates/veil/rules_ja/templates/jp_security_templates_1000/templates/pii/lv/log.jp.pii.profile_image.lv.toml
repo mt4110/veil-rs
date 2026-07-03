@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.profile_image.lv"
+pattern = "(?i)(?:profile_image|avatar_url|プロフィール画像|アバター画像|アイコン画像)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"」』】\\]]?"
+description = "プロフィール画像 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "image"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

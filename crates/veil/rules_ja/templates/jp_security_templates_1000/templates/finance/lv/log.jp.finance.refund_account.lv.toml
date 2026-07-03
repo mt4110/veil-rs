@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.refund_account.lv"
+pattern = "(?i)(?:refund_account|返金先口座|返金口座)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"」』】\\]]?"
+description = "返金先口座 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "refund", "bank"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.security_exception.kv"
+pattern = "(?i)[\"\\'`]?((?:security_exception|セキュリティ例外|例外承認))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "セキュリティ例外 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "legal"
+tags = ["log", "jp", "legal", "key_value", "security_exception"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

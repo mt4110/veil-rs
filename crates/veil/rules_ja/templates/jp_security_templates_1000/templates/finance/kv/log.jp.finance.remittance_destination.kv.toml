@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.remittance_destination.kv"
+pattern = "(?i)[\"\\'`]?((?:remittance_destination|送金先情報|振込先情報))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "送金先情報 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "finance"
+tags = ["log", "jp", "finance", "key_value", "remittance"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.service_endpoint.kv"
+pattern = "(?i)[\"\\'`]?((?:service_endpoint|サービスエンドポイント|APIエンドポイント))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "サービスエンドポイント - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "security"
+tags = ["log", "jp", "security", "key_value", "endpoint"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

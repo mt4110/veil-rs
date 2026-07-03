@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.salary_bank_account.lv"
+pattern = "(?i)(?:salary_bank_account|給与振込口座|給与口座)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[0-9０-９\\-\\s　]{4,40})[\"」』】\\]]?"
+description = "給与振込口座 - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "salary", "bank"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

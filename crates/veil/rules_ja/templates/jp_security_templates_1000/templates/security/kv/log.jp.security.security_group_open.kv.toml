@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.security_group_open.kv"
+pattern = "(?i)[\"\\'`]?((?:security_group_open|Security[\\s　]*Group全開放|セキュリティグループ全許可))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:(?:0\\.0\\.0\\.0/0|::/0|[0-9]{1,3}(?:\\.[0-9]{1,3}){3}/[0-9]{1,2}))[\"\\'`」』】\\]]?"
+description = "Security Group全開放 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "security"
+tags = ["log", "jp", "security", "key_value", "aws", "security_group"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

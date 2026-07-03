@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.health_check_result.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:health_check_result|健康診断結果|健診結果)|(?:health_check_result|健康診断結果|健診結果)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "健康診断結果 - CSV/DBスキーマ上の機微カラム名"
+severity = "high"
+score = 70
+base_score = 70
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "schema_marker", "checkup"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 0
+context_lines_after = 0

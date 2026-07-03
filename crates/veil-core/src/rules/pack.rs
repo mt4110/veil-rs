@@ -1,6 +1,7 @@
 use crate::model::Rule;
 use crate::validators::resolve_validator;
 use anyhow::{Context, Result};
+use rayon::prelude::*;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -74,6 +75,62 @@ pub fn load_rule_pack(dir: &Path) -> Result<Vec<Rule>> {
     Ok(rules)
 }
 
+pub fn load_rule_templates_parallel(root: &Path) -> Result<Vec<Rule>> {
+    if !root.exists() {
+        anyhow::bail!("Rule template root missing: {:?}", root);
+    }
+    if !root.is_dir() {
+        anyhow::bail!("Rule template root is not a directory: {:?}", root);
+    }
+
+    let mut paths = Vec::new();
+    collect_rule_paths_recursive(root, &mut paths)?;
+    paths.sort();
+    load_rule_paths_parallel(paths)
+}
+
+fn collect_rule_paths_recursive(dir: &Path, paths: &mut Vec<PathBuf>) -> Result<()> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(dir)
+        .with_context(|| format!("Failed to read rule template directory {:?}", dir))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .collect();
+    entries.sort();
+
+    for path in entries {
+        if path.is_dir() {
+            collect_rule_paths_recursive(&path, paths)?;
+        } else if is_rule_toml(&path) {
+            paths.push(path);
+        }
+    }
+
+    Ok(())
+}
+
+fn is_rule_toml(path: &Path) -> bool {
+    path.extension().is_some_and(|ext| ext == "toml")
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name != "00_manifest.toml")
+}
+
+fn load_rule_paths_parallel(paths: Vec<PathBuf>) -> Result<Vec<Rule>> {
+    let parsed_rules: Result<Vec<Vec<Rule>>> = paths
+        .par_iter()
+        .map(|path| parse_rules_from_path(path))
+        .collect();
+
+    let mut rules = Vec::new();
+    let mut ids = HashSet::new();
+
+    for file_rules in parsed_rules? {
+        append_rules_with_duplicate_check(file_rules, &mut rules, &mut ids)?;
+    }
+
+    Ok(rules)
+}
+
 fn load_rules_auto(dir: &Path, rules: &mut Vec<Rule>, ids: &mut HashSet<String>) -> Result<()> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)?
         .filter_map(|e| e.ok())
@@ -104,6 +161,15 @@ fn load_rules_from_path(
     load_rules_from_content(&content, rules, ids, Some(path))
 }
 
+fn parse_rules_from_path(path: &Path) -> Result<Vec<Rule>> {
+    if !path.exists() {
+        anyhow::bail!("Rule file missing: {:?}", path);
+    }
+    let content =
+        fs::read_to_string(path).with_context(|| format!("Failed to read rule file {:?}", path))?;
+    parse_rules_from_content(&content, Some(path))
+}
+
 pub fn parse_manifest(content: &str) -> Result<RulePackManifest> {
     toml::from_str(content).map_err(Into::into)
 }
@@ -114,14 +180,16 @@ pub fn load_rules_from_content(
     ids: &mut HashSet<String>,
     source: Option<&Path>,
 ) -> Result<()> {
+    let parsed_rules = parse_rules_from_content(content, source)?;
+    append_rules_with_duplicate_check(parsed_rules, rules, ids)
+}
+
+fn parse_rules_from_content(content: &str, source: Option<&Path>) -> Result<Vec<Rule>> {
     let raw_file: RuleFile = toml::from_str(content)
         .with_context(|| format!("Failed to parse rule file content (source: {:?})", source))?;
 
+    let mut rules = Vec::new();
     for raw in raw_file.rules {
-        if ids.contains(&raw.id) {
-            anyhow::bail!("Duplicate rule ID found: {}", raw.id);
-        }
-
         let regex = Regex::new(&raw.pattern)
             .with_context(|| format!("Invalid regex for rule {}: {}", raw.id, raw.pattern))?;
 
@@ -153,9 +221,23 @@ pub fn load_rules_from_content(
             placeholder: raw.placeholder,
         };
 
-        ids.insert(rule.id.clone());
         rules.push(rule);
     }
+    Ok(rules)
+}
+
+fn append_rules_with_duplicate_check(
+    parsed_rules: Vec<Rule>,
+    rules: &mut Vec<Rule>,
+    ids: &mut HashSet<String>,
+) -> Result<()> {
+    for rule in parsed_rules {
+        if !ids.insert(rule.id.clone()) {
+            anyhow::bail!("Duplicate rule ID found: {}", rule.id);
+        }
+        rules.push(rule);
+    }
+
     Ok(())
 }
 
@@ -352,5 +434,85 @@ pattern = "a"
 
         assert_eq!(rules.len(), 1);
         assert!(!rules[0].enabled);
+    }
+
+    #[test]
+    fn test_load_rule_templates_parallel_recurses_deterministically() {
+        let dir = setup_test_dir("templates_parallel_order");
+        fs::create_dir_all(dir.join("templates/pii/kv")).unwrap();
+        fs::create_dir_all(dir.join("templates/secret/leak")).unwrap();
+
+        let b = r#"
+[[rules]]
+id = "rule.b"
+description = "B"
+pattern = "b"
+"#;
+        File::create(dir.join("templates/secret/leak/b.toml"))
+            .unwrap()
+            .write_all(b.as_bytes())
+            .unwrap();
+
+        let a = r#"
+[[rules]]
+id = "rule.a"
+description = "A"
+pattern = "a"
+"#;
+        File::create(dir.join("templates/pii/kv/a.toml"))
+            .unwrap()
+            .write_all(a.as_bytes())
+            .unwrap();
+
+        let rules = load_rule_templates_parallel(&dir).unwrap();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].id, "rule.a");
+        assert_eq!(rules[1].id, "rule.b");
+    }
+
+    #[test]
+    fn test_load_rule_templates_parallel_rejects_duplicate_ids() {
+        let dir = setup_test_dir("templates_parallel_duplicate");
+        fs::create_dir_all(dir.join("templates/pii/kv")).unwrap();
+        fs::create_dir_all(dir.join("templates/secret/leak")).unwrap();
+
+        let a = r#"
+[[rules]]
+id = "rule.common"
+description = "A"
+pattern = "a"
+"#;
+        File::create(dir.join("templates/pii/kv/a.toml"))
+            .unwrap()
+            .write_all(a.as_bytes())
+            .unwrap();
+
+        let b = r#"
+[[rules]]
+id = "rule.common"
+description = "B"
+pattern = "b"
+"#;
+        File::create(dir.join("templates/secret/leak/b.toml"))
+            .unwrap()
+            .write_all(b.as_bytes())
+            .unwrap();
+
+        let res = load_rule_templates_parallel(&dir);
+        assert!(res.is_err());
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("Duplicate rule ID found"));
+    }
+
+    #[test]
+    #[ignore = "loads the large repository template corpus"]
+    fn test_jp_security_templates_1000_loads_parallel() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../veil/rules_ja/templates/jp_security_templates_1000");
+
+        let rules = load_rule_templates_parallel(&root).unwrap();
+        assert_eq!(rules.len(), 1000);
     }
 }

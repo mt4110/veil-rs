@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.security.vpn_config.lv"
+pattern = "(?i)(?:vpn_config|VPN接続情報|VPN設定)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "VPN設定 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "security"
+tags = ["log", "jp", "security", "label_value", "vpn"]
+placeholder = "<REDACTED:SECURITY>"
+context_lines_before = 1
+context_lines_after = 1

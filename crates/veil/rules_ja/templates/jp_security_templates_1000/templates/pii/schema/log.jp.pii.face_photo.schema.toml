@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.face_photo.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:profile_photo|face_photo|本人写真|証明写真|顔写真)|(?:profile_photo|face_photo|本人写真|証明写真|顔写真)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "顔写真 - CSV/DBスキーマ上の機微カラム名"
+severity = "high"
+score = 70
+base_score = 70
+category = "pii"
+tags = ["log", "jp", "pii", "schema_marker", "biometric", "image"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 0
+context_lines_after = 0

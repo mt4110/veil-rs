@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.hanko_image.leak"
+pattern = "(?i)(?:(?:hanko_image|seal_image|ハンコ画像|印鑑画像|押印画像|印影)[^\\r\\n]{0,48}(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)|(?:ログ出力|ログ記録|監査ログ|エラーログ|デバッグログ|表示|出力|送信|通知|メール送信|Slack通知|外部送信|dump|print|trace|debug|log)[^\\r\\n]{0,48}(?:hanko_image|seal_image|ハンコ画像|印鑑画像|押印画像|印影))"
+description = "印影・ハンコ画像 - ログ・通知・外部送信に出る漏えい兆候"
+severity = "high"
+score = 80
+base_score = 80
+category = "pii"
+tags = ["log", "jp", "pii", "leak_marker", "identity", "hanko"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

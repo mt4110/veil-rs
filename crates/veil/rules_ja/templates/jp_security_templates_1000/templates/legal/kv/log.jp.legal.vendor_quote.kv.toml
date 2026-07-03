@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.vendor_quote.kv"
+pattern = "(?i)[\"\\'`]?((?:vendor_quote|ベンダー見積|見積情報))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[0-9０-９,，]{3,}\\s*(?:円|JPY|万円|千円|億円)?)[\"\\'`」』】\\]]?"
+description = "見積情報 - JSON/YAML/env風キー値"
+severity = "medium"
+score = 74
+base_score = 74
+category = "legal"
+tags = ["log", "jp", "legal", "key_value", "quote"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

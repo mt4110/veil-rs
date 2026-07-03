@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.hr.commuting_route.lv"
+pattern = "(?i)(?:commuting_route|通勤ルート|通勤経路)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "通勤経路 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "hr"
+tags = ["log", "jp", "hr", "label_value", "commute"]
+placeholder = "<REDACTED:HR>"
+context_lines_before = 1
+context_lines_after = 1

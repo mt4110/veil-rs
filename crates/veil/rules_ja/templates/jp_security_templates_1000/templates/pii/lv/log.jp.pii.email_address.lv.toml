@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.email_address.lv"
+pattern = "(?i)(?:mail_address|メールアドレス|email|Eメール|メール)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Z0-9._%+\\-]+@[A-Z0-9.\\-]+\\.[A-Z]{2,})[\"」』】\\]]?"
+description = "メールアドレス - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "contact", "email"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.government.resident_register.kv"
+pattern = "(?i)[\"\\'`]?((?:resident_register|住民基本台帳|住基情報))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "住民基本台帳情報 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "government"
+tags = ["log", "jp", "government", "key_value", "resident"]
+placeholder = "<REDACTED:GOVERNMENT>"
+context_lines_before = 1
+context_lines_after = 1

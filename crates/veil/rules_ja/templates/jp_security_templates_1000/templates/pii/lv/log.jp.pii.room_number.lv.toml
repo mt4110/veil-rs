@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.room_number.lv"
+pattern = "(?i)(?:room_number|unit_no|部屋番号|号室)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "部屋番号 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "contact", "address"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

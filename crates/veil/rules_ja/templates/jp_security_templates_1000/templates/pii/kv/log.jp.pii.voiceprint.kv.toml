@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.voiceprint.kv"
+pattern = "(?i)[\"\\'`]?((?:voice_embedding|voiceprint|音声特徴量|声紋データ|声紋))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9._~+/=@:%\\-]{8,240})[\"\\'`」』】\\]]?"
+description = "声紋データ - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "pii"
+tags = ["log", "jp", "pii", "key_value", "biometric", "voice"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1

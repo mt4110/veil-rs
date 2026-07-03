@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.special_needs.kv"
+pattern = "(?i)[\"\\'`]?((?:special_needs|特別支援情報|配慮事項))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"\\'`」』】\\]]?"
+description = "特別支援情報 - JSON/YAML/env風キー値"
+severity = "critical"
+score = 97
+base_score = 97
+category = "education"
+tags = ["log", "jp", "education", "key_value", "special_needs"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

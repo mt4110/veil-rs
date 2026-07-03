@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.grades.lv"
+pattern = "(?i)(?:grades|成績情報|評定)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "成績情報 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "education"
+tags = ["log", "jp", "education", "label_value", "grades"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

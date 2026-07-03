@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.payee_bank_name.schema"
+pattern = "(?i)(?:(?:列名|カラム|フィールド|ヘッダー|CSV|DB|テーブル|table|column|field|schema|スキーマ)[^\\r\\n]{0,40}(?:payee_bank_name|振込先銀行名|支払先銀行)|(?:payee_bank_name|振込先銀行名|支払先銀行)[^\\r\\n]{0,24}(?:列|カラム|フィールド|ヘッダー|column|field))"
+description = "振込先銀行名 - CSV/DBスキーマ上の機微カラム名"
+severity = "medium"
+score = 54
+base_score = 54
+category = "finance"
+tags = ["log", "jp", "finance", "schema_marker", "bank", "payee"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 0
+context_lines_after = 0

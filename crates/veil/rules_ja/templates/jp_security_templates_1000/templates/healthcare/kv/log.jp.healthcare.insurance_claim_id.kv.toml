@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.healthcare.insurance_claim_id.kv"
+pattern = "(?i)[\"\\'`]?((?:insurance_claim_id|診療報酬請求ID|レセプト番号))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"\\'`」』】\\]]?"
+description = "診療報酬請求ID - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "healthcare"
+tags = ["log", "jp", "healthcare", "key_value", "claim"]
+placeholder = "<REDACTED:HEALTH>"
+context_lines_before = 1
+context_lines_after = 1

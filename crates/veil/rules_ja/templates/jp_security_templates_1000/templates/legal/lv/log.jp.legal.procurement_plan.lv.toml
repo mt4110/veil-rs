@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.legal.procurement_plan.lv"
+pattern = "(?i)(?:procurement_plan|調達計画|購買計画)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９ぁ-んァ-ヶ一-龠々〆〇ー・（）()\\[\\]＿_\\-]{2,120})[\"」』】\\]]?"
+description = "調達計画 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "legal"
+tags = ["log", "jp", "legal", "label_value", "procurement"]
+placeholder = "<REDACTED:CONFIDENTIAL>"
+context_lines_before = 1
+context_lines_after = 1

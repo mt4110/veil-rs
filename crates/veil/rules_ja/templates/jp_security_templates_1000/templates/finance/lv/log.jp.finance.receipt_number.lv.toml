@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.finance.receipt_number.lv"
+pattern = "(?i)(?:receipt_number|領収書番号)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9０-９_\\-]{4,80})[\"」』】\\]]?"
+description = "領収書番号 - 日本語ラベル付き値"
+severity = "medium"
+score = 72
+base_score = 72
+category = "finance"
+tags = ["log", "jp", "finance", "label_value", "receipt"]
+placeholder = "<REDACTED:FINANCIAL>"
+context_lines_before = 1
+context_lines_after = 1

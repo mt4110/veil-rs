@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.guardian_contact.lv"
+pattern = "(?i)(?:guardian_contact|保護者電話番号|保護者連絡先)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:0[0-9０-９]{1,4}[-ー\\s　]?[0-9０-９]{1,4}[-ー\\s　]?[0-9０-９]{3,4})[\"」』】\\]]?"
+description = "保護者連絡先 - 日本語ラベル付き値"
+severity = "high"
+score = 88
+base_score = 88
+category = "education"
+tags = ["log", "jp", "education", "label_value", "guardian", "contact"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

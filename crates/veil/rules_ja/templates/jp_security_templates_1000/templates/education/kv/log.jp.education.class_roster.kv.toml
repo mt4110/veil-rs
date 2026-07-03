@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.education.class_roster.kv"
+pattern = "(?i)[\"\\'`]?((?:class_roster|クラス名簿|名簿))[\"\\'`]?\\s*[:=]\\s*[\"\\'`「『【\\[]?(?:https?://[^\\s　<>\"\\)）\\]\\}]+)[\"\\'`」』】\\]]?"
+description = "名簿 - JSON/YAML/env風キー値"
+severity = "high"
+score = 90
+base_score = 90
+category = "education"
+tags = ["log", "jp", "education", "key_value", "roster"]
+placeholder = "<REDACTED:EDUCATION>"
+context_lines_before = 1
+context_lines_after = 1

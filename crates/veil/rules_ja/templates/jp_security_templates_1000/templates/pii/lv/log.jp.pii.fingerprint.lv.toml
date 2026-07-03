@@ -1,0 +1,15 @@
+# JP security-risk detection template.
+# Generated as one-rule TOML for selective adoption and easy deletion.
+
+[[rules]]
+id = "log.jp.pii.fingerprint.lv"
+pattern = "(?i)(?:fingerprint_template|fingerprint|指紋データ|指紋)[\\s　]*(?:[:：=＝]|=>|->|は|：|[\\s　]+)[\\s　]*[\"「『【\\[]?(?:[A-Za-z0-9._~+/=@:%\\-]{8,240})[\"」』】\\]]?"
+description = "指紋データ - 日本語ラベル付き値"
+severity = "critical"
+score = 95
+base_score = 95
+category = "pii"
+tags = ["log", "jp", "pii", "label_value", "biometric", "fingerprint"]
+placeholder = "<REDACTED:PII>"
+context_lines_before = 1
+context_lines_after = 1
