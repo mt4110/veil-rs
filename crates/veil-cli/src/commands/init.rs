@@ -388,7 +388,7 @@ fn validate_log_pack_for_init(rules_dir: &Path) -> Result<()> {
             rules_dir.display()
         )
     })?;
-    let missing_ids: Vec<_> = crate::config_loader::LOGS_JP_REQUIRED_RULE_IDS
+    let missing_ids: Vec<_> = veil_config::LOGS_JP_REQUIRED_RULE_IDS
         .iter()
         .copied()
         .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))

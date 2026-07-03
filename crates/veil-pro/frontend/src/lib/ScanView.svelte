@@ -3,9 +3,11 @@
   
   // Strict State Machine for UI prediction and tracking (no implicit states)
   type ScanState = 'Idle' | 'Running' | 'SuccessNoFindings' | 'Violation' | 'Incomplete' | 'ErrorAuth' | 'ErrorConfig' | 'ErrorExpired' | 'ErrorOOM' | 'ErrorUnknown';
+  type ScanPreset = '' | 'standard-jp' | 'fintech-jp' | 'gov-jp' | 'si-vendor-jp' | 'logs-jp';
   let currentState = $state<ScanState>('Idle');
   
   let scanPath = $state('');
+  let scanPreset = $state<ScanPreset>('');
   let findings = $state<any[]>([]);
   let scanStats = $state<{scanned: number, skipped: number, runId: string} | null>(null);
   let errorMsg = $state<string | null>(null);
@@ -57,10 +59,15 @@
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      const requestBody: { paths: string[]; preset?: ScanPreset } = { paths: [targetPath] };
+      if (scanPreset !== '') {
+        requestBody.preset = scanPreset;
+      }
+
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ paths: [targetPath] })
+        body: JSON.stringify(requestBody)
       });
 
       if (res.status === 401) {
@@ -166,6 +173,14 @@
         placeholder="Enter path (e.g., /src or default '.') " 
         disabled={currentState === 'Running'}
       />
+      <select bind:value={scanPreset} aria-label="Preset" disabled={currentState === 'Running'}>
+        <option value="">Default</option>
+        <option value="standard-jp">standard-jp</option>
+        <option value="fintech-jp">fintech-jp</option>
+        <option value="gov-jp">gov-jp</option>
+        <option value="si-vendor-jp">si-vendor-jp</option>
+        <option value="logs-jp">logs-jp</option>
+      </select>
       <button type="submit" class="btn btn-primary" disabled={currentState === 'Running'}>
         {#if currentState === 'Running'}
           <Loader2 size={18} class="spin" /> Scanning...
@@ -292,11 +307,13 @@
   }
 
   .scan-form {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) auto;
     gap: 12px;
   }
 
-  input[type="text"] {
+  input[type="text"],
+  select {
     flex: 1;
     padding: 12px 16px;
     border-radius: var(--radius-sm);
@@ -308,14 +325,31 @@
     transition: box-shadow 0.2s, border-color 0.2s;
   }
 
-  input[type="text"]:focus {
+  select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 36px;
+  }
+
+  input[type="text"]:focus,
+  select:focus {
     outline: none;
     box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.3);
     border-color: var(--accent);
   }
   
-  input[type="text"]:disabled {
+  input[type="text"]:disabled,
+  select:disabled {
     opacity: 0.6;
+  }
+
+  @media (max-width: 720px) {
+    .scan-form {
+      grid-template-columns: 1fr;
+    }
   }
 
   .btn { gap: 8px; }

@@ -2,13 +2,6 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use veil_config::{load_config, Config};
 
-pub(crate) const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
-    "log.pii.jp.mynumber.keyword",
-    "log.pii.credit_card",
-    "log.pii.jp.phone.keyword",
-    "log.pii.jp.postal.keyword",
-];
-
 #[derive(Debug, Clone)]
 pub struct ConfigLayers {
     #[allow(dead_code)]
@@ -131,7 +124,7 @@ fn validate_logs_preset_rule_pack(config: &Config) -> Result<()> {
             path.display()
         )
     })?;
-    let missing_ids: Vec<_> = LOGS_JP_REQUIRED_RULE_IDS
+    let missing_ids: Vec<_> = veil_config::LOGS_JP_REQUIRED_RULE_IDS
         .iter()
         .copied()
         .filter(|required_id| !rules.iter().any(|rule| rule.id == *required_id))

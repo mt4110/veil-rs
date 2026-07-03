@@ -11,6 +11,13 @@ pub const BUILTIN_PRESET_IDS: &[&str] = &[
     "si-vendor-jp",
 ];
 
+pub const LOGS_JP_REQUIRED_RULE_IDS: &[&str] = &[
+    "log.pii.jp.mynumber.keyword",
+    "log.pii.credit_card",
+    "log.pii.jp.phone.keyword",
+    "log.pii.jp.postal.keyword",
+];
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PresetFile {
