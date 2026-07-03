@@ -1235,6 +1235,24 @@ mod tests {
     }
 
     #[test]
+    fn local_api_preset_names_match_builtin_preset_ids() {
+        let api_ids: std::collections::BTreeSet<_> = [
+            PresetName::StandardJp,
+            PresetName::FintechJp,
+            PresetName::GovJp,
+            PresetName::SiVendorJp,
+            PresetName::LogsJp,
+        ]
+        .into_iter()
+        .map(preset_name)
+        .collect();
+        let builtin_ids: std::collections::BTreeSet<_> =
+            veil_config::BUILTIN_PRESET_IDS.iter().copied().collect();
+
+        assert_eq!(api_ids, builtin_ids);
+    }
+
+    #[test]
     fn local_api_fintech_preset_applies_base_score_override() {
         let config = apply_request_preset_for_api(
             veil_config::Config::default(),

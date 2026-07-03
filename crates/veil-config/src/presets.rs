@@ -120,6 +120,19 @@ mod tests {
     }
 
     #[test]
+    fn logs_jp_required_rule_ids_are_present_in_preset_overrides() {
+        let config = builtin_preset_config("logs-jp").unwrap();
+
+        for required_id in LOGS_JP_REQUIRED_RULE_IDS {
+            assert!(
+                config.rules.contains_key(*required_id),
+                "logs-jp preset should override required log rule '{}'",
+                required_id
+            );
+        }
+    }
+
+    #[test]
     fn unknown_builtin_preset_errors() {
         let err = builtin_preset_config("minimal-ci").unwrap_err();
         assert!(err.to_string().contains("Unknown preset 'minimal-ci'"));
