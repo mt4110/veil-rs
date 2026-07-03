@@ -150,4 +150,14 @@ severity = "high"
         assert!(!rule.enabled);
         assert_eq!(rule.base_score, Some(99));
     }
+
+    #[test]
+    fn apply_builtin_preset_as_base_preserves_max_findings_override() {
+        let mut config = Config::default();
+        config.output.max_findings = Some(25);
+
+        let merged = apply_builtin_preset_as_base(config, "fintech-jp").unwrap();
+
+        assert_eq!(merged.output.max_findings, Some(25));
+    }
 }

@@ -103,6 +103,9 @@ impl Config {
         if !other.output.show_snippets {
             self.output.show_snippets = false;
         }
+        if other.output.max_findings != default_max_findings() {
+            self.output.max_findings = other.output.max_findings;
+        }
     }
 }
 
@@ -199,5 +202,27 @@ mod tests {
 
         assert_eq!(config.core.max_file_size, Some(1024));
         assert_eq!(config.core.max_file_count, None);
+    }
+
+    #[test]
+    fn merge_copies_non_default_max_findings() {
+        let mut base = Config::default();
+        let mut other = Config::default();
+        other.output.max_findings = Some(25);
+
+        base.merge(other);
+
+        assert_eq!(base.output.max_findings, Some(25));
+    }
+
+    #[test]
+    fn merge_does_not_let_default_max_findings_override_existing_layer() {
+        let mut base = Config::default();
+        base.output.max_findings = Some(25);
+        let other = Config::default();
+
+        base.merge(other);
+
+        assert_eq!(base.output.max_findings, Some(25));
     }
 }
