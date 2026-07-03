@@ -17,6 +17,7 @@ pub fn luhn(candidate: &str) -> bool {
         .iter()
         .enumerate()
         .filter(|(_, ch)| digit_value(**ch).is_some())
+        .filter(|(index, _)| !has_card_run_prefix(&chars, *index))
         .filter_map(|(index, _)| card_digit_run_from(&chars, index))
         .any(|values| luhn_values(&values))
 }
@@ -79,6 +80,15 @@ fn card_digit_run_from(chars: &[char], start: usize) -> Option<Vec<u8>> {
     }
 
     Some(current)
+}
+
+fn has_card_run_prefix(chars: &[char], start: usize) -> bool {
+    let mut index = start;
+    while index > 0 && is_card_separator(chars[index - 1]) {
+        index -= 1;
+    }
+
+    index > 0 && digit_value(chars[index - 1]).is_some()
 }
 
 fn is_card_separator(ch: char) -> bool {
@@ -156,6 +166,7 @@ mod tests {
     fn luhn_rejects_invalid_lengths_and_known_test_cards() {
         assert!(!luhn("411122223333"));
         assert!(!luhn("4111222233334444"));
+        assert!(!luhn("card: 4000000000000000"));
         assert!(!luhn("4111111111111111"));
         assert!(!luhn("5555555555554444"));
     }
