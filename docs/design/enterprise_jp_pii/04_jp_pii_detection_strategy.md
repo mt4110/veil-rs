@@ -190,10 +190,14 @@ Fail条件は `score` を正本にする。`--fail-on-severity High` は `score 
 
 ## 4.13 実装タスク
 
-- [ ] `jp_normalize.rs` を追加。
-- [ ] `NormalizedText` と span mapping を実装。
-- [ ] Ruleに `validator_id` を追加。TOMLから validator を解決。
-- [ ] `validators::jp::{mynumber, luhn, phone, address}` を実装。
-- [ ] `fintech-jp`, `gov-jp`, `logs-jp` RulePackを分離。
-- [ ] fixtureを `tests/fixtures/jp_pii/` に追加。
-- [ ] 誤検知fixtureを同数以上追加。
+- [x] `jp_normalize.rs` を追加。
+- [x] `NormalizedText` と normalized span -> original byte span mapping を実装。
+- [x] Ruleに `validator_id` を追加し、TOML `validator` を allowlist から解決。
+- [x] `jp_mynumber_len12`, `jp_phone_mobile`, `luhn` validators を実装。
+- [x] MyNumber / mobile phone / credit-card positive fixturesを `tests/fixtures/jp_pii/` に追加。
+- [x] order number / version number / dummy-test-example / fullwidth non-JP secret / known test card negative fixturesを追加。
+- [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` preset override resolverを追加。
+- [x] `veil scan --preset`, `veil init --preset`, `veil config dump --preset` CLI UXを追加。
+- [ ] Address validatorを実装する。現状の `pii.jp.address.prefecture_heuristic` はvalidatorなしのヒューリスティックであり、実装済みvalidatorとは扱わない。
+- [ ] Name validatorを実装する。現状の `pii.person.name.keyword` はラベル付きヒューリスティックであり、実装済みvalidatorとは扱わない。
+- [ ] J-LIS MyNumberチェックデジットを feature flag `jp_mynumber_checksum` として後続実装する。
