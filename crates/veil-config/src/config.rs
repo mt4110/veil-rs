@@ -271,9 +271,9 @@ impl RuleConfig {
             return;
         }
 
-        if other.enabled_is_set {
+        if other.enabled_is_set || !other.enabled {
             self.enabled = other.enabled;
-            self.enabled_is_set = true;
+            self.enabled_is_set = other.enabled_is_set || !other.enabled;
         }
         if other.severity.is_some() {
             self.severity = other.severity;
@@ -414,6 +414,30 @@ enabled = false
 "#,
         )
         .unwrap();
+
+        base.merge(other);
+
+        assert!(!base.rules["pii.fin.credit_card.keyword"].enabled);
+    }
+
+    #[test]
+    fn merge_treats_programmatic_enabled_false_as_explicit_disable() {
+        let mut base = Config::default();
+        base.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                base_score: Some(85),
+                ..RuleConfig::default()
+            },
+        );
+        let mut other = Config::default();
+        other.rules.insert(
+            "pii.fin.credit_card.keyword".to_string(),
+            RuleConfig {
+                enabled: false,
+                ..RuleConfig::default()
+            },
+        );
 
         base.merge(other);
 
