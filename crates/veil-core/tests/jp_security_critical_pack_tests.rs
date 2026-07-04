@@ -89,6 +89,39 @@ fn jp_security_critical_negative_fixtures_do_not_trigger_promoted_rules() {
     }
 }
 
+#[test]
+fn jp_security_critical_ssh_private_key_matches_full_serialized_pem_value() {
+    let config = config_with_jp_security_critical_pack();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+    let content = r#"ssh_private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\nVEILTESTFAKESSHPRIVATEKEYBODY123456\n-----END OPENSSH PRIVATE KEY-----""#;
+
+    let findings = promoted_findings(scan_content(
+        content,
+        Path::new("ssh_private_key.txt"),
+        &rules,
+        &config,
+    ));
+    let finding = findings
+        .iter()
+        .find(|finding| finding.rule_id == "log.jp.secret.ssh_private_key.kv")
+        .expect("expected serialized PEM SSH private key finding");
+
+    assert!(
+        finding
+            .matched_content
+            .contains("VEILTESTFAKESSHPRIVATEKEYBODY123456"),
+        "matched content should include the escaped PEM body: {}",
+        finding.matched_content
+    );
+    assert!(
+        finding
+            .matched_content
+            .contains("-----END OPENSSH PRIVATE KEY-----"),
+        "matched content should include the PEM end marker: {}",
+        finding.matched_content
+    );
+}
+
 fn config_with_jp_security_critical_pack() -> Config {
     let mut config = Config::default();
     config.core.rules_dir = Some(
