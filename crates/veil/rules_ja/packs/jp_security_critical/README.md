@@ -10,10 +10,13 @@ Opt-in RulePack for critical Japanese security and finance key/value findings.
 - Categories: `secret` 28, `finance` 9
 
 This pack does not expand the default RulePack. Projects must opt in with `[core].rules_dir`.
+For normal project use, copy or vendor this pack into the consuming repository and point
+`rules_dir` at that project-local directory. A path that only exists inside the `veil-rs`
+checkout is skipped when the CLI runs from another project.
 
 ```toml
 [core]
-rules_dir = "crates/veil/rules_ja/packs/jp_security_critical"
+rules_dir = "rules/jp_security_critical"
 ```
 
 ## Promotion Command
@@ -22,6 +25,7 @@ rules_dir = "crates/veil/rules_ja/packs/jp_security_critical"
 cargo run -q -p veil-cli -- rules promote-templates \
   --templates-dir crates/veil/rules_ja/templates/jp_security_templates_1000 \
   --out-dir crates/veil/rules_ja/packs/jp_security_critical \
+  --force \
   --category secret \
   --category finance \
   --variant kv \
