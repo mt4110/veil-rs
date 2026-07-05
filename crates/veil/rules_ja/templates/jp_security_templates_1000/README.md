@@ -60,6 +60,17 @@ templates/secret/leak/log.jp.secret.api_token.leak.toml
 
 採用時は `veil rules promote-templates` で `category` / `variant` / `severity` / `score` を絞り込み、実行RulePackを生成してください。テンプレート集全体をRulePackとして直接読み込まないでください。
 
+## 昇格済みpack
+
+- `crates/veil/rules_ja/packs/jp_security_critical`
+  - `secret` / `finance`
+  - `kv`
+  - `critical`
+  - `score >= 90`
+  - 37 rules
+
+`kv` と `lv` は通常の `key: value` 行で重複しやすいため、最初の実行RulePackでは `kv` のみを昇格しています。
+
 ## 注意
 
 - これは初期テンプレートです。日本語ログ・CSV・DBスキーマ・問い合わせ本文などを広く拾うため、意図的に保守的なものと広めのものが混在しています。

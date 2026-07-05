@@ -1,0 +1,45 @@
+files = [
+  "rules/finance/kv/log.jp.finance.account_holder_name.kv.toml",
+  "rules/finance/kv/log.jp.finance.bank_account_number.kv.toml",
+  "rules/finance/kv/log.jp.finance.card_cvv.kv.toml",
+  "rules/finance/kv/log.jp.finance.card_token.kv.toml",
+  "rules/finance/kv/log.jp.finance.credit_card_number.kv.toml",
+  "rules/finance/kv/log.jp.finance.debit_card_number.kv.toml",
+  "rules/finance/kv/log.jp.finance.payment_token.kv.toml",
+  "rules/finance/kv/log.jp.finance.refund_account.kv.toml",
+  "rules/finance/kv/log.jp.finance.salary_bank_account.kv.toml",
+  "rules/secret/kv/log.jp.secret.access_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.api_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.aws_access_key_id.kv.toml",
+  "rules/secret/kv/log.jp.secret.aws_secret_access_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.azure_client_secret.kv.toml",
+  "rules/secret/kv/log.jp.secret.basic_auth.kv.toml",
+  "rules/secret/kv/log.jp.secret.bearer_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.cookie_secret.kv.toml",
+  "rules/secret/kv/log.jp.secret.database_password.kv.toml",
+  "rules/secret/kv/log.jp.secret.encryption_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.gcp_service_account_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.github_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.gitlab_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.id_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.jwt.kv.toml",
+  "rules/secret/kv/log.jp.secret.mfa_backup_code.kv.toml",
+  "rules/secret/kv/log.jp.secret.oauth_client_secret.kv.toml",
+  "rules/secret/kv/log.jp.secret.otp_code.kv.toml",
+  "rules/secret/kv/log.jp.secret.password.kv.toml",
+  "rules/secret/kv/log.jp.secret.private_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.redis_password.kv.toml",
+  "rules/secret/kv/log.jp.secret.refresh_token.kv.toml",
+  "rules/secret/kv/log.jp.secret.session_id.kv.toml",
+  "rules/secret/kv/log.jp.secret.signing_secret.kv.toml",
+  "rules/secret/kv/log.jp.secret.slack_webhook_url.kv.toml",
+  "rules/secret/kv/log.jp.secret.smtp_password.kv.toml",
+  "rules/secret/kv/log.jp.secret.ssh_private_key.kv.toml",
+  "rules/secret/kv/log.jp.secret.webhook_secret.kv.toml",
+]
+
+[pack]
+id = "veil.jp.security.critical"
+version = 1
+schema_version = 1
+description = "Promoted JP security template RulePack"

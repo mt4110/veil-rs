@@ -916,7 +916,7 @@ templates/secret/kv/log.jp.secret.refresh_token.kv.toml,log.jp.secret.refresh_to
 templates/secret/schema/log.jp.secret.refresh_token.schema.toml,log.jp.secret.refresh_token.schema,リフレッシュトークン,refresh_token,schema,secret,critical,77,リフレッシュトークン|refresh_token
 templates/secret/leak/log.jp.secret.refresh_token.leak.toml,log.jp.secret.refresh_token.leak,リフレッシュトークン,refresh_token,leak,secret,critical,87,リフレッシュトークン|refresh_token
 templates/secret/lv/log.jp.secret.session_id.lv.toml,log.jp.secret.session_id.lv,セッションID,session_id,lv,secret,critical,95,セッションID|session_id|sid
-templates/secret/kv/log.jp.secret.session_id.kv.toml,log.jp.secret.session_id.kv,セッションID,session_id,kv,secret,critical,97,セッションID|session_id|sid
+templates/secret/kv/log.jp.secret.session_id.kv.toml,log.jp.secret.session_id.kv,セッションID,session_id,kv,secret,critical,97,セッションID|session_id
 templates/secret/schema/log.jp.secret.session_id.schema.toml,log.jp.secret.session_id.schema,セッションID,session_id,schema,secret,critical,77,セッションID|session_id|sid
 templates/secret/leak/log.jp.secret.session_id.leak.toml,log.jp.secret.session_id.leak,セッションID,session_id,leak,secret,critical,87,セッションID|session_id|sid
 templates/secret/lv/log.jp.secret.signing_secret.lv.toml,log.jp.secret.signing_secret.lv,署名シークレット,signing_secret,lv,secret,critical,95,署名シークレット|署名鍵|signing_secret

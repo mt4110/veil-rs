@@ -1,0 +1,197 @@
+use ignore::WalkBuilder;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use veil_config::Config;
+use veil_core::{scan_content, try_get_all_rules, Finding, Severity};
+
+#[test]
+fn jp_security_critical_pack_loads_kv_templates_only() {
+    let rules = veil_core::rules::pack::load_rule_pack(&jp_security_critical_pack_dir()).unwrap();
+    let mut categories = BTreeMap::new();
+
+    assert_eq!(rules.len(), 37);
+    for rule in &rules {
+        assert!(rule.id.starts_with("log.jp."));
+        assert!(rule.id.ends_with(".kv"));
+        assert!(!rule.id.contains(".schema."));
+        assert!(!rule.id.contains(".leak."));
+        assert_eq!(rule.severity, Severity::Critical);
+        assert!(rule.score >= 90);
+        assert_eq!(rule.base_score, Some(rule.score));
+        *categories.entry(rule.category.as_str()).or_insert(0usize) += 1;
+    }
+
+    assert_eq!(categories.get("finance"), Some(&9));
+    assert_eq!(categories.get("secret"), Some(&28));
+}
+
+#[test]
+fn jp_security_critical_positive_fixtures_match_expected_rules() {
+    let fixture_dir = workspace_root()
+        .join("tests")
+        .join("fixtures")
+        .join("jp_security_critical")
+        .join("positive");
+
+    let config = config_with_jp_security_critical_pack();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+
+    for path in fixture_paths(&fixture_dir) {
+        let content = fs::read_to_string(&path).unwrap();
+        let expected = expected_rules(&content);
+        assert!(
+            !expected.is_empty(),
+            "positive fixture must declare at least one '# EXPECT:' rule: {}",
+            path.display()
+        );
+
+        let findings = promoted_findings(scan_content(&content, &path, &rules, &config));
+        let observed: BTreeSet<_> = findings
+            .iter()
+            .map(|finding| finding.rule_id.as_str())
+            .collect();
+
+        for rule_id in expected {
+            assert!(
+                observed.contains(rule_id.as_str()),
+                "expected rule '{}' in {}, observed: {:?}\nfindings:\n{}",
+                rule_id,
+                path.display(),
+                observed,
+                format_findings(&findings)
+            );
+        }
+    }
+}
+
+#[test]
+fn jp_security_critical_negative_fixtures_do_not_trigger_promoted_rules() {
+    let fixture_dir = workspace_root()
+        .join("tests")
+        .join("fixtures")
+        .join("jp_security_critical")
+        .join("negative");
+
+    let config = config_with_jp_security_critical_pack();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+
+    for path in fixture_paths(&fixture_dir) {
+        let content = fs::read_to_string(&path).unwrap();
+        let findings = promoted_findings(scan_content(&content, &path, &rules, &config));
+
+        assert!(
+            findings.is_empty(),
+            "negative fixture should produce zero promoted findings: {}\nfindings:\n{}",
+            path.display(),
+            format_findings(&findings)
+        );
+    }
+}
+
+#[test]
+fn jp_security_critical_ssh_private_key_matches_full_serialized_pem_value() {
+    let config = config_with_jp_security_critical_pack();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+    let content = r#"ssh_private_key: "-----BEGIN OPENSSH PRIVATE KEY-----\nVEILTESTFAKESSHPRIVATEKEYBODY123456\n-----END OPENSSH PRIVATE KEY-----""#;
+
+    let findings = promoted_findings(scan_content(
+        content,
+        Path::new("ssh_private_key.txt"),
+        &rules,
+        &config,
+    ));
+    let finding = findings
+        .iter()
+        .find(|finding| finding.rule_id == "log.jp.secret.ssh_private_key.kv")
+        .expect("expected serialized PEM SSH private key finding");
+
+    assert!(
+        finding
+            .matched_content
+            .contains("VEILTESTFAKESSHPRIVATEKEYBODY123456"),
+        "matched content should include the escaped PEM body: {}",
+        finding.matched_content
+    );
+    assert!(
+        finding
+            .matched_content
+            .contains("-----END OPENSSH PRIVATE KEY-----"),
+        "matched content should include the PEM end marker: {}",
+        finding.matched_content
+    );
+}
+
+fn config_with_jp_security_critical_pack() -> Config {
+    let mut config = Config::default();
+    config.core.rules_dir = Some(
+        jp_security_critical_pack_dir()
+            .to_string_lossy()
+            .to_string(),
+    );
+    config
+}
+
+fn jp_security_critical_pack_dir() -> PathBuf {
+    workspace_root()
+        .join("crates")
+        .join("veil")
+        .join("rules_ja")
+        .join("packs")
+        .join("jp_security_critical")
+}
+
+fn fixture_paths(dir: &Path) -> Vec<PathBuf> {
+    let mut paths: Vec<_> = WalkBuilder::new(dir)
+        .build()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry
+                .file_type()
+                .is_some_and(|file_type| file_type.is_file())
+        })
+        .map(|entry| entry.into_path())
+        .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("txt"))
+        .collect();
+    paths.sort();
+    paths
+}
+
+fn expected_rules(content: &str) -> Vec<String> {
+    content
+        .lines()
+        .filter_map(|line| line.strip_prefix("# EXPECT:"))
+        .map(str::trim)
+        .filter(|rule_id| !rule_id.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn promoted_findings(findings: Vec<Finding>) -> Vec<Finding> {
+    findings
+        .into_iter()
+        .filter(|finding| finding.rule_id.starts_with("log.jp."))
+        .collect()
+}
+
+fn workspace_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf()
+}
+
+fn format_findings(findings: &[Finding]) -> String {
+    findings
+        .iter()
+        .map(|finding| {
+            format!(
+                "{}:{}:{}:{}",
+                finding.rule_id, finding.line_number, finding.score, finding.matched_content
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
