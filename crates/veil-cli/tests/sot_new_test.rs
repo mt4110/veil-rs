@@ -28,8 +28,86 @@ fn test_sot_new_success() -> Result<(), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(expected_file)?;
     assert!(content.contains("release: v0.19.0"));
     assert!(content.contains("epic: A"));
+    assert!(content.contains("pr: TBD"));
+    assert!(content.contains("status: Draft"));
+    assert!(content.contains("created_at: TBD"));
     assert!(content.contains("title: TBD"));
     assert!(content.contains("---"));
+
+    Ok(())
+}
+
+#[test]
+fn test_sot_new_slug_only_success() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let out_dir = temp.path().join("docs/pr");
+
+    let mut cmd = cargo_bin_cmd!("veil");
+
+    cmd.arg("sot")
+        .arg("new")
+        .arg("--slug")
+        .arg("SOT Template Helper")
+        .arg("--title")
+        .arg("Add PR SOT template helper")
+        .arg("--status")
+        .arg("Ready")
+        .arg("--date")
+        .arg("2026-07-06")
+        .arg("--out")
+        .arg(out_dir.as_os_str())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Created SOT:"))
+        .stdout(predicate::str::contains("PR-TBD-sot-template-helper.md"));
+
+    let expected_file = out_dir.join("PR-TBD-sot-template-helper.md");
+    assert!(expected_file.exists());
+
+    let content = fs::read_to_string(expected_file)?;
+    assert!(content.contains("release: TBD"));
+    assert!(content.contains("epic: A"));
+    assert!(content.contains("pr: TBD"));
+    assert!(content.contains("status: Ready"));
+    assert!(content.contains("created_at: 2026-07-06"));
+    assert!(content.contains("title: Add PR SOT template helper"));
+    assert!(content.contains("## SOT"));
+    assert!(content.contains("## What"));
+    assert!(content.contains("## Verification"));
+    assert!(content.contains("## Evidence"));
+    assert!(content.contains("## Non-goals"));
+    assert!(content.contains("## Rollback"));
+
+    Ok(())
+}
+
+#[test]
+fn test_sot_new_pr_numbered_slug_success() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempdir()?;
+    let out_dir = temp.path().join("docs/pr");
+
+    let mut cmd = cargo_bin_cmd!("veil");
+
+    cmd.arg("sot")
+        .arg("new")
+        .arg("--pr")
+        .arg("123")
+        .arg("--slug")
+        .arg("sample")
+        .arg("--title")
+        .arg("Sample")
+        .arg("--out")
+        .arg(out_dir.as_os_str())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PR-123-sample.md"));
+
+    let expected_file = out_dir.join("PR-123-sample.md");
+    assert!(expected_file.exists());
+
+    let content = fs::read_to_string(expected_file)?;
+    assert!(content.contains("pr: 123"));
+    assert!(content.contains("- PR: 123"));
 
     Ok(())
 }
@@ -58,6 +136,7 @@ fn test_sot_new_slug_dry_run() -> Result<(), Box<dyn std::error::Error>> {
         .success()
         .stdout(predicate::str::contains("Dry run: would create"))
         .stdout(predicate::str::contains("title: My Title"))
+        .stdout(predicate::str::contains("created_at: TBD"))
         .stdout(predicate::str::contains(
             "docs/pr/PR-TBD-v0.19.0-epic-c-audit-log.md",
         ));
