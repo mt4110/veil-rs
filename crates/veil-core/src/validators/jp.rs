@@ -67,10 +67,10 @@ pub fn address_prefecture_city_block(candidate: &str) -> bool {
     else {
         return false;
     };
-    let after_municipality =
-        &after_prefecture[municipality_start + municipality_marker.len_utf8()..];
+    let after_municipality_start = municipality_start + municipality_marker.len_utf8();
+    let address_window = &after_prefecture[after_municipality_start..municipality_window_end];
 
-    after_municipality.chars().any(|ch| ch.is_ascii_digit())
+    contains_block_number(address_window)
 }
 
 pub fn mynumber_len12(candidate: &str) -> bool {
@@ -83,7 +83,7 @@ pub fn mynumber_len12(candidate: &str) -> bool {
                 return Some(None);
             }
 
-            if is_card_separator(ch) && !digits.is_empty() {
+            if is_mynumber_separator(ch) && !digits.is_empty() {
                 return Some(None);
             }
 
@@ -102,12 +102,49 @@ pub fn phone_mobile(candidate: &str) -> bool {
 }
 
 fn find_prefecture(candidate: &str) -> Option<(usize, usize)> {
-    PREFECTURES.iter().find_map(|prefecture| {
-        candidate.find(prefecture).map(|start| {
-            let end = start + prefecture.len();
-            (start, end)
+    PREFECTURES
+        .iter()
+        .filter_map(|prefecture| {
+            candidate
+                .find(prefecture)
+                .map(|start| (start, start + prefecture.len()))
         })
-    })
+        .min_by_key(|(start, _)| *start)
+}
+
+fn contains_block_number(content: &str) -> bool {
+    let chars: Vec<char> = content.chars().collect();
+    let mut index = 0;
+
+    while index < chars.len() {
+        if !chars[index].is_ascii_digit() {
+            index += 1;
+            continue;
+        }
+
+        let start = index;
+        while index < chars.len() && chars[index].is_ascii_digit() {
+            index += 1;
+        }
+        let end = index;
+
+        if block_marker_after(&chars, end) || block_separator_around(&chars, start, end) {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn block_marker_after(chars: &[char], index: usize) -> bool {
+    chars
+        .get(index)
+        .is_some_and(|ch| matches!(ch, '丁' | '番' | '号' | '条'))
+}
+
+fn block_separator_around(chars: &[char], start: usize, end: usize) -> bool {
+    start.checked_sub(1).and_then(|index| chars.get(index)) == Some(&'-')
+        || chars.get(end) == Some(&'-')
 }
 
 fn byte_index_after_chars(content: &str, count: usize) -> usize {
@@ -120,6 +157,10 @@ fn byte_index_after_chars(content: &str, count: usize) -> usize {
 
 fn is_municipality_marker(ch: char) -> bool {
     matches!(ch, '市' | '区' | '町' | '村')
+}
+
+fn is_mynumber_separator(ch: char) -> bool {
+    is_card_separator(ch) || matches!(ch, '－' | '―' | '‐' | '‑' | '–' | '—' | 'ー')
 }
 
 #[cfg(test)]
@@ -140,18 +181,26 @@ mod tests {
     #[test]
     fn address_prefecture_city_block_rejects_labels_or_partial_addresses() {
         let distant_municipality = format!("東京都{}千代田区丸の内1-1-1", "あ".repeat(41));
+        let later_prefecture_has_address =
+            format!("神奈川県{}東京都千代田区丸の内1-1-1", "あ".repeat(41));
 
         assert!(!address_prefecture_city_block("住所："));
         assert!(!address_prefecture_city_block("東京都"));
         assert!(!address_prefecture_city_block("東京都千代田区丸の内"));
+        assert!(!address_prefecture_city_block("東京都市町村コード: 131016"));
+        assert!(!address_prefecture_city_block("東京都千代田区 version 2"));
         assert!(!address_prefecture_city_block("千代田区丸の内1-1-1"));
         assert!(!address_prefecture_city_block(&distant_municipality));
+        assert!(!address_prefecture_city_block(
+            &later_prefecture_has_address
+        ));
     }
 
     #[test]
     fn mynumber_len12_counts_digits_after_separator_removal() {
         assert!(mynumber_len12("マイナンバー: 1234-5678-9012"));
         assert!(mynumber_len12("個人番号 １２３４ ５６７８ ９０１２"));
+        assert!(mynumber_len12("個人番号 １２３４－５６７８ー９０１２"));
         assert!(mynumber_len12("個人番号（第１号）: 1234-5678-9012"));
         assert!(!mynumber_len12("1234-5678"));
         assert!(!mynumber_len12("1234-5678-9012-3"));

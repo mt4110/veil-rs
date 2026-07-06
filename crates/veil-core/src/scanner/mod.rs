@@ -907,8 +907,8 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
-            validator_id: None,
-            validator: None,
+            validator_id: Some("jp_mynumber_len12".to_string()),
+            validator: Some(crate::validators::jp::mynumber_len12),
             placeholder: None,
         };
         let rules = vec![rule];
@@ -955,8 +955,8 @@ mod tests {
             base_score: Some(92),
             context_lines_before: 0,
             context_lines_after: 0,
-            validator_id: None,
-            validator: None,
+            validator_id: Some("jp_mynumber_len12".to_string()),
+            validator: Some(crate::validators::jp::mynumber_len12),
             placeholder: None,
         };
         let rules = vec![rule_without_choonpu];
