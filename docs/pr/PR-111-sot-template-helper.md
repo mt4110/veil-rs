@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 111
 status: Draft
 created_at: TBD
 branch: feat/sot-template-helper
@@ -12,7 +12,7 @@ title: Add PR SOT template helper
 ## SOT
 - Title: Add PR SOT template helper
 - Status: Draft
-- PR: TBD
+- PR: 111
 
 ## What
 - Add `veil sot new --slug <slug>` support for slug-only SOT names such as `docs/pr/PR-TBD-sot-template-helper.md`.
@@ -34,7 +34,7 @@ title: Add PR SOT template helper
 - `cargo test -p veil-cli sot_new -- --nocapture` passed with 5 `sot_new_test` tests.
 - `cargo test -p veil-cli sot_rename -- --nocapture` passed with 3 `sot_rename_test` tests.
 - The dry-run command printed the `docs/pr/PR-999-sample.md` content to stdout without writing a file.
-- The generated SOT file is this file: `docs/pr/PR-TBD-sot-template-helper.md`.
+- The generated SOT file was renamed to this file after PR creation: `docs/pr/PR-111-sot-template-helper.md`.
 
 ## Non-goals
 - Do not weaken or bypass `.github/workflows/pr_sot_guard.yml`.
