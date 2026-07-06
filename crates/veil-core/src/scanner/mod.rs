@@ -73,7 +73,7 @@ impl ScanLimit {
     }
 }
 
-mod jp_normalize;
+pub(crate) mod jp_normalize;
 pub mod result;
 pub mod utils;
 use result::ScanResult;
@@ -939,8 +939,8 @@ mod tests {
     }
 
     #[test]
-    fn scan_content_preserves_choonpu_in_normalized_jp_keywords() {
-        let rule = Rule {
+    fn scan_content_requires_rule_opt_in_for_choonpu_separator() {
+        let rule_without_choonpu = Rule {
             id: "pii.jp.mynumber.keyword".to_string(),
             enabled: true,
             pattern: Regex::new(
@@ -959,9 +959,34 @@ mod tests {
             validator: None,
             placeholder: None,
         };
-        let rules = vec![rule];
+        let rules = vec![rule_without_choonpu];
         let config = Config::default();
         let content = "マイナンバー：１２３４－５６７８ー９０１２";
+
+        let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
+
+        assert!(findings.is_empty());
+
+        let rule_with_choonpu = Rule {
+            id: "pii.jp.mynumber.keyword".to_string(),
+            enabled: true,
+            pattern: Regex::new(
+                r"(?:(?:基礎)?マイナンバー|個人番号|My\s*Number)[^0-9]{0,24}[0-9]{4}[- ー]?[0-9]{4}[- ー]?[0-9]{4}",
+            )
+            .unwrap(),
+            description: "test".to_string(),
+            severity: Severity::High,
+            score: 92,
+            category: "pii".to_string(),
+            tags: vec!["jp".to_string(), "mynumber".to_string()],
+            base_score: Some(92),
+            context_lines_before: 0,
+            context_lines_after: 0,
+            validator_id: None,
+            validator: None,
+            placeholder: None,
+        };
+        let rules = vec![rule_with_choonpu];
 
         let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
 
