@@ -1,38 +1,32 @@
+---
+release: TBD
+epic: TBD
+pr: TBD
+status: Draft
+created_at: TBD
+branch: TBD
+commit: TBD
+title: TBD
+---
+
 # SOT Template
-# PR-TBD-<release>-epic-<epic>[-<slug>]: [Title]
 
-> This file is kept for historical reference.
-> For new work, copy this to `docs/pr/PR-<NUMBER>-<slug>.md`.
+## SOT
+- Title: TBD
+- Status: Draft
+- PR: TBD
 
-## Why (Background)
-- Why now? What pain does this solve?
-
-## Summary
-- 2-3 lines.
-
-## Changes
-- [ ]
-
-## Non-goals (Not changed)
-- [ ]
-
-## Impact / Scope
-- CLI: [ ]
-- CI: [ ]
-- Docs: [ ]
-- Rules: [ ]
-- Tests: [ ]
+## What
+- [ ] Describe the concrete change.
 
 ## Verification
+- [ ] Add exact commands and results.
 
-### Commands
-```bash
-# example
-cargo test --workspace
-```
+## Evidence
+- [ ] Link logs, screenshots, fixtures, or CI runs.
 
-### Notes / Evidence
-- [ ]
+## Non-goals
+- [ ] Name what this PR intentionally leaves alone.
 
 ## Rollback
-- How to revert safely (1-2 lines).
+- Revert this PR as a unit, or remove the generated SOT file if the PR is abandoned.

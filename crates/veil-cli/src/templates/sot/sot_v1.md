@@ -1,40 +1,30 @@
 ---
 release: {{release}}
 epic: {{epic}}
-pr: TBD
-status: draft
+pr: {{pr}}
+status: {{status}}
 created_at: {{created_at}}
 branch: {{branch}}
 commit: {{commit}}
 title: {{title}}
 ---
 
-## Overview
-(1-3 lines)
+## SOT
+- Title: {{title}}
+- Status: {{status}}
+- PR: {{pr}}
 
-## Goals
-- [ ] ...
-
-## Non-Goals
-- [ ] ...
-
-## Design
-### CLI
-- Command: `veil sot new ...`
-- Output path: `docs/pr/...`
-
-### Files / Formats
-- ...
+## What
+- [ ] Describe the concrete change.
 
 ## Verification
-- [ ] `cargo test -p veil-cli`
-- [ ] Manual: `veil sot new --dry-run ...`
+- [ ] Add exact commands and results.
 
-## Risks / Rollback
-- Risks:
-- Rollback:
+## Evidence
+- [ ] Link logs, screenshots, fixtures, or CI runs.
 
-## Audit Notes
-- Evidence:
-  - Generated SOT file under docs/pr
-  - CI logs referencing SOT path
+## Non-goals
+- [ ] Name what this PR intentionally leaves alone.
+
+## Rollback
+- Revert this PR as a unit, or remove the generated SOT file if the PR is abandoned.

@@ -1,6 +1,5 @@
 use crate::cli::{SotCommand, SotNewArgs, SotRenameArgs};
 use anyhow::{anyhow, Context, Result};
-use chrono::Local;
 use colored::Colorize;
 use regex::Regex;
 use std::env;
@@ -15,52 +14,71 @@ pub fn run(cmd: &SotCommand) -> Result<bool> {
 }
 
 fn run_new(args: &SotNewArgs) -> Result<bool> {
-    // 1. Determine release
-    let release = match &args.release {
-        Some(r) => r.clone(),
-        None => infer_release()?,
-    };
-
-    // 2. Prepare other vars
+    // 1. Prepare vars
     let epic = &args.epic;
     let slug = args.slug.as_deref().unwrap_or("");
     let sanitized_slug = sanitize_slug(slug);
+    let release = match &args.release {
+        Some(r) => Some(r.clone()),
+        None if sanitized_slug.is_empty() => infer_release().ok(),
+        None => None,
+    };
 
-    // 3. Filename
-    // slugなし: docs/pr/PR-TBD-<release>-epic-<epic>.md
-    // slugあり: docs/pr/PR-TBD-<release>-epic-<epic>-<slug>.md
-    let filename = if sanitized_slug.is_empty() {
-        format!("PR-TBD-{}-epic-{}.md", release, epic.to_lowercase())
-    } else {
-        format!(
-            "PR-TBD-{}-epic-{}-{}.md",
+    if release.is_none() && sanitized_slug.is_empty() {
+        return Err(anyhow!(
+            "Please specify --slug for a PR-TBD-<slug>.md SOT file, or --release for a release/epic SOT file."
+        ));
+    }
+
+    // 2. Filename
+    // slug-only: docs/pr/PR-TBD-<slug>.md or docs/pr/PR-<number>-<slug>.md
+    // release: docs/pr/PR-TBD-<release>-epic-<epic>[-<slug>].md
+    let pr_label = match args.pr {
+        Some(pr) => format!("PR-{}", pr),
+        None => "PR-TBD".to_string(),
+    };
+    let filename = match &release {
+        Some(release) if sanitized_slug.is_empty() => {
+            format!("{}-{}-epic-{}.md", pr_label, release, epic.to_lowercase())
+        }
+        Some(release) => format!(
+            "{}-{}-epic-{}-{}.md",
+            pr_label,
             release,
             epic.to_lowercase(),
             sanitized_slug
-        )
+        ),
+        None => format!("{}-{}.md", pr_label, sanitized_slug),
     };
 
     let out_dir = &args.out;
     let out_path = out_dir.join(&filename);
 
-    // 4. Git info
+    // 3. Git info
     let (branch, commit) =
         get_git_info().unwrap_or_else(|_| ("unknown".to_string(), "unknown".to_string()));
-    let created_at = Local::now().format("%Y-%m-%d").to_string();
+    let created_at = args.date.as_deref().unwrap_or("TBD");
     let title = args.title.as_deref().unwrap_or("TBD");
+    let pr = args
+        .pr
+        .map(|pr| pr.to_string())
+        .unwrap_or_else(|| "TBD".to_string());
+    let release = release.as_deref().unwrap_or("TBD");
 
-    // 5. Template replacement
+    // 4. Template replacement
     // We use include_str! relative to this file location
     let template = include_str!("../templates/sot/sot_v1.md");
     let content = template
-        .replace("{{release}}", &release)
+        .replace("{{release}}", release)
         .replace("{{epic}}", epic)
-        .replace("{{created_at}}", &created_at)
+        .replace("{{pr}}", &pr)
+        .replace("{{status}}", &args.status)
+        .replace("{{created_at}}", created_at)
         .replace("{{branch}}", &branch)
         .replace("{{commit}}", &commit)
         .replace("{{title}}", title);
 
-    // 6. Action
+    // 5. Action
     if args.dry_run {
         println!("Dry run: would create {}", out_path.display());
         println!();
@@ -89,10 +107,7 @@ fn run_new(args: &SotNewArgs) -> Result<bool> {
         println!();
         println!("Next:");
         println!("git add {}", out_path.display());
-        println!(
-            "git commit -m \"docs: add SOT ({} Epic {})\"",
-            release, epic
-        );
+        println!("git commit -m \"docs: add PR SOT ({})\"", filename);
     }
 
     Ok(false)

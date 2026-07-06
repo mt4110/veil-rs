@@ -379,7 +379,11 @@ pub enum SotCommand {
 
 #[derive(Args, Debug)]
 pub struct SotNewArgs {
-    /// Target release version (e.g. v0.19.0). If not specified, inferred from branch.
+    /// Pull Request number. If omitted, creates a PR-TBD SOT file.
+    #[arg(long)]
+    pub pr: Option<u32>,
+
+    /// Target release version (e.g. v0.19.0). If omitted, a slug-only filename is used.
     #[arg(long)]
     pub release: Option<String>,
 
@@ -398,6 +402,14 @@ pub struct SotNewArgs {
     /// Optional title overlap
     #[arg(long)]
     pub title: Option<String>,
+
+    /// SOT status
+    #[arg(long, default_value = "Draft")]
+    pub status: String,
+
+    /// Creation date to write into front matter. Defaults to TBD for deterministic output.
+    #[arg(long)]
+    pub date: Option<String>,
 
     /// Dry run (do not write files)
     #[arg(long)]
