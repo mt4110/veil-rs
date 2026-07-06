@@ -68,7 +68,9 @@ pub fn address_prefecture_city_block(candidate: &str) -> bool {
         return false;
     };
     let after_municipality_start = municipality_start + municipality_marker.len_utf8();
-    let address_window = &after_prefecture[after_municipality_start..municipality_window_end];
+    let after_municipality = &after_prefecture[after_municipality_start..];
+    let block_window_end = byte_index_after_chars(after_municipality, 40);
+    let address_window = &after_municipality[..block_window_end];
 
     contains_block_number(address_window)
 }
@@ -143,8 +145,20 @@ fn block_marker_after(chars: &[char], index: usize) -> bool {
 }
 
 fn block_separator_around(chars: &[char], start: usize, end: usize) -> bool {
-    start.checked_sub(1).and_then(|index| chars.get(index)) == Some(&'-')
-        || chars.get(end) == Some(&'-')
+    let previous_hyphen_connects_digits = start
+        .checked_sub(1)
+        .is_some_and(|hyphen| chars.get(hyphen) == Some(&'-') && digit_before(chars, hyphen));
+    let next_hyphen_connects_digits =
+        chars.get(end) == Some(&'-') && chars.get(end + 1).is_some_and(|ch| ch.is_ascii_digit());
+
+    previous_hyphen_connects_digits || next_hyphen_connects_digits
+}
+
+fn digit_before(chars: &[char], index: usize) -> bool {
+    index
+        .checked_sub(1)
+        .and_then(|previous| chars.get(previous))
+        .is_some_and(|ch| ch.is_ascii_digit())
 }
 
 fn byte_index_after_chars(content: &str, count: usize) -> usize {
@@ -169,6 +183,8 @@ mod tests {
 
     #[test]
     fn address_prefecture_city_block_accepts_normalized_block_numbers() {
+        let late_block = format!("東京都{}区丸の内1丁目", "あ".repeat(39));
+
         assert!(address_prefecture_city_block(
             "住所：東京都千代田区丸の内１－１－１"
         ));
@@ -176,6 +192,7 @@ mod tests {
         assert!(address_prefecture_city_block(
             "北海道札幌市中央区北１条西２丁目"
         ));
+        assert!(address_prefecture_city_block(&late_block));
     }
 
     #[test]
@@ -189,6 +206,7 @@ mod tests {
         assert!(!address_prefecture_city_block("東京都千代田区丸の内"));
         assert!(!address_prefecture_city_block("東京都市町村コード: 131016"));
         assert!(!address_prefecture_city_block("東京都千代田区 version 2"));
+        assert!(!address_prefecture_city_block("東京都千代田区 version-21"));
         assert!(!address_prefecture_city_block("千代田区丸の内1-1-1"));
         assert!(!address_prefecture_city_block(&distant_municipality));
         assert!(!address_prefecture_city_block(
