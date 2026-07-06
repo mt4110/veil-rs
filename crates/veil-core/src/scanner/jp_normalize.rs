@@ -1,8 +1,8 @@
 use crate::model::FindingSpan;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct NormalizedText {
-    pub(super) normalized: String,
+pub(crate) struct NormalizedText {
+    pub(crate) normalized: String,
     index_map: Vec<OriginalSpan>,
 }
 
@@ -15,7 +15,7 @@ struct OriginalSpan {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct NormalizationPolicy {
+pub(crate) struct NormalizationPolicy {
     fullwidth_alnum: bool,
     fullwidth_space: bool,
     hyphen: bool,
@@ -36,7 +36,7 @@ impl Default for NormalizationPolicy {
 }
 
 impl NormalizedText {
-    pub(super) fn original_span(
+    pub(crate) fn original_span(
         &self,
         normalized_start: usize,
         normalized_end: usize,
@@ -61,35 +61,27 @@ impl NormalizedText {
     }
 }
 
-pub(super) fn contains_jp_normalizable_char(input: &str, policy: NormalizationPolicy) -> bool {
-    let mut chars = input.chars().peekable();
-    let mut previous = None;
-
-    while let Some(ch) = chars.next() {
-        let next = chars.peek().copied();
-        if normalize_char(ch, policy, previous, next) != ch {
+pub(crate) fn contains_jp_normalizable_char(input: &str, policy: NormalizationPolicy) -> bool {
+    for ch in input.chars() {
+        if normalize_char(ch, policy) != ch {
             return true;
         }
-        previous = Some(ch);
     }
 
     false
 }
 
-pub(super) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> NormalizedText {
+pub(crate) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> NormalizedText {
     let mut normalized = String::with_capacity(input.len());
     let mut index_map = Vec::new();
-    let mut chars = input.char_indices().peekable();
-    let mut previous = None;
+    let chars = input.char_indices();
 
-    while let Some((original_start, ch)) = chars.next() {
+    for (original_start, ch) in chars {
         let original_end = original_start + ch.len_utf8();
-        let next = chars.peek().map(|(_, ch)| *ch);
-        let mapped = normalize_char(ch, policy, previous, next);
+        let mapped = normalize_char(ch, policy);
         let normalized_start = normalized.len();
         normalized.push(mapped);
         let normalized_end = normalized.len();
-        previous = Some(ch);
 
         index_map.push(OriginalSpan {
             normalized_start,
@@ -105,12 +97,7 @@ pub(super) fn normalize_jp_text(input: &str, policy: NormalizationPolicy) -> Nor
     }
 }
 
-fn normalize_char(
-    ch: char,
-    policy: NormalizationPolicy,
-    previous: Option<char>,
-    next: Option<char>,
-) -> char {
+fn normalize_char(ch: char, policy: NormalizationPolicy) -> char {
     if policy.fullwidth_alnum {
         if let Some(mapped) = normalize_fullwidth_alnum(ch) {
             return mapped;
@@ -119,14 +106,6 @@ fn normalize_char(
 
     if policy.fullwidth_space && ch == '　' {
         return ' ';
-    }
-
-    if policy.hyphen && ch == 'ー' {
-        if previous.is_some_and(is_digit_for_separator) && next.is_some_and(is_digit_for_separator)
-        {
-            return '-';
-        }
-        return ch;
     }
 
     if policy.hyphen && matches!(ch, '－' | '―' | '‐' | '‑' | '–' | '—') {
@@ -148,10 +127,6 @@ fn normalize_char(
     ch
 }
 
-fn is_digit_for_separator(ch: char) -> bool {
-    ch.is_ascii_digit() || matches!(ch, '０'..='９')
-}
-
 fn normalize_fullwidth_alnum(ch: char) -> Option<char> {
     match ch {
         '０'..='９' | 'Ａ'..='Ｚ' | 'ａ'..='ｚ' => char::from_u32(ch as u32 - 0xFEE0),
@@ -165,7 +140,7 @@ mod tests {
 
     #[test]
     fn normalizes_jp_pii_width_and_separators() {
-        let input = "個人番号：１２３４－５６７８ー９０１２ （Ａｂ９）";
+        let input = "個人番号：１２３４－５６７８―９０１２ （Ａｂ９）";
         let normalized = normalize_jp_text(input, NormalizationPolicy::default());
 
         assert_eq!(normalized.normalized, "個人番号:1234-5678-9012 (Ab9)");
@@ -178,7 +153,7 @@ mod tests {
 
         assert_eq!(
             normalized.normalized,
-            "マイナンバー:1234-5678-9012 パスポート:AB1234567"
+            "マイナンバー:1234-5678ー9012 パスポート:AB1234567"
         );
     }
 
@@ -188,8 +163,9 @@ mod tests {
 
         assert!(!contains_jp_normalizable_char("abc-123", policy));
         assert!(!contains_jp_normalizable_char("マイナンバー", policy));
+        assert!(!contains_jp_normalizable_char("1234ー5678", policy));
         assert!(contains_jp_normalizable_char("１２３", policy));
-        assert!(contains_jp_normalizable_char("1234ー5678", policy));
+        assert!(contains_jp_normalizable_char("１２３４ー５６７８", policy));
         assert!(contains_jp_normalizable_char("個人番号：1234", policy));
     }
 
