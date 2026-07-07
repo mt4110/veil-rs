@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 118
 status: Draft
 created_at: TBD
 branch: feat/ui-include-suppressed-toggle
@@ -12,7 +12,7 @@ title: Add include suppressed scan toggle
 ## SOT
 - Title: Add include suppressed scan toggle
 - Status: Draft
-- PR: TBD
+- PR: 118
 
 ## What
 - [x] Add an `Include Suppressed` toggle to the scan form.
