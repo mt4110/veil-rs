@@ -487,8 +487,8 @@ pub fn scan(
     )?;
 
     if interactive {
-        return crate::commands::interactive_scan::run_guarded_until_renderer_lands(
-            result.findings.len(),
+        return crate::commands::interactive_scan::run_guarded_until_decision_input_lands(
+            &result.findings,
         );
     }
 

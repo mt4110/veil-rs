@@ -44,7 +44,7 @@ fn test_exit_code_behavior() {
 }
 
 #[test]
-fn scan_interactive_flag_is_guarded_until_state_machine_lands() {
+fn scan_interactive_renders_first_finding_until_decision_input_lands() {
     let temp_dir = tempdir().unwrap();
     fs::write(
         temp_dir.path().join("secret.txt"),
@@ -59,7 +59,12 @@ fn scan_interactive_flag_is_guarded_until_state_machine_lands() {
         .assert()
         .failure()
         .code(2)
+        .stdout(
+            predicate::str::contains("Finding 1/")
+                .and(predicate::str::contains("Snippet:"))
+                .and(predicate::str::contains("<REDACTED>")),
+        )
         .stderr(predicate::str::contains(
-            "--interactive initialized finding iteration state",
+            "--interactive rendered finding context",
         ));
 }
