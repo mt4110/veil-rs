@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use veil_core::Finding;
 
 #[allow(dead_code)]
@@ -14,6 +14,7 @@ pub enum InteractiveScanPhase {
     Quit,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InteractiveScanAction {
     ContextRendered,
@@ -29,19 +30,15 @@ pub enum InteractiveScanAction {
     QuitRequested,
 }
 
-const SUPPORTED_ACTIONS: [InteractiveScanAction; 11] = [
-    InteractiveScanAction::ContextRendered,
-    InteractiveScanAction::MaskRequested,
-    InteractiveScanAction::SkipFinding,
-    InteractiveScanAction::IgnoreRuleLine,
-    InteractiveScanAction::SkipFile,
-    InteractiveScanAction::HelpRequested,
-    InteractiveScanAction::HelpDismissed,
-    InteractiveScanAction::PreviewRendered,
-    InteractiveScanAction::WriteConfirmed,
-    InteractiveScanAction::WriteCancelled,
-    InteractiveScanAction::QuitRequested,
-];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InteractiveDecision {
+    Mask,
+    SkipFinding,
+    IgnoreRuleLine,
+    SkipFile,
+    Help,
+    Quit,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InteractiveScanState {
@@ -141,8 +138,16 @@ impl InteractiveScanState {
     }
 }
 
-pub fn supported_actions() -> &'static [InteractiveScanAction] {
-    &SUPPORTED_ACTIONS
+fn parse_decision(input: &str) -> Option<InteractiveDecision> {
+    match input.trim() {
+        "m" | "mask" => Some(InteractiveDecision::Mask),
+        "n" | "skip" => Some(InteractiveDecision::SkipFinding),
+        "i" | "ignore-line" => Some(InteractiveDecision::IgnoreRuleLine),
+        "s" | "skip-file" => Some(InteractiveDecision::SkipFile),
+        "?" | "h" | "help" => Some(InteractiveDecision::Help),
+        "q" | "quit" => Some(InteractiveDecision::Quit),
+        _ => None,
+    }
 }
 
 pub fn render_finding_context<W: Write>(
@@ -171,11 +176,26 @@ pub fn render_finding_context<W: Write>(
     writeln!(writer, "{}", finding.masked_snippet.trim())?;
     render_mask_preview(writer, finding)?;
     writeln!(writer)?;
+    render_action_prompt(writer)?;
+    Ok(())
+}
+
+fn render_action_prompt<W: Write>(writer: &mut W) -> io::Result<()> {
     writeln!(
         writer,
         "Action: mask / skip / ignore-line / skip-file / help / quit"
-    )?;
-    Ok(())
+    )
+}
+
+fn render_help<W: Write>(writer: &mut W) -> io::Result<()> {
+    writeln!(writer, "Actions:")?;
+    writeln!(writer, "  mask        prepare masked write handling")?;
+    writeln!(writer, "  skip        move to the next finding")?;
+    writeln!(writer, "  ignore-line prepare line ignore handling")?;
+    writeln!(writer, "  skip-file   prepare file skip handling")?;
+    writeln!(writer, "  help        show actions")?;
+    writeln!(writer, "  quit        exit interactive review")?;
+    render_action_prompt(writer)
 }
 
 pub fn render_mask_preview<W: Write>(writer: &mut W, finding: &Finding) -> io::Result<()> {
@@ -197,26 +217,89 @@ fn safe_before_line(finding: &Finding) -> String {
         .replacen(&finding.matched_content, "<MATCH>", 1)
 }
 
-pub fn run_guarded_until_decision_input_lands(findings: &[Finding]) -> Result<bool> {
+pub fn run_interactive(findings: &[Finding]) -> Result<bool> {
+    let stdin = io::stdin();
+    let stdout = io::stdout();
+    let mut input = stdin.lock();
+    let mut output = stdout.lock();
+
+    run_with_io(findings, &mut input, &mut output)
+}
+
+pub fn run_with_io<R: BufRead, W: Write>(
+    findings: &[Finding],
+    input: &mut R,
+    output: &mut W,
+) -> Result<bool> {
     let mut state = InteractiveScanState::new(findings.len());
     if matches!(state.phase(), InteractiveScanPhase::Complete) {
         return Ok(false);
     }
 
-    if let Some(index) = state.current_index() {
-        let stdout = io::stdout();
-        let mut writer = stdout.lock();
-        render_finding_context(&mut writer, &state, &findings[index])
-            .context("render interactive finding context")?;
-    }
-    state.apply(InteractiveScanAction::ContextRendered)?;
+    let mut line = String::new();
+    loop {
+        if matches!(state.phase(), InteractiveScanPhase::RenderContext) {
+            if let Some(index) = state.current_index() {
+                render_finding_context(output, &state, &findings[index])
+                    .context("render interactive finding context")?;
+                output
+                    .flush()
+                    .context("flush interactive finding context")?;
+            }
+            state.apply(InteractiveScanAction::ContextRendered)?;
+        }
 
-    bail!(
-        "--interactive rendered finding context at {:?} for {} finding(s), but decision input is not implemented yet. Supported actions: {}.",
-        state.position(),
-        findings.len(),
-        supported_actions().len()
-    )
+        line.clear();
+        let bytes_read = input
+            .read_line(&mut line)
+            .context("read interactive decision")?;
+        if bytes_read == 0 {
+            bail!("--interactive reached end of input before a decision");
+        }
+
+        match parse_decision(&line) {
+            Some(InteractiveDecision::Quit) => {
+                state.apply(InteractiveScanAction::QuitRequested)?;
+                return Ok(false);
+            }
+            Some(InteractiveDecision::SkipFinding) => {
+                state.apply(InteractiveScanAction::SkipFinding)?;
+                if matches!(state.phase(), InteractiveScanPhase::Complete) {
+                    return Ok(false);
+                }
+            }
+            Some(InteractiveDecision::Help) => {
+                state.apply(InteractiveScanAction::HelpRequested)?;
+                render_help(output).context("render interactive help")?;
+                output.flush().context("flush interactive help")?;
+                state.apply(InteractiveScanAction::HelpDismissed)?;
+            }
+            Some(InteractiveDecision::Mask) => {
+                state.apply(InteractiveScanAction::MaskRequested)?;
+                bail!("--interactive action 'mask' is parsed but write handling is not implemented yet");
+            }
+            Some(InteractiveDecision::IgnoreRuleLine) => {
+                bail!(
+                    "--interactive action 'ignore-line' is parsed but ignore handling is not implemented yet"
+                );
+            }
+            Some(InteractiveDecision::SkipFile) => {
+                bail!(
+                    "--interactive action 'skip-file' is parsed but file skip handling is not implemented yet"
+                );
+            }
+            None => {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    writeln!(output, "Unknown action.")?;
+                } else {
+                    writeln!(output, "Unknown action: {}", trimmed)?;
+                }
+                render_action_prompt(output)?;
+                output.flush().context("flush interactive action prompt")?;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -290,8 +373,86 @@ mod tests {
     }
 
     #[test]
-    fn guarded_runner_succeeds_without_findings() {
-        assert!(!run_guarded_until_decision_input_lands(&[]).unwrap());
+    fn runner_succeeds_without_findings() {
+        let mut input = io::Cursor::new(Vec::new());
+        let mut output = Vec::new();
+
+        assert!(!run_with_io(&[], &mut input, &mut output).unwrap());
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn decision_parser_accepts_scripted_actions() {
+        assert_eq!(parse_decision("m\n"), Some(InteractiveDecision::Mask));
+        assert_eq!(parse_decision("mask"), Some(InteractiveDecision::Mask));
+        assert_eq!(
+            parse_decision("n\n"),
+            Some(InteractiveDecision::SkipFinding)
+        );
+        assert_eq!(
+            parse_decision("skip"),
+            Some(InteractiveDecision::SkipFinding)
+        );
+        assert_eq!(
+            parse_decision("i\n"),
+            Some(InteractiveDecision::IgnoreRuleLine)
+        );
+        assert_eq!(
+            parse_decision("ignore-line"),
+            Some(InteractiveDecision::IgnoreRuleLine)
+        );
+        assert_eq!(parse_decision("s\n"), Some(InteractiveDecision::SkipFile));
+        assert_eq!(
+            parse_decision("skip-file"),
+            Some(InteractiveDecision::SkipFile)
+        );
+        assert_eq!(parse_decision("?\n"), Some(InteractiveDecision::Help));
+        assert_eq!(parse_decision("help"), Some(InteractiveDecision::Help));
+        assert_eq!(parse_decision("q\n"), Some(InteractiveDecision::Quit));
+        assert_eq!(parse_decision("quit"), Some(InteractiveDecision::Quit));
+        assert_eq!(parse_decision(""), None);
+        assert_eq!(parse_decision("unknown"), None);
+    }
+
+    #[test]
+    fn runner_accepts_scripted_quit() {
+        let findings = vec![test_finding()];
+        let mut input = io::Cursor::new(b"q\n".to_vec());
+        let mut output = Vec::new();
+
+        assert!(!run_with_io(&findings, &mut input, &mut output).unwrap());
+        let rendered = String::from_utf8(output).unwrap();
+
+        assert!(rendered.contains("Finding 1/1"));
+        assert!(rendered.contains("Action: mask / skip / ignore-line / skip-file / help / quit"));
+    }
+
+    #[test]
+    fn runner_accepts_scripted_skip_then_quit() {
+        let mut second = test_finding();
+        second.line_number = 43;
+        let findings = vec![test_finding(), second];
+        let mut input = io::Cursor::new(b"n\nq\n".to_vec());
+        let mut output = Vec::new();
+
+        assert!(!run_with_io(&findings, &mut input, &mut output).unwrap());
+        let rendered = String::from_utf8(output).unwrap();
+
+        assert!(rendered.contains("Finding 1/2"));
+        assert!(rendered.contains("Finding 2/2"));
+    }
+
+    #[test]
+    fn runner_guards_mask_until_write_lands() {
+        let findings = vec![test_finding()];
+        let mut input = io::Cursor::new(b"mask\n".to_vec());
+        let mut output = Vec::new();
+
+        let err = run_with_io(&findings, &mut input, &mut output)
+            .unwrap_err()
+            .to_string();
+
+        assert!(err.contains("write handling is not implemented yet"));
     }
 
     #[test]
