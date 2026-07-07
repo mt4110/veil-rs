@@ -71,7 +71,7 @@ PR分割:
 
 - [ ] API schema alignment
 - [ ] Svelte state machine
-- [ ] Policy explain
+- [x] Policy explain
 - [x] Evidence ZIP UX
 - [ ] PDF export path検討
 
