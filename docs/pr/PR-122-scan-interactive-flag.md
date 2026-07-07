@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 122
 status: Draft
 created_at: TBD
 branch: feat/scan-interactive-flag
@@ -12,7 +12,7 @@ title: Add scan interactive flag
 ## SOT
 - Title: Add scan interactive flag
 - Status: Draft
-- PR: TBD
+- PR: #122
 
 ## What
 - [x] Add `veil scan --interactive` as an accepted CLI flag.
@@ -28,7 +28,7 @@ title: Add scan interactive flag
 
 ## Evidence
 - Local test result: `1 passed; 0 failed` for `scan_interactive_flag_is_guarded_until_state_machine_lands`.
-- SOT will be renamed after PR creation.
+- SOT was renamed after PR #122 was created.
 
 ## Non-goals
 - [x] Do not implement finding iteration state machine.
