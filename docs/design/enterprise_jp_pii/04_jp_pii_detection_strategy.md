@@ -198,6 +198,7 @@ Fail条件は `score` を正本にする。`--fail-on-severity High` は `score 
 - [x] order number / version number / dummy-test-example / fullwidth non-JP secret / known test card negative fixturesを追加。
 - [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` preset override resolverを追加。
 - [x] `veil scan --preset`, `veil init --preset`, `veil config dump --preset` CLI UXを追加。
-- [ ] Address validatorを実装する。現状の `pii.jp.address.prefecture_heuristic` はvalidatorなしのヒューリスティックであり、実装済みvalidatorとは扱わない。
+- [x] Address validatorを実装し、`pii.jp.address.prefecture_heuristic` に `jp_address_prefecture_city_block` validatorを配線する。
+- [x] negative context score dampeningに `sandbox` と日本語テストデータ文脈を追加する。
 - [ ] Name validatorを実装する。現状の `pii.person.name.keyword` はラベル付きヒューリスティックであり、実装済みvalidatorとは扱わない。
 - [ ] J-LIS MyNumberチェックデジットを feature flag `jp_mynumber_checksum` として後続実装する。
