@@ -406,6 +406,68 @@ fn validate_log_pack_for_init(rules_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(any(feature = "wizard", test))]
+pub fn infer_wizard_preset(root: &Path) -> Option<&'static str> {
+    if has_log_artifact(root) {
+        return Some("logs-jp");
+    }
+
+    if has_fintech_directory(root) {
+        return Some("fintech-jp");
+    }
+
+    if readme_contains_japanese(root) {
+        return Some("standard-jp");
+    }
+
+    None
+}
+
+#[cfg(any(feature = "wizard", test))]
+fn has_log_artifact(root: &Path) -> bool {
+    if root.join("logs").is_dir() {
+        return true;
+    }
+
+    fs::read_dir(root)
+        .map(|entries| {
+            entries.flatten().any(|entry| {
+                let path = entry.path();
+                path.is_file()
+                    && path
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .map(|ext| matches!(ext, "log" | "jsonl" | "ndjson"))
+                        .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(any(feature = "wizard", test))]
+fn has_fintech_directory(root: &Path) -> bool {
+    ["payments", "billing", "kyc", "account"]
+        .iter()
+        .any(|name| root.join(name).is_dir())
+}
+
+#[cfg(any(feature = "wizard", test))]
+fn readme_contains_japanese(root: &Path) -> bool {
+    fs::read_to_string(root.join("README.md"))
+        .map(|content| contains_japanese_text(&content))
+        .unwrap_or(false)
+}
+
+#[cfg(any(feature = "wizard", test))]
+fn contains_japanese_text(content: &str) -> bool {
+    content.chars().any(|ch| {
+        matches!(
+            ch,
+            '\u{3040}'..='\u{309f}' | '\u{30a0}'..='\u{30ff}' | '\u{ff66}'..='\u{ff9f}'
+        )
+    })
+}
+
 #[cfg(feature = "wizard")]
 fn run_wizard(file_exists: bool) -> Result<Option<InitAnswers>> {
     // 0. Language Selection
@@ -499,6 +561,13 @@ fn run_wizard(file_exists: bool) -> Result<Option<InitAnswers>> {
     };
 
     println!("{}", t("welcome").bold().cyan());
+    if let Some(preset_id) = infer_wizard_preset(Path::new(".")) {
+        let message = match lang_selection {
+            Language::En => format!("Detected preset candidate: {}", preset_id),
+            Language::Ja => format!("推奨プリセット候補: {}", preset_id),
+        };
+        println!("{}", message.dimmed());
+    }
 
     let mut target_path = None;
 
@@ -738,5 +807,45 @@ mod tests {
             log_pack_rules_dir_for_config(Path::new("configs/veil.logs.toml")),
             PathBuf::from("configs/rules/log")
         );
+    }
+
+    #[test]
+    fn infer_wizard_preset_prefers_logs_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("logs")).unwrap();
+        fs::create_dir(dir.path().join("payments")).unwrap();
+
+        assert_eq!(infer_wizard_preset(dir.path()), Some("logs-jp"));
+    }
+
+    #[test]
+    fn infer_wizard_preset_detects_root_log_files() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("audit.jsonl"), "{}\n").unwrap();
+
+        assert_eq!(infer_wizard_preset(dir.path()), Some("logs-jp"));
+    }
+
+    #[test]
+    fn infer_wizard_preset_detects_fintech_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("kyc")).unwrap();
+
+        assert_eq!(infer_wizard_preset(dir.path()), Some("fintech-jp"));
+    }
+
+    #[test]
+    fn infer_wizard_preset_detects_japanese_readme() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("README.md"), "これは日本語のREADMEです。\n").unwrap();
+
+        assert_eq!(infer_wizard_preset(dir.path()), Some("standard-jp"));
+    }
+
+    #[test]
+    fn infer_wizard_preset_returns_none_without_signals() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert_eq!(infer_wizard_preset(dir.path()), None);
     }
 }
