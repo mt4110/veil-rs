@@ -9,17 +9,27 @@
   
   let scanPath = $state('');
   let scanPreset = $state<ScanPreset>('');
+  let includeSuppressed = $state(false);
   let findings = $state<SafeFindingApiV1[]>([]);
-  let scanStats = $state<{scanned: number, skipped: number, runId: string} | null>(null);
+  let scanStats = $state<{
+    scanned: number;
+    skipped: number;
+    runId: string;
+    effectiveFindings: number;
+    suppressedFindings: number;
+    totalFindings: number;
+  } | null>(null);
   let errorMsg = $state<string | null>(null);
 
   const sevWeights: Record<SeverityName, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
   
   let sortedFindings = $derived(
     [...findings].sort((a, b) => {
+      const statusA = a.baselineStatus === 'suppressed' ? 0 : 1;
+      const statusB = b.baselineStatus === 'suppressed' ? 0 : 1;
       const weightA = sevWeights[a.severity];
       const weightB = sevWeights[b.severity];
-      return weightB - weightA;
+      return statusB - statusA || weightB - weightA;
     })
   );
 
@@ -67,6 +77,9 @@
       if (scanPreset !== '') {
         requestBody.preset = scanPreset;
       }
+      if (includeSuppressed) {
+        requestBody.includeSuppressed = true;
+      }
 
       const res = await fetch('/api/scan', {
         method: 'POST',
@@ -100,12 +113,15 @@
       scanStats = {
         scanned: data.scannedFiles,
         skipped: data.skippedFiles,
-        runId: data.runId
+        runId: data.runId,
+        effectiveFindings: data.effectiveFindings,
+        suppressedFindings: data.suppressedFindings,
+        totalFindings: data.totalFindings
       };
       
       if (data.limitReached) {
         currentState = 'Incomplete';
-      } else if (findings.length > 0) {
+      } else if (data.effectiveFindings > 0) {
         currentState = 'Violation';
       } else {
         currentState = 'SuccessNoFindings';
@@ -185,6 +201,15 @@
         <option value="si-vendor-jp">si-vendor-jp</option>
         <option value="logs-jp">logs-jp</option>
       </select>
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          bind:checked={includeSuppressed}
+          disabled={currentState === 'Running'}
+        />
+        <span class="toggle-switch" aria-hidden="true"></span>
+        <span class="toggle-label">Include Suppressed</span>
+      </label>
       <button type="submit" class="btn btn-primary" disabled={currentState === 'Running'}>
         {#if currentState === 'Running'}
           <Loader2 size={18} class="spin" /> Scanning...
@@ -218,9 +243,15 @@
           <span class="stat-label">Files Scanned</span>
         </div>
         <div class="stat-card glass-panel">
-          <span class="stat-value">{safeInt(findings.length)}</span>
+          <span class="stat-value">{safeInt(scanStats.effectiveFindings)}</span>
           <span class="stat-label">Active Findings</span>
         </div>
+        {#if includeSuppressed || scanStats.suppressedFindings > 0}
+          <div class="stat-card glass-panel">
+            <span class="stat-value">{safeInt(scanStats.suppressedFindings)}</span>
+            <span class="stat-label">Suppressed</span>
+          </div>
+        {/if}
         {#if currentState === 'SuccessNoFindings'}
           <div class="stat-card glass-panel success-card">
             <ShieldCheck size={32} color="var(--success)" />
@@ -242,6 +273,7 @@
             <table>
               <thead>
                 <tr>
+                  <th>Status</th>
                   <th>Severity</th>
                   <th>Rule</th>
                   <th>Target File</th>
@@ -251,6 +283,11 @@
               <tbody>
                 {#each sortedFindings as finding}
                   <tr>
+                    <td>
+                      <span class="badge status-{finding.baselineStatus === 'suppressed' ? 'suppressed' : 'active'}">
+                        {finding.baselineStatus === 'suppressed' ? 'Suppressed' : 'Active'}
+                      </span>
+                    </td>
                     <td>
                       <!-- Strict CSP: Use CSS classes instead of inline style -->
                       <span class="badge sev-{String(finding.severity || '').toLowerCase()}">
@@ -312,7 +349,7 @@
 
   .scan-form {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) minmax(180px, auto) auto;
     gap: 12px;
   }
 
@@ -347,6 +384,66 @@
   
   input[type="text"]:disabled,
   select:disabled {
+    opacity: 0.6;
+  }
+
+  .toggle-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .toggle-row input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .toggle-switch {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--glass-border);
+    transition: background 0.2s, box-shadow 0.2s;
+    flex: 0 0 auto;
+  }
+
+  .toggle-switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+  }
+
+  .toggle-row input:checked + .toggle-switch {
+    background: var(--accent);
+  }
+
+  .toggle-row input:checked + .toggle-switch::after {
+    transform: translateX(16px);
+  }
+
+  .toggle-row input:focus-visible + .toggle-switch {
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.3);
+  }
+
+  .toggle-row input:disabled + .toggle-switch,
+  .toggle-row input:disabled ~ .toggle-label {
     opacity: 0.6;
   }
 
@@ -479,6 +576,17 @@
     font-weight: 600;
     font-size: 12px;
     letter-spacing: 0.02em;
+  }
+
+  .status-active {
+    color: var(--success);
+    background: rgba(52, 199, 89, 0.1);
+  }
+
+  .status-suppressed {
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border: 1px solid var(--glass-border);
   }
 
   .rule-col { font-weight: 500; }
