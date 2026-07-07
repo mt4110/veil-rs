@@ -13,6 +13,7 @@ path = "src/main.rs"
 default = ["wizard", "table"]
 wizard = []
 table = ["dep:prettytable-rs"]
+jp_mynumber_checksum = ["veil-core/jp_mynumber_checksum"]
 
 [dependencies]
 veil-core = { path = "../veil-core" }
