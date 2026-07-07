@@ -8,6 +8,7 @@ pub mod git;
 pub mod guardian;
 pub mod ignore;
 pub mod init;
+pub mod interactive_scan;
 pub mod mask;
 pub mod pre_commit;
 pub mod rules;

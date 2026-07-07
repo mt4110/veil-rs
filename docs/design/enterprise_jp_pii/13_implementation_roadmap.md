@@ -53,7 +53,7 @@ PR分割:
 ## Phase 3: Interactive CLI
 
 - [x] `veil scan --interactive` flag（guarded stub）
-- [ ] Finding iteration state machine
+- [x] Finding iteration state machine（renderer 未接続）
 - [ ] terminal rendering
 - [ ] diff preview
 - [ ] atomic write

@@ -451,12 +451,6 @@ pub fn scan(
     if fail_score.is_some_and(|score| score > 100) {
         anyhow::bail!("--fail-on-score must be between 0 and 100");
     }
-    if interactive {
-        anyhow::bail!(
-            "--interactive is accepted but not implemented yet. Use `veil scan` for read-only scanning; interactive masking will land behind this explicit flag."
-        );
-    }
-
     if show_progress {
         eprintln!("Scanning...");
     }
@@ -491,6 +485,12 @@ pub fn scan(
         limit,
         baseline.as_ref(),
     )?;
+
+    if interactive {
+        return crate::commands::interactive_scan::run_guarded_until_renderer_lands(
+            result.findings.len(),
+        );
+    }
 
     // Handle Write Baseline (S26)
     if let Some(path) = &write_baseline {
