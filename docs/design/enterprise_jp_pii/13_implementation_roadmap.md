@@ -63,7 +63,7 @@ PR分割:
 
 - [x] `crates/veil-lsp` 作成
 - [x] tower-lsp integration
-- [ ] diagnostics mapping
+- [x] diagnostics mapping
 - [ ] code actions
 - [ ] Neovim doc
 
