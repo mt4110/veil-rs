@@ -2536,7 +2536,7 @@ PR分割:
 
 ## Phase 3: Interactive CLI
 
-- [ ] `veil scan --interactive` flag
+- [x] `veil scan --interactive` flag（guarded stub）
 - [ ] Finding iteration state machine
 - [ ] terminal rendering
 - [ ] diff preview
