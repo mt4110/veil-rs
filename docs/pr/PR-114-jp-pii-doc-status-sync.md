@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 114
 status: Draft
 created_at: TBD
 branch: feat/jp-pii-doc-status-sync
@@ -12,7 +12,7 @@ title: Sync JP PII implementation status docs
 ## SOT
 - Title: Sync JP PII implementation status docs
 - Status: Draft
-- PR: TBD
+- PR: 114
 
 ## What
 - [x] Mark the JP address validator as implemented and wired after #112.
