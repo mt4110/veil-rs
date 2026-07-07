@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 120
 status: Draft
 created_at: TBD
 branch: feat/readme-preset-ux-docs
@@ -12,7 +12,7 @@ title: Document JP preset UX in README
 ## SOT
 - Title: Document JP preset UX in README
 - Status: Draft
-- PR: TBD
+- PR: 120
 
 ## What
 - [x] Add JP preset quickstart guidance to `README.md`.
