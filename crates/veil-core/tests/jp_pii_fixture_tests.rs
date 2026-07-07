@@ -6,6 +6,25 @@ use veil_config::Config;
 use veil_core::{scan_content, try_get_all_rules, Finding};
 
 #[test]
+fn jp_address_rule_uses_prefecture_city_block_validator() {
+    let config = Config::default();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+    let rule = rules
+        .iter()
+        .find(|rule| rule.id == "pii.jp.address.prefecture_heuristic")
+        .expect("default JP address rule should be loaded");
+
+    assert_eq!(
+        rule.validator_id.as_deref(),
+        Some("jp_address_prefecture_city_block")
+    );
+    assert!(
+        rule.validator.is_some(),
+        "JP address validator should resolve for the built-in rule"
+    );
+}
+
+#[test]
 fn jp_pii_positive_fixtures_match_expected_rules() {
     let fixture_dir = workspace_root()
         .join("tests")
