@@ -27,15 +27,17 @@
 
 - [x] `jp_normalize` 実装
 - [x] span mapping導入
-- [x] MyNumber validator / Luhn validator / mobile validator
+- [x] MyNumber validator / Luhn validator / mobile validator / address validator
 - [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` presets追加
 - [x] Positive/Negative fixtures追加
-- [ ] score調整
+- [x] score調整（negative context dampeningをJPテストデータ文脈へ拡張）
 
 PR分割:
 1. #101 `feat(core): add jp normalization and span mapping`
 2. #102 `test(jp-pii): add validators and fixtures`
 3. #103 `feat(config): add JP preset override resolver`
+4. #112 `Wire JP address validator into address rule`
+5. #113 `Tune JP PII negative test context scoring`
 
 ## Phase 2: Zero-Config & Preset UX
 

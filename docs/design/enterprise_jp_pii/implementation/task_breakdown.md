@@ -34,7 +34,7 @@
 - [x] 互換読み込みwarning
 - [x] MyNumber validator / Luhn validator / mobile validator
 - [x] Positive/Negative fixtures追加
-- [ ] Address validatorは未実装。現状はvalidatorなしの住所ヒューリスティックのみ。
+- [x] Address validatorは #112 で実装・配線済み。`pii.jp.address.prefecture_heuristic` は `jp_address_prefecture_city_block` validatorを使う。
 - [ ] Name validatorは未実装。現状はvalidatorなしのラベル付き氏名ヒューリスティックのみ。
 - [ ] J-LIS MyNumberチェックデジットは feature flag `jp_mynumber_checksum` の後続実装。
 
@@ -61,6 +61,18 @@
 - [x] UI scan requestでpresetを渡せる最小導線を確認する。
 - [ ] `includeSuppressed` UI toggle
 - [ ] limit reached / coverageComplete UI表示
+
+## #112 JP address validator wiring（merge済み）
+
+- [x] `pii.jp.address.prefecture_heuristic` に `jp_address_prefecture_city_block` validatorを配線。
+- [x] 全角住所positive fixtureと住所ラベルのみnegative fixtureを追加。
+- [x] Built-in ruleでaddress validatorが解決されることをtestで固定。
+
+## #113 JP PII score context tuning（merge済み）
+
+- [x] `sandbox` と日本語のテスト/サンプル/ダミー/モック/サンドボックス文脈でscore減衰する。
+- [x] score context modifierの単体テストを追加。
+- [x] JP PII fixtureが既存検知挙動を維持することを確認。
 
 ## Later: LSP
 
