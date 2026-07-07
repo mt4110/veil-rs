@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 126
 status: Draft
 created_at: TBD
 branch: feat/interactive-scripted-decisions
@@ -12,7 +12,7 @@ title: Add interactive scripted decisions
 ## SOT
 - Title: Add interactive scripted decisions
 - Status: Draft
-- PR: TBD
+- PR: #126
 
 ## What
 - [x] Add scripted decision parsing for `veil scan --interactive`.
@@ -32,7 +32,7 @@ title: Add interactive scripted decisions
 - Local interactive unit test result: `12 passed; 0 failed`.
 - Local scripted stdin integration test result: `1 passed; 0 failed`.
 - CLI integration test drives `veil scan --interactive` with `q\n` on stdin and expects success.
-- SOT will be renamed after the PR number is assigned.
+- SOT was renamed after PR #126 was created.
 
 ## Non-goals
 - [x] Do not implement atomic write.
