@@ -2539,7 +2539,7 @@ PR分割:
 - [x] `veil scan --interactive` flag（guarded stub）
 - [x] Finding iteration state machine（renderer 未接続）
 - [x] terminal rendering（safe masked context）
-- [ ] diff preview
+- [x] diff preview（safe redacted preview）
 - [ ] atomic write
 - [ ] tests with scripted stdin
 
