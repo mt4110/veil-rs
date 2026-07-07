@@ -2553,7 +2553,7 @@ PR分割:
 
 ## Phase 5: Local Audit UI completion
 
-- [ ] API schema alignment
+- [x] API schema alignment
 - [x] Svelte state machine
 - [x] Policy explain
 - [x] Evidence ZIP UX

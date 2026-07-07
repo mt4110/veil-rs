@@ -2,10 +2,11 @@
   import { Shield, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
   import ScanView from './ScanView.svelte';
   import PolicyView from './PolicyView.svelte';
+  import type { AuthContextType } from './api-contract';
   import type { DashboardView } from './ui-state';
 
   type DashboardProps = {
-    authType?: string | null;
+    authType?: AuthContextType | null;
     userName?: string | null;
     userEmail?: string | null;
   };
