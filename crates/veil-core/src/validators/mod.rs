@@ -6,6 +6,7 @@ pub fn resolve_validator(id: &str) -> Option<ValidatorFn> {
     match id {
         "jp_address_prefecture_city_block" => Some(jp::address_prefecture_city_block),
         "jp_mynumber_len12" => Some(jp::mynumber_len12),
+        "jp_person_name_keyword" => Some(jp::person_name_keyword),
         "jp_phone_mobile" => Some(jp::phone_mobile),
         "luhn" => Some(luhn),
         _ => None,
@@ -230,6 +231,7 @@ mod tests {
     fn resolver_is_allowlisted() {
         assert!(resolve_validator("jp_address_prefecture_city_block").is_some());
         assert!(resolve_validator("jp_mynumber_len12").is_some());
+        assert!(resolve_validator("jp_person_name_keyword").is_some());
         assert!(resolve_validator("jp_phone_mobile").is_some());
         assert!(resolve_validator("luhn").is_some());
         assert!(resolve_validator("unknown").is_none());

@@ -25,6 +25,22 @@ fn jp_address_rule_uses_prefecture_city_block_validator() {
 }
 
 #[test]
+fn jp_name_rule_uses_person_name_validator() {
+    let config = Config::default();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+    let rule = rules
+        .iter()
+        .find(|rule| rule.id == "pii.person.name.keyword")
+        .expect("default JP name rule should be loaded");
+
+    assert_eq!(rule.validator_id.as_deref(), Some("jp_person_name_keyword"));
+    assert!(
+        rule.validator.is_some(),
+        "JP name validator should resolve for the built-in rule"
+    );
+}
+
+#[test]
 fn jp_pii_positive_fixtures_match_expected_rules() {
     let fixture_dir = workspace_root()
         .join("tests")

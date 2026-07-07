@@ -87,6 +87,31 @@ pub fn phone_mobile(candidate: &str) -> bool {
         && (digits.starts_with("070") || digits.starts_with("080") || digits.starts_with("090"))
 }
 
+pub fn person_name_keyword(candidate: &str) -> bool {
+    let normalized = normalize_jp_text(candidate, NormalizationPolicy::default()).normalized;
+    let Some(value) = person_name_value(&normalized) else {
+        return false;
+    };
+    let value = value.trim();
+    let char_count = value.chars().filter(|ch| !ch.is_whitespace()).count();
+
+    if !(2..=40).contains(&char_count) || contains_name_placeholder(value) {
+        return false;
+    }
+
+    if value.chars().any(is_jp_name_char) {
+        return value
+            .chars()
+            .all(|ch| ch.is_whitespace() || is_jp_name_char(ch));
+    }
+
+    let parts: Vec<_> = value.split_whitespace().collect();
+    (2..=4).contains(&parts.len())
+        && parts
+            .iter()
+            .all(|part| part.len() >= 2 && part.chars().all(|ch| ch.is_ascii_alphabetic()))
+}
+
 fn find_prefecture(candidate: &str) -> Option<(usize, usize)> {
     PREFECTURES
         .iter()
@@ -159,6 +184,56 @@ fn is_municipality_marker(ch: char) -> bool {
 
 fn is_mynumber_separator(ch: char) -> bool {
     is_card_separator(ch) || matches!(ch, '－' | '―' | '‐' | '‑' | '–' | '—' | 'ー')
+}
+
+fn person_name_value(content: &str) -> Option<&str> {
+    for label in ["お名前", "氏名", "名前", "Name", "name"] {
+        if let Some(start) = content.find(label) {
+            let after_label = &content[start + label.len()..];
+            return trim_name_label_separator(after_label);
+        }
+    }
+
+    None
+}
+
+fn trim_name_label_separator(content: &str) -> Option<&str> {
+    let content = content.trim_start();
+    if content.starts_with('を') {
+        return None;
+    }
+
+    let content = content
+        .trim_start_matches(|ch| {
+            matches!(
+                ch,
+                ':' | '：' | '=' | 'は' | '-' | ' ' | '\t' | '\u{3000}' | '"' | '\''
+            )
+        })
+        .trim_start();
+    let content = content.trim_matches(|ch| matches!(ch, '"' | '\'' | ' ' | '\t' | '\u{3000}'));
+
+    if content.is_empty() {
+        None
+    } else {
+        Some(content)
+    }
+}
+
+fn contains_name_placeholder(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    [
+        "test", "sample", "dummy", "mock", "version", "class", "function",
+    ]
+    .iter()
+    .any(|word| lower.contains(word))
+        || ["入力", "必須", "サンプル", "テスト", "ダミー", "モック"]
+            .iter()
+            .any(|word| value.contains(word))
+}
+
+fn is_jp_name_char(ch: char) -> bool {
+    matches!(ch, '\u{3041}'..='\u{3096}' | '\u{30A1}'..='\u{30FA}' | '\u{4E00}'..='\u{9FFF}')
 }
 
 fn mynumber_digit_runs(candidate: &str) -> Vec<Vec<u8>> {
@@ -279,5 +354,24 @@ mod tests {
         assert!(phone_mobile("07012345678"));
         assert!(!phone_mobile("050-1234-5678"));
         assert!(!phone_mobile("090-123-4567"));
+    }
+
+    #[test]
+    fn person_name_keyword_accepts_labeled_person_names() {
+        assert!(person_name_keyword("氏名: 山田 太郎"));
+        assert!(person_name_keyword("お名前：佐藤花子"));
+        assert!(person_name_keyword("Name: Taro Yamada"));
+        assert!(person_name_keyword("name = 'Hanako Sato'"));
+    }
+
+    #[test]
+    fn person_name_keyword_rejects_placeholders_and_instructions() {
+        assert!(!person_name_keyword("氏名: "));
+        assert!(!person_name_keyword("お名前を入力してください"));
+        assert!(!person_name_keyword("name = \"test\""));
+        assert!(!person_name_keyword("class Name"));
+        assert!(!person_name_keyword("function name"));
+        assert!(!person_name_keyword("Name: version"));
+        assert!(!person_name_keyword("名前: サンプル"));
     }
 }

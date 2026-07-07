@@ -27,7 +27,7 @@
 
 - [x] `jp_normalize` 実装
 - [x] span mapping導入
-- [x] MyNumber validator / Luhn validator / mobile validator / address validator
+- [x] MyNumber validator / Luhn validator / mobile validator / address validator / name validator
 - [x] J-LIS MyNumber checksum feature flag
 - [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` presets追加
 - [x] Positive/Negative fixtures追加

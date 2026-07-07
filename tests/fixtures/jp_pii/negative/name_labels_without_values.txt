@@ -1,0 +1,7 @@
+氏名:
+お名前を入力してください
+name = "test"
+class Name
+function name
+Name: version
+名前: サンプル
