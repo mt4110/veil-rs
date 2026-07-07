@@ -46,6 +46,11 @@ fn test_exit_code_behavior() {
 #[test]
 fn scan_interactive_flag_is_guarded_until_state_machine_lands() {
     let temp_dir = tempdir().unwrap();
+    fs::write(
+        temp_dir.path().join("secret.txt"),
+        "AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\"",
+    )
+    .unwrap();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan")
@@ -55,6 +60,6 @@ fn scan_interactive_flag_is_guarded_until_state_machine_lands() {
         .failure()
         .code(2)
         .stderr(predicate::str::contains(
-            "--interactive is accepted but not implemented yet",
+            "--interactive initialized finding iteration state",
         ));
 }
