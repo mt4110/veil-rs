@@ -62,7 +62,7 @@ PR分割:
 ## Phase 4: LSP
 
 - [x] `crates/veil-lsp` 作成
-- [ ] tower-lsp integration
+- [x] tower-lsp integration
 - [ ] diagnostics mapping
 - [ ] code actions
 - [ ] Neovim doc

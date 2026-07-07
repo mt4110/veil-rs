@@ -1595,7 +1595,7 @@ vim.lsp.start({
 ## 6.11 実装タスク
 
 - [x] `crates/veil-lsp` workspace追加。
-- [ ] `tower-lsp` server実装。
+- [x] `tower-lsp` server実装。
 - [ ] `scan_content` をLSPから呼び出す。
 - [ ] UTF-8 byte offset → UTF-16 LSP range変換を実装。
 - [ ] `codeAction` for mask/ignore。
@@ -2546,7 +2546,7 @@ PR分割:
 ## Phase 4: LSP
 
 - [x] `crates/veil-lsp` 作成
-- [ ] tower-lsp integration
+- [x] tower-lsp integration
 - [ ] diagnostics mapping
 - [ ] code actions
 - [ ] Neovim doc

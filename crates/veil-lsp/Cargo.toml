@@ -11,3 +11,5 @@ path = "src/main.rs"
 [dependencies]
 veil-core = { workspace = true }
 veil-config = { workspace = true }
+tokio = { version = "1.0", features = ["full"] }
+tower-lsp = "0.20"
