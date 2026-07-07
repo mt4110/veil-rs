@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 112
 status: Draft
 created_at: TBD
 branch: feat/jp-address-validator-rule-wiring
@@ -12,7 +12,7 @@ title: Wire JP address validator into address rule
 ## SOT
 - Title: Wire JP address validator into address rule
 - Status: Draft
-- PR: TBD
+- PR: 112
 
 ## What
 - Wire `jp_address_prefecture_city_block` into the existing `pii.jp.address.prefecture_heuristic` rule.
