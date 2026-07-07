@@ -74,6 +74,25 @@ veil config check
 veil scan .
 ```
 
+## 🇯🇵 JP Preset Quickstart
+
+日本向けのスキャンでは、用途別presetをbase layerとして適用できます。`veil.toml`、`VEIL_ORG_CONFIG`、repo設定はpreset由来の値を上書きできます。
+
+```bash
+# 金融/決済向けのJP PII設定で初期化
+veil init --preset fintech-jp
+
+# presetを一時的に適用してスキャン
+veil scan . --preset fintech-jp
+
+# preset layerだけを確認
+veil config dump --preset fintech-jp --layer preset
+```
+
+利用可能なpresetは `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` です。ログ監査向けの `logs-jp` は `rules/log` RulePackを必要とするため、先に `veil init --preset logs-jp` を実行してください。
+
+Veil Pro ダッシュボードのscan画面でもpresetを選択できます。baselineで抑制済みのfindingを確認する場合は `Include Suppressed` を有効にし、scanがlimit到達または `coverageComplete=false` になった場合はCoverage表示と理由チップを確認してください。
+
 ## 🖥️ Veil Pro ダッシュボード・クイックスタート
 **Veil Pro ダッシュボード** は、日々の誤検知トリアージ、ノイズ管理、および監査証跡の作成を行う「ローカル向けコマンドセンター」です。B2Bグレードのセキュリティ（完全オフライン、ゼロ・テレメトリ）を備えています。
 
