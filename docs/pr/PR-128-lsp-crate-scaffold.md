@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 128
 status: Draft
 created_at: TBD
 branch: feat/lsp-crate-scaffold
@@ -12,7 +12,7 @@ title: Add LSP crate scaffold
 ## SOT
 - Title: Add LSP crate scaffold
 - Status: Draft
-- PR: TBD
+- PR: #128
 
 ## What
 - [x] Add `crates/veil-lsp` as a workspace member.
@@ -31,7 +31,7 @@ title: Add LSP crate scaffold
 - Local `veil-lsp` unit test result: `1 passed; 0 failed`.
 - `cargo check -p veil-lsp --all-targets` completed successfully.
 - Cargo.lock contains only the new `veil-lsp` workspace package entry.
-- SOT will be renamed after the PR number is assigned.
+- SOT was renamed after PR #128 was created.
 
 ## Non-goals
 - [x] Do not add `tower-lsp` integration.
