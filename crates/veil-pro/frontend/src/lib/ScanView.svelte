@@ -1,40 +1,43 @@
 <script lang="ts">
   import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw } from 'lucide-svelte';
+  import type { ErrorEnvelope, PresetName, SafeFindingApiV1, ScanRequest, ScanResponse, SeverityName } from './api-contract';
   
   // Strict State Machine for UI prediction and tracking (no implicit states)
   type ScanState = 'Idle' | 'Running' | 'SuccessNoFindings' | 'Violation' | 'Incomplete' | 'ErrorAuth' | 'ErrorConfig' | 'ErrorExpired' | 'ErrorOOM' | 'ErrorUnknown';
-  type ScanPresetId = 'standard-jp' | 'fintech-jp' | 'gov-jp' | 'si-vendor-jp' | 'logs-jp';
-  type ScanPreset = '' | ScanPresetId;
+  type ScanPreset = '' | PresetName;
   let currentState = $state<ScanState>('Idle');
   
   let scanPath = $state('');
   let scanPreset = $state<ScanPreset>('');
-  let findings = $state<any[]>([]);
+  let findings = $state<SafeFindingApiV1[]>([]);
   let scanStats = $state<{scanned: number, skipped: number, runId: string} | null>(null);
   let errorMsg = $state<string | null>(null);
 
-  const sevWeights: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+  const sevWeights: Record<SeverityName, number> = { Critical: 4, High: 3, Medium: 2, Low: 1 };
   
   let sortedFindings = $derived(
     [...findings].sort((a, b) => {
-      const weightA = sevWeights[String(a.severity || '').toLowerCase()] || 0;
-      const weightB = sevWeights[String(b.severity || '').toLowerCase()] || 0;
+      const weightA = sevWeights[a.severity];
+      const weightB = sevWeights[b.severity];
       return weightB - weightA;
     })
   );
 
-  function safeInt(v: any, fallback = 0): number {
+  function safeInt(v: unknown, fallback = 0): number {
     const n = Number.parseInt(String(v), 10);
     return Number.isFinite(n) ? n : fallback;
   }
 
   async function readErrorMessage(res: Response, fallback: string): Promise<string> {
-    const err = await res.json().catch(() => ({}));
+    const err = await res.json().catch(() => null) as Partial<ErrorEnvelope> & { error?: unknown; message?: unknown } | null;
     if (typeof err?.error === 'string') {
       return err.error;
     }
-    if (typeof err?.error?.message === 'string') {
-      return err.error.message;
+    if (err?.error && typeof err.error === 'object' && 'message' in err.error) {
+      const message = err.error.message;
+      if (typeof message === 'string') {
+        return message;
+      }
     }
     if (typeof err?.message === 'string') {
       return err.message;
@@ -60,7 +63,7 @@
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const requestBody: { paths: string[]; preset?: ScanPresetId } = { paths: [targetPath] };
+      const requestBody: ScanRequest = { paths: [targetPath] };
       if (scanPreset !== '') {
         requestBody.preset = scanPreset;
       }
@@ -92,8 +95,8 @@
         return;
       }
 
-      const data = await res.json();
-      findings = data.findings || [];
+      const data = await res.json() as ScanResponse;
+      findings = data.findings;
       scanStats = {
         scanned: data.scannedFiles,
         skipped: data.skippedFiles,
@@ -108,9 +111,9 @@
         currentState = 'SuccessNoFindings';
       }
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       currentState = 'ErrorUnknown';
-      errorMsg = err.message || 'An unknown network error occurred';
+      errorMsg = err instanceof Error ? err.message : 'An unknown network error occurred';
     }
   }
 
@@ -154,7 +157,7 @@
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e: any) {
+    } catch (_err: unknown) {
       currentState = 'ErrorUnknown';
       errorMsg = 'Network error downloading evidence.';
     }
