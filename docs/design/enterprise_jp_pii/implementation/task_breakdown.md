@@ -59,7 +59,7 @@
 - [x] `logs-jp` scanではCLIと同じく `rules/log` RulePackを必須にする。
 - [x] OpenAPI generated schemaをUI clientへ反映。
 - [x] UI scan requestでpresetを渡せる最小導線を確認する。
-- [ ] `includeSuppressed` UI toggle
+- [x] `includeSuppressed` UI toggle
 - [ ] limit reached / coverageComplete UI表示
 
 ## #112 JP address validator wiring（merge済み）
