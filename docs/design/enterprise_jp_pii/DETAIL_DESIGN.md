@@ -2541,7 +2541,7 @@ PR分割:
 - [x] terminal rendering（safe masked context）
 - [x] diff preview（safe redacted preview）
 - [ ] atomic write
-- [ ] tests with scripted stdin
+- [x] tests with scripted stdin
 
 ## Phase 4: LSP
 

@@ -487,9 +487,7 @@ pub fn scan(
     )?;
 
     if interactive {
-        return crate::commands::interactive_scan::run_guarded_until_decision_input_lands(
-            &result.findings,
-        );
+        return crate::commands::interactive_scan::run_interactive(&result.findings);
     }
 
     // Handle Write Baseline (S26)

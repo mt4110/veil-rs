@@ -44,7 +44,7 @@ fn test_exit_code_behavior() {
 }
 
 #[test]
-fn scan_interactive_renders_first_finding_until_decision_input_lands() {
+fn scan_interactive_accepts_scripted_quit() {
     let temp_dir = tempdir().unwrap();
     fs::write(
         temp_dir.path().join("secret.txt"),
@@ -56,16 +56,14 @@ fn scan_interactive_renders_first_finding_until_decision_input_lands() {
     cmd.arg("scan")
         .arg("--interactive")
         .arg(temp_dir.path())
+        .write_stdin("q\n")
         .assert()
-        .failure()
-        .code(2)
+        .success()
         .stdout(
             predicate::str::contains("Finding 1/")
                 .and(predicate::str::contains("Snippet:"))
                 .and(predicate::str::contains("Mask preview:"))
                 .and(predicate::str::contains("<REDACTED>")),
         )
-        .stderr(predicate::str::contains(
-            "--interactive rendered finding context",
-        ));
+        .stderr(predicate::str::is_empty());
 }
