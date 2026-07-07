@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 116
 status: Draft
 created_at: TBD
 branch: feat/jp-name-validator
@@ -12,7 +12,7 @@ title: Wire JP name validator into name rule
 ## SOT
 - Title: Wire JP name validator into name rule
 - Status: Draft
-- PR: TBD
+- PR: 116
 
 ## What
 - [x] Add `jp_person_name_keyword` validator for labeled JP/EN person-name findings.
