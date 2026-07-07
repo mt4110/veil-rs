@@ -200,5 +200,5 @@ Fail条件は `score` を正本にする。`--fail-on-severity High` は `score 
 - [x] `veil scan --preset`, `veil init --preset`, `veil config dump --preset` CLI UXを追加。
 - [x] Address validatorを実装し、`pii.jp.address.prefecture_heuristic` に `jp_address_prefecture_city_block` validatorを配線する。
 - [x] negative context score dampeningに `sandbox` と日本語テストデータ文脈を追加する。
-- [ ] Name validatorを実装する。現状の `pii.person.name.keyword` はラベル付きヒューリスティックであり、実装済みvalidatorとは扱わない。
+- [x] Name validatorを実装し、`pii.person.name.keyword` に `jp_person_name_keyword` validatorを配線する。
 - [x] J-LIS MyNumberチェックデジットを feature flag `jp_mynumber_checksum` として実装する。

@@ -271,6 +271,7 @@ tags = ["name", "profile", "heuristic"]
 base_score = 38
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_person_name_keyword"
 
 [[rules]]
 id = "pii.person.age.keyword"

@@ -35,7 +35,7 @@
 - [x] MyNumber validator / Luhn validator / mobile validator
 - [x] Positive/Negative fixtures追加
 - [x] Address validatorは #112 で実装・配線済み。`pii.jp.address.prefecture_heuristic` は `jp_address_prefecture_city_block` validatorを使う。
-- [ ] Name validatorは未実装。現状はvalidatorなしのラベル付き氏名ヒューリスティックのみ。
+- [x] Name validatorは実装・配線済み。`pii.person.name.keyword` は `jp_person_name_keyword` validatorを使う。
 - [x] J-LIS MyNumberチェックデジットは default off の feature flag `jp_mynumber_checksum` で実装済み。
 
 ## #103 JP preset override resolver（merge済み）
