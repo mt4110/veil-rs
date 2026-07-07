@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 133
 status: Draft
 created_at: TBD
 branch: feat/ui-state-machine
@@ -12,7 +12,7 @@ title: Add UI state machine types
 ## SOT
 - Title: Add UI state machine types
 - Status: Draft
-- PR: TBD
+- PR: #133
 
 ## What
 - [x] Add shared UI state machine types for auth, dashboard view, policy view, and scan view.
