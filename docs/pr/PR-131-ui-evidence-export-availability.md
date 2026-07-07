@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 131
 status: Draft
 created_at: TBD
 branch: feat/ui-evidence-export-availability
@@ -12,7 +12,7 @@ title: Show evidence export after scans
 ## SOT
 - Title: Show evidence export after scans
 - Status: Draft
-- PR: TBD
+- PR: #131
 
 ## What
 - [x] Move the Evidence ZIP export action to the shared scan results toolbar.
