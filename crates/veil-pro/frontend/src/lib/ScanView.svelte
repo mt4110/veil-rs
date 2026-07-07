@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw } from 'lucide-svelte';
+  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download } from 'lucide-svelte';
   import type { ErrorEnvelope, PresetName, SafeFindingApiV1, ScanRequest, ScanResponse, SeverityName } from './api-contract';
   
   // Strict State Machine for UI prediction and tracking (no implicit states)
@@ -264,6 +264,13 @@
   {#if currentState === 'SuccessNoFindings' || currentState === 'Violation' || currentState === 'Incomplete'}
     {#if scanStats}
     <div class="results-area state-anim">
+      <div class="results-toolbar">
+        <h4>Scan Results</h4>
+        <button class="export-link btn btn-secondary btn-sm" onclick={() => downloadEvidence(scanStats!.runId)} type="button">
+          <Download size={14} /> Export Evidence Pack
+        </button>
+      </div>
+
       <div class="stats-cards">
         <div class="stat-card glass-panel">
           <span class="stat-value">{safeInt(scanStats.scanned)}</span>
@@ -295,9 +302,6 @@
         <div class="findings-table glass-panel">
           <div class="table-header">
             <h4>Detected Violations</h4>
-            <button class="export-link btn btn-secondary btn-sm" onclick={() => downloadEvidence(scanStats!.runId)} type="button">
-              Export Evidence Pack
-            </button>
           </div>
           
           <div class="table-wrapper">
@@ -539,6 +543,34 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+  }
+
+  .results-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .results-toolbar h4 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .export-link {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 720px) {
+    .results-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .export-link {
+      width: 100%;
+    }
   }
 
   .stat-card {

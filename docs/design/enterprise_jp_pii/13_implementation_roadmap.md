@@ -72,7 +72,7 @@ PR分割:
 - [ ] API schema alignment
 - [ ] Svelte state machine
 - [ ] Policy explain
-- [ ] Evidence ZIP UX
+- [x] Evidence ZIP UX
 - [ ] PDF export path検討
 
 ## Phase 6: PDF Report
