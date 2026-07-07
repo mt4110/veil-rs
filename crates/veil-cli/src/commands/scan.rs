@@ -430,6 +430,7 @@ pub fn scan(
     commit: Option<&str>,
     since: Option<&str>,
     staged: bool,
+    interactive: bool,
     show_progress: bool,
     mask_mode_arg: Option<&str>,
     unsafe_output: bool,
@@ -449,6 +450,11 @@ pub fn scan(
     }
     if fail_score.is_some_and(|score| score > 100) {
         anyhow::bail!("--fail-on-score must be between 0 and 100");
+    }
+    if interactive {
+        anyhow::bail!(
+            "--interactive is accepted but not implemented yet. Use `veil scan` for read-only scanning; interactive masking will land behind this explicit flag."
+        );
     }
 
     if show_progress {

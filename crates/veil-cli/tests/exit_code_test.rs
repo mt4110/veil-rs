@@ -1,5 +1,6 @@
 #![allow(deprecated)]
 use assert_cmd::Command;
+use predicates::prelude::*;
 use std::fs;
 use tempfile::tempdir;
 
@@ -40,4 +41,20 @@ fn test_exit_code_behavior() {
     let clean_dir = tempdir().unwrap();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     cmd.arg("scan").arg(clean_dir.path()).assert().success();
+}
+
+#[test]
+fn scan_interactive_flag_is_guarded_until_state_machine_lands() {
+    let temp_dir = tempdir().unwrap();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.arg("scan")
+        .arg("--interactive")
+        .arg(temp_dir.path())
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "--interactive is accepted but not implemented yet",
+        ));
 }

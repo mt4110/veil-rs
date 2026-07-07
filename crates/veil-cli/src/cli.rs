@@ -62,6 +62,9 @@ pub enum Commands {
         /// Scan staged files only
         #[arg(long)]
         staged: bool,
+        /// Start interactive review mode
+        #[arg(long)]
+        interactive: bool,
         /// Show progress bar (if TTY)
         #[arg(long)]
         progress: bool,
