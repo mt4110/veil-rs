@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 113
 status: Draft
 created_at: TBD
 branch: feat/jp-pii-score-tuning
@@ -12,7 +12,7 @@ title: Tune JP PII negative test context scoring
 ## SOT
 - Title: Tune JP PII negative test context scoring
 - Status: Draft
-- PR: TBD
+- PR: 113
 
 ## What
 - [x] Add English `sandbox` and Japanese test-data context words to the default score-dampening list.
