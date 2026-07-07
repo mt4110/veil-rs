@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 117
 status: Draft
 created_at: TBD
 branch: feat/ui-api-contract-types
@@ -12,7 +12,7 @@ title: Add UI API contract types
 ## SOT
 - Title: Add UI API contract types
 - Status: Draft
-- PR: TBD
+- PR: 117
 
 ## What
 - [x] Add `api-contract.ts` with the UI-facing subset of the generated Local API/OpenAPI contract.
