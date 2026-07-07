@@ -161,6 +161,7 @@ tags = ["jp", "address", "heuristic"]
 base_score = 40
 context_lines_before = 1
 context_lines_after = 1
+validator = "jp_address_prefecture_city_block"
 
 [[rules]]
 id = "pii.geo.latlon.rough"

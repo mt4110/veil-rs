@@ -5,5 +5,10 @@
 東京都
 # Prefecture + City only (no block number)
 東京都渋谷区
+# Municipality-like label code, not an address value
+東京都市町村コード: 131016
+# Version suffixes are not block numbers
+東京都千代田区 version 2
+東京都千代田区 version-21
 # Wrong format
 東京都市谷区 (missing "区" or invalid char flow)
