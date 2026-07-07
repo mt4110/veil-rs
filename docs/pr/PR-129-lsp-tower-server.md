@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 129
 status: Draft
 created_at: TBD
 branch: feat/lsp-tower-server
@@ -12,7 +12,7 @@ title: Add LSP tower server
 ## SOT
 - Title: Add LSP tower server
 - Status: Draft
-- PR: TBD
+- PR: #129
 
 ## What
 - [x] Add `tokio` and `tower-lsp` dependencies to `veil-lsp`.
@@ -32,7 +32,7 @@ title: Add LSP tower server
 - `cargo check -p veil-lsp --all-targets` completed successfully.
 - Unit coverage asserts incremental text sync is advertised and diagnostics/code actions remain unset.
 - Cargo.lock records the `tower-lsp` dependency set.
-- SOT will be renamed after the PR number is assigned.
+- SOT was renamed after PR #129 was created.
 
 ## Non-goals
 - [x] Do not map findings to diagnostics.
