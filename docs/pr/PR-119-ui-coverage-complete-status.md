@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 119
 status: Draft
 created_at: TBD
 branch: feat/ui-coverage-complete-status
@@ -12,7 +12,7 @@ title: Show scan coverage completeness
 ## SOT
 - Title: Show scan coverage completeness
 - Status: Draft
-- PR: TBD
+- PR: 119
 
 ## What
 - [x] Treat `status=incomplete`, `limitReached`, or `coverageComplete=false` as the scan UI incomplete state.
