@@ -60,7 +60,7 @@
 - [x] OpenAPI generated schemaをUI clientへ反映。
 - [x] UI scan requestでpresetを渡せる最小導線を確認する。
 - [x] `includeSuppressed` UI toggle
-- [ ] limit reached / coverageComplete UI表示
+- [x] limit reached / coverageComplete UI表示
 
 ## #112 JP address validator wiring（merge済み）
 

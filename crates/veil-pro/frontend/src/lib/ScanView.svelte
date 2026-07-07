@@ -18,6 +18,9 @@
     effectiveFindings: number;
     suppressedFindings: number;
     totalFindings: number;
+    coverageComplete: boolean;
+    limitReached: boolean;
+    limitReasons: string[];
   } | null>(null);
   let errorMsg = $state<string | null>(null);
 
@@ -36,6 +39,19 @@
   function safeInt(v: unknown, fallback = 0): number {
     const n = Number.parseInt(String(v), 10);
     return Number.isFinite(n) ? n : fallback;
+  }
+
+  function incompleteScanMessage(data: ScanResponse): string {
+    if (data.limitReasons.length > 0) {
+      return 'Scan incomplete. Results are partial.';
+    }
+    if (data.limitReached) {
+      return 'Scan limit reached. Results are partial.';
+    }
+    if (!data.coverageComplete) {
+      return 'Scan coverage is incomplete. Results are partial.';
+    }
+    return 'Scan incomplete. Results are partial.';
   }
 
   async function readErrorMessage(res: Response, fallback: string): Promise<string> {
@@ -116,10 +132,14 @@
         runId: data.runId,
         effectiveFindings: data.effectiveFindings,
         suppressedFindings: data.suppressedFindings,
-        totalFindings: data.totalFindings
+        totalFindings: data.totalFindings,
+        coverageComplete: data.coverageComplete,
+        limitReached: data.limitReached,
+        limitReasons: data.limitReasons
       };
       
-      if (data.limitReached) {
+      if (data.status === 'incomplete' || data.limitReached || !data.coverageComplete) {
+        errorMsg = incompleteScanMessage(data);
         currentState = 'Incomplete';
       } else if (data.effectiveFindings > 0) {
         currentState = 'Violation';
@@ -223,7 +243,14 @@
       <div class="error-banner state-anim">
         <AlertTriangle size={18} /> 
         <div class="error-content">
-          <span>{errorMsg || (currentState === 'Incomplete' ? 'Scan limit reached. Results are partial.' : 'An error occurred.')}</span>
+          <span>{errorMsg || (currentState === 'Incomplete' ? 'Scan incomplete. Results are partial.' : 'An error occurred.')}</span>
+          {#if currentState === 'Incomplete' && scanStats?.limitReasons.length}
+            <div class="reason-chips" aria-label="Limit reasons">
+              {#each scanStats.limitReasons as reason}
+                <code>{reason}</code>
+              {/each}
+            </div>
+          {/if}
           {#if currentState === 'ErrorExpired' || currentState === 'ErrorUnknown' || currentState === 'Incomplete' || currentState === 'ErrorConfig'}
              <button class="btn btn-sm btn-secondary rescan-btn" onclick={triggerScan} type="button">
                <RotateCcw size={14} /> Re-Scan Now
@@ -245,6 +272,10 @@
         <div class="stat-card glass-panel">
           <span class="stat-value">{safeInt(scanStats.effectiveFindings)}</span>
           <span class="stat-label">Active Findings</span>
+        </div>
+        <div class="stat-card glass-panel" class:warning-card={!scanStats.coverageComplete || scanStats.limitReached}>
+          <span class="stat-value text-value">{scanStats.coverageComplete && !scanStats.limitReached ? 'Full' : 'Partial'}</span>
+          <span class="stat-label">Coverage</span>
         </div>
         {#if includeSuppressed || scanStats.suppressedFindings > 0}
           <div class="stat-card glass-panel">
@@ -482,6 +513,21 @@
     align-items: flex-start;
   }
 
+  .reason-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .reason-chips code {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+    font-size: 12px;
+  }
+
   .rescan-btn {
     margin-top: 4px;
     background: var(--bg-primary);
@@ -512,6 +558,11 @@
     letter-spacing: -0.02em;
   }
 
+  .stat-value.text-value {
+    font-size: 28px;
+    letter-spacing: 0;
+  }
+
   .stat-label {
     color: var(--text-secondary);
     font-size: 14px;
@@ -524,6 +575,12 @@
     color: var(--success);
     background: rgba(52, 199, 89, 0.05);
     border-color: rgba(52, 199, 89, 0.2);
+  }
+
+  .warning-card {
+    color: var(--danger);
+    background: rgba(255, 59, 48, 0.05);
+    border-color: rgba(255, 59, 48, 0.2);
   }
 
   .findings-table {
