@@ -45,7 +45,7 @@ PR分割:
 - [ ] `CoreConfig.preset` 追加（急がない。#106時点ではCLI/Local API引数のbase layer適用を正本とする）
 - [x] `veil init --preset` 実装
 - [x] `veil scan --preset` 実装
-- [ ] wizard推論ロジック
+- [x] wizard推論ロジック（候補検出と表示。自動適用はしない）
 - [x] docs/README更新
 - [x] `veil config dump --preset` 実装
 - [x] Local API / UI の preset対応（#106: Local API scan preset解決 + 最小UI selector。大きなUI workflow改修はPhase 5）
