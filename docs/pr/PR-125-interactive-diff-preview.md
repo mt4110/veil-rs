@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 125
 status: Draft
 created_at: TBD
 branch: feat/interactive-diff-preview
@@ -12,7 +12,7 @@ title: Add interactive diff preview
 ## SOT
 - Title: Add interactive diff preview
 - Status: Draft
-- PR: TBD
+- PR: #125
 
 ## What
 - [x] Add a safe `Mask preview` block to interactive terminal rendering.
@@ -31,7 +31,7 @@ title: Add interactive diff preview
 - Local interactive unit test result: `8 passed; 0 failed`.
 - Local guarded integration test result: `1 passed; 0 failed`.
 - Unit coverage asserts unmatched raw content is hidden and raw matched values do not appear in preview output.
-- SOT will be renamed after PR creation.
+- SOT was renamed after PR #125 was created.
 
 ## Non-goals
 - [x] Do not implement decision input.
