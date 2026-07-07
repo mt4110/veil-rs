@@ -6,6 +6,7 @@ export type GradeName = 'Low' | 'Medium' | 'High' | 'Critical';
 export type BaselineStatus = 'none' | 'new' | 'suppressed';
 export type PresetName = 'standard-jp' | 'fintech-jp' | 'gov-jp' | 'si-vendor-jp' | 'logs-jp';
 export type ScanMode = 'full' | 'staged' | 'ci';
+export type ConfigLayerName = 'builtin' | 'preset' | 'org' | 'repo' | 'cli';
 export type RunStatus = 'success' | 'violation' | 'incomplete' | 'error';
 export type ErrorCode =
   | 'INVALID_REQUEST'
@@ -74,6 +75,31 @@ export type ScanResponse = {
   builtinSkips: string[];
   findings: SafeFindingApiV1[];
   expiresAtUtc: string;
+};
+
+export type ConfigLayerSummary = {
+  name: ConfigLayerName;
+  path?: string | null;
+  loaded: boolean;
+  warnings: string[];
+};
+
+export type ConfigConflict = {
+  key: string;
+  winner: ConfigLayerName;
+  shadowed: ConfigLayerName[];
+  explanation: string;
+};
+
+export type PolicyResponse = {
+  schemaVersion: LocalApiSchemaVersion;
+  hasOrgConfig: boolean;
+  orgConfigPath?: string | null;
+  repoConfigPath?: string | null;
+  effectiveRulesCount: number;
+  preset?: string | null;
+  layers: ConfigLayerSummary[];
+  conflicts: ConfigConflict[];
 };
 
 export type ErrorEnvelope = {

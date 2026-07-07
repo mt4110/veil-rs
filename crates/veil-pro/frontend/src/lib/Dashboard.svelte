@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Shield, LayoutDashboard, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
   import ScanView from './ScanView.svelte';
+  import PolicyView from './PolicyView.svelte';
 
   type DashboardProps = {
     authType?: string | null;
@@ -81,11 +82,7 @@
       {#if currentView === 'scan'}
         <ScanView />
       {:else if currentView === 'policy'}
-        <div class="glass-panel overview-hero state-anim">
-           <h3>Governance Policy</h3>
-           <p>Active policy applies to all scans in this session.</p>
-           <!-- Future PolicyPanel integration goes here -->
-        </div>
+        <PolicyView />
       {:else}
          <div class="glass-panel overview-hero state-anim">
            <h3>Configuration</h3>
