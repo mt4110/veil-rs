@@ -22,6 +22,12 @@ impl Default for ScoreParams {
                 "sample".to_string(),
                 "dummy".to_string(),
                 "mock".to_string(),
+                "sandbox".to_string(),
+                "テスト".to_string(),
+                "サンプル".to_string(),
+                "ダミー".to_string(),
+                "モック".to_string(),
+                "サンドボックス".to_string(),
             ],
             prod_words: vec![
                 "prod".to_string(),
@@ -187,6 +193,18 @@ mod tests {
         // Test context
         finding.context_before = vec!["// this is a test case".to_string()];
         assert_eq!(calculate_score(&rule, &finding, &params), 50); // 60 - 10
+
+        for context in [
+            "// sandbox fixture",
+            "// これはテスト用データです",
+            "// サンプルCSV",
+            "// ダミー個人情報",
+            "// モックAPI",
+            "// サンドボックス環境",
+        ] {
+            finding.context_before = vec![context.to_string()];
+            assert_eq!(calculate_score(&rule, &finding, &params), 50);
+        }
 
         // Prod context
         finding.context_before = vec!["// production config".to_string()];
