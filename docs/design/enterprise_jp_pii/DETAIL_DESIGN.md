@@ -2540,7 +2540,7 @@ PR分割:
 - [x] Finding iteration state machine（renderer 未接続）
 - [x] terminal rendering（safe masked context）
 - [x] diff preview（safe redacted preview）
-- [ ] atomic write
+- [x] atomic write
 - [x] tests with scripted stdin
 
 ## Phase 4: LSP

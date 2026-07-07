@@ -67,3 +67,28 @@ fn scan_interactive_accepts_scripted_quit() {
         )
         .stderr(predicate::str::is_empty());
 }
+
+#[test]
+fn scan_interactive_masks_with_scripted_input() {
+    let temp_dir = tempdir().unwrap();
+    let secret_path = temp_dir.path().join("secret.txt");
+    fs::write(
+        &secret_path,
+        "AWS_ACCESS_KEY_ID = \"AKIAIOSFODNN7EXAMPLE\"\n",
+    )
+    .unwrap();
+
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
+    cmd.arg("scan")
+        .arg("--interactive")
+        .arg(temp_dir.path())
+        .write_stdin("mask\n")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Masked:"))
+        .stderr(predicate::str::is_empty());
+
+    let masked = fs::read_to_string(secret_path).unwrap();
+    assert!(masked.contains("<REDACTED>"));
+    assert!(!masked.contains("AKIAIOSFODNN7EXAMPLE"));
+}
