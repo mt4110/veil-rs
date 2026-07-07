@@ -2,8 +2,18 @@
   import { Shield, LayoutDashboard, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
   import ScanView from './ScanView.svelte';
 
+  type DashboardProps = {
+    authType?: string | null;
+    userName?: string | null;
+    userEmail?: string | null;
+  };
+
+  let { authType = null, userName = null, userEmail = null }: DashboardProps = $props();
+
   // v1.0.0 strict local-first architecture (No SSO, Local Token Auth)
   let currentView = $state('scan');
+  let displayName = $derived(userName || userEmail || 'Local Admin');
+  let sessionLabel = $derived(authType === 'sso' ? 'SSO Session' : 'CLI Session');
 </script>
 
 <div class="dashboard-layout">
@@ -39,8 +49,8 @@
     <div class="user-profile">
       <UserCircle size={32} color="var(--text-secondary)" />
       <div class="user-info">
-        <strong>Local Admin</strong>
-        <span>CLI Session</span>
+        <strong>{displayName}</strong>
+        <span>{sessionLabel}</span>
       </div>
     </div>
   </aside>

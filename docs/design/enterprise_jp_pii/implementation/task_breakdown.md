@@ -57,7 +57,7 @@
 
 - [x] Local API scanで `PresetName` を builtin preset configへ解決する。
 - [x] `logs-jp` scanではCLIと同じく `rules/log` RulePackを必須にする。
-- [ ] OpenAPI generated schemaをUI clientへ反映。
+- [x] OpenAPI generated schemaをUI clientへ反映。
 - [x] UI scan requestでpresetを渡せる最小導線を確認する。
 - [ ] `includeSuppressed` UI toggle
 - [ ] limit reached / coverageComplete UI表示
