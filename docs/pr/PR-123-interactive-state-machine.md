@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 123
 status: Draft
 created_at: TBD
 branch: feat/interactive-state-machine
@@ -12,7 +12,7 @@ title: Add interactive scan state machine
 ## SOT
 - Title: Add interactive scan state machine
 - Status: Draft
-- PR: TBD
+- PR: #123
 
 ## What
 - [x] Add an `interactive_scan` state machine for Phase 3 interactive scan flow.
@@ -31,7 +31,7 @@ title: Add interactive scan state machine
 ## Evidence
 - Local state-machine test result: `6 passed; 0 failed` for `interactive_scan`.
 - Local guarded integration test result: `1 passed; 0 failed`.
-- SOT will be renamed after PR creation.
+- SOT was renamed after PR #123 was created.
 
 ## Non-goals
 - [x] Do not implement terminal rendering.
