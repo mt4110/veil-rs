@@ -76,25 +76,9 @@ pub fn address_prefecture_city_block(candidate: &str) -> bool {
 }
 
 pub fn mynumber_len12(candidate: &str) -> bool {
-    candidate
-        .chars()
-        .chain(std::iter::once('\0'))
-        .scan(Vec::new(), |digits, ch| {
-            if let Some(digit) = digit_value(ch) {
-                digits.push(digit);
-                return Some(None);
-            }
-
-            if is_mynumber_separator(ch) && !digits.is_empty() {
-                return Some(None);
-            }
-
-            let len = digits.len();
-            digits.clear();
-            Some(Some(len))
-        })
-        .flatten()
-        .any(|len| len == 12)
+    mynumber_digit_runs(candidate)
+        .iter()
+        .any(|digits| mynumber_digits_valid(digits))
 }
 
 pub fn phone_mobile(candidate: &str) -> bool {
@@ -177,6 +161,62 @@ fn is_mynumber_separator(ch: char) -> bool {
     is_card_separator(ch) || matches!(ch, '－' | '―' | '‐' | '‑' | '–' | '—' | 'ー')
 }
 
+fn mynumber_digit_runs(candidate: &str) -> Vec<Vec<u8>> {
+    let mut runs = Vec::new();
+    let mut digits = Vec::new();
+
+    for ch in candidate.chars().chain(std::iter::once('\0')) {
+        if let Some(digit) = digit_value(ch) {
+            digits.push(digit);
+            continue;
+        }
+
+        if is_mynumber_separator(ch) && !digits.is_empty() {
+            continue;
+        }
+
+        if !digits.is_empty() {
+            runs.push(std::mem::take(&mut digits));
+        }
+    }
+
+    runs
+}
+
+fn mynumber_digits_valid(digits: &[u8]) -> bool {
+    if digits.len() != 12 {
+        return false;
+    }
+
+    #[cfg(feature = "jp_mynumber_checksum")]
+    {
+        mynumber_checksum_valid(digits)
+    }
+
+    #[cfg(not(feature = "jp_mynumber_checksum"))]
+    {
+        true
+    }
+}
+
+#[cfg(feature = "jp_mynumber_checksum")]
+fn mynumber_checksum_valid(digits: &[u8]) -> bool {
+    let sum: u32 = digits[..11]
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(index, digit)| {
+            let n = index + 1;
+            let weight = if n <= 6 { n + 1 } else { n - 5 };
+            u32::from(*digit) * weight as u32
+        })
+        .sum();
+    let remainder = sum % 11;
+    let expected = if remainder <= 1 { 0 } else { 11 - remainder } as u8;
+
+    digits[11] == expected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,12 +256,20 @@ mod tests {
 
     #[test]
     fn mynumber_len12_counts_digits_after_separator_removal() {
-        assert!(mynumber_len12("マイナンバー: 1234-5678-9012"));
-        assert!(mynumber_len12("個人番号 １２３４ ５６７８ ９０１２"));
-        assert!(mynumber_len12("個人番号 １２３４－５６７８ー９０１２"));
-        assert!(mynumber_len12("個人番号（第１号）: 1234-5678-9012"));
+        assert!(mynumber_len12("マイナンバー: 1234-5678-9018"));
+        assert!(mynumber_len12("個人番号 １２３４ ５６７８ ９０１８"));
+        assert!(mynumber_len12("個人番号 １２３４－５６７８ー９０１８"));
+        assert!(mynumber_len12("個人番号（第１号）: 1234-5678-9018"));
         assert!(!mynumber_len12("1234-5678"));
         assert!(!mynumber_len12("1234-5678-9012-3"));
+    }
+
+    #[cfg(feature = "jp_mynumber_checksum")]
+    #[test]
+    fn mynumber_checksum_feature_requires_valid_check_digit() {
+        assert!(mynumber_len12("マイナンバー: 1234-5678-9018"));
+        assert!(mynumber_len12("個人番号 １２３４ ５６７８ ９０１８"));
+        assert!(!mynumber_len12("マイナンバー: 1234-5678-9012"));
     }
 
     #[test]

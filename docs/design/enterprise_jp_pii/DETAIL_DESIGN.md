@@ -812,7 +812,7 @@ file: src/sample.rs:42
 
 Before:
   40 | let name = "山田 太郎";
-> 42 | let id = "マイナンバー: 1234-5678-9012";
+> 42 | let id = "マイナンバー: 1234-5678-9018";
 After mask preview:
 > 42 | let id = "マイナンバー: <REDACTED>";
 
@@ -967,7 +967,7 @@ pub struct OriginalSpan {
 
 ### Validator
 - 数字以外を除去して12桁か確認。
-- v1ではJ-LISの完全チェックデジットは feature flag `jp_mynumber_checksum` として追加可能にする。
+- J-LISチェックデジットは default off の feature flag `jp_mynumber_checksum` で有効化可能にする。
 - ラベルなし12桁は単独でHighにしない。
 - 同一行に `test`, `dummy`, `sample`, `example`, `0000` 反復がある場合は scoreを減衰。
 
@@ -1098,7 +1098,7 @@ Fail条件は `score` を正本にする。`--fail-on-severity High` は `score 
 - [x] Address validatorを実装し、`pii.jp.address.prefecture_heuristic` に `jp_address_prefecture_city_block` validatorを配線する。
 - [x] negative context score dampeningに `sandbox` と日本語テストデータ文脈を追加する。
 - [ ] Name validatorを実装する。現状の `pii.person.name.keyword` はラベル付きヒューリスティックであり、実装済みvalidatorとは扱わない。
-- [ ] J-LIS MyNumberチェックデジットを feature flag `jp_mynumber_checksum` として後続実装する。
+- [x] J-LIS MyNumberチェックデジットを feature flag `jp_mynumber_checksum` として実装する。
 
 ---
 
@@ -2380,7 +2380,7 @@ tests/fixtures/jp_pii/negative/version_numbers.txt
 
 ### Positive例
 ```text
-個人番号: １２３４－５６７８－９０１２
+個人番号: １２３４－５６７８－９０１８
 東京都千代田区丸の内１丁目１番１号
 クレジットカード: 4111 1111 1111 1111
 ```
@@ -2512,6 +2512,7 @@ PR-0では以下を必須testにする。
 - [x] `jp_normalize` 実装
 - [x] span mapping導入
 - [x] MyNumber validator / Luhn validator / mobile validator / address validator
+- [x] J-LIS MyNumber checksum feature flag
 - [x] `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, `logs-jp` presets追加
 - [x] Positive/Negative fixtures追加
 - [x] score調整（negative context dampeningをJPテストデータ文脈へ拡張）

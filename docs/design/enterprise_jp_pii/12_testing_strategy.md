@@ -24,7 +24,7 @@ tests/fixtures/jp_pii/negative/version_numbers.txt
 
 ### Positive例
 ```text
-個人番号: １２３４－５６７８－９０１２
+個人番号: １２３４－５６７８－９０１８
 東京都千代田区丸の内１丁目１番１号
 クレジットカード: 4111 1111 1111 1111
 ```

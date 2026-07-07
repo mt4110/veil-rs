@@ -96,7 +96,7 @@ file: src/sample.rs:42
 
 Before:
   40 | let name = "山田 太郎";
-> 42 | let id = "マイナンバー: 1234-5678-9012";
+> 42 | let id = "マイナンバー: 1234-5678-9018";
 After mask preview:
 > 42 | let id = "マイナンバー: <REDACTED>";
 

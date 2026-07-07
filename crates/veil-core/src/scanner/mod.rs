@@ -913,7 +913,7 @@ mod tests {
         };
         let rules = vec![rule];
         let config = Config::default();
-        let content = "😀 個人番号：１２３４－５６７８－９０１２";
+        let content = "😀 個人番号：１２３４－５６７８－９０１８";
 
         let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
 
@@ -961,7 +961,7 @@ mod tests {
         };
         let rules = vec![rule_without_choonpu];
         let config = Config::default();
-        let content = "マイナンバー：１２３４－５６７８ー９０１２";
+        let content = "マイナンバー：１２３４－５６７８ー９０１８";
 
         let findings = scan_content(content, Path::new("jp.txt"), &rules, &config);
 

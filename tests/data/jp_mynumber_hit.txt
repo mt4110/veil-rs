@@ -1,5 +1,5 @@
 # RULE: pii.jp.mynumber.keyword
 # MODE: hit
 
-My Number: 1234-5678-9012
-Also: 123456789012
+My Number: 1234-5678-9018
+Also: 123456789018
