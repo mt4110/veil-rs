@@ -38,12 +38,12 @@ regex = "1.12.2"
 toml_edit = "0.22"
 ctrlc = "3.5.1"
 rust-embed = "8.5"
+tempfile = "3.10"
 
 [dev-dependencies]
 trycmd = "0.15"
 assert_cmd = "2.0"
 predicates = "3.1"
-tempfile = "3.10"
 fs2 = { workspace = true }
 zip = "5.0.1"
 hex = "0.4.3"

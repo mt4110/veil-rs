@@ -1,5 +1,7 @@
 use anyhow::{bail, Context, Result};
+use std::fs;
 use std::io::{self, BufRead, Write};
+use std::path::Path;
 use veil_core::Finding;
 
 #[allow(dead_code)]
@@ -275,8 +277,22 @@ pub fn run_with_io<R: BufRead, W: Write>(
                 state.apply(InteractiveScanAction::HelpDismissed)?;
             }
             Some(InteractiveDecision::Mask) => {
+                let Some(index) = state.current_index() else {
+                    return Ok(false);
+                };
                 state.apply(InteractiveScanAction::MaskRequested)?;
-                bail!("--interactive action 'mask' is parsed but write handling is not implemented yet");
+                state.apply(InteractiveScanAction::PreviewRendered)?;
+                let wrote = apply_mask_atomic(&findings[index])?;
+                if wrote {
+                    writeln!(output, "Masked: {}", findings[index].path.display())?;
+                } else {
+                    writeln!(output, "Already masked: {}", findings[index].path.display())?;
+                }
+                output.flush().context("flush interactive mask result")?;
+                state.apply(InteractiveScanAction::WriteConfirmed)?;
+                if matches!(state.phase(), InteractiveScanPhase::Complete) {
+                    return Ok(false);
+                }
             }
             Some(InteractiveDecision::IgnoreRuleLine) => {
                 bail!(
@@ -302,9 +318,120 @@ pub fn run_with_io<R: BufRead, W: Write>(
     }
 }
 
+fn apply_mask_atomic(finding: &Finding) -> Result<bool> {
+    if finding.matched_content.is_empty() {
+        bail!("cannot mask finding with empty matched content");
+    }
+
+    if finding.masked_snippet.contains('\n') || finding.masked_snippet.contains('\r') {
+        bail!("cannot mask finding with multi-line masked snippet");
+    }
+
+    let content = fs::read_to_string(&finding.path)
+        .with_context(|| format!("read {}", finding.path.display()))?;
+    let Some(new_content) = masked_file_content(&content, finding)? else {
+        return Ok(false);
+    };
+
+    write_atomic(&finding.path, &new_content)?;
+    Ok(true)
+}
+
+fn masked_file_content(content: &str, finding: &Finding) -> Result<Option<String>> {
+    let Some(target_index) = finding.line_number.checked_sub(1) else {
+        bail!("finding line number must be 1-based");
+    };
+
+    let mut output = String::with_capacity(content.len());
+    let mut found_target = false;
+
+    for (index, segment) in content.split_inclusive('\n').enumerate() {
+        if index != target_index {
+            output.push_str(segment);
+            continue;
+        }
+
+        found_target = true;
+        let (line, ending) = split_line_ending(segment);
+
+        if line == finding.masked_snippet {
+            return Ok(None);
+        }
+
+        if line != finding.line_content {
+            bail!(
+                "refusing to mask {}:{} because the line changed since scan",
+                finding.path.display(),
+                finding.line_number
+            );
+        }
+
+        if !line.contains(&finding.matched_content) {
+            bail!(
+                "refusing to mask {}:{} because matched content is no longer present",
+                finding.path.display(),
+                finding.line_number
+            );
+        }
+
+        output.push_str(&finding.masked_snippet);
+        output.push_str(ending);
+    }
+
+    if !found_target {
+        bail!(
+            "refusing to mask {}:{} because the line was not found",
+            finding.path.display(),
+            finding.line_number
+        );
+    }
+
+    Ok(Some(output))
+}
+
+fn split_line_ending(segment: &str) -> (&str, &str) {
+    if let Some(line) = segment.strip_suffix("\r\n") {
+        (line, "\r\n")
+    } else if let Some(line) = segment.strip_suffix('\n') {
+        (line, "\n")
+    } else {
+        (segment, "")
+    }
+}
+
+fn write_atomic(path: &Path, content: &str) -> Result<()> {
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let permissions = fs::metadata(path)
+        .with_context(|| format!("read metadata for {}", path.display()))?
+        .permissions();
+    let mut tmp = tempfile::Builder::new()
+        .prefix(".veil-interactive-mask.")
+        .tempfile_in(parent)
+        .with_context(|| format!("create temp file in {}", parent.display()))?;
+
+    tmp.write_all(content.as_bytes())
+        .with_context(|| format!("write temp file for {}", path.display()))?;
+    tmp.flush()
+        .with_context(|| format!("flush temp file for {}", path.display()))?;
+    fs::set_permissions(tmp.path(), permissions)
+        .with_context(|| format!("set temp file permissions for {}", tmp.path().display()))?;
+    tmp.as_file()
+        .sync_all()
+        .with_context(|| format!("sync temp file for {}", path.display()))?;
+    tmp.persist(path)
+        .map_err(|error| error.error)
+        .with_context(|| format!("replace {}", path.display()))?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::path::PathBuf;
     use veil_core::{FindingSpan, Grade, Position, Range, Severity};
 
@@ -443,16 +570,55 @@ mod tests {
     }
 
     #[test]
-    fn runner_guards_mask_until_write_lands() {
-        let findings = vec![test_finding()];
+    fn runner_masks_scripted_decision_with_atomic_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret.txt");
+        fs::write(&path, "token = raw-secret-value\nnext = safe\n").unwrap();
+        let findings = vec![test_finding_at(path.clone())];
         let mut input = io::Cursor::new(b"mask\n".to_vec());
         let mut output = Vec::new();
 
-        let err = run_with_io(&findings, &mut input, &mut output)
-            .unwrap_err()
-            .to_string();
+        assert!(!run_with_io(&findings, &mut input, &mut output).unwrap());
+        let rendered = String::from_utf8(output).unwrap();
 
-        assert!(err.contains("write handling is not implemented yet"));
+        assert!(rendered.contains("Masked:"));
+        assert_eq!(
+            fs::read_to_string(path).unwrap(),
+            "token = <REDACTED>\nnext = safe\n"
+        );
+    }
+
+    #[test]
+    fn atomic_mask_rejects_stale_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("secret.txt");
+        fs::write(&path, "token = changed-value\n").unwrap();
+        let finding = test_finding_at(path.clone());
+
+        let err = apply_mask_atomic(&finding).unwrap_err().to_string();
+
+        assert!(err.contains("line changed since scan"));
+        assert_eq!(fs::read_to_string(path).unwrap(), "token = changed-value\n");
+    }
+
+    #[test]
+    fn atomic_mask_preserves_crlf_line_endings() {
+        let finding = test_finding();
+
+        let masked = masked_file_content("token = raw-secret-value\r\nnext = safe\r\n", &finding)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(masked, "token = <REDACTED>\r\nnext = safe\r\n");
+    }
+
+    #[test]
+    fn atomic_mask_is_idempotent_for_already_masked_line() {
+        let finding = test_finding();
+
+        assert!(masked_file_content("token = <REDACTED>\n", &finding)
+            .unwrap()
+            .is_none());
     }
 
     #[test]
@@ -466,7 +632,7 @@ mod tests {
 
         assert!(rendered.contains("Finding 1/1"));
         assert!(rendered.contains("Rule: pii.test"));
-        assert!(rendered.contains("File: src/main.rs:42"));
+        assert!(rendered.contains("File: src/main.rs:1"));
         assert!(rendered.contains("Severity: HIGH  Score: 90  Grade: CRITICAL"));
         assert!(rendered.contains("token = <REDACTED>"));
         assert!(rendered.contains("Mask preview:"));
@@ -491,9 +657,13 @@ mod tests {
     }
 
     fn test_finding() -> Finding {
+        test_finding_at(PathBuf::from("src/main.rs"))
+    }
+
+    fn test_finding_at(path: PathBuf) -> Finding {
         Finding {
-            path: PathBuf::from("src/main.rs"),
-            line_number: 42,
+            path,
+            line_number: 1,
             line_content: "token = raw-secret-value".to_string(),
             rule_id: "pii.test".to_string(),
             matched_content: "raw-secret-value".to_string(),
@@ -504,11 +674,11 @@ mod tests {
             span: FindingSpan::default(),
             utf16_range: Range {
                 start: Position {
-                    line: 41,
+                    line: 0,
                     character: 8,
                 },
                 end: Position {
-                    line: 41,
+                    line: 0,
                     character: 24,
                 },
             },
