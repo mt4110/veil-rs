@@ -1,0 +1,13 @@
+[package]
+name = "veil-lsp"
+version = "0.17.0"
+edition = "2021"
+rust-version.workspace = true
+
+[[bin]]
+name = "veil-lsp"
+path = "src/main.rs"
+
+[dependencies]
+veil-core = { workspace = true }
+veil-config = { workspace = true }

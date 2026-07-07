@@ -4460,6 +4460,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "veil-lsp"
+version = "0.17.0"
+dependencies = [
+ "veil-config",
+ "veil-core",
+]
+
+[[package]]
 name = "veil-pro"
 version = "0.17.0"
 dependencies = [

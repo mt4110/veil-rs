@@ -6,6 +6,7 @@ members = [
     "crates/veil-server",
     "crates/veil-guardian",
     "crates/veil-pro",
+    "crates/veil-lsp",
 ]
 resolver = "2"
 
