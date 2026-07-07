@@ -59,6 +59,25 @@ cargo install --path crates/veil-cli --bin veil
 veil scan .
 ```
 
+### Japan Preset Quickstart
+
+For Japan-focused scans, apply a purpose-built preset as the base config layer. Project config, `VEIL_ORG_CONFIG`, and repo-local settings can still override preset values.
+
+```bash
+# Initialize a fintech/JP PII-oriented config
+veil init --preset fintech-jp
+
+# Apply the preset for one scan
+veil scan . --preset fintech-jp
+
+# Inspect only the preset layer
+veil config dump --preset fintech-jp --layer preset
+```
+
+Available presets are `standard-jp`, `fintech-jp`, `gov-jp`, `si-vendor-jp`, and `logs-jp`. The log-audit `logs-jp` preset requires the `rules/log` RulePack, so run `veil init --preset logs-jp` before scanning with it.
+
+The Veil Pro Dashboard scan view also supports preset selection. Enable `Include Suppressed` to review baseline-suppressed findings, and use the Coverage card plus reason chips when a scan reaches a limit or returns `coverageComplete=false`.
+
 ### Veil Pro Dashboard Quickstart
 The **Veil Pro Dashboard** acts as your local "command center" for daily triage, noise management, and auditing, featuring B2B-grade security measures like local-first isolation and Zero Telemetry.
 

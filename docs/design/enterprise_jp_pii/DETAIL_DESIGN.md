@@ -2530,7 +2530,7 @@ PR分割:
 - [x] `veil init --preset` 実装
 - [x] `veil scan --preset` 実装
 - [ ] wizard推論ロジック
-- [ ] docs/README更新
+- [x] docs/README更新
 - [x] `veil config dump --preset` 実装
 - [x] Local API / UI の preset対応（#106: Local API scan preset解決 + 最小UI selector。大きなUI workflow改修はPhase 5）
 
