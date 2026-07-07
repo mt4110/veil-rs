@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 130
 status: Draft
 created_at: TBD
 branch: feat/lsp-diagnostics-mapping
@@ -12,7 +12,7 @@ title: Add LSP diagnostics mapping
 ## SOT
 - Title: Add LSP diagnostics mapping
 - Status: Draft
-- PR: TBD
+- PR: #130
 
 ## What
 - [x] Add pure `Finding` to LSP `Diagnostic` mapping in `veil-lsp`.
