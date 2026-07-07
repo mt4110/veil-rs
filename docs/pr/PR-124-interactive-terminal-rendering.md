@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 124
 status: Draft
 created_at: TBD
 branch: feat/interactive-terminal-rendering
@@ -12,7 +12,7 @@ title: Add interactive terminal rendering
 ## SOT
 - Title: Add interactive terminal rendering
 - Status: Draft
-- PR: TBD
+- PR: #124
 
 ## What
 - [x] Add terminal rendering for the current `veil scan --interactive` finding.
@@ -32,7 +32,7 @@ title: Add interactive terminal rendering
 - Local interactive unit test result: `7 passed; 0 failed`.
 - Local guarded integration test result: `1 passed; 0 failed`.
 - Unit coverage asserts the rendered terminal context contains `<REDACTED>` and does not contain the raw matched value.
-- SOT will be renamed after PR creation.
+- SOT was renamed after PR #124 was created.
 
 ## Non-goals
 - [x] Do not implement decision input.
