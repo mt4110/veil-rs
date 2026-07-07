@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Login from './lib/Login.svelte';
   import Dashboard from './lib/Dashboard.svelte';
+  import type { AuthContext } from './lib/api-contract';
   import type { AuthState } from './lib/ui-state';
 
   let authState = $state<AuthState>({ kind: 'Checking' });
@@ -26,13 +27,13 @@
 
       const res = await fetch('/api/me', { headers });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as AuthContext;
         authState = {
           kind: 'Authenticated',
           session: {
             authType: data.type,
-            userEmail: data.email || null,
-            userName: data.name || null
+            userEmail: data.type === 'sso' ? data.email : null,
+            userName: data.type === 'sso' ? data.name || null : null
           }
         };
       } else {

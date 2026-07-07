@@ -1,7 +1,7 @@
-import type { PolicyResponse, PresetName } from './api-contract';
+import type { AuthContextType, PolicyResponse, PresetName } from './api-contract';
 
 export type AuthSession = {
-  authType: string | null;
+  authType: AuthContextType;
   userEmail: string | null;
   userName: string | null;
 };

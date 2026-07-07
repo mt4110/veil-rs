@@ -72,8 +72,8 @@
     }
   }
 
-  function layerLabel(layer: ConfigLayerName): string {
-    return layerLabels[layer];
+  function layerLabel(layer: string): string {
+    return layerLabels[layer as ConfigLayerName] ?? layer;
   }
 </script>
 
