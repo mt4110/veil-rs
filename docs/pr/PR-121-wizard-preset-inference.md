@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 121
 status: Draft
 created_at: TBD
 branch: feat/wizard-preset-inference
@@ -12,7 +12,7 @@ title: Add wizard preset inference
 ## SOT
 - Title: Add wizard preset inference
 - Status: Draft
-- PR: TBD
+- PR: #121
 
 ## What
 - [x] Add deterministic `veil init --wizard` preset inference for root-level project signals.
@@ -28,7 +28,7 @@ title: Add wizard preset inference
 
 ## Evidence
 - Local test result: `5 passed; 0 failed` for `infer_wizard_preset`.
-- SOT will be renamed from `PR-TBD-wizard-preset-inference.md` after PR creation.
+- SOT was renamed from the temporary PR placeholder name after PR #121 was created.
 
 ## Non-goals
 - [x] Do not add `CoreConfig.preset`.
