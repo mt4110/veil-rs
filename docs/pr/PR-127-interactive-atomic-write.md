@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 127
 status: Draft
 created_at: TBD
 branch: feat/interactive-atomic-write
@@ -12,7 +12,7 @@ title: Add interactive atomic write
 ## SOT
 - Title: Add interactive atomic write
 - Status: Draft
-- PR: TBD
+- PR: #127
 
 ## What
 - [x] Connect the interactive `mask` decision to file mutation.
@@ -34,7 +34,7 @@ title: Add interactive atomic write
 - Local scripted interactive integration result: `2 passed; 0 failed`.
 - Unit coverage asserts stale-line refusal, CRLF preservation, and already-masked idempotence.
 - CLI coverage asserts `mask\n` redacts the file and removes the raw AWS key.
-- SOT will be renamed after the PR number is assigned.
+- SOT was renamed after PR #127 was created.
 
 ## Non-goals
 - [x] Do not implement `ignore-line` or `skip-file` mutation.
