@@ -169,12 +169,32 @@ pub fn render_finding_context<W: Write>(
     )?;
     writeln!(writer, "Snippet:")?;
     writeln!(writer, "{}", finding.masked_snippet.trim())?;
+    render_mask_preview(writer, finding)?;
     writeln!(writer)?;
     writeln!(
         writer,
         "Action: mask / skip / ignore-line / skip-file / help / quit"
     )?;
     Ok(())
+}
+
+pub fn render_mask_preview<W: Write>(writer: &mut W, finding: &Finding) -> io::Result<()> {
+    writeln!(writer, "Mask preview:")?;
+    writeln!(writer, "- {}", safe_before_line(finding))?;
+    writeln!(writer, "+ {}", finding.masked_snippet.trim())?;
+    Ok(())
+}
+
+fn safe_before_line(finding: &Finding) -> String {
+    if finding.matched_content.is_empty()
+        || !finding.line_content.contains(&finding.matched_content)
+    {
+        return "<sensitive content hidden>".to_string();
+    }
+
+    finding
+        .line_content
+        .replacen(&finding.matched_content, "<MATCH>", 1)
 }
 
 pub fn run_guarded_until_decision_input_lands(findings: &[Finding]) -> Result<bool> {
@@ -288,7 +308,25 @@ mod tests {
         assert!(rendered.contains("File: src/main.rs:42"));
         assert!(rendered.contains("Severity: HIGH  Score: 90  Grade: CRITICAL"));
         assert!(rendered.contains("token = <REDACTED>"));
+        assert!(rendered.contains("Mask preview:"));
+        assert!(rendered.contains("- token = <MATCH>"));
+        assert!(rendered.contains("+ token = <REDACTED>"));
         assert!(!rendered.contains("raw-secret-value"));
+    }
+
+    #[test]
+    fn mask_preview_hides_unmatched_raw_content() {
+        let mut finding = test_finding();
+        finding.matched_content = "different-raw-value".to_string();
+        let mut output = Vec::new();
+
+        render_mask_preview(&mut output, &finding).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+
+        assert!(rendered.contains("- <sensitive content hidden>"));
+        assert!(rendered.contains("+ token = <REDACTED>"));
+        assert!(!rendered.contains("raw-secret-value"));
+        assert!(!rendered.contains("different-raw-value"));
     }
 
     fn test_finding() -> Finding {

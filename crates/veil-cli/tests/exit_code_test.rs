@@ -62,6 +62,7 @@ fn scan_interactive_renders_first_finding_until_decision_input_lands() {
         .stdout(
             predicate::str::contains("Finding 1/")
                 .and(predicate::str::contains("Snippet:"))
+                .and(predicate::str::contains("Mask preview:"))
                 .and(predicate::str::contains("<REDACTED>")),
         )
         .stderr(predicate::str::contains(
