@@ -1,4 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use std::io::{self, Write};
+use veil_core::Finding;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,6 +78,14 @@ impl InteractiveScanState {
         }
     }
 
+    pub fn current_index(&self) -> Option<usize> {
+        if self.total_findings == 0 || matches!(self.phase, InteractiveScanPhase::Complete) {
+            None
+        } else {
+            Some(self.current_index)
+        }
+    }
+
     pub fn apply(&mut self, action: InteractiveScanAction) -> Result<()> {
         if action == InteractiveScanAction::QuitRequested
             && !matches!(self.phase, InteractiveScanPhase::Complete)
@@ -135,16 +145,56 @@ pub fn supported_actions() -> &'static [InteractiveScanAction] {
     &SUPPORTED_ACTIONS
 }
 
-pub fn run_guarded_until_renderer_lands(total_findings: usize) -> Result<bool> {
-    let state = InteractiveScanState::new(total_findings);
+pub fn render_finding_context<W: Write>(
+    writer: &mut W,
+    state: &InteractiveScanState,
+    finding: &Finding,
+) -> io::Result<()> {
+    let Some((position, total)) = state.position() else {
+        return Ok(());
+    };
+
+    writeln!(writer, "Finding {}/{}", position, total)?;
+    writeln!(writer, "Rule: {}", finding.rule_id)?;
+    writeln!(
+        writer,
+        "File: {}:{}",
+        finding.path.display(),
+        finding.line_number
+    )?;
+    writeln!(
+        writer,
+        "Severity: {}  Score: {}  Grade: {}",
+        finding.severity, finding.score, finding.grade
+    )?;
+    writeln!(writer, "Snippet:")?;
+    writeln!(writer, "{}", finding.masked_snippet.trim())?;
+    writeln!(writer)?;
+    writeln!(
+        writer,
+        "Action: mask / skip / ignore-line / skip-file / help / quit"
+    )?;
+    Ok(())
+}
+
+pub fn run_guarded_until_decision_input_lands(findings: &[Finding]) -> Result<bool> {
+    let mut state = InteractiveScanState::new(findings.len());
     if matches!(state.phase(), InteractiveScanPhase::Complete) {
         return Ok(false);
     }
 
+    if let Some(index) = state.current_index() {
+        let stdout = io::stdout();
+        let mut writer = stdout.lock();
+        render_finding_context(&mut writer, &state, &findings[index])
+            .context("render interactive finding context")?;
+    }
+    state.apply(InteractiveScanAction::ContextRendered)?;
+
     bail!(
-        "--interactive initialized finding iteration state at {:?} for {} finding(s), but terminal rendering is not implemented yet. Supported actions: {}.",
+        "--interactive rendered finding context at {:?} for {} finding(s), but decision input is not implemented yet. Supported actions: {}.",
         state.position(),
-        total_findings,
+        findings.len(),
         supported_actions().len()
     )
 }
@@ -152,6 +202,8 @@ pub fn run_guarded_until_renderer_lands(total_findings: usize) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use veil_core::{FindingSpan, Grade, Position, Range, Severity};
 
     #[test]
     fn state_starts_complete_without_findings() {
@@ -219,6 +271,53 @@ mod tests {
 
     #[test]
     fn guarded_runner_succeeds_without_findings() {
-        assert!(!run_guarded_until_renderer_lands(0).unwrap());
+        assert!(!run_guarded_until_decision_input_lands(&[]).unwrap());
+    }
+
+    #[test]
+    fn renderer_prints_safe_finding_context() {
+        let state = InteractiveScanState::new(1);
+        let finding = test_finding();
+        let mut output = Vec::new();
+
+        render_finding_context(&mut output, &state, &finding).unwrap();
+        let rendered = String::from_utf8(output).unwrap();
+
+        assert!(rendered.contains("Finding 1/1"));
+        assert!(rendered.contains("Rule: pii.test"));
+        assert!(rendered.contains("File: src/main.rs:42"));
+        assert!(rendered.contains("Severity: HIGH  Score: 90  Grade: CRITICAL"));
+        assert!(rendered.contains("token = <REDACTED>"));
+        assert!(!rendered.contains("raw-secret-value"));
+    }
+
+    fn test_finding() -> Finding {
+        Finding {
+            path: PathBuf::from("src/main.rs"),
+            line_number: 42,
+            line_content: "token = raw-secret-value".to_string(),
+            rule_id: "pii.test".to_string(),
+            matched_content: "raw-secret-value".to_string(),
+            masked_snippet: "token = <REDACTED>".to_string(),
+            severity: Severity::High,
+            score: 90,
+            grade: Grade::Critical,
+            span: FindingSpan::default(),
+            utf16_range: Range {
+                start: Position {
+                    line: 41,
+                    character: 8,
+                },
+                end: Position {
+                    line: 41,
+                    character: 24,
+                },
+            },
+            context_before: vec![],
+            context_after: vec![],
+            commit_sha: None,
+            author: None,
+            date: None,
+        }
     }
 }
