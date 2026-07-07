@@ -2,12 +2,9 @@
   import { onMount } from 'svelte';
   import Login from './lib/Login.svelte';
   import Dashboard from './lib/Dashboard.svelte';
+  import type { AuthState } from './lib/ui-state';
 
-  let isAuthenticated = $state(false);
-  let authType = $state<string | null>(null);
-  let userEmail = $state<string | null>(null);
-  let userName = $state<string | null>(null);
-  let initialized = $state(false);
+  let authState = $state<AuthState>({ kind: 'Checking' });
 
   onMount(async () => {
     // 1. Check URL Fragment for CLI token injection
@@ -30,30 +27,38 @@
       const res = await fetch('/api/me', { headers });
       if (res.ok) {
         const data = await res.json();
-        isAuthenticated = true;
-        authType = data.type;
-        userEmail = data.email || null;
-        userName = data.name || null;
+        authState = {
+          kind: 'Authenticated',
+          session: {
+            authType: data.type,
+            userEmail: data.email || null,
+            userName: data.name || null
+          }
+        };
       } else {
         // Clear stale local token if server rejected it
         if (storedToken && res.status === 401) {
           sessionStorage.removeItem('veil_token');
         }
+        authState = { kind: 'Unauthenticated' };
       }
     } catch (e) {
-        console.error("Auth check failed:", e);
+      authState = { kind: 'Unauthenticated' };
     }
-    initialized = true;
   });
 </script>
 
-{#if !initialized}
+{#if authState.kind === 'Checking'}
   <div class="loader-container">
     <div class="spinner"></div>
     <p>Authenticating...</p>
   </div>
-{:else if isAuthenticated}
-  <Dashboard {authType} {userName} {userEmail} />
+{:else if authState.kind === 'Authenticated'}
+  <Dashboard
+    authType={authState.session.authType}
+    userEmail={authState.session.userEmail}
+    userName={authState.session.userName}
+  />
 {:else}
   <Login />
 {/if}

@@ -2,10 +2,9 @@
   import { onMount } from 'svelte';
   import { AlertTriangle, CheckCircle2, FileCheck2, RefreshCcw } from 'lucide-svelte';
   import type { ConfigLayerName, ErrorEnvelope, PolicyResponse } from './api-contract';
+  import type { PolicyViewState } from './ui-state';
 
-  let policy = $state<PolicyResponse | null>(null);
-  let loading = $state(true);
-  let errorMsg = $state<string | null>(null);
+  let viewState = $state<PolicyViewState>({ kind: 'Loading' });
 
   const layerLabels: Record<ConfigLayerName, string> = {
     builtin: 'Builtin',
@@ -43,27 +42,33 @@
   }
 
   async function loadPolicy() {
-    loading = true;
-    errorMsg = null;
+    viewState = { kind: 'Loading' };
 
     try {
       const res = await fetch('/api/policy', { headers: authHeaders() });
       if (res.status === 401) {
-        errorMsg = 'Session expired. Please login again.';
-        policy = null;
+        viewState = {
+          kind: 'ErrorAuth',
+          message: 'Session expired. Please login again.'
+        };
         return;
       }
       if (!res.ok) {
-        errorMsg = await readErrorMessage(res, `Failed to load policy (HTTP ${res.status}).`);
-        policy = null;
+        viewState = {
+          kind: 'ErrorUnknown',
+          message: await readErrorMessage(res, `Failed to load policy (HTTP ${res.status}).`)
+        };
         return;
       }
-      policy = await res.json() as PolicyResponse;
+      viewState = {
+        kind: 'Ready',
+        policy: await res.json() as PolicyResponse
+      };
     } catch (err: unknown) {
-      errorMsg = err instanceof Error ? err.message : 'Network error loading policy.';
-      policy = null;
-    } finally {
-      loading = false;
+      viewState = {
+        kind: 'ErrorUnknown',
+        message: err instanceof Error ? err.message : 'Network error loading policy.'
+      };
     }
   }
 
@@ -72,38 +77,38 @@
   }
 </script>
 
-{#if loading}
+{#if viewState.kind === 'Loading'}
   <div class="glass-panel policy-state state-anim">
     <span class="spin">
       <RefreshCcw size={18} />
     </span>
     <span>Loading policy...</span>
   </div>
-{:else if errorMsg}
+{:else if viewState.kind === 'ErrorAuth' || viewState.kind === 'ErrorUnknown'}
   <div class="glass-panel policy-state error state-anim">
     <AlertTriangle size={18} />
-    <span>{errorMsg}</span>
+    <span>{viewState.message}</span>
     <button class="btn btn-sm btn-secondary" onclick={loadPolicy} type="button">
       <RefreshCcw size={14} /> Retry
     </button>
   </div>
-{:else if policy}
+{:else if viewState.kind === 'Ready'}
   <div class="policy-container state-anim">
     <div class="policy-summary">
       <div class="metric glass-panel">
-        <span class="metric-value">{policy.effectiveRulesCount}</span>
+        <span class="metric-value">{viewState.policy.effectiveRulesCount}</span>
         <span class="metric-label">Rules</span>
       </div>
       <div class="metric glass-panel">
-        <span class="metric-value text-value">{policy.preset || 'Default'}</span>
+        <span class="metric-value text-value">{viewState.policy.preset || 'Default'}</span>
         <span class="metric-label">Preset</span>
       </div>
-      <div class="metric glass-panel" class:active={policy.hasOrgConfig}>
-        <span class="metric-value text-value">{policy.hasOrgConfig ? 'Loaded' : 'None'}</span>
+      <div class="metric glass-panel" class:active={viewState.policy.hasOrgConfig}>
+        <span class="metric-value text-value">{viewState.policy.hasOrgConfig ? 'Loaded' : 'None'}</span>
         <span class="metric-label">Org Config</span>
       </div>
       <div class="metric glass-panel">
-        <span class="metric-value text-value">{policy.repoConfigPath ? 'Loaded' : 'None'}</span>
+        <span class="metric-value text-value">{viewState.policy.repoConfigPath ? 'Loaded' : 'None'}</span>
         <span class="metric-label">Repo Config</span>
       </div>
     </div>
@@ -114,7 +119,7 @@
         <h3>Config Layers</h3>
       </div>
       <div class="layer-list">
-        {#each policy.layers as layer}
+        {#each viewState.policy.layers as layer}
           <div class="layer-row" class:loaded={layer.loaded}>
             <div class="layer-status">
               {#if layer.loaded}
@@ -137,12 +142,12 @@
 
     <section class="policy-section glass-panel">
       <div class="section-heading">
-        <AlertTriangle size={20} color={policy.conflicts.length > 0 ? 'var(--warning)' : 'var(--text-secondary)'} />
+        <AlertTriangle size={20} color={viewState.policy.conflicts.length > 0 ? 'var(--warning)' : 'var(--text-secondary)'} />
         <h3>Config Conflicts</h3>
       </div>
-      {#if policy.conflicts.length > 0}
+      {#if viewState.policy.conflicts.length > 0}
         <div class="conflict-list">
-          {#each policy.conflicts as conflict}
+          {#each viewState.policy.conflicts as conflict}
             <div class="conflict-row">
               <strong>{conflict.key}</strong>
               <span>{layerLabel(conflict.winner)} wins over {conflict.shadowed.map(layerLabel).join(', ')}</span>

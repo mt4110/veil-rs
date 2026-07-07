@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Shield, LayoutDashboard, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
+  import { Shield, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
   import ScanView from './ScanView.svelte';
   import PolicyView from './PolicyView.svelte';
+  import type { DashboardView } from './ui-state';
 
   type DashboardProps = {
     authType?: string | null;
@@ -11,8 +12,7 @@
 
   let { authType = null, userName = null, userEmail = null }: DashboardProps = $props();
 
-  // v1.0.0 strict local-first architecture (No SSO, Local Token Auth)
-  let currentView = $state('scan');
+  let currentView = $state<DashboardView>('scan');
   let displayName = $derived(userName || userEmail || 'Local Admin');
   let sessionLabel = $derived(authType === 'sso' ? 'SSO Session' : 'CLI Session');
 </script>

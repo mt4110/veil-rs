@@ -70,7 +70,7 @@ PR分割:
 ## Phase 5: Local Audit UI completion
 
 - [ ] API schema alignment
-- [ ] Svelte state machine
+- [x] Svelte state machine
 - [x] Policy explain
 - [x] Evidence ZIP UX
 - [ ] PDF export path検討

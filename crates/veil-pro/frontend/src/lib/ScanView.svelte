@@ -1,10 +1,8 @@
 <script lang="ts">
   import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download } from 'lucide-svelte';
   import type { ErrorEnvelope, PresetName, SafeFindingApiV1, ScanRequest, ScanResponse, SeverityName } from './api-contract';
+  import type { ScanPreset, ScanState } from './ui-state';
   
-  // Strict State Machine for UI prediction and tracking (no implicit states)
-  type ScanState = 'Idle' | 'Running' | 'SuccessNoFindings' | 'Violation' | 'Incomplete' | 'ErrorAuth' | 'ErrorConfig' | 'ErrorExpired' | 'ErrorOOM' | 'ErrorUnknown';
-  type ScanPreset = '' | PresetName;
   let currentState = $state<ScanState>('Idle');
   
   let scanPath = $state('');
