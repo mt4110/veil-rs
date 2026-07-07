@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 132
 status: Draft
 created_at: TBD
 branch: feat/ui-policy-summary
@@ -12,7 +12,7 @@ title: Show policy summary in UI
 ## SOT
 - Title: Show policy summary in UI
 - Status: Draft
-- PR: TBD
+- PR: #132
 
 ## What
 - [x] Add UI contract types for `/api/policy`.
