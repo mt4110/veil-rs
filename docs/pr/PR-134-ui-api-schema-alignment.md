@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: A
-pr: TBD
+pr: 134
 status: Draft
 created_at: TBD
 branch: feat/ui-api-schema-alignment
@@ -12,7 +12,7 @@ title: Align UI API schema types
 ## SOT
 - Title: Align UI API schema types
 - Status: Draft
-- PR: TBD
+- PR: #134
 
 ## What
 - [x] Expand `api-contract.ts` from the scan/policy subset to the existing Local API DTO surface used by the UI.
