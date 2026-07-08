@@ -157,8 +157,10 @@ vim.lsp.start({
 
 - [x] `crates/veil-lsp` workspace追加。
 - [x] `tower-lsp` server実装。
-- [ ] `scan_content` をLSPから呼び出す。
-- [ ] UTF-8 byte offset → UTF-16 LSP range変換を実装。
+- [x] `scan_content` をLSPから呼び出す。
+- [x] `didOpen` / `didChange` で `publishDiagnostics` を送る。
+- [x] `didClose` でdiagnosticsをclearする。
+- [x] UTF-8 byte offset → UTF-16 LSP range変換はCoreの`Finding.utf16_range`に集約し、LSP Diagnosticでは再計算しない。
 - [ ] `codeAction` for mask/ignore。
 - [ ] 言語別ignore comment registryを実装。
 - [ ] JSON等コメント不可ファイルではinline ignore actionを非表示。
