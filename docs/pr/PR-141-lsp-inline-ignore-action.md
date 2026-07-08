@@ -1,18 +1,18 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 141
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-inline-ignore-action
-commit: 8772577c8b9f1895aa3e6d13e8878df420200cd5
+commit: f4fa434009607d912c1dd8f9e7adffe497a8f059
 title: Add LSP inline ignore code action
 ---
 
 ## SOT
 - Title: Add LSP inline ignore code action
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #141
 
 ## What
 - [x] Add LSP `Add inline ignore` code action for findings that advertise `ignore`.
