@@ -2,6 +2,16 @@ use veil_config::MaskMode;
 
 pub const DEFAULT_PLACEHOLDER: &str = "<REDACTED>";
 
+fn partial_mask(secret: &str) -> String {
+    let chars: Vec<char> = secret.chars().collect();
+    if chars.len() <= 4 {
+        return "****".to_string();
+    }
+
+    let suffix: String = chars[chars.len().saturating_sub(4)..].iter().collect();
+    format!("****{suffix}")
+}
+
 pub fn apply_masks(
     content: &str,
     ranges: Vec<std::ops::Range<usize>>,
@@ -43,18 +53,7 @@ pub fn apply_masks(
         let secret = &content[range.clone()];
         let replacement = match mode {
             MaskMode::Redact => placeholder.to_string(),
-            MaskMode::Partial => {
-                // TODO: partial masking currently assumes byte offsets which works for ASCII secrets.
-                // For multibyte secrets, this might split characters.
-                let char_count = secret.chars().count();
-                if char_count <= 4 {
-                    "****".to_string()
-                } else {
-                    let start: String = secret.chars().take(4).collect();
-                    let end: String = secret.chars().skip(char_count.saturating_sub(4)).collect();
-                    format!("{}...{}", start, end)
-                }
-            }
+            MaskMode::Partial => partial_mask(secret),
             MaskMode::Plain => secret.to_string(), // Unreachable due to early exit
         };
 
@@ -146,19 +145,7 @@ pub fn apply_masks_spans(content: &str, mut spans: Vec<MaskSpan>, mode: MaskMode
         let secret_chunk = &content[range.clone()];
         let replacement = match mode {
             MaskMode::Redact => ph,
-            MaskMode::Partial => {
-                let char_count = secret_chunk.chars().count();
-                if char_count <= 4 {
-                    "****".to_string()
-                } else {
-                    let start: String = secret_chunk.chars().take(4).collect();
-                    let end: String = secret_chunk
-                        .chars()
-                        .skip(char_count.saturating_sub(4))
-                        .collect();
-                    format!("{}...{}", start, end)
-                }
-            }
+            MaskMode::Partial => partial_mask(secret_chunk),
             MaskMode::Plain => secret_chunk.to_string(),
         };
 
@@ -200,7 +187,7 @@ mod tests {
         let ranges = vec![0..18];
         assert_eq!(
             apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
-            "AKIA...ABCD"
+            "****ABCD"
         );
     }
 
@@ -212,6 +199,16 @@ mod tests {
         assert_eq!(
             apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
             "PWD=****"
+        );
+    }
+
+    #[test]
+    fn test_mask_partial_is_unicode_safe() {
+        let text = "秘密１２３４５６";
+        let ranges = vec![0..text.len()];
+        assert_eq!(
+            apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
+            "****３４５６"
         );
     }
 
@@ -395,5 +392,33 @@ mod tests {
 
         let result = apply_masks_spans(text, spans, MaskMode::Redact);
         assert_eq!(result, "<OBS>2345"); // 0..12 replaced by <OBS>. Remainder "2345" (index 12..)
+    }
+
+    #[test]
+    fn test_mask_spans_partial_uses_last_four_chars_only() {
+        let text = "AKIA1234567890ABCD";
+        let spans = vec![MaskSpan {
+            start: 0,
+            end: text.len(),
+            placeholder: "<SECRET>".to_string(),
+            priority: 300,
+        }];
+
+        let result = apply_masks_spans(text, spans, MaskMode::Partial);
+        assert_eq!(result, "****ABCD");
+    }
+
+    #[test]
+    fn test_mask_spans_partial_is_unicode_safe() {
+        let text = "秘密１２３４５６";
+        let spans = vec![MaskSpan {
+            start: 0,
+            end: text.len(),
+            placeholder: "<SECRET>".to_string(),
+            priority: 300,
+        }];
+
+        let result = apply_masks_spans(text, spans, MaskMode::Partial);
+        assert_eq!(result, "****３４５６");
     }
 }
