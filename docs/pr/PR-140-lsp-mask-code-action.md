@@ -1,18 +1,18 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 140
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-mask-code-action
-commit: 6c56f8b2b242abc7b1f280d918f8aaf0d0cfd041
+commit: 039405cfadb42ae50f8e57c61d3cdad5672875dc
 title: Add LSP mask code action
 ---
 
 ## SOT
 - Title: Add LSP mask code action
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #140
 
 ## What
 - [x] Wire a minimal LSP `Mask value` code action for finding diagnostics.
