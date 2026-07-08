@@ -5,11 +5,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::code_actions::mask_code_actions;
 use crate::diagnostics::{findings_to_diagnostics, max_file_size_diagnostic};
 use crate::document_store::{DocumentState, DocumentStore};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    Diagnostic, DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    CodeActionParams, CodeActionProviderCapability, CodeActionResponse, Diagnostic,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     InitializeParams, InitializeResult, InitializedParams, MessageType, ServerCapabilities,
     ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
 };
@@ -160,6 +162,24 @@ impl LanguageServer for Backend {
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+        let document = {
+            let documents = self.documents.lock().await;
+            documents.get(&uri)
+        };
+        let Some(document) = document else {
+            return Ok(None);
+        };
+
+        let actions = mask_code_actions(&uri, &document.text, &params.context.diagnostics);
+        if actions.is_empty() {
+            return Ok(None);
+        }
+
+        Ok(Some(actions))
+    }
+
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
@@ -178,6 +198,7 @@ pub fn server_capabilities() -> ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             TextDocumentSyncKind::INCREMENTAL,
         )),
+        code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -268,7 +289,10 @@ fn document_for_revision(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tower_lsp::lsp_types::{DiagnosticSeverity, NumberOrString, TextDocumentSyncCapability};
+    use tower_lsp::lsp_types::{
+        CodeActionProviderCapability, DiagnosticSeverity, NumberOrString,
+        TextDocumentSyncCapability,
+    };
 
     #[test]
     fn server_name_matches_binary_name() {
@@ -286,7 +310,10 @@ mod tests {
             ))
         );
         assert!(capabilities.diagnostic_provider.is_none());
-        assert!(capabilities.code_action_provider.is_none());
+        assert_eq!(
+            capabilities.code_action_provider,
+            Some(CodeActionProviderCapability::Simple(true))
+        );
     }
 
     #[test]

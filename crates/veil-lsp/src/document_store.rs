@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::ops::Range;
 
 use tower_lsp::lsp_types::{
     Position as LspPosition, Range as LspRange, TextDocumentContentChangeEvent, Url,
@@ -90,18 +91,18 @@ fn apply_content_change(
         return Ok(());
     };
 
-    let Some(start) = byte_index_for_position(text, range.start) else {
+    let Some(byte_range) = byte_range_for_lsp_range(text, range) else {
         return Err(DocumentChangeError::InvalidRange { range });
     };
-    let Some(end) = byte_index_for_position(text, range.end) else {
-        return Err(DocumentChangeError::InvalidRange { range });
-    };
-    if start > end {
-        return Err(DocumentChangeError::InvalidRange { range });
-    }
 
-    text.replace_range(start..end, &change.text);
+    text.replace_range(byte_range, &change.text);
     Ok(())
+}
+
+pub fn byte_range_for_lsp_range(text: &str, range: LspRange) -> Option<Range<usize>> {
+    let start = byte_index_for_position(text, range.start)?;
+    let end = byte_index_for_position(text, range.end)?;
+    (start <= end).then_some(start..end)
 }
 
 fn byte_index_for_position(text: &str, position: LspPosition) -> Option<usize> {
