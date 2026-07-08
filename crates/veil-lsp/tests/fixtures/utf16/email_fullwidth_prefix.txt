@@ -1,0 +1,7 @@
+# EXPECT_RULE: pii.net.email
+# EXPECT_LINE: 0
+# EXPECT_START: 4
+# EXPECT_END: 20
+# FORBID_DATA: test@example.com
+
+ＡＢＣ test@example.com
