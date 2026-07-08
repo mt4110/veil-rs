@@ -160,6 +160,7 @@ vim.lsp.start({
 - [x] `scan_content` をLSPから呼び出す。
 - [x] `didOpen` / `didChange` で `publishDiagnostics` を送る。
 - [x] `didClose` でdiagnosticsをclearする。
+- [x] `didChange` のscanを debounce し、同一documentの古い結果をpublishしない。
 - [x] UTF-8 byte offset → UTF-16 LSP range変換はCoreの`Finding.utf16_range`に集約し、LSP Diagnosticでは再計算しない。
 - [ ] `codeAction` for mask/ignore。
 - [ ] 言語別ignore comment registryを実装。

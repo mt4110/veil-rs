@@ -10,6 +10,7 @@ pub struct DocumentState {
     pub uri: Url,
     pub text: String,
     pub version: i32,
+    pub scan_revision: u64,
 }
 
 #[derive(Debug, Default)]
@@ -23,6 +24,7 @@ impl DocumentStore {
             uri: uri.clone(),
             text,
             version,
+            scan_revision: 0,
         };
         self.documents.insert(uri, document.clone());
         document
@@ -42,8 +44,19 @@ impl DocumentStore {
             apply_content_change(&mut document.text, change)?;
         }
         document.version = version;
+        document.scan_revision = document.scan_revision.saturating_add(1);
 
         Ok(Some(document.clone()))
+    }
+
+    pub fn get(&self, uri: &Url) -> Option<DocumentState> {
+        self.documents.get(uri).cloned()
+    }
+
+    pub fn has_revision(&self, uri: &Url, scan_revision: u64) -> bool {
+        self.documents
+            .get(uri)
+            .is_some_and(|document| document.scan_revision == scan_revision)
     }
 
     pub fn close(&mut self, uri: &Url) {
@@ -173,6 +186,7 @@ mod tests {
 
         assert_eq!(document.text, "after");
         assert_eq!(document.version, 2);
+        assert_eq!(document.scan_revision, 1);
     }
 
     #[test]
@@ -203,6 +217,7 @@ mod tests {
             .expect("document");
 
         assert_eq!(document.text, "abc");
+        assert_eq!(document.scan_revision, 1);
     }
 
     #[test]
@@ -233,5 +248,38 @@ mod tests {
             result,
             Err(DocumentChangeError::InvalidRange { .. })
         ));
+    }
+
+    #[test]
+    fn open_resets_scan_revision_for_new_document_state() {
+        let uri = Url::parse("file:///tmp/example.txt").expect("uri");
+        let mut store = DocumentStore::default();
+
+        let original = store.open(uri.clone(), "before".to_string(), 1);
+        assert_eq!(original.scan_revision, 0);
+
+        let updated = store
+            .apply_changes(&uri, 2, vec![full_change("after")])
+            .expect("change")
+            .expect("document");
+        assert_eq!(updated.scan_revision, 1);
+
+        let reopened = store.open(uri, "reopened".to_string(), 1);
+        assert_eq!(reopened.scan_revision, 0);
+    }
+
+    #[test]
+    fn has_revision_tracks_latest_document_generation() {
+        let uri = Url::parse("file:///tmp/example.txt").expect("uri");
+        let mut store = DocumentStore::default();
+        store.open(uri.clone(), "before".to_string(), 1);
+
+        let updated = store
+            .apply_changes(&uri, 2, vec![full_change("after")])
+            .expect("change")
+            .expect("document");
+
+        assert!(store.has_revision(&uri, updated.scan_revision));
+        assert!(!store.has_revision(&uri, 0));
     }
 }
