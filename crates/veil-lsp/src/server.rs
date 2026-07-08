@@ -1,6 +1,9 @@
 pub const SERVER_NAME: &str = "veil-lsp";
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
 
 use crate::diagnostics::findings_to_diagnostics;
 use crate::document_store::{DocumentState, DocumentStore};
@@ -14,11 +17,14 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use veil_config::Config;
 use veil_core::{scan_content, try_get_all_rules, Rule};
 
+const CHANGE_SCAN_DEBOUNCE: Duration = Duration::from_millis(200);
+
 pub struct Backend {
     client: Client,
-    documents: tokio::sync::Mutex<DocumentStore>,
-    config: Config,
-    rules: Vec<Rule>,
+    documents: Arc<tokio::sync::Mutex<DocumentStore>>,
+    pending_scans: Arc<tokio::sync::Mutex<PendingScanMap>>,
+    config: Arc<Config>,
+    rules: Arc<Vec<Rule>>,
 }
 
 impl Backend {
@@ -29,23 +35,60 @@ impl Backend {
 
         Self {
             client,
-            documents: tokio::sync::Mutex::new(DocumentStore::default()),
-            config,
-            rules,
+            documents: Arc::new(tokio::sync::Mutex::new(DocumentStore::default())),
+            pending_scans: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            config: Arc::new(config),
+            rules: Arc::new(rules),
         }
     }
 
-    async fn publish_document_diagnostics(&self, document: DocumentState) {
-        let diagnostics = diagnostics_for_text(
-            &document.text,
-            &path_for_uri(&document.uri),
-            &self.rules,
-            &self.config,
-        );
+    async fn schedule_document_diagnostics(&self, document: DocumentState, debounce: Duration) {
+        let uri = document.uri.clone();
+        let task_uri = uri.clone();
+        let scan_revision = document.scan_revision;
+        let client = self.client.clone();
+        let documents = Arc::clone(&self.documents);
+        let pending_scans = Arc::clone(&self.pending_scans);
+        let config = Arc::clone(&self.config);
+        let rules = Arc::clone(&self.rules);
 
-        self.client
-            .publish_diagnostics(document.uri, diagnostics, Some(document.version))
-            .await;
+        let handle = tokio::spawn(async move {
+            tokio::time::sleep(debounce).await;
+
+            let Some(document) =
+                current_document_for_revision(&documents, &task_uri, scan_revision).await
+            else {
+                clear_pending_scan_if_current(&pending_scans, &task_uri, scan_revision).await;
+                return;
+            };
+
+            let diagnostics = diagnostics_for_text(
+                &document.text,
+                &path_for_uri(&document.uri),
+                &rules,
+                &config,
+            );
+
+            if current_document_for_revision(&documents, &task_uri, scan_revision)
+                .await
+                .is_some()
+            {
+                client
+                    .publish_diagnostics(task_uri.clone(), diagnostics, Some(document.version))
+                    .await;
+            }
+
+            clear_pending_scan_if_current(&pending_scans, &task_uri, scan_revision).await;
+        });
+
+        replace_pending_scan(&self.pending_scans, uri, scan_revision, handle).await;
+    }
+
+    async fn cancel_pending_scan(&self, uri: &Url) {
+        let mut pending_scans = self.pending_scans.lock().await;
+        if let Some(pending_scan) = pending_scans.remove(uri) {
+            pending_scan.handle.abort();
+        }
     }
 }
 
@@ -74,7 +117,8 @@ impl LanguageServer for Backend {
             documents.open(text_document.uri, text_document.text, text_document.version)
         };
 
-        self.publish_document_diagnostics(document).await;
+        self.schedule_document_diagnostics(document, Duration::ZERO)
+            .await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -100,12 +144,14 @@ impl LanguageServer for Backend {
         }
 
         if let Some(document) = changed_document {
-            self.publish_document_diagnostics(document).await;
+            self.schedule_document_diagnostics(document, CHANGE_SCAN_DEBOUNCE)
+                .await;
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
+        self.cancel_pending_scan(&uri).await;
         {
             let mut documents = self.documents.lock().await;
             documents.close(&uri);
@@ -148,6 +194,66 @@ pub fn diagnostics_for_text(
 fn path_for_uri(uri: &Url) -> PathBuf {
     uri.to_file_path()
         .unwrap_or_else(|_| PathBuf::from(uri.path()))
+}
+
+type PendingScanMap = HashMap<Url, PendingScan>;
+
+struct PendingScan {
+    scan_revision: u64,
+    handle: tokio::task::JoinHandle<()>,
+}
+
+async fn replace_pending_scan(
+    pending_scans: &tokio::sync::Mutex<PendingScanMap>,
+    uri: Url,
+    scan_revision: u64,
+    handle: tokio::task::JoinHandle<()>,
+) {
+    let mut pending_scans = pending_scans.lock().await;
+    if let Some(previous_scan) = pending_scans.insert(
+        uri,
+        PendingScan {
+            scan_revision,
+            handle,
+        },
+    ) {
+        previous_scan.handle.abort();
+    }
+}
+
+async fn clear_pending_scan_if_current(
+    pending_scans: &tokio::sync::Mutex<PendingScanMap>,
+    uri: &Url,
+    scan_revision: u64,
+) {
+    let mut pending_scans = pending_scans.lock().await;
+    let should_clear = pending_scans
+        .get(uri)
+        .is_some_and(|pending_scan| pending_scan.scan_revision == scan_revision);
+    if should_clear {
+        pending_scans.remove(uri);
+    }
+}
+
+async fn current_document_for_revision(
+    documents: &tokio::sync::Mutex<DocumentStore>,
+    uri: &Url,
+    scan_revision: u64,
+) -> Option<DocumentState> {
+    let documents = documents.lock().await;
+    document_for_revision(&documents, uri, scan_revision)
+}
+
+fn document_for_revision(
+    documents: &DocumentStore,
+    uri: &Url,
+    scan_revision: u64,
+) -> Option<DocumentState> {
+    if documents.has_revision(uri, scan_revision) {
+        return documents.get(uri);
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -203,5 +309,32 @@ mod tests {
         let data_text = data.to_string();
         assert!(!data_text.contains("test@example.com"));
         assert!(!data_text.contains("🙂 contact test@example.com"));
+    }
+
+    #[test]
+    fn change_scan_debounce_matches_design_window() {
+        assert_eq!(CHANGE_SCAN_DEBOUNCE, Duration::from_millis(200));
+    }
+
+    #[test]
+    fn document_for_revision_requires_latest_scan_revision() {
+        let uri = Url::parse("file:///tmp/example.txt").expect("uri");
+        let mut documents = DocumentStore::default();
+        documents.open(uri.clone(), "before".to_string(), 1);
+        let current = documents
+            .apply_changes(
+                &uri,
+                2,
+                vec![tower_lsp::lsp_types::TextDocumentContentChangeEvent {
+                    range: None,
+                    range_length: None,
+                    text: "after".to_string(),
+                }],
+            )
+            .expect("change")
+            .expect("document");
+
+        assert!(document_for_revision(&documents, &uri, current.scan_revision).is_some());
+        assert!(document_for_revision(&documents, &uri, 0).is_none());
     }
 }
