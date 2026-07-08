@@ -3,6 +3,8 @@ use tower_lsp::lsp_types::{
     Diagnostic, DiagnosticSeverity, NumberOrString, Position as LspPosition, Range as LspRange,
 };
 use veil_core::model::{Finding, Range, Severity};
+use veil_core::rules::grade::Grade;
+use veil_core::RULE_ID_MAX_FILE_SIZE;
 
 pub fn findings_to_diagnostics(findings: &[Finding]) -> Vec<Diagnostic> {
     findings.iter().map(finding_to_diagnostic).collect()
@@ -27,6 +29,32 @@ pub fn finding_to_diagnostic(finding: &Finding) -> Diagnostic {
             "grade": finding.grade.to_string(),
             "maskedSnippet": finding.masked_snippet,
             "actions": ["mask", "ignore"],
+        })),
+    }
+}
+
+pub fn max_file_size_diagnostic(file_size_bytes: u64, max_size_bytes: u64) -> Diagnostic {
+    Diagnostic {
+        range: LspRange::default(),
+        severity: Some(DiagnosticSeverity::ERROR),
+        code: Some(NumberOrString::String(RULE_ID_MAX_FILE_SIZE.to_string())),
+        code_description: None,
+        source: Some("veil".to_string()),
+        message: format!(
+            "Scan skipped because file size ({} bytes) exceeds limit ({} bytes)",
+            file_size_bytes, max_size_bytes
+        ),
+        related_information: None,
+        tags: None,
+        data: Some(json!({
+            "ruleId": RULE_ID_MAX_FILE_SIZE,
+            "score": 100,
+            "grade": Grade::Critical.to_string(),
+            "maskedSnippet": "",
+            "actions": [],
+            "skipReason": "maxFileSize",
+            "fileSizeBytes": file_size_bytes,
+            "maxSizeBytes": max_size_bytes,
         })),
     }
 }
@@ -59,7 +87,6 @@ mod tests {
     use std::path::PathBuf;
     use tower_lsp::lsp_types::{Position, Range as LspRange};
     use veil_core::model::{FindingSpan, Position as CorePosition};
-    use veil_core::rules::grade::Grade;
 
     fn finding_with(severity: Severity) -> Finding {
         Finding {
@@ -172,5 +199,40 @@ mod tests {
             Some(DiagnosticSeverity::INFORMATION)
         );
         assert_eq!(diagnostics[1].severity, Some(DiagnosticSeverity::ERROR));
+    }
+
+    #[test]
+    fn max_file_size_diagnostic_is_safe_and_explicitly_skipped() {
+        let diagnostic = max_file_size_diagnostic(1_500_000, 1_000_000);
+        let data = diagnostic.data.expect("diagnostic data");
+
+        assert_eq!(diagnostic.range, LspRange::default());
+        assert_eq!(diagnostic.severity, Some(DiagnosticSeverity::ERROR));
+        assert_eq!(
+            diagnostic.code,
+            Some(NumberOrString::String(RULE_ID_MAX_FILE_SIZE.to_string()))
+        );
+        assert_eq!(
+            diagnostic.message,
+            "Scan skipped because file size (1500000 bytes) exceeds limit (1000000 bytes)"
+        );
+        assert_eq!(
+            data.get("skipReason").and_then(|value| value.as_str()),
+            Some("maxFileSize")
+        );
+        assert_eq!(
+            data.get("fileSizeBytes").and_then(|value| value.as_u64()),
+            Some(1_500_000)
+        );
+        assert_eq!(
+            data.get("maxSizeBytes").and_then(|value| value.as_u64()),
+            Some(1_000_000)
+        );
+        assert_eq!(
+            data.get("actions")
+                .and_then(|value| value.as_array())
+                .map(Vec::len),
+            Some(0)
+        );
     }
 }

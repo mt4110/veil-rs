@@ -88,6 +88,7 @@ struct DocumentStore {
 - `masked_snippet` は表示専用であり、Diagnostic rangeやCodeAction edit範囲に使わない。
 - Coreは normalized span を original byte span に戻し、LSP層で UTF-16 range に変換する。
 - LSP Diagnosticの `data` は `ruleId`, `score`, `grade`, `maskedSnippet`, `actions` のみ。raw値は載せない。
+- `MAX_FILE_SIZE` の skipped diagnostic はFinding由来ではないため、先頭 `0:0` range の synthetic diagnostic としてLSP層で生成する。
 
 ```rust
 pub struct Position {
@@ -161,6 +162,7 @@ vim.lsp.start({
 - [x] `didOpen` / `didChange` で `publishDiagnostics` を送る。
 - [x] `didClose` でdiagnosticsをclearする。
 - [x] `didChange` のscanを debounce し、同一documentの古い結果をpublishしない。
+- [x] open document が最大サイズ超過のとき `MAX_FILE_SIZE` skipped diagnostic を publish する。
 - [x] UTF-8 byte offset → UTF-16 LSP range変換はCoreの`Finding.utf16_range`に集約し、LSP Diagnosticでは再計算しない。
 - [ ] `codeAction` for mask/ignore。
 - [ ] 言語別ignore comment registryを実装。
