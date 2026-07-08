@@ -9,6 +9,7 @@ use tower_lsp::lsp_types::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentState {
     pub uri: Url,
+    pub language_id: String,
     pub text: String,
     pub version: i32,
     pub scan_revision: u64,
@@ -20,9 +21,16 @@ pub struct DocumentStore {
 }
 
 impl DocumentStore {
-    pub fn open(&mut self, uri: Url, text: String, version: i32) -> DocumentState {
+    pub fn open(
+        &mut self,
+        uri: Url,
+        language_id: String,
+        text: String,
+        version: i32,
+    ) -> DocumentState {
         let document = DocumentState {
             uri: uri.clone(),
+            language_id,
             text,
             version,
             scan_revision: 0,
@@ -105,30 +113,7 @@ pub fn byte_range_for_lsp_range(text: &str, range: LspRange) -> Option<Range<usi
     (start <= end).then_some(start..end)
 }
 
-fn byte_index_for_position(text: &str, position: LspPosition) -> Option<usize> {
-    let (line_start, line_end) = line_byte_bounds(text, position.line)?;
-    let line = &text[line_start..line_end];
-
-    if position.character == 0 {
-        return Some(line_start);
-    }
-
-    let mut utf16_units = 0_u32;
-    for (byte_offset, character) in line.char_indices() {
-        if utf16_units == position.character {
-            return Some(line_start + byte_offset);
-        }
-
-        utf16_units = utf16_units.saturating_add(character.len_utf16() as u32);
-        if utf16_units > position.character {
-            return None;
-        }
-    }
-
-    (utf16_units == position.character).then_some(line_end)
-}
-
-fn line_byte_bounds(text: &str, target_line: u32) -> Option<(usize, usize)> {
+pub fn line_byte_bounds(text: &str, target_line: u32) -> Option<(usize, usize)> {
     let mut line = 0_u32;
     let mut line_start = 0_usize;
 
@@ -151,6 +136,29 @@ fn line_byte_bounds(text: &str, target_line: u32) -> Option<(usize, usize)> {
     }
 
     (line == target_line).then_some((line_start, text.len()))
+}
+
+fn byte_index_for_position(text: &str, position: LspPosition) -> Option<usize> {
+    let (line_start, line_end) = line_byte_bounds(text, position.line)?;
+    let line = &text[line_start..line_end];
+
+    if position.character == 0 {
+        return Some(line_start);
+    }
+
+    let mut utf16_units = 0_u32;
+    for (byte_offset, character) in line.char_indices() {
+        if utf16_units == position.character {
+            return Some(line_start + byte_offset);
+        }
+
+        utf16_units = utf16_units.saturating_add(character.len_utf16() as u32);
+        if utf16_units > position.character {
+            return None;
+        }
+    }
+
+    (utf16_units == position.character).then_some(line_end)
 }
 
 #[cfg(test)]
@@ -178,7 +186,7 @@ mod tests {
     fn store_applies_full_document_changes() {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut store = DocumentStore::default();
-        store.open(uri.clone(), "before".to_string(), 1);
+        store.open(uri.clone(), "text".to_string(), "before".to_string(), 1);
 
         let document = store
             .apply_changes(&uri, 2, vec![full_change("after")])
@@ -194,7 +202,7 @@ mod tests {
     fn store_applies_incremental_changes_with_utf16_positions() {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut store = DocumentStore::default();
-        store.open(uri.clone(), "a🙂c".to_string(), 1);
+        store.open(uri.clone(), "text".to_string(), "a🙂c".to_string(), 1);
 
         let document = store
             .apply_changes(
@@ -225,7 +233,7 @@ mod tests {
     fn store_rejects_positions_inside_utf16_surrogate_pairs() {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut store = DocumentStore::default();
-        store.open(uri.clone(), "a🙂c".to_string(), 1);
+        store.open(uri.clone(), "text".to_string(), "a🙂c".to_string(), 1);
 
         let result = store.apply_changes(
             &uri,
@@ -256,8 +264,9 @@ mod tests {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut store = DocumentStore::default();
 
-        let original = store.open(uri.clone(), "before".to_string(), 1);
+        let original = store.open(uri.clone(), "rust".to_string(), "before".to_string(), 1);
         assert_eq!(original.scan_revision, 0);
+        assert_eq!(original.language_id, "rust");
 
         let updated = store
             .apply_changes(&uri, 2, vec![full_change("after")])
@@ -265,7 +274,7 @@ mod tests {
             .expect("document");
         assert_eq!(updated.scan_revision, 1);
 
-        let reopened = store.open(uri, "reopened".to_string(), 1);
+        let reopened = store.open(uri, "rust".to_string(), "reopened".to_string(), 1);
         assert_eq!(reopened.scan_revision, 0);
     }
 
@@ -273,7 +282,7 @@ mod tests {
     fn has_revision_tracks_latest_document_generation() {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut store = DocumentStore::default();
-        store.open(uri.clone(), "before".to_string(), 1);
+        store.open(uri.clone(), "text".to_string(), "before".to_string(), 1);
 
         let updated = store
             .apply_changes(&uri, 2, vec![full_change("after")])

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::code_actions::mask_code_actions;
+use crate::code_actions::code_actions;
 use crate::diagnostics::{findings_to_diagnostics, max_file_size_diagnostic};
 use crate::document_store::{DocumentState, DocumentStore};
 use tower_lsp::jsonrpc::Result;
@@ -116,7 +116,12 @@ impl LanguageServer for Backend {
         let text_document = params.text_document;
         let document = {
             let mut documents = self.documents.lock().await;
-            documents.open(text_document.uri, text_document.text, text_document.version)
+            documents.open(
+                text_document.uri,
+                text_document.language_id,
+                text_document.text,
+                text_document.version,
+            )
         };
 
         self.schedule_document_diagnostics(document, Duration::ZERO)
@@ -172,7 +177,12 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let actions = mask_code_actions(&uri, &document.text, &params.context.diagnostics);
+        let actions = code_actions(
+            &uri,
+            &document.language_id,
+            &document.text,
+            &params.context.diagnostics,
+        );
         if actions.is_empty() {
             return Ok(None);
         }
@@ -386,7 +396,7 @@ mod tests {
     fn document_for_revision_requires_latest_scan_revision() {
         let uri = Url::parse("file:///tmp/example.txt").expect("uri");
         let mut documents = DocumentStore::default();
-        documents.open(uri.clone(), "before".to_string(), 1);
+        documents.open(uri.clone(), "text".to_string(), "before".to_string(), 1);
         let current = documents
             .apply_changes(
                 &uri,

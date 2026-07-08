@@ -134,7 +134,7 @@ pub struct LspFinding {
 | SQL | `--` | `-- veil:ignore=...` |
 | JSON | なし | inline ignore actionを出さない |
 
-現在の実装は staged rollout とし、まず `Mask value` の quick fix のみを配線する。`Partial mask` と `Add inline ignore` は follow-up とする。
+現在の実装は staged rollout とし、`Mask value` と `Add inline ignore` の quick fix を配線する。`Partial mask` は follow-up とする。
 
 ### 安全ルール
 - CodeActionは自動適用しない。
