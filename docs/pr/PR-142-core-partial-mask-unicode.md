@@ -1,18 +1,18 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 142
+status: Ready
 created_at: 2026-07-08
 branch: feat/core-partial-mask-unicode
-commit: 78217704a88006b706ec6c1de97a9ef1adce77eb
+commit: 61581caec0fad6abac006509e70276019d102921
 title: Align partial mask with last-four design
 ---
 
 ## SOT
 - Title: Align partial mask with last-four design
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #142
 
 ## What
 - [x] Align `MaskMode::Partial` with the design contract to retain only the last four characters.
