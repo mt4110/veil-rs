@@ -1,8 +1,8 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 137
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-diagnostics-debounce
 commit: d7f84f175cd9ed6506d36aa83dcee011a40956bf
@@ -11,8 +11,8 @@ title: Debounce LSP diagnostics publishing
 
 ## SOT
 - Title: Debounce LSP diagnostics publishing
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #137
 
 ## What
 - [x] Add per-document `scan_revision` tracking to the LSP document store.
