@@ -1,8 +1,8 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 136
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-diagnostics-publish
 commit: 1225c4b1b010c65a02aaea35b82e690bbcc9c9e0
@@ -11,8 +11,8 @@ title: Publish LSP diagnostics
 
 ## SOT
 - Title: Publish LSP diagnostics
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #136
 
 ## What
 - [x] Store opened LSP documents with URI, text, and version.
