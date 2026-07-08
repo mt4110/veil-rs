@@ -1,18 +1,18 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 139
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-utf16-range-fixture
-commit: ee8c88b908d6537439c9f6e28c01576ab26e4566
+commit: 2865d3b13ce0cd4618b35d93d9d3f97be3629d2f
 title: Add LSP UTF-16 range fixtures
 ---
 
 ## SOT
 - Title: Add LSP UTF-16 range fixtures
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #139
 
 ## What
 - [x] Add fixture-driven `veil-lsp` tests for UTF-16 diagnostic ranges.
