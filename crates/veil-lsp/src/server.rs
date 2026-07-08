@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::diagnostics::findings_to_diagnostics;
+use crate::diagnostics::{findings_to_diagnostics, max_file_size_diagnostic};
 use crate::document_store::{DocumentState, DocumentStore};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
@@ -15,7 +15,7 @@ use tower_lsp::lsp_types::{
 };
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 use veil_config::Config;
-use veil_core::{scan_content, try_get_all_rules, Rule};
+use veil_core::{scan_content, try_get_all_rules, Rule, DEFAULT_MAX_FILE_SIZE_BYTES};
 
 const CHANGE_SCAN_DEBOUNCE: Duration = Duration::from_millis(200);
 
@@ -188,6 +188,15 @@ pub fn diagnostics_for_text(
     rules: &[Rule],
     config: &Config,
 ) -> Vec<Diagnostic> {
+    let max_size_bytes = config
+        .core
+        .max_file_size
+        .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
+    let file_size_bytes = text.len() as u64;
+    if file_size_bytes > max_size_bytes {
+        return vec![max_file_size_diagnostic(file_size_bytes, max_size_bytes)];
+    }
+
     findings_to_diagnostics(&scan_content(text, path, rules, config))
 }
 
@@ -309,6 +318,36 @@ mod tests {
         let data_text = data.to_string();
         assert!(!data_text.contains("test@example.com"));
         assert!(!data_text.contains("🙂 contact test@example.com"));
+    }
+
+    #[test]
+    fn diagnostics_for_text_returns_max_file_size_skip_before_scanning() {
+        let mut config = Config::default();
+        config.core.max_file_size = Some(8);
+        let rules = try_get_all_rules(&config, Vec::new()).expect("rules");
+
+        let diagnostics = diagnostics_for_text(
+            "contact test@example.com\n",
+            Path::new("fixture.txt"),
+            &rules,
+            &config,
+        );
+
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = &diagnostics[0];
+        assert!(matches!(
+            diagnostic.code.as_ref(),
+            Some(NumberOrString::String(code)) if code == veil_core::RULE_ID_MAX_FILE_SIZE
+        ));
+        assert_eq!(diagnostic.range.start.line, 0);
+        assert_eq!(diagnostic.range.start.character, 0);
+        assert_eq!(diagnostic.range.end.line, 0);
+        assert_eq!(diagnostic.range.end.character, 0);
+
+        let data = diagnostic.data.as_ref().expect("diagnostic data");
+        let data_text = data.to_string();
+        assert!(!data_text.contains("test@example.com"));
+        assert!(!data_text.contains("contact test@example.com"));
     }
 
     #[test]
