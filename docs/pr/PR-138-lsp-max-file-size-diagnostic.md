@@ -1,18 +1,18 @@
 ---
 release: TBD
 epic: A
-pr: TBD
-status: Draft
+pr: 138
+status: Ready
 created_at: 2026-07-08
 branch: feat/lsp-max-file-size-diagnostic
-commit: 6dde2b2840a96b64600779c9205f9870d28a87ef
+commit: a79e9f7ce3fdb72d1a000bf1f0806049ba4989f9
 title: Publish LSP max file size skip diagnostic
 ---
 
 ## SOT
 - Title: Publish LSP max file size skip diagnostic
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #138
 
 ## What
 - [x] Publish a synthetic `MAX_FILE_SIZE` LSP diagnostic when an open document exceeds the scan size limit.
