@@ -1,0 +1,8 @@
+# EXPECT_RULE: pii.net.email
+# EXPECT_LINE: 1
+# EXPECT_START: 11
+# EXPECT_END: 27
+# FORBID_DATA: test@example.com
+
+メモ
+🙂 contact test@example.com
