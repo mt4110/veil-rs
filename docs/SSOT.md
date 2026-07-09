@@ -23,13 +23,13 @@ Veil v2 は **Audit Trail OS** である。
 
 公開面の一次導線は以下。
 
-1. `veil detect`
-2. `veil prove`
-3. `veil decide`
-4. `veil case`
+1. `veil scan`
+2. `veil verify`
+3. `veil guardian`
+4. `veil fix`
 5. `veil-pro`
 
-`veil scan` は残すが **compat path** とする。
+`Detect` / `Prove` / `Decide` / `Govern` は製品概念の正本であり、現時点では standalone CLI command 名を意味しない。
 `veil exceptions` は **legacy/ops compat** とする。
 
 ---

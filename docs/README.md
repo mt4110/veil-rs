@@ -30,6 +30,7 @@ Purpose: public docs の入口、分類規約、SSOT 導線
 
 ### `active`
 
+- [README.md](README.md) (この文書)
 - [SSOT.md](SSOT.md)
 - [DEVELOPMENT.md](DEVELOPMENT.md)
 - [DEVELOPMENT_EN.md](DEVELOPMENT_EN.md)
@@ -49,10 +50,12 @@ Purpose: public docs の入口、分類規約、SSOT 導線
 - `docs/rules.md`
 - `docs/rules/**`
 - `docs/json-schema.md`
+- `docs/prompts/**`
 - `docs/security/threat_model.md`
 - `docs/pr/README.md`
 - `docs/pr/sot_template.md`
 - `docs/ops/*CONTRACT*.md`
+- `docs/ops/REVIEW_BUNDLE.md`
 - `docs/ops/LOCAL_STORAGE_POLICY_v1.md`
 - `docs/dogfood/README.md`
 
