@@ -1,5 +1,9 @@
 # Cockpit Single Source of Truth (SSOT)
 
+Status: `archive`
+Scope: Cockpit / historical
+Current product SSOT: [docs/SSOT.md](../SSOT.md)
+
 This document serves as the authoritative source for Cockpit rules, contracts, and operational requirements.
 
 ## Git Required

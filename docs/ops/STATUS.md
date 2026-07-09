@@ -1,5 +1,8 @@
-
 # STATUS (Single Source of Truth)
+
+Status: `archive`
+Scope: ops phase board / historical progress tracking
+Current product SSOT: [docs/SSOT.md](../SSOT.md)
 
 This file is the *only* canonical progress board for ops phases (S11+).
 All PRs starting from S11-00 MUST update this file (at least the % and "Last Updated" line).
