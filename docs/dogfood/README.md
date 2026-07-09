@@ -1,5 +1,9 @@
 # Weekly Dogfood Reports
 
+Status: `reference`
+Scope: historical dogfood reports + templates
+Current product SSOT: [docs/SSOT.md](../SSOT.md)
+
 This directory contains the weekly usage reports and audit trails for Veil-RS dogfooding.
 
 ## Phase 15 Operations (Tiny Fix Loop)

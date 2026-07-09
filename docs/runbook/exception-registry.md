@@ -1,5 +1,9 @@
 # Runbook: Exception Registry
 
+Status: `reference`
+Scope: legacy/ops compatibility
+Current governance SSOT: [docs/SSOT.md](../SSOT.md)
+
 ## Overview
 This runbook covers the operation of the **Exception Registry** stored in:
 

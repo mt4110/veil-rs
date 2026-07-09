@@ -1,5 +1,8 @@
 # Command Line Interface (CLI)
 
+Status: `reference`
+Primary command SSOT: [docs/SSOT.md](../SSOT.md)
+
 Veil の各コマンドの詳細ドキュメントです。
 
 - **[veil init](init.md)**: 設定ファイルの初期化、プロファイル設定、CI設定の生成。

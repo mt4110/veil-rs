@@ -1,5 +1,9 @@
 # PR Source of Truth (SOT)
 
+Status: `reference`
+Scope: PR record process
+Current product SSOT: [docs/SSOT.md](../SSOT.md)
+
 This directory contains Source of Truth (SOT) documents for each Pull Request.
 A SOT document is the persistent record of the PR's intent, changes, and verification evidence.
 
