@@ -28,7 +28,7 @@ pub fn finding_to_diagnostic(finding: &Finding) -> Diagnostic {
             "score": finding.score,
             "grade": finding.grade.to_string(),
             "maskedSnippet": finding.masked_snippet,
-            "actions": ["mask", "ignore"],
+            "actions": ["mask", "partial_mask", "ignore"],
         })),
     }
 }
@@ -182,7 +182,18 @@ mod tests {
             data.get("actions")
                 .and_then(|value| value.as_array())
                 .map(Vec::len),
-            Some(2)
+            Some(3)
+        );
+        assert_eq!(
+            data.get("actions")
+                .and_then(|value| value.as_array())
+                .map(|actions| {
+                    actions
+                        .iter()
+                        .filter_map(|value| value.as_str())
+                        .collect::<Vec<_>>()
+                }),
+            Some(vec!["mask", "partial_mask", "ignore"])
         );
         assert!(!data_text.contains("raw-secret-value"));
         assert!(!data_text.contains("token = raw-secret-value"));

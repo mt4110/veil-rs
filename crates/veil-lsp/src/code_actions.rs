@@ -5,7 +5,8 @@ use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, NumberOrString, Position,
     TextEdit, Url, WorkspaceEdit,
 };
-use veil_core::DEFAULT_PLACEHOLDER;
+use veil_config::MaskMode;
+use veil_core::{apply_masks, DEFAULT_PLACEHOLDER};
 
 use crate::document_store::{byte_range_for_lsp_range, line_byte_bounds};
 
@@ -20,6 +21,7 @@ pub fn code_actions(
         .flat_map(|diagnostic| {
             [
                 mask_code_action(uri, text, diagnostic),
+                partial_mask_code_action(uri, text, diagnostic),
                 inline_ignore_code_action(uri, language_id, text, diagnostic),
             ]
         })
@@ -49,6 +51,43 @@ fn mask_code_action(uri: &Url, text: &str, diagnostic: &Diagnostic) -> Option<Co
         )),
         command: None,
         is_preferred: Some(true),
+        disabled: None,
+        data: None,
+    })
+}
+
+fn partial_mask_code_action(uri: &Url, text: &str, diagnostic: &Diagnostic) -> Option<CodeAction> {
+    if !supports_action(diagnostic, "partial_mask") {
+        return None;
+    }
+
+    let byte_range = byte_range_for_lsp_range(text, diagnostic.range)?;
+    if byte_range.is_empty() {
+        return None;
+    }
+
+    let selected_text = text.get(byte_range)?;
+    if selected_text == DEFAULT_PLACEHOLDER {
+        return None;
+    }
+
+    let replacement = apply_masks(
+        selected_text,
+        std::iter::once(0..selected_text.len()).collect(),
+        MaskMode::Partial,
+        DEFAULT_PLACEHOLDER,
+    );
+    if replacement == selected_text {
+        return None;
+    }
+
+    Some(CodeAction {
+        title: "Partial mask".to_string(),
+        kind: Some(CodeActionKind::QUICKFIX),
+        diagnostics: Some(vec![diagnostic.clone()]),
+        edit: Some(workspace_edit(uri, diagnostic.range, replacement)),
+        command: None,
+        is_preferred: Some(false),
         disabled: None,
         data: None,
     })
@@ -227,13 +266,13 @@ mod tests {
                 "score": 92,
                 "grade": "CRITICAL",
                 "maskedSnippet": "token = <REDACTED>",
-                "actions": ["mask", "ignore"],
+                "actions": ["mask", "partial_mask", "ignore"],
             })),
         }
     }
 
     #[test]
-    fn code_actions_return_mask_and_inline_ignore_for_rust() {
+    fn code_actions_return_mask_partial_and_inline_ignore_for_rust() {
         let uri = Url::parse("file:///tmp/example.rs").expect("uri");
         let diagnostics = code_actions(
             &uri,
@@ -242,7 +281,7 @@ mod tests {
             &[finding_diagnostic()],
         );
 
-        assert_eq!(diagnostics.len(), 2);
+        assert_eq!(diagnostics.len(), 3);
 
         let CodeActionOrCommand::CodeAction(mask_action) = &diagnostics[0] else {
             panic!("expected code action");
@@ -254,7 +293,17 @@ mod tests {
         assert_eq!(mask_text_edits[0].range, finding_diagnostic().range);
         assert_eq!(mask_text_edits[0].new_text, DEFAULT_PLACEHOLDER);
 
-        let CodeActionOrCommand::CodeAction(ignore_action) = &diagnostics[1] else {
+        let CodeActionOrCommand::CodeAction(partial_mask_action) = &diagnostics[1] else {
+            panic!("expected code action");
+        };
+        assert_eq!(partial_mask_action.title, "Partial mask");
+        let partial_mask_edit = partial_mask_action.edit.as_ref().expect("workspace edit");
+        let partial_mask_changes = partial_mask_edit.changes.as_ref().expect("text edits");
+        let partial_mask_text_edits = partial_mask_changes.get(&uri).expect("uri edits");
+        assert_eq!(partial_mask_text_edits[0].range, finding_diagnostic().range);
+        assert_eq!(partial_mask_text_edits[0].new_text, "****alue");
+
+        let CodeActionOrCommand::CodeAction(ignore_action) = &diagnostics[2] else {
             panic!("expected code action");
         };
         assert_eq!(ignore_action.title, "Add inline ignore");
@@ -287,11 +336,15 @@ mod tests {
             &[finding_diagnostic()],
         );
 
-        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics.len(), 2);
         let CodeActionOrCommand::CodeAction(action) = &diagnostics[0] else {
             panic!("expected code action");
         };
         assert_eq!(action.title, "Mask value");
+        let CodeActionOrCommand::CodeAction(action) = &diagnostics[1] else {
+            panic!("expected code action");
+        };
+        assert_eq!(action.title, "Partial mask");
     }
 
     #[test]
@@ -304,11 +357,15 @@ mod tests {
             &[finding_diagnostic()],
         );
 
-        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics.len(), 2);
         let CodeActionOrCommand::CodeAction(action) = &diagnostics[0] else {
             panic!("expected code action");
         };
         assert_eq!(action.title, "Mask value");
+        let CodeActionOrCommand::CodeAction(action) = &diagnostics[1] else {
+            panic!("expected code action");
+        };
+        assert_eq!(action.title, "Partial mask");
     }
 
     #[test]
@@ -342,5 +399,48 @@ mod tests {
             panic!("expected code action");
         };
         assert_eq!(action.title, "Add inline ignore");
+    }
+
+    #[test]
+    fn code_actions_partial_mask_is_unicode_safe() {
+        let uri = Url::parse("file:///tmp/example.txt").expect("uri");
+        let diagnostic = Diagnostic {
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 8,
+                },
+                end: Position {
+                    line: 0,
+                    character: 16,
+                },
+            },
+            severity: None,
+            code: Some(NumberOrString::String("secret.test".to_string())),
+            code_description: None,
+            source: Some("veil".to_string()),
+            message: "Sensitive data detected".to_string(),
+            related_information: None,
+            tags: None,
+            data: Some(json!({
+                "ruleId": "secret.test",
+                "score": 92,
+                "grade": "CRITICAL",
+                "maskedSnippet": "token = <REDACTED>",
+                "actions": ["partial_mask"],
+            })),
+        };
+
+        let diagnostics = code_actions(&uri, "text", "token = 秘密１２３４５６", &[diagnostic]);
+
+        assert_eq!(diagnostics.len(), 1);
+        let CodeActionOrCommand::CodeAction(action) = &diagnostics[0] else {
+            panic!("expected code action");
+        };
+        assert_eq!(action.title, "Partial mask");
+        let edit = action.edit.as_ref().expect("workspace edit");
+        let changes = edit.changes.as_ref().expect("text edits");
+        let text_edits = changes.get(&uri).expect("uri edits");
+        assert_eq!(text_edits[0].new_text, "****３４５６");
     }
 }
