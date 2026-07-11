@@ -68,6 +68,9 @@ X-Content-Type-Options: nosniff
 | Remote RulePack | 無効 | `core.allow_remote_rules=true` + `VEIL_ALLOW_NETWORK=1` | source/PII/findings/Evidence |
 
 Remote RulePack は署名検証に失敗した場合は読み込まない。Air-gapでは使用しない。
+v1のoffline検証は `trust_model = "pinned_digests"` と `digest_algorithm = "sha256"` を対象にし、
+pack metadata とRulePack file digestの正準SHA256が `pinned_digests` に含まれる場合のみ読み込む。
+`pinned_keys` / `tofu` は未実装のため fail closed とする。
 
 ## 8.7 Config安全
 

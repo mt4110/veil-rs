@@ -134,11 +134,12 @@ Signature policy (planned):
 Trust models (choose per org):
 
 * **Pinned key(s)**: only accept packs signed by listed public keys.
-* **Pinned digest(s)**: accept only specific known hashes.
+* **Pinned digest(s)**: accept only specific known hashes. This is implemented for offline
+  RulePacks when `signature.enabled = true` or `signature.required = true`.
 * **TOFU (Trust On First Use)**: accept first signature, pin thereafter (not recommended for high-security).
 
-Manifest will include fields to express intent (e.g., `signature.required = true`),
-but the effective enforcement is always decided by local policy (config).
+Manifest fields such as `signature.required = true` are enforced fail-closed for the implemented
+offline `pinned_digests` / `sha256` trust model. `pinned_keys` and `tofu` remain future work.
 
 ---
 

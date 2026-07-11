@@ -4,15 +4,18 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use regex::Regex;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 pub struct RulePackManifest {
     pub pack: PackMetadata,
     #[serde(default)]
     pub files: Vec<String>,
+    #[serde(default)]
+    pub signature: Option<RulePackSignature>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -22,6 +25,20 @@ pub struct PackMetadata {
     pub schema_version: u32,
     #[serde(default)]
     pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RulePackSignature {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub trust_model: Option<String>,
+    #[serde(default)]
+    pub digest_algorithm: Option<String>,
+    #[serde(default)]
+    pub pinned_digests: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +76,9 @@ pub fn load_rule_pack(dir: &Path) -> Result<Vec<Rule>> {
             .with_context(|| format!("Failed to read manifest at {:?}", manifest_path))?;
         let manifest = parse_manifest(&content)
             .with_context(|| format!("Failed to parse manifest at {:?}", manifest_path))?;
+        verify_rule_pack_signature_if_required(dir, &manifest).with_context(|| {
+            format!("Failed to verify RulePack manifest at {:?}", manifest_path)
+        })?;
 
         if !manifest.files.is_empty() {
             for file_name in &manifest.files {
@@ -172,6 +192,133 @@ fn parse_rules_from_path(path: &Path) -> Result<Vec<Rule>> {
 
 pub fn parse_manifest(content: &str) -> Result<RulePackManifest> {
     toml::from_str(content).map_err(Into::into)
+}
+
+fn verify_rule_pack_signature_if_required(dir: &Path, manifest: &RulePackManifest) -> Result<()> {
+    let Some(signature) = &manifest.signature else {
+        return Ok(());
+    };
+
+    if !signature.enabled && !signature.required {
+        return Ok(());
+    }
+
+    let trust_model = signature.trust_model.as_deref().unwrap_or("pinned_digests");
+    if trust_model != "pinned_digests" {
+        anyhow::bail!(
+            "Unsupported RulePack signature trust_model '{}' for pack '{}'",
+            trust_model,
+            manifest.pack.id
+        );
+    }
+
+    let digest_algorithm = signature.digest_algorithm.as_deref().unwrap_or("sha256");
+    if digest_algorithm != "sha256" {
+        anyhow::bail!(
+            "Unsupported RulePack signature digest_algorithm '{}' for pack '{}'",
+            digest_algorithm,
+            manifest.pack.id
+        );
+    }
+
+    if signature.pinned_digests.is_empty() {
+        anyhow::bail!(
+            "RulePack '{}' requires pinned_digests for offline signature verification",
+            manifest.pack.id
+        );
+    }
+
+    let digest = compute_rule_pack_digest(dir, manifest)?;
+    let matches_pin = signature
+        .pinned_digests
+        .iter()
+        .filter_map(|pin| normalize_pinned_digest(pin))
+        .any(|pin| pin == digest);
+
+    if !matches_pin {
+        anyhow::bail!(
+            "RulePack '{}' digest mismatch: sha256:{} is not in pinned_digests",
+            manifest.pack.id,
+            digest
+        );
+    }
+
+    Ok(())
+}
+
+fn normalize_pinned_digest(value: &str) -> Option<String> {
+    let digest = value.strip_prefix("sha256:").unwrap_or(value).trim();
+    if digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(digest.to_ascii_lowercase())
+    } else {
+        None
+    }
+}
+
+fn compute_rule_pack_digest(dir: &Path, manifest: &RulePackManifest) -> Result<String> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"veil-rulepack-pinned-digest-v1\n");
+    hasher.update(format!("pack.id={}\n", manifest.pack.id).as_bytes());
+    hasher.update(format!("pack.version={}\n", manifest.pack.version).as_bytes());
+    hasher.update(format!("pack.schema_version={}\n", manifest.pack.schema_version).as_bytes());
+
+    let files = manifest_rule_files(dir, manifest)?;
+    for file_name in files {
+        let file_path = dir.join(&file_name);
+        let bytes = fs::read(&file_path)
+            .with_context(|| format!("Failed to read RulePack file {:?}", file_path))?;
+        let file_digest = Sha256::digest(&bytes);
+        hasher.update(format!("file={}\n", file_name).as_bytes());
+        hasher.update(format!("sha256={:x}\n", file_digest).as_bytes());
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn manifest_rule_files(dir: &Path, manifest: &RulePackManifest) -> Result<Vec<String>> {
+    if !manifest.files.is_empty() {
+        for file_name in &manifest.files {
+            validate_manifest_rule_file_name(file_name)?;
+        }
+        return Ok(manifest.files.clone());
+    }
+
+    let mut files: Vec<String> = fs::read_dir(dir)?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| is_rule_toml(path))
+        .filter_map(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_string)
+        })
+        .collect();
+    files.sort();
+    Ok(files)
+}
+
+fn validate_manifest_rule_file_name(file_name: &str) -> Result<()> {
+    let path = Path::new(file_name);
+    if path.is_absolute() {
+        anyhow::bail!(
+            "RulePack manifest file path must be relative: {}",
+            file_name
+        );
+    }
+
+    if path.components().any(|component| {
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    }) {
+        anyhow::bail!(
+            "RulePack manifest file path must not escape the pack directory: {}",
+            file_name
+        );
+    }
+
+    Ok(())
 }
 
 pub fn load_rules_from_content(
@@ -304,6 +451,171 @@ pattern = "b"
         assert_eq!(rules.len(), 2);
         assert_eq!(rules[0].id, "rule.b");
         assert_eq!(rules[1].id, "rule.a");
+    }
+
+    #[test]
+    fn test_pinned_digest_signature_accepts_matching_pack() {
+        let dir = setup_test_dir("pinned_digest_accepts_matching_pack");
+
+        let rule = r#"
+[[rules]]
+id = "rule.signed"
+description = "Signed"
+pattern = "signed"
+"#;
+        File::create(dir.join("rules.toml"))
+            .unwrap()
+            .write_all(rule.as_bytes())
+            .unwrap();
+
+        let unsigned_manifest = r#"
+files = ["rules.toml"]
+
+[pack]
+id = "test.signed"
+version = 1
+schema_version = 1
+
+[signature]
+enabled = true
+required = true
+trust_model = "pinned_digests"
+digest_algorithm = "sha256"
+"#;
+        let manifest = parse_manifest(unsigned_manifest).unwrap();
+        let digest = compute_rule_pack_digest(&dir, &manifest).unwrap();
+        let signed_manifest = format!(
+            r#"
+files = ["rules.toml"]
+
+[pack]
+id = "test.signed"
+version = 1
+schema_version = 1
+
+[signature]
+enabled = true
+required = true
+trust_model = "pinned_digests"
+digest_algorithm = "sha256"
+pinned_digests = ["sha256:{digest}"]
+"#
+        );
+        File::create(dir.join("00_manifest.toml"))
+            .unwrap()
+            .write_all(signed_manifest.as_bytes())
+            .unwrap();
+
+        let rules = load_rule_pack(&dir).unwrap();
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].id, "rule.signed");
+    }
+
+    #[test]
+    fn test_pinned_digest_signature_rejects_mismatch() {
+        let dir = setup_test_dir("pinned_digest_rejects_mismatch");
+
+        let rule = r#"
+[[rules]]
+id = "rule.signed"
+description = "Signed"
+pattern = "signed"
+"#;
+        File::create(dir.join("rules.toml"))
+            .unwrap()
+            .write_all(rule.as_bytes())
+            .unwrap();
+
+        let manifest = r#"
+files = ["rules.toml"]
+
+[pack]
+id = "test.signed"
+version = 1
+schema_version = 1
+
+[signature]
+enabled = true
+required = true
+trust_model = "pinned_digests"
+digest_algorithm = "sha256"
+pinned_digests = ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
+"#;
+        File::create(dir.join("00_manifest.toml"))
+            .unwrap()
+            .write_all(manifest.as_bytes())
+            .unwrap();
+
+        let err = load_rule_pack(&dir).unwrap_err();
+        assert!(err.to_string().contains("Failed to verify RulePack"));
+        assert!(format!("{err:#}").contains("digest mismatch"));
+    }
+
+    #[test]
+    fn test_signature_required_rejects_unsupported_trust_model() {
+        let dir = setup_test_dir("signature_rejects_unsupported_trust_model");
+
+        let rule = r#"
+[[rules]]
+id = "rule.signed"
+description = "Signed"
+pattern = "signed"
+"#;
+        File::create(dir.join("rules.toml"))
+            .unwrap()
+            .write_all(rule.as_bytes())
+            .unwrap();
+
+        let manifest = r#"
+files = ["rules.toml"]
+
+[pack]
+id = "test.signed"
+version = 1
+schema_version = 1
+
+[signature]
+enabled = true
+required = true
+trust_model = "pinned_keys"
+digest_algorithm = "sha256"
+pinned_digests = ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
+"#;
+        File::create(dir.join("00_manifest.toml"))
+            .unwrap()
+            .write_all(manifest.as_bytes())
+            .unwrap();
+
+        let err = load_rule_pack(&dir).unwrap_err();
+        assert!(format!("{err:#}").contains("Unsupported RulePack signature trust_model"));
+    }
+
+    #[test]
+    fn test_signature_required_rejects_manifest_path_escape() {
+        let dir = setup_test_dir("signature_rejects_manifest_path_escape");
+
+        let manifest = r#"
+files = ["../outside.toml"]
+
+[pack]
+id = "test.signed"
+version = 1
+schema_version = 1
+
+[signature]
+enabled = true
+required = true
+trust_model = "pinned_digests"
+digest_algorithm = "sha256"
+pinned_digests = ["sha256:0000000000000000000000000000000000000000000000000000000000000000"]
+"#;
+        File::create(dir.join("00_manifest.toml"))
+            .unwrap()
+            .write_all(manifest.as_bytes())
+            .unwrap();
+
+        let err = load_rule_pack(&dir).unwrap_err();
+        assert!(format!("{err:#}").contains("must not escape the pack directory"));
     }
 
     #[test]

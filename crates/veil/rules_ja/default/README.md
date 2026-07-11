@@ -121,7 +121,7 @@ TOMLの構造や意味が変わる場合 (破壊的変更) にのみインクリ
 * パックは **データのみ** (TOMLまたは同等)。埋め込みスクリプトなし。
 * バリデータは **名前** (例: `"luhn"`) で参照され、既知の許可リストに対してのみ解決される。
 
-署名ポリシー (計画):
+署名ポリシー:
 
 * リモートパックの配布は以下を提供します:
 
@@ -133,11 +133,13 @@ TOMLの構造や意味が変わる場合 (破壊的変更) にのみインクリ
 信頼モデル (組織ごとに選択):
 
 * **Pinned key(s)**: リストされた公開鍵によって署名されたパックのみを受け入れる。
-* **Pinned digest(s)**: 特定の既知のハッシュのみを受け入れる。
+* **Pinned digest(s)**: 特定の既知のハッシュのみを受け入れる。`signature.enabled = true`
+  または `signature.required = true` のoffline RulePackで実装済み。
 * **TOFU (Trust On First Use)**: 最初の署名を受け入れ、その後はそれを固定する (高セキュリティには推奨されません)。
 
-マニフェストには意図を表現するフィールド (例: `signature.required = true`) が含まれますが、
-実際の強制は常にローカルポリシー (設定) によって決定されます。
+`signature.required = true` などのマニフェストフィールドは、実装済みのoffline
+`pinned_digests` / `sha256` trust modelでは fail closed で強制されます。`pinned_keys` と
+`tofu` は将来対応です。
 
 ---
 
