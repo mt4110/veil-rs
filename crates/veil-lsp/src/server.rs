@@ -8,7 +8,8 @@ use std::time::Duration;
 use crate::code_actions::code_actions;
 use crate::diagnostics::{findings_to_diagnostics, max_file_size_diagnostic};
 use crate::document_store::{DocumentState, DocumentStore};
-use tower_lsp::jsonrpc::Result;
+use anyhow::Result;
+use tower_lsp::jsonrpc::Result as LspResult;
 use tower_lsp::lsp_types::{
     CodeActionParams, CodeActionProviderCapability, CodeActionResponse, Diagnostic,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
@@ -30,16 +31,13 @@ pub struct Backend {
 }
 
 impl Backend {
-    fn with_config(client: Client, config: Config) -> Self {
-        let rules = try_get_all_rules(&config, Vec::new())
-            .unwrap_or_else(|_| veil_core::get_default_rules());
-
+    fn with_config_and_rules(client: Client, config: Arc<Config>, rules: Arc<Vec<Rule>>) -> Self {
         Self {
             client,
             documents: Arc::new(tokio::sync::Mutex::new(DocumentStore::default())),
             pending_scans: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
-            config: Arc::new(config),
-            rules: Arc::new(rules),
+            config,
+            rules,
         }
     }
 
@@ -95,7 +93,7 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, _: InitializeParams) -> LspResult<InitializeResult> {
         Ok(InitializeResult {
             capabilities: server_capabilities(),
             server_info: Some(ServerInfo {
@@ -166,7 +164,7 @@ impl LanguageServer for Backend {
         self.client.publish_diagnostics(uri, Vec::new(), None).await;
     }
 
-    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+    async fn code_action(&self, params: CodeActionParams) -> LspResult<Option<CodeActionResponse>> {
         let uri = params.text_document.uri;
         let document = {
             let documents = self.documents.lock().await;
@@ -189,22 +187,27 @@ impl LanguageServer for Backend {
         Ok(Some(actions))
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&self) -> LspResult<()> {
         Ok(())
     }
 }
 
-pub async fn run_stdio() {
-    run_stdio_with_config(Config::default()).await;
+pub async fn run_stdio() -> Result<()> {
+    run_stdio_with_config(Config::default()).await
 }
 
-pub async fn run_stdio_with_config(config: Config) {
+pub async fn run_stdio_with_config(config: Config) -> Result<()> {
+    let rules = Arc::new(try_get_all_rules(&config, Vec::new())?);
+    let config = Arc::new(config);
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) =
-        LspService::build(|client| Backend::with_config(client, config.clone())).finish();
+    let (service, socket) = LspService::build(|client| {
+        Backend::with_config_and_rules(client, Arc::clone(&config), Arc::clone(&rules))
+    })
+    .finish();
 
     Server::new(stdin, stdout, socket).serve(service).await;
+    Ok(())
 }
 
 pub fn server_capabilities() -> ServerCapabilities {
@@ -223,6 +226,10 @@ pub fn diagnostics_for_text(
     rules: &[Rule],
     config: &Config,
 ) -> Vec<Diagnostic> {
+    if is_ignored_by_config(path, config) {
+        return Vec::new();
+    }
+
     let max_size_bytes = config
         .core
         .max_file_size
@@ -233,6 +240,15 @@ pub fn diagnostics_for_text(
     }
 
     findings_to_diagnostics(&scan_content(text, path, rules, config))
+}
+
+fn is_ignored_by_config(path: &Path, config: &Config) -> bool {
+    let path_str = path.to_string_lossy();
+    config
+        .core
+        .ignore
+        .iter()
+        .any(|pattern| path_str.contains(pattern))
 }
 
 fn path_for_uri(uri: &Url) -> PathBuf {
@@ -303,10 +319,12 @@ fn document_for_revision(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use tower_lsp::lsp_types::{
         CodeActionProviderCapability, DiagnosticSeverity, NumberOrString,
         TextDocumentSyncCapability,
     };
+    use veil_config::RuleConfig;
 
     #[test]
     fn server_name_matches_binary_name() {
@@ -389,6 +407,51 @@ mod tests {
         let data_text = data.to_string();
         assert!(!data_text.contains("test@example.com"));
         assert!(!data_text.contains("contact test@example.com"));
+    }
+
+    #[test]
+    fn diagnostics_for_text_honors_config_ignores() {
+        let mut config = Config::default();
+        config.core.ignore.push("generated".to_string());
+        let rules = try_get_all_rules(&config, Vec::new()).expect("rules");
+
+        let diagnostics = diagnostics_for_text(
+            "contact test@example.com\n",
+            Path::new("src/generated/secrets.txt"),
+            &rules,
+            &config,
+        );
+
+        assert!(diagnostics.is_empty());
+    }
+
+    #[tokio::test]
+    async fn run_stdio_with_config_rejects_rule_loading_errors() {
+        let mut config = Config::default();
+        config.rules = HashMap::from([(
+            "custom.invalid_validator".to_string(),
+            RuleConfig {
+                enabled: true,
+                enabled_is_set: true,
+                severity: None,
+                pattern: Some("SECRET".to_string()),
+                score: None,
+                category: None,
+                tags: None,
+                base_score: None,
+                context_lines_before: None,
+                context_lines_after: None,
+                validator: Some("unknown_validator".to_string()),
+                description: None,
+                placeholder: None,
+            },
+        )]);
+
+        let error = run_stdio_with_config(config).await.unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("Unknown validator 'unknown_validator'"));
     }
 
     #[test]

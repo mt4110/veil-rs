@@ -4587,6 +4587,7 @@ dependencies = [
 name = "veil-lsp"
 version = "0.17.0"
 dependencies = [
+ "anyhow",
  "serde_json",
  "tokio",
  "tower-lsp",

@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
             }
         },
         Some(Commands::Lsp { preset }) => {
-            commands::lsp::run(cli.config.as_ref(), preset.as_deref()).map(|_| false)
+            commands::lsp::run(cli.config.as_ref(), preset.as_deref(), cli.quiet).map(|_| false)
         }
         Some(Commands::Guardian(args)) => commands::guardian::run(args.clone()).map(|_| false),
         Some(Commands::Sot(cmd)) => commands::sot::run(cmd).map(|_| false),
