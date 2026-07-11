@@ -8,6 +8,7 @@ A high-performance secret detection tool
 Commands:
   scan           Scan files for secrets
 ...
+  lsp            Run the Veil language server over stdio
   guardian       Scan dependencies for vulnerabilities
 ...
   update         Check for updates (stub)

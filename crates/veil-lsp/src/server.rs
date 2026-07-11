@@ -30,8 +30,7 @@ pub struct Backend {
 }
 
 impl Backend {
-    fn new(client: Client) -> Self {
-        let config = Config::default();
+    fn with_config(client: Client, config: Config) -> Self {
         let rules = try_get_all_rules(&config, Vec::new())
             .unwrap_or_else(|_| veil_core::get_default_rules());
 
@@ -196,9 +195,14 @@ impl LanguageServer for Backend {
 }
 
 pub async fn run_stdio() {
+    run_stdio_with_config(Config::default()).await;
+}
+
+pub async fn run_stdio_with_config(config: Config) {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
-    let (service, socket) = LspService::new(Backend::new);
+    let (service, socket) =
+        LspService::build(|client| Backend::with_config(client, config.clone())).finish();
 
     Server::new(stdin, stdout, socket).serve(service).await;
 }

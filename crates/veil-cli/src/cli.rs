@@ -149,6 +149,12 @@ pub enum Commands {
     /// Rules related commands
     #[command(subcommand)]
     Rules(RulesCommand),
+    /// Run the Veil language server over stdio
+    Lsp {
+        /// Apply a built-in preset as the base config layer
+        #[arg(long, value_name = "ID")]
+        preset: Option<String>,
+    },
     /// Scan dependencies for vulnerabilities
     Guardian(GuardianArgs),
     /// SOT (Source of Truth) tools
