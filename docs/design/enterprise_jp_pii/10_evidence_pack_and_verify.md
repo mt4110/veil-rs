@@ -96,6 +96,13 @@ veil verify evidence.zip \
 - 正: 改ざんがあれば検知できる。
 - 誤: 改ざん不可、改ざん防止。
 
+## 10.8.1 Evidence signing playbook
+
+Evidence署名はZIP内部のv1契約を変更しない。署名対象は `run_meta.json` の raw bytes SHA256
+を含むZIP外の小さな承認manifestとし、detached signatureまたは社内承認台帳で保持する。
+
+詳細は `implementation/evidence_signing_playbook.md` を正とする。
+
 ## 10.9 token leak patterns
 
 デフォルト検出:
