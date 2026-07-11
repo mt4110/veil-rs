@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: UI
-pr: TBD
-status: Draft
+pr: 147
+status: Ready
 created_at: 2026-07-11
 branch: feat/ui-print-report-export
-commit: TBD
+commit: 462e1b0
 title: Add browser print path for audit reports
 ---
 
@@ -13,8 +13,8 @@ title: Add browser print path for audit reports
 
 ## SOT
 - Title: Add browser print path for audit reports
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #147
 
 ## What
 - [x] Add a `Print Report` action beside Evidence ZIP export in Local Audit UI scan results.
