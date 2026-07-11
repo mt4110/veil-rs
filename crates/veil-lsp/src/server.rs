@@ -197,7 +197,7 @@ pub async fn run_stdio() -> Result<()> {
 }
 
 pub async fn run_stdio_with_config(config: Config) -> Result<()> {
-    let remote_rules = remote_rules_for_config(&config);
+    let remote_rules = remote_rules_for_config(&config).await?;
     let rules = Arc::new(try_get_all_rules(&config, remote_rules)?);
     let config = Arc::new(config);
     let stdin = tokio::io::stdin();
@@ -252,16 +252,21 @@ fn is_ignored_by_config(path: &Path, config: &Config) -> bool {
         .any(|pattern| path_str.contains(pattern))
 }
 
-fn remote_rules_for_config(config: &Config) -> Vec<Rule> {
+async fn remote_rules_for_config(config: &Config) -> Result<Vec<Rule>> {
     let remote_url = std::env::var("VEIL_REMOTE_RULES_URL")
         .ok()
         .or_else(|| config.core.remote_rules_url.clone());
 
     let Some(url) = remote_url else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
 
-    match veil_core::remote::fetch_remote_rules(&url, 3) {
+    let fetch_url = url.clone();
+    let rules = match tokio::task::spawn_blocking(move || {
+        veil_core::remote::fetch_remote_rules(&fetch_url, 3)
+    })
+    .await?
+    {
         Ok(rules) => rules,
         Err(error) => {
             eprintln!(
@@ -270,7 +275,9 @@ fn remote_rules_for_config(config: &Config) -> Vec<Rule> {
             );
             Vec::new()
         }
-    }
+    };
+
+    Ok(rules)
 }
 
 fn path_for_uri(uri: &Url) -> PathBuf {
