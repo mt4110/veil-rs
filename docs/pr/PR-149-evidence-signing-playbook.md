@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: Enterprise JP PII
-pr: TBD
-status: Draft
+pr: 149
+status: Ready
 created_at: 2026-07-11
 branch: feat/evidence-signing-playbook
-commit: TBD
+commit: fdb2d87
 title: Add evidence signing playbook
 ---
 
@@ -13,8 +13,8 @@ title: Add evidence signing playbook
 
 ## SOT
 - Title: Add evidence signing playbook
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #149
 
 ## What
 - [x] Add a v1 playbook for signing Evidence approval records outside `evidence.zip`.
