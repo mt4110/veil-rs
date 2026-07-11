@@ -61,12 +61,25 @@ impl Backend {
                 return;
             };
 
-            let diagnostics = diagnostics_for_text(
-                &document.text,
-                &path_for_uri(&document.uri),
-                &rules,
-                &config,
-            );
+            let document_text = document.text.clone();
+            let document_path = path_for_uri(&document.uri);
+            let diagnostics = match tokio::task::spawn_blocking(move || {
+                diagnostics_for_text(&document_text, &document_path, &rules, &config)
+            })
+            .await
+            {
+                Ok(diagnostics) => diagnostics,
+                Err(error) => {
+                    client
+                        .log_message(
+                            MessageType::ERROR,
+                            format!("failed to run diagnostics scan: {error}"),
+                        )
+                        .await;
+                    clear_pending_scan_if_current(&pending_scans, &task_uri, scan_revision).await;
+                    return;
+                }
+            };
 
             if current_document_for_revision(&documents, &task_uri, scan_revision)
                 .await
