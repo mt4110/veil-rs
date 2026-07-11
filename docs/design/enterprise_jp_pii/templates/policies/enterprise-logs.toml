@@ -1,0 +1,40 @@
+# Log and observability org policy for Japanese enterprise deployments.
+# Apply with: VEIL_ORG_CONFIG=/path/to/enterprise-logs.toml
+# Expected base preset: logs-jp
+
+[core]
+include = ["logs", "var/log", "."]
+ignore = [
+  "target/**",
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  ".git/**",
+]
+max_file_size = 2000000
+max_file_count = 50000
+fail_on_score = 80
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 2000
+
+[masking]
+placeholder = "<REDACTED>"
+
+[rules."log.pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 94
+
+[rules."log.pii.credit_card"]
+enabled = true
+base_score = 92
+
+[rules."log.pii.jp.phone.keyword"]
+enabled = true
+base_score = 76
+
+[rules."log.pii.jp.postal.keyword"]
+enabled = true
+base_score = 78

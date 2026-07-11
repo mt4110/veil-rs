@@ -35,6 +35,7 @@
 | `schemas/json-schema.run-meta.json` | RunMeta JSON Schema |
 | `schemas/json-schema.report.json` | Evidence report.json JSON Schema |
 | `templates/presets/*.toml` | プリセットTOML案 |
+| `templates/policies/*.toml` | `VEIL_ORG_CONFIG` 用の企業ポリシーテンプレート |
 | `implementation/task_breakdown.md` | 実装タスクのチェックリスト |
 | `implementation/risk_register.md` | 技術・UX・営業上のリスク管理 |
 
