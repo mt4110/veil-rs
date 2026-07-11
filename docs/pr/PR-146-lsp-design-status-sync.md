@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: LSP
-pr: TBD
-status: Draft
+pr: 146
+status: Ready
 created_at: 2026-07-11
 branch: feat/lsp-design-status-sync
-commit: TBD
+commit: 0696022
 title: Sync LSP design implementation status
 ---
 
@@ -13,8 +13,8 @@ title: Sync LSP design implementation status
 
 ## SOT
 - Title: Sync LSP design implementation status
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #146
 
 ## What
 - [x] Mark LSP code actions complete in the enterprise JP PII roadmap now that mask, partial mask, and inline ignore quick fixes are on `main`.
