@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: Enterprise JP PII
-pr: TBD
-status: Draft
+pr: 148
+status: Ready
 created_at: 2026-07-11
 branch: feat/enterprise-policy-templates
-commit: TBD
+commit: 62831a1
 title: Add enterprise policy templates
 ---
 
@@ -13,8 +13,8 @@ title: Add enterprise policy templates
 
 ## SOT
 - Title: Add enterprise policy templates
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #148
 
 ## What
 - [x] Add organization-layer policy templates for Japanese enterprise deployments.
