@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: Enterprise JP PII
-pr: TBD
-status: Draft
+pr: 150
+status: Ready
 created_at: 2026-07-11
 branch: feat/rulepack-pinned-digest-verification
-commit: TBD
+commit: 5094792
 title: Add RulePack pinned digest verification
 ---
 
@@ -13,8 +13,8 @@ title: Add RulePack pinned digest verification
 
 ## SOT
 - Title: Add RulePack pinned digest verification
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #150
 
 ## What
 - [x] Parse `[signature]` metadata from RulePack manifests.
