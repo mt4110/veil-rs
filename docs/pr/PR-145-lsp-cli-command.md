@@ -1,7 +1,7 @@
 ---
 release: TBD
 epic: LSP
-pr: TBD
+pr: 145
 status: Draft
 created_at: 2026-07-11
 branch: feat/lsp-cli-command
@@ -14,7 +14,7 @@ title: Add CLI entrypoint for LSP
 ## SOT
 - Title: Add CLI entrypoint for LSP
 - Status: Draft
-- PR: TBD
+- PR: #145
 
 ## What
 - [x] Add `veil lsp` as a first-class CLI subcommand.
