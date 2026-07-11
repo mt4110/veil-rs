@@ -71,6 +71,8 @@ Remote RulePack は署名検証に失敗した場合は読み込まない。Air-
 v1のoffline検証は `trust_model = "pinned_digests"` と `digest_algorithm = "sha256"` を対象にし、
 pack metadata とRulePack file digestの正準SHA256が `pinned_digests` に含まれる場合のみ読み込む。
 `pinned_keys` / `tofu` は未実装のため fail closed とする。
+RulePack更新は `implementation/rulepack_update_flow.md` の通り、candidate packをstagingで検証し、
+active `rules_dir` へatomic promoteする。自動ネットワーク更新はv1では行わない。
 
 ## 8.7 Config安全
 
