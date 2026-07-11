@@ -427,25 +427,27 @@ mod tests {
 
     #[tokio::test]
     async fn run_stdio_with_config_rejects_rule_loading_errors() {
-        let mut config = Config::default();
-        config.rules = HashMap::from([(
-            "custom.invalid_validator".to_string(),
-            RuleConfig {
-                enabled: true,
-                enabled_is_set: true,
-                severity: None,
-                pattern: Some("SECRET".to_string()),
-                score: None,
-                category: None,
-                tags: None,
-                base_score: None,
-                context_lines_before: None,
-                context_lines_after: None,
-                validator: Some("unknown_validator".to_string()),
-                description: None,
-                placeholder: None,
-            },
-        )]);
+        let config = Config {
+            rules: HashMap::from([(
+                "custom.invalid_validator".to_string(),
+                RuleConfig {
+                    enabled: true,
+                    enabled_is_set: true,
+                    severity: None,
+                    pattern: Some("SECRET".to_string()),
+                    score: None,
+                    category: None,
+                    tags: None,
+                    base_score: None,
+                    context_lines_before: None,
+                    context_lines_after: None,
+                    validator: Some("unknown_validator".to_string()),
+                    description: None,
+                    placeholder: None,
+                },
+            )]),
+            ..Config::default()
+        };
 
         let error = run_stdio_with_config(config).await.unwrap_err();
 
