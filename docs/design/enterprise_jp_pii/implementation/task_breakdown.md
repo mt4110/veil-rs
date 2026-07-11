@@ -74,11 +74,11 @@
 - [x] score context modifierの単体テストを追加。
 - [x] JP PII fixtureが既存検知挙動を維持することを確認。
 
-## Later: LSP
+## LSP（実装済み）
 
-- [ ] `crates/veil-lsp` 追加
-- [ ] Diagnostics / CodeAction / ignore comments
-- [ ] JSONでinline ignore actionを出さないtest
+- [x] `crates/veil-lsp` 追加
+- [x] Diagnostics / CodeAction / ignore comments
+- [x] JSONでinline ignore actionを出さないtest
 
 
 ## Contract polish sync tasks

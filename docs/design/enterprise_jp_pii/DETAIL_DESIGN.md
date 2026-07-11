@@ -1596,13 +1596,13 @@ vim.lsp.start({
 
 - [x] `crates/veil-lsp` workspace追加。
 - [x] `tower-lsp` server実装。
-- [ ] `scan_content` をLSPから呼び出す。
-- [ ] UTF-8 byte offset → UTF-16 LSP range変換を実装。
-- [ ] `codeAction` for mask/ignore。
-- [ ] 言語別ignore comment registryを実装。
-- [ ] JSON等コメント不可ファイルではinline ignore actionを非表示。
-- [ ] fixtureでNeovim想定のdiagnosticテスト。
-- [ ] `veil lsp` をCLIに追加。
+- [x] `scan_content` をLSPから呼び出す。
+- [x] UTF-8 byte offset → UTF-16 LSP range変換を実装。
+- [x] `codeAction` for mask/partial mask/ignore。
+- [x] 言語別ignore comment registryを実装。
+- [x] JSON等コメント不可ファイルではinline ignore actionを非表示。
+- [x] fixtureでNeovim想定のdiagnosticテスト。
+- [x] `veil lsp` をCLIに追加。
 
 
 ## 6.11 v4 Range SOT
@@ -2548,8 +2548,8 @@ PR分割:
 - [x] `crates/veil-lsp` 作成
 - [x] tower-lsp integration
 - [x] diagnostics mapping
-- [ ] code actions
-- [ ] Neovim doc
+- [x] code actions
+- [x] Neovim doc
 
 ## Phase 5: Local Audit UI completion
 

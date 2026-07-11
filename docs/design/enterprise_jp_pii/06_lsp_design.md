@@ -166,11 +166,11 @@ vim.lsp.start({
 - [x] `didChange` のscanを debounce し、同一documentの古い結果をpublishしない。
 - [x] open document が最大サイズ超過のとき `MAX_FILE_SIZE` skipped diagnostic を publish する。
 - [x] UTF-8 byte offset → UTF-16 LSP range変換はCoreの`Finding.utf16_range`に集約し、LSP Diagnosticでは再計算しない。
-- [ ] `codeAction` for mask/ignore。
-- [ ] 言語別ignore comment registryを実装。
-- [ ] JSON等コメント不可ファイルではinline ignore actionを非表示。
-- [ ] fixtureでNeovim想定のdiagnosticテスト。
-- [ ] `veil lsp` をCLIに追加。
+- [x] `codeAction` for mask/partial mask/ignore。
+- [x] 言語別ignore comment registryを実装。
+- [x] JSON等コメント不可ファイルではinline ignore actionを非表示。
+- [x] fixtureでNeovim想定のdiagnosticテスト。
+- [x] `veil lsp` をCLIに追加。
 
 
 ## 6.11 v4 Range SOT

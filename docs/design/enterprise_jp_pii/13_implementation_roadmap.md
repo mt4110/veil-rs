@@ -64,8 +64,8 @@ PR分割:
 - [x] `crates/veil-lsp` 作成
 - [x] tower-lsp integration
 - [x] diagnostics mapping
-- [ ] code actions
-- [ ] Neovim doc
+- [x] code actions
+- [x] Neovim doc
 
 ## Phase 5: Local Audit UI completion
 
