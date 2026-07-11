@@ -1,11 +1,11 @@
 ---
 release: TBD
 epic: Enterprise JP PII
-pr: TBD
-status: Draft
+pr: 151
+status: Ready
 created_at: 2026-07-11
 branch: feat/rulepack-update-flow
-commit: TBD
+commit: 0f1e90c
 title: Add RulePack update flow
 ---
 
@@ -13,8 +13,8 @@ title: Add RulePack update flow
 
 ## SOT
 - Title: Add RulePack update flow
-- Status: Draft
-- PR: TBD
+- Status: Ready
+- PR: #151
 
 ## What
 - [x] Add a v1 RulePack update runbook for staging, verification, atomic promotion, and rollback.
