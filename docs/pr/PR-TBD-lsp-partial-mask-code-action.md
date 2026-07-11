@@ -5,7 +5,7 @@ pr: TBD
 status: Ready
 created_at: 2026-07-09
 branch: feat/lsp-partial-mask-code-action
-commit: TBD
+commit: 16eb4f3
 title: Add LSP partial mask code action
 ---
 
@@ -13,6 +13,7 @@ title: Add LSP partial mask code action
 - Title: Add LSP partial mask code action
 - Status: Ready
 - PR: TBD
+- Main commit: `16eb4f3`
 
 ## What
 - [x] Add `partial_mask` to the LSP diagnostic action metadata.
@@ -28,7 +29,8 @@ title: Add LSP partial mask code action
 
 ## Evidence
 - Local command output observed on 2026-07-09 in `feat/lsp-partial-mask-code-action`.
-- CI evidence will be the GitHub pull request checks for this branch.
+- The implementation is present on `main` as commit `16eb4f3 Add LSP partial mask code action`.
+- No separate GitHub PR number was assigned to this SOT at landing time; keep this file as the commit-level evidence record.
 
 ## Non-goals
 - [x] Does not change scanner finding ranges; CodeAction continues to trust the diagnostic range as the SOT.
