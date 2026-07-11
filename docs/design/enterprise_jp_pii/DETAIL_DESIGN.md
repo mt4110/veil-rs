@@ -2557,15 +2557,15 @@ PR分割:
 - [x] Svelte state machine
 - [x] Policy explain
 - [x] Evidence ZIP UX
-- [ ] PDF export path検討
+- [x] PDF export path検討（初期実装はbrowser print）
 
 ## Phase 6: PDF Report
 
 ### 方針
 HTMLをSOTにし、PDFは印刷最適CSSまたはローカルheadless rendererを別optional featureとする。
 
-- [ ] `report.print.html` CSS
-- [ ] `Export PDF` はbrowser printを初期案にする
+- [x] `report.print.html` CSS
+- [x] `Export PDF` はbrowser printを初期案にする
 - [ ] 将来: `--format pdf` はfeature gated
 
 ## Phase 7: Enterprise hardening
