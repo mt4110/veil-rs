@@ -1,0 +1,16 @@
+bin.name = "veil"
+args = ["lsp", "--help"]
+status = "success"
+stdout = """
+Run the Veil language server over stdio
+
+Usage: veil lsp [OPTIONS]
+
+Options:
+  -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
+      --preset <ID>      Apply a built-in preset as the base config layer
+      --no-color         Disable colored output
+  -q, --quiet            Suppress non-essential output
+  -h, --help             Print help
+"""
+stderr = ""
