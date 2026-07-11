@@ -1,0 +1,39 @@
+# General Japanese enterprise org policy.
+# Apply with: VEIL_ORG_CONFIG=/path/to/enterprise-standard.toml
+
+[core]
+include = ["."]
+ignore = [
+  "target/**",
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  ".git/**",
+]
+max_file_size = 1000000
+max_file_count = 20000
+fail_on_score = 85
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 1000
+
+[masking]
+placeholder = "<REDACTED>"
+
+[rules."pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 92
+
+[rules."pii.jp.mynumber.unlabeled"]
+enabled = true
+base_score = 72
+
+[rules."pii.jp.address.prefecture_heuristic"]
+enabled = true
+base_score = 55
+
+[rules."pii.person.name.keyword"]
+enabled = true
+base_score = 45

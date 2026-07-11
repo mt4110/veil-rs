@@ -1,0 +1,39 @@
+# SIer and outsourced development org policy for Japanese enterprise deployments.
+# Apply with: VEIL_ORG_CONFIG=/path/to/enterprise-si-vendor.toml
+
+[core]
+include = ["."]
+ignore = [
+  "target/**",
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  ".git/**",
+]
+max_file_size = 1000000
+max_file_count = 20000
+fail_on_score = 85
+
+[output]
+mask_mode = "redact"
+show_snippets = true
+max_findings = 1000
+
+[masking]
+placeholder = "<REDACTED>"
+
+[rules."pii.jp.mynumber.keyword"]
+enabled = true
+base_score = 92
+
+[rules."pii.jp.mynumber.unlabeled"]
+enabled = true
+base_score = 76
+
+[rules."pii.jp.address.prefecture_heuristic"]
+enabled = true
+base_score = 60
+
+[rules."pii.fin.bank_account.keyword"]
+enabled = true
+base_score = 82
