@@ -173,3 +173,124 @@ p {
   background-color: rgba(134, 134, 139, 0.15);
   color: var(--text-secondary);
 }
+
+@media print {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --text-primary: #111111;
+    --text-secondary: #4f4f54;
+    --glass-bg: #ffffff;
+    --glass-border: #d2d2d7;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+  }
+
+  body {
+    background: #ffffff;
+    color: #111111;
+  }
+
+  .dashboard-layout,
+  .content-area,
+  .scroll-content,
+  .scan-container,
+  .results-area {
+    display: block !important;
+    height: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .sidebar,
+  .topbar,
+  .input-card,
+  .error-banner,
+  .results-toolbar .btn {
+    display: none !important;
+  }
+
+  .glass-panel {
+    background: #ffffff !important;
+    border: 1px solid #d2d2d7 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .results-toolbar {
+    display: block !important;
+    margin-bottom: 12px !important;
+  }
+
+  .results-toolbar h4 {
+    font-size: 18px !important;
+  }
+
+  .stats-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .stat-card {
+    break-inside: avoid;
+    padding: 12px !important;
+  }
+
+  .stat-value {
+    font-size: 24px !important;
+  }
+
+  .stat-value.text-value {
+    font-size: 18px !important;
+  }
+
+  .findings-table {
+    break-inside: auto;
+  }
+
+  .table-wrapper {
+    overflow: visible !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  th,
+  td {
+    padding: 8px 10px !important;
+    font-size: 11px !important;
+    vertical-align: top;
+  }
+
+  .badge {
+    border: 1px solid currentColor;
+    background: transparent !important;
+    color: #111111 !important;
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+  }
+
+  .path-col,
+  .rule-col,
+  .context-col .code-block {
+    overflow-wrap: anywhere;
+    white-space: normal !important;
+  }
+
+  .code-block {
+    background: #ffffff !important;
+    border-color: #d2d2d7 !important;
+  }
+}

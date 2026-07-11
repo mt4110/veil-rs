@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download } from 'lucide-svelte';
+  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download, Printer } from 'lucide-svelte';
   import type { ErrorEnvelope, PresetName, SafeFindingApiV1, ScanRequest, ScanResponse, SeverityName } from './api-contract';
   import type { ScanPreset, ScanState } from './ui-state';
   
@@ -196,6 +196,10 @@
       errorMsg = 'Network error downloading evidence.';
     }
   }
+
+  function printReport() {
+    window.print();
+  }
 </script>
 
 <div class="scan-container state-anim">
@@ -264,9 +268,14 @@
     <div class="results-area state-anim">
       <div class="results-toolbar">
         <h4>Scan Results</h4>
-        <button class="export-link btn btn-secondary btn-sm" onclick={() => downloadEvidence(scanStats!.runId)} type="button">
-          <Download size={14} /> Export Evidence Pack
-        </button>
+        <div class="results-actions">
+          <button class="export-link btn btn-secondary btn-sm" onclick={printReport} type="button" title="Print report">
+            <Printer size={14} /> Print Report
+          </button>
+          <button class="export-link btn btn-secondary btn-sm" onclick={() => downloadEvidence(scanStats!.runId)} type="button">
+            <Download size={14} /> Export Evidence Pack
+          </button>
+        </div>
       </div>
 
       <div class="stats-cards">
@@ -560,10 +569,21 @@
     flex: 0 0 auto;
   }
 
+  .results-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
   @media (max-width: 720px) {
     .results-toolbar {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .results-actions {
+      width: 100%;
     }
 
     .export-link {
