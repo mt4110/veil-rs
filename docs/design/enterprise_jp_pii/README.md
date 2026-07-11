@@ -39,6 +39,7 @@
 | `implementation/task_breakdown.md` | 実装タスクのチェックリスト |
 | `implementation/risk_register.md` | 技術・UX・営業上のリスク管理 |
 | `implementation/evidence_signing_playbook.md` | Evidence ZIPの外部署名・承認運用runbook |
+| `implementation/rulepack_update_flow.md` | 署名検証済みRulePackのstaging/promote/rollback運用runbook |
 
 ## SOT方針
 - 正本優先順は `00_contract_decisions.md` → Rust DTO/Core型 → 生成OpenAPI/JSON Schema → 各章本文。
