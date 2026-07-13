@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "current_streak": 25,
+  "current_streak": 26,
   "runs": [
     {
       "week_id": "2026-W03",
@@ -157,6 +157,12 @@
       "result": "NOOP",
       "is_pure": true,
       "consecutive_count": 25
+    },
+    {
+      "week_id": "2026-W29",
+      "result": "NOOP",
+      "is_pure": true,
+      "consecutive_count": 26
     }
   ]
 }
