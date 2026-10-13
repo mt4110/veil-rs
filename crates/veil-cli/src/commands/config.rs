@@ -12,26 +12,7 @@ pub fn check(config_path: Option<&PathBuf>) -> Result<bool> {
     println!("✅ Configuration loaded successfully.");
     println!("   - Config Path: {:?}", config_path);
 
-    // 2. Fetch Rules (Local + Remote)
-    let mut remote_rules = Vec::new();
-    let remote_url = std::env::var("VEIL_REMOTE_RULES_URL")
-        .ok()
-        .or_else(|| config.core.remote_rules_url.clone());
-
-    if let Some(url) = remote_url {
-        println!("   - Remote Rules URL: {}", url);
-        match veil_core::remote::fetch_remote_rules(&url, 3) {
-            Ok(rules) => {
-                println!("   - Fetched {} remote rules.", rules.len());
-                remote_rules = rules;
-            }
-            Err(e) => {
-                println!("   ⚠️ Failed to fetch remote rules: {}", e);
-            }
-        }
-    }
-
-    let rules = try_get_all_rules(&config, remote_rules)?;
+    let rules = try_get_all_rules(&config, Vec::new())?;
     println!("   - Total Active Rules: {}", rules.len());
 
     // 3. Validate Rules (Regex Safety)

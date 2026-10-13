@@ -1,0 +1,118 @@
+name: Local OSS profile
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      toolchain:
+        type: string
+        required: true
+      musl:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ${{ inputs.runner }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      PYTHONDONTWRITEBYTECODE: "1"
+      LIBGIT2_NO_VENDOR: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.toolchain }}
+          components: clippy, rustfmt
+          targets: ${{ inputs.musl && 'x86_64-unknown-linux-musl' || '' }}
+      - name: Install native musl C toolchain
+        if: inputs.musl
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes musl-tools
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: Swatinem/rust-cache@v2
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Architecture and release guard tests
+        run: |
+          python scripts/check_architecture.py
+          python scripts/check_cli_release.py
+          python -m unittest discover -s scripts -p 'test_*.py'
+          python scripts/check_docs_taxonomy.py
+      - name: Default profile lint and tests
+        run: |
+          cargo clippy --locked --offline -p veil-cli -p veil-core -p veil-config --all-targets -- -D warnings
+          cargo test --locked --offline
+      - name: Minimal profile lint and tests
+        run: |
+          cargo clippy --locked --offline -p veil-cli -p veil-core -p veil-config --no-default-features --all-targets -- -D warnings
+          cargo test --locked --offline -p veil-cli --no-default-features
+      - name: Main feature and standalone LSP compatibility
+        run: |
+          cargo test --locked --offline -p veil-cli -p veil-core --features jp_mynumber_checksum
+          cargo clippy --locked --offline -p veil-lsp --all-targets -- -D warnings
+          cargo test --locked --offline -p veil-lsp
+      - name: Release build
+        if: ${{ !inputs.musl }}
+        run: cargo build --locked --offline --release -p veil-cli --bin veil
+      - name: Static musl release build
+        if: inputs.musl
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          RUSTFLAGS: -C target-feature=+crt-static
+          ZLIB_STATIC: "1"
+        run: |
+          mkdir -p .local/ci
+          cargo rustc --locked --offline --release -p veil-cli --bin veil --target x86_64-unknown-linux-musl -- -C "link-arg=-Wl,-Map,$PWD/.local/ci/musl-link.map"
+      - name: Release binary smoke check
+        env:
+          RUNNER_OS_NAME: ${{ runner.os }}
+          MUSL_BUILD: ${{ inputs.musl }}
+        run: |
+          binary=target/release/veil
+          if [ "$MUSL_BUILD" = "true" ]; then
+            binary=target/x86_64-unknown-linux-musl/release/veil
+          fi
+          if [ "$RUNNER_OS_NAME" = "Windows" ]; then
+            binary=target/release/veil.exe
+          fi
+          mkdir -p .local/ci
+          python scripts/check_cli_release.py --binary "$binary" --bundle .local/ci/oss-release --archive .local/ci/oss-release.zip | tee .local/ci/oss-release-check.txt
+      - name: Verify extracted native CLI archive and third-party notices
+        env:
+          MUSL_BUILD: ${{ inputs.musl }}
+          RUNNER_CPU_ARCH: ${{ runner.arch }}
+        run: |
+          options=()
+          if [ "$MUSL_BUILD" = "true" ]; then
+            options+=(--require-static --link-map .local/ci/musl-link.map)
+          fi
+          python scripts/verify_cli_archive.py --archive .local/ci/oss-release.zip --report .local/ci/oss-archive-check.json --execution-mode native --execution-host-architecture "$RUNNER_CPU_ARCH" "${options[@]}"
+      - name: Upload CLI verification record
+        uses: actions/upload-artifact@v4
+        with:
+          name: veil-cli-check-${{ inputs.profile }}-${{ inputs.runner }}-${{ inputs.toolchain }}-${{ inputs.musl && 'musl' || 'native' }}
+          path: |
+            .local/ci/oss-release-check.txt
+            .local/ci/oss-archive-check.json
+            .local/ci/oss-release/SHA256SUMS
+          if-no-files-found: error

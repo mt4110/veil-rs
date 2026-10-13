@@ -13,8 +13,8 @@ To prevent "False Positives" from GitHub Push Protection and other scanners, and
     ```
 
 2.  **Legacy Fixtures**:
-    Existing test fixtures (e.g. `tests/fixtures/*.txt`) that contain hard-coded fake secrets (like `AKIA...EXAMPLE`) are currently **ignored** by configuration (`veil.toml`) to prevent self-detection.
-    We will gradually migrate these to generated fixtures or non-matching patterns where feasible.
+    Some existing tests and fixtures contain hard-coded fake values. They are not automatically safe to publish or excluded from scans: exclusions depend on the effective configuration.
+    The source root currently has no `veil.toml`; do not assume a repository configuration hides test values. Prefer generated fixtures or non-matching placeholders in new work.
 
 3.  **No Real Secrets**:
     Under NO circumstances should a real, valid credential be committed to this repository, even for testing.

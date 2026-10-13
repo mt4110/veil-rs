@@ -1,113 +1,30 @@
 # Docs Portal
 
 Status: `active`
-Owner: product + engineering
-Purpose: public docs の入口、分類規約、SSOT 導線
 
----
+通常利用は [README](../README.md)、製品の範囲は [SSOT](SSOT.md) を参照してください。
+配布アーカイブでは、以下のガイドを含む選定済みの文書だけを同梱します。開発・検証コマンドは別途ソースを取得して実行します。
 
-## 1. まず読む順番
+- [初回利用チュートリアル](cli/getting-started.md): 架空の入力から検知・baseline・CI終了条件を確認。
+- [利用ガイドライン](cli/usage-guidelines.md): 結果の読み方、安全な共有、スキップ・上限・書込み操作。
+- [Linux配布ガイド](cli/linux-distribution.md): GNU/musl、CPU・libc・カーネルの条件と検証範囲。
+- [Windows配布ガイド](cli/windows-distribution.md): GNU/MSVC、DLL・互換実行とネイティブ未検証の区別。
+- [CLI](cli/README.md): スキャン、初期化、設定、ルール、診断。
+- [OSS CLIのCI・リリース条件](ci/oss-cli-release.md)
+- [アーキテクチャと残タスク](architecture/local-oss.md): 依存境界、ガード、互換機能、検証範囲。
+- [開発ガイド](DEVELOPMENT.md) / [English](DEVELOPMENT_EN.md)
+- [テスト用シークレットの規約](TESTING_SECRETS.md)
+- [JSON契約](json-schema.md)
+- [Baseline](baseline/usage.md)
+- [脅威モデル](security/threat_model.md)
+- [配布物の第三者ライセンスと同梱ソース](../THIRD_PARTY_NOTICES.md) / [NOTICE](../NOTICE)
 
-1. [SSOT.md](SSOT.md)
-2. [README.md](../README.md)
-3. 必要な reference docs
-
-この順番を崩すと、historical docs を先に読んで迷いやすい。
-
----
-
-## 2. ステータス定義
-
-- `active`: 今の製品判断に直接効く文書。仕様や導線の一次参照。
-- `reference`: 現行運用や補助説明には使うが、SSOT ではない文書。
-- `archive`: 歴史的記録。過去の設計・証跡・進捗・PR 単位メモ。
-
----
-
-## 3. 全 docs の分類ルール
-
-この repo の Markdown は path 単位で全件分類する。
-
-### `active`
-
-- [README.md](README.md) (この文書)
-- [SSOT.md](SSOT.md)
-- [DEVELOPMENT.md](DEVELOPMENT.md)
-- [DEVELOPMENT_EN.md](DEVELOPMENT_EN.md)
-- [TESTING_SECRETS.md](TESTING_SECRETS.md)
-
-### `reference`
-
-- `docs/baseline/**`
-- `docs/ci/**`
-- `docs/cli/**`
-- `docs/guardian/**`
-- `docs/guardrails/**`
-- `docs/integrations/**`
-- `docs/runbook/**`
-- `docs/templates/**`
-- `docs/sales/**`
-- `docs/rules.md`
-- `docs/rules/**`
-- `docs/json-schema.md`
-- `docs/prompts/**`
-- `docs/security/threat_model.md`
-- `docs/pr/README.md`
-- `docs/pr/sot_template.md`
-- `docs/ops/*CONTRACT*.md`
-- `docs/ops/REVIEW_BUNDLE.md`
-- `docs/ops/LOCAL_STORAGE_POLICY_v1.md`
-- `docs/dogfood/README.md`
-
-### `archive`
-
-- `docs/ai/**`
-- `docs/design/**`
-- `docs/dogfood/**` except `README.md`
-- `docs/evidence/**`
-- `docs/epics/**`
-- `docs/ops/**` except contract/reference docs
-- `docs/perf/**`
-- `docs/phase16/**`
-- `docs/phase17/**`
-- `docs/pr/PR-*.md`
-- `docs/pr/PR-TBD-*.md`
-- `docs/pr/*/{plan,task,implementation_plan}.md`
-- `docs/pr/_archive/**`
-- `docs/pr/evidence/**`
-- `docs/roadmap/**`
-- `docs/security/dependabot/**`
-- `docs/security_review.md`
-- `docs/v0.20.0-planning/**`
-
----
-
-## 4. よく使う reference
-
-- CLI: [README.md](cli/README.md)
-- Baseline: [usage.md](baseline/usage.md)
-- Integrations: [github-actions.md](integrations/github-actions.md)
-- Runbook: [review-bundle.md](runbook/review-bundle.md)
-- Product boundary: `docs/sales/PRD_V1_NONOVERLAP_PATCHGATE_JA.md`
-
----
-
-## 5. 機械チェック
-
-全 Markdown の分類は次で検証する。
+`docs/architecture/**` と上記の製品・開発入口は active。
+CLI・baseline・rules・integrations・runbook・security/threat_model は reference。
+過去のops・PR・roadmap・設計・商用検討は、その時点の資料として読みます。通常CLIの仕様はSSOTと実装を優先します。
+細かい分類は `scripts/check_docs_taxonomy.py` のRULESを参照してください。
 
 ```bash
 python3 scripts/check_docs_taxonomy.py
+python3 scripts/check_architecture.py
 ```
-
-全件の分類を一覧で見たい場合:
-
-```bash
-python3 scripts/check_docs_taxonomy.py --list
-```
-
----
-
-## 6. 人手確認
-
-最終の人間レビューはローカル private checklist で行う。private 文書は public docs から直接リンクしない。

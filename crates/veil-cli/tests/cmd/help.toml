@@ -2,21 +2,28 @@ bin.name = "veil"
 args = ["--help"]
 status = "success"
 stdout = """
-A high-performance secret detection tool
+Local secret scanning and masking
 
-...
+Usage: veil [OPTIONS] [COMMAND]
+
 Commands:
-  scan           Scan files for secrets
-...
-  lsp            Run the Veil language server over stdio
-  guardian       Scan dependencies for vulnerabilities
-...
-  update         Check for updates (stub)
-  verify         Verify an Evidence Pack (ZIP)
-  help           Print this message or the help of the given subcommand(s)
+  scan        Scan files and directories using local rules
+  filter      Filter STDIN and mask secrets (outputs to STDOUT)
+  init        Initialize a new configuration file
+  config      Configuration tools
+  pre-commit  Pre-commit hook tools
+  git         Git history and operations
+  doctor      Show diagnostic definition and system info
+  rules       Rules related commands
+  lsp         Run the Veil language server over stdio
+  update      Install a local signed RulePack (requires --local-pack)
+  verify      Verify an Evidence Pack v1 ZIP
+  help        Print this message or the help of the given subcommand(s)
 
 Options:
-...
+  -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
+      --no-color         Disable colored output
+  -q, --quiet            Suppress non-essential output
   -h, --help             Print help
   -V, --version          Print version
 """

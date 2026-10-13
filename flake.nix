@@ -20,14 +20,14 @@
           };
 
         rustMsrv =
-          pkgs.rust-bin.stable."1.82.0".default.override {
+          pkgs.rust-bin.stable."1.92.0".default.override {
             extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ];
           };
 
         # ★ ここが新規：veil バイナリパッケージ
         veilPkg = pkgs.rustPlatform.buildRustPackage {
           pname = "veil";
-          version = "0.8.0";
+          version = "0.21.0-rc.1";
           src = ./.;
 
           cargoLock.lockFile = ./Cargo.lock;
@@ -302,7 +302,7 @@
 
             export PATH="${rustMsrv}/libexec:$PATH"
             export RUST_BACKTRACE=1
-            echo "veil-rs dev env loaded (MSRV 1.82.0)" >&2
+            echo "veil-rs dev env loaded (MSRV 1.92.0)" >&2
             echo "Rust version: $(rustc --version)" >&2
           '';
         };

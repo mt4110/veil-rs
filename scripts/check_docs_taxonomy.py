@@ -10,6 +10,7 @@ from typing import Iterable
 
 RULES = [
     ("docs/README.md", "active"),
+    ("docs/architecture/**", "active"),
     ("docs/SSOT.md", "active"),
     ("docs/DEVELOPMENT.md", "active"),
     ("docs/DEVELOPMENT_EN.md", "active"),
@@ -25,14 +26,16 @@ RULES = [
     ("docs/rules.md", "reference"),
     ("docs/rules/**", "reference"),
     ("docs/runbook/**", "reference"),
-    ("docs/sales/**", "reference"),
     ("docs/security/threat_model.md", "reference"),
     ("docs/templates/**", "reference"),
     ("docs/pr/README.md", "reference"),
     ("docs/pr/sot_template.md", "reference"),
     ("docs/ops/*CONTRACT*.md", "reference"),
     ("docs/ops/LOCAL_STORAGE_POLICY_v1.md", "reference"),
+    ("docs/ops/REVIEWBUNDLE_PACK_CONTRACT_v1.md", "reference"),
     ("docs/ops/REVIEW_BUNDLE.md", "reference"),
+    ("docs/ops/REVIEW_BUNDLE_CONTRACT_v1.md", "reference"),
+    ("docs/ops/STDOUT_CONTRACT_v1.md", "reference"),
     ("docs/dogfood/README.md", "reference"),
     ("docs/pr/_archive/**", "archive"),
     ("docs/pr/evidence/**", "archive"),
@@ -54,11 +57,18 @@ RULES = [
     ("docs/security/dependabot/**", "archive"),
     ("docs/security_review.md", "archive"),
     ("docs/v0.20.0-planning/**", "archive"),
+
 ]
 
 
 def iter_docs(root: Path) -> Iterable[Path]:
-    yield from sorted((root / "docs").rglob("*.md"))
+    # The OSS gate classifies public docs only. Private/sales metadata belongs
+    # outside the public source and is not inferred from internal filenames.
+    base = root / "docs"
+    if base.exists():
+        for path in sorted(base.rglob("*.md")):
+            if path.relative_to(base).parts[0] != "sales":
+                yield path
 
 
 def classify(path: Path, root: Path) -> str | None:
@@ -70,7 +80,7 @@ def classify(path: Path, root: Path) -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check docs active/reference/archive taxonomy.")
+    parser = argparse.ArgumentParser(description="Check public docs active/reference/archive taxonomy.")
     parser.add_argument("--list", action="store_true", help="print every markdown file with status")
     args = parser.parse_args()
 
@@ -101,7 +111,7 @@ def main() -> int:
             print(f"  {rel}")
         return 1
 
-    print("all markdown docs are classified")
+    print("all public markdown docs are classified")
     return 0
 
 

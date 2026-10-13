@@ -14,9 +14,9 @@ pub use markdown::MarkdownFormatter;
 #[cfg(feature = "table")]
 pub use table::TableFormatter;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Summary {
     pub total_files: usize,
     pub scanned_files: usize,

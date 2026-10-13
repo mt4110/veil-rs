@@ -77,3 +77,13 @@ crates/veil-cli/.veil/
 /.private/
 node_modules/
 .svelte-kit/
+
+# Veil signing keys — NEVER commit private keys
+# Keep local signing material outside version control
+.veil/keys/
+**/.veil/keys/
+*.signing.key
+*.secret.key
+
+# Python architecture guard cache
+/scripts/__pycache__/

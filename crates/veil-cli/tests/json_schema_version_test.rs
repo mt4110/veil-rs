@@ -11,7 +11,7 @@ fn test_json_output_has_schema_version() {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
     let assert = cmd
         .arg("scan")
-        .arg(temp_dir.path())
+        .arg(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cmd/fixtures/clean"))
         .arg("--format")
         .arg("json")
         .arg("--limit")
@@ -27,6 +27,11 @@ fn test_json_output_has_schema_version() {
     assert_eq!(
         json["schemaVersion"], "veil-v1",
         "JSON output must contain schemaVersion: veil-v1"
+    );
+
+    assert_eq!(
+        json["summary"]["scanned_files"], 1,
+        "must scan the real fixture"
     );
 
     // Also check that summary and findings exist

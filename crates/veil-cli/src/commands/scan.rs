@@ -1,13 +1,15 @@
+#[cfg(feature = "table")]
+use crate::formatters::TableFormatter;
 use crate::formatters::{
     DisplayFinding, FindingStatus, Formatter, HtmlFormatter, JsonFormatter, MarkdownFormatter,
-    Summary, TableFormatter,
+    Summary,
 };
 use crate::output::formatter::print_finding;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use git2::{Delta, DiffOptions, Repository};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use veil_core::try_get_all_rules;
@@ -39,6 +41,35 @@ impl From<&str> for Format {
     }
 }
 
+fn incomplete_scan_reason(summary: &Summary) -> Option<&'static str> {
+    if summary.file_limit_reached {
+        Some("file count limit reached (core.max_file_count)")
+    } else if summary.max_file_size_reached {
+        Some("file size limit reached (core.max_file_size)")
+    } else if summary.read_error_reached {
+        Some("file read or UTF-8 decoding error")
+    } else if summary.limit_reached {
+        Some("finding limit reached (--limit or output.max_findings)")
+    } else {
+        None
+    }
+}
+
+fn read_git_blob<'repo>(
+    repo: &'repo Repository,
+    id: git2::Oid,
+    mode: u32,
+    path: &Path,
+) -> Result<Option<git2::Blob<'repo>>> {
+    // Gitlinks reference commits in a separate submodule repository, not blobs.
+    if mode == 0o160000 {
+        return Ok(None);
+    }
+    repo.find_blob(id)
+        .map(Some)
+        .with_context(|| format!("Cannot read Git blob for {}", path.display()))
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn collect_findings(
     paths: &[PathBuf],
@@ -51,8 +82,13 @@ pub fn collect_findings(
     limit: Option<usize>,
     baseline_path: Option<&PathBuf>,
 ) -> Result<ScanResultForCli> {
+    if commit.is_none() && since.is_none() && !staged {
+        for path in paths {
+            std::fs::metadata(path)
+                .with_context(|| format!("Cannot access scan path: {}", path.display()))?;
+        }
+    }
     let start_time = Instant::now();
-
     // 1. Load Config (Merge with Defaults)
     let mut config = if let Some(cfg) = config_override {
         cfg.clone()
@@ -85,25 +121,7 @@ pub fn collect_findings(
         config.output.mask_mode = Some(veil_config::MaskMode::Plain);
     }
 
-    // Remote Rules
-    let mut remote_rules = Vec::new();
-    let remote_url = std::env::var("VEIL_REMOTE_RULES_URL")
-        .ok()
-        .or_else(|| config.core.remote_rules_url.clone());
-
-    if let Some(url) = remote_url {
-        // Timeout 3s for CLI responsiveness
-        match veil_core::remote::fetch_remote_rules(&url, 3) {
-            Ok(rules) => {
-                remote_rules = rules;
-            }
-            Err(e) => {
-                eprintln!("Warning: Failed to fetch remote rules from {}: {}. Continuing with local rules only.", url, e);
-            }
-        }
-    }
-
-    let rules = try_get_all_rules(&config, remote_rules)?;
+    let rules = try_get_all_rules(&config, Vec::new())?;
 
     // Stats counters
     let scanned_files_atomic = AtomicUsize::new(0);
@@ -122,6 +140,7 @@ pub fn collect_findings(
         config.output.max_findings
     };
 
+    let mut any_finding_limit_reached = false;
     let mut any_file_limit_reached = false;
     let mut any_max_file_size_reached = false;
     let mut any_read_error_reached = false;
@@ -134,53 +153,52 @@ pub fn collect_findings(
         let commit = obj.as_commit().context("Not a commit")?;
         let tree = commit.tree()?;
 
-        if commit.parent_count() > 0 {
-            let parent = commit.parent(0)?;
-            let parent_tree = parent.tree()?;
-            let mut diff_opts = DiffOptions::new();
-            let diff =
-                repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))?;
+        // A root commit is compared against an empty tree.
+        let parent_tree = if commit.parent_count() > 0 {
+            Some(commit.parent(0)?.tree()?)
+        } else {
+            None
+        };
+        let mut diff_opts = DiffOptions::new();
+        let diff =
+            repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))?;
 
-            for delta in diff.deltas() {
-                if delta.status() == Delta::Added || delta.status() == Delta::Modified {
-                    if let Some(path) = delta.new_file().path() {
-                        let path_val = path;
-                        if let Ok(entry) = tree.get_path(path_val) {
-                            if let Ok(object) = entry.to_object(&repo) {
-                                if let Some(blob) = object.as_blob() {
-                                    let file_findings = veil_core::scan_data(
-                                        path_val,
-                                        blob.content(),
-                                        &rules,
-                                        &config,
-                                    );
+        for delta in diff.deltas() {
+            if delta.status() == Delta::Added || delta.status() == Delta::Modified {
+                if let Some(path) = delta.new_file().path() {
+                    let path_val = path;
+                    let entry = tree.get_path(path_val).with_context(|| {
+                        format!("Cannot read Git tree entry for {}", path_val.display())
+                    })?;
+                    let Some(blob) =
+                        read_git_blob(&repo, entry.id(), entry.filemode() as u32, path_val)?
+                    else {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    };
+                    let file_findings =
+                        veil_core::scan_data(path_val, blob.content(), &rules, &config);
 
-                                    let mut is_skipped = false;
-                                    if let Some(first) = file_findings.first() {
-                                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                        {
-                                            is_skipped = true;
-                                        }
-                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                            any_max_file_size_reached = true;
-                                        }
-                                    }
-
-                                    if is_skipped {
-                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                    } else {
-                                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        all_findings.extend(file_findings);
-                                    }
-                                }
-                            }
+                    let mut is_skipped = false;
+                    if let Some(first) = file_findings.first() {
+                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                        {
+                            is_skipped = true;
                         }
+                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                            any_max_file_size_reached = true;
+                        }
+                    }
+
+                    if is_skipped {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        all_findings.extend(file_findings);
                     }
                 }
             }
-        } else {
-            eprintln!("Scanning root commit not fully optimized yet.");
         }
     } else if let Some(since_str) = since {
         // 2. Scan history since time
@@ -206,47 +224,47 @@ pub fn collect_findings(
                 break;
             }
 
-            if commit.parent_count() > 0 {
-                let parent = commit.parent(0)?;
-                let parent_tree = parent.tree()?;
-                let tree = commit.tree()?;
-                let mut diff_opts = DiffOptions::new();
-                let diff =
-                    repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))?;
+            let tree = commit.tree()?;
+            let parent_tree = if commit.parent_count() > 0 {
+                Some(commit.parent(0)?.tree()?)
+            } else {
+                None
+            };
+            let mut diff_opts = DiffOptions::new();
+            let diff =
+                repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))?;
 
-                for delta in diff.deltas() {
-                    if delta.status() == Delta::Added || delta.status() == Delta::Modified {
-                        if let Some(path) = delta.new_file().path() {
-                            if let Ok(entry) = tree.get_path(path) {
-                                if let Ok(object) = entry.to_object(&repo) {
-                                    if let Some(blob) = object.as_blob() {
-                                        let file_findings = veil_core::scan_data(
-                                            path,
-                                            blob.content(),
-                                            &rules,
-                                            &config,
-                                        );
-                                        let mut is_skipped = false;
-                                        if let Some(first) = file_findings.first() {
-                                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                            {
-                                                is_skipped = true;
-                                            }
-                                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                                any_max_file_size_reached = true;
-                                            }
-                                        }
-
-                                        if is_skipped {
-                                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        } else {
-                                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                            all_findings.extend(file_findings);
-                                        }
-                                    }
-                                }
+            for delta in diff.deltas() {
+                if delta.status() == Delta::Added || delta.status() == Delta::Modified {
+                    if let Some(path) = delta.new_file().path() {
+                        let entry = tree.get_path(path).with_context(|| {
+                            format!("Cannot read Git tree entry for {}", path.display())
+                        })?;
+                        let Some(blob) =
+                            read_git_blob(&repo, entry.id(), entry.filemode() as u32, path)?
+                        else {
+                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                            continue;
+                        };
+                        let file_findings =
+                            veil_core::scan_data(path, blob.content(), &rules, &config);
+                        let mut is_skipped = false;
+                        if let Some(first) = file_findings.first() {
+                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                            {
+                                is_skipped = true;
                             }
+                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                any_max_file_size_reached = true;
+                            }
+                        }
+
+                        if is_skipped {
+                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                            all_findings.extend(file_findings);
                         }
                     }
                 }
@@ -255,40 +273,16 @@ pub fn collect_findings(
     } else if staged {
         // 3. Scan staged
         let repo = Repository::open(".")?;
-        let diff = if let Ok(head) = repo.head() {
-            if let Ok(head_tree) = head.peel_to_tree() {
-                let index = repo.index()?;
-                let mut diff_opts = DiffOptions::new();
-                repo.diff_tree_to_index(Some(&head_tree), Some(&index), Some(&mut diff_opts))?
-            } else {
-                return Ok(ScanResultForCli {
-                    summary: Summary::new(
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0, // baseline_suppressed
-                        false,
-                        false,
-                        false,
-                        false,
-                        start_time.elapsed(),
-                        None, // baseline_path
-                        HashMap::new(),
-                        Vec::new(),
-                    ),
-                    findings: vec![],
-                    suppressed_findings: vec![],
-                });
-            }
-        } else {
-            let index = repo.index()?;
-            let mut diff_opts = DiffOptions::new();
-            repo.diff_tree_to_index(None, Some(&index), Some(&mut diff_opts))?
+        let head_tree = match repo.head() {
+            Ok(head) => Some(head.peel_to_tree().context("Cannot read Git HEAD tree")?),
+            Err(error) if error.code() == git2::ErrorCode::UnbornBranch => None,
+            Err(error) => return Err(error).context("Cannot read Git HEAD"),
         };
+        let index = repo.index().context("Cannot read Git index")?;
+        let mut diff_opts = DiffOptions::new();
+        let diff =
+            repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut diff_opts))?;
 
-        let index = repo.index()?;
         for delta in diff.deltas() {
             if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                 if let Some(path) = delta.new_file().path() {
@@ -296,28 +290,31 @@ pub fn collect_findings(
                     if let Ok(true) = repo.is_path_ignored(path_val) {
                         continue;
                     }
-                    if let Some(entry) = index.get_path(path_val, 0) {
-                        if let Ok(blob) = repo.find_blob(entry.id) {
-                            let file_findings =
-                                veil_core::scan_data(path_val, blob.content(), &rules, &config);
-                            let mut is_skipped = false;
-                            if let Some(first) = file_findings.first() {
-                                if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                    || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                {
-                                    is_skipped = true;
-                                }
-                                if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                    any_max_file_size_reached = true;
-                                }
-                            }
-                            if is_skipped {
-                                skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                            } else {
-                                scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                all_findings.extend(file_findings);
-                            }
+                    let entry = index.get_path(path_val, 0).with_context(|| {
+                        format!("Cannot read Git index entry for {}", path_val.display())
+                    })?;
+                    let Some(blob) = read_git_blob(&repo, entry.id, entry.mode, path_val)? else {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    };
+                    let file_findings =
+                        veil_core::scan_data(path_val, blob.content(), &rules, &config);
+                    let mut is_skipped = false;
+                    if let Some(first) = file_findings.first() {
+                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                        {
+                            is_skipped = true;
                         }
+                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                            any_max_file_size_reached = true;
+                        }
+                    }
+                    if is_skipped {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        all_findings.extend(file_findings);
                     }
                 }
             }
@@ -330,6 +327,7 @@ pub fn collect_findings(
         for path in targets {
             if let Some(max) = limit_val {
                 if current_total >= max {
+                    any_finding_limit_reached = true;
                     break;
                 }
             }
@@ -344,6 +342,7 @@ pub fn collect_findings(
             let result = veil_core::scan_path(&path, &rules, &run_config);
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
+            any_finding_limit_reached |= result.limit_reached;
             any_file_limit_reached |= result.file_limit_reached;
             any_max_file_size_reached |= result.max_file_size_reached;
             any_read_error_reached |= result.read_error_reached;
@@ -362,6 +361,10 @@ pub fn collect_findings(
     let skipped_files = skipped_files_atomic.load(Ordering::Relaxed);
     let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
+
+    // Baseline suppression changes the displayed findings, never scan completeness.
+    let is_truncated =
+        any_finding_limit_reached || limit_val.is_some_and(|max| all_findings.len() >= max);
 
     // Baseline Application (S27)
     let (final_findings, suppressed_findings, _new_count) = if let Some(path) = baseline_path {
@@ -385,16 +388,6 @@ pub fn collect_findings(
     let mut severity_counts: HashMap<veil_core::Severity, usize> = HashMap::new();
     for f in &final_findings {
         *severity_counts.entry(f.severity.clone()).or_insert(0) += 1;
-    }
-
-    let is_truncated = if let Some(max) = limit_val {
-        final_findings.len() >= max
-    } else {
-        false
-    };
-
-    if is_truncated {
-        // Will be handled in `scan` for detailed UX Output
     }
 
     let summary = Summary::new(
@@ -456,23 +449,23 @@ pub fn scan(
     }
 
     // Load config here for scan command to support --config arg
-    let config = if config_path.is_some() || preset.is_some() {
-        let loaded = crate::config_loader::load_effective_config_with_preset(
-            config_path,
-            preset.as_deref(),
-        )?;
-        if let Some(preset_id) = preset.as_deref() {
-            if !quiet {
-                eprintln!(
-                    "Using preset '{}' as the base config layer; user/org/repo config may override it.",
-                    preset_id
-                );
-            }
+    let config = Some(crate::config_loader::load_effective_config_with_preset(
+        config_path,
+        preset.as_deref(),
+    )?);
+    if let Some(preset_id) = preset.as_deref() {
+        if !quiet {
+            eprintln!(
+                "Using preset '{}' as the base config layer; user/org/repo config may override it.",
+                preset_id
+            );
         }
-        Some(loaded)
-    } else {
-        None
-    };
+    }
+    let reveal_raw = unsafe_output
+        || mask_mode_arg == Some("plain")
+        || (mask_mode_arg.is_none()
+            && config.as_ref().and_then(|c| c.output.mask_mode)
+                == Some(veil_config::MaskMode::Plain));
 
     let result = collect_findings(
         paths,
@@ -487,12 +480,26 @@ pub fn scan(
     )?;
 
     if interactive {
+        if let Some(reason) = incomplete_scan_reason(&result.summary) {
+            anyhow::bail!(
+                "Cannot start interactive review: scan incomplete: {}.",
+                reason
+            );
+        }
         return crate::commands::interactive_scan::run_interactive(&result.findings);
     }
 
     // Handle Write Baseline (S26)
     if let Some(path) = &write_baseline {
         use veil_core::baseline::{from_findings, save_baseline};
+
+        // Reject partial snapshots before opening a new or existing destination.
+        if let Some(reason) = incomplete_scan_reason(&result.summary) {
+            anyhow::bail!(
+                "Cannot write baseline: scan incomplete: {}. No baseline was saved.",
+                reason
+            );
+        }
 
         // Convert findings to snapshot
         let snapshot = from_findings(&result.findings, env!("CARGO_PKG_VERSION"));
@@ -507,7 +514,7 @@ pub fn scan(
             snapshot.schema
         );
 
-        // Bootstrap is always success
+        // A complete bootstrap succeeds regardless of finding failure thresholds.
         return Ok(false);
     }
 
@@ -541,7 +548,7 @@ pub fn scan(
     };
 
     let formatter: Box<dyn Formatter> = match format {
-        Format::Json => Box::new(JsonFormatter),
+        Format::Json => Box::new(JsonFormatter::new(reveal_raw)),
         Format::Html => Box::new(HtmlFormatter::new()),
         #[cfg(feature = "table")]
         Format::Table => Box::new(TableFormatter),

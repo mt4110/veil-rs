@@ -2,35 +2,62 @@ name: Veil Security Scan
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+
+permissions:
+  contents: read
 
 jobs:
   security-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
 
-      # Install Veil pinned to the tag used for generation (no mutable refs)
-      - name: Install Veil
+      - name: Prepare paths outside scan workspace
+        env:
+          VEIL_REPORT_DIR: ${{ runner.temp }}/veil-report
+        shell: bash
         run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag __VEIL_TAG__ veil-cli
-      # Monitoring report (HTML)
-      - name: Veil Scan (report)
-        run: |
-          veil scan . --format html > veil-report.html
+          set -euo pipefail
+          workspace=$(realpath "$GITHUB_WORKSPACE")
+          runner_temp=$(realpath "$RUNNER_TEMP")
+          case "$runner_temp/" in
+            "$workspace/"*) echo "Runner temporary directory must be outside the scan workspace" >&2; exit 2 ;;
+          esac
+          mkdir -p "$VEIL_REPORT_DIR"
+          report_dir=$(realpath "$VEIL_REPORT_DIR")
+          case "$report_dir/" in
+            "$workspace/"*) echo "Report directory must be outside the scan workspace" >&2; exit 2 ;;
+          esac
 
-      # Fail the build on High severity findings
-      - name: Veil Scan (enforce)
+      # Source: __VEIL_SOURCE__
+      - name: Install selected Veil source
+        env:
+          VEIL_INSTALL_DIR: ${{ runner.temp }}/veil-cli
+          VEIL_BUILD_DIR: ${{ runner.temp }}/veil-build
+        shell: bash
         run: |
-          veil --no-color scan . --fail-on-severity High --format text
+          __VEIL_INSTALL__
+          "$VEIL_INSTALL_DIR/bin/veil" --version
+
+      # One scan creates the masked report and enforces the failure condition.
+      - name: Veil Scan (report and enforce)
+        env:
+          VEIL_INSTALL_DIR: ${{ runner.temp }}/veil-cli
+          VEIL_REPORT_DIR: ${{ runner.temp }}/veil-report
+        shell: bash
+        run: |
+          "$VEIL_INSTALL_DIR/bin/veil" --no-color scan . --format html --fail-on-severity High > "$VEIL_REPORT_DIR/veil-report.html"
 
       - name: Upload Report
+        env:
+          VEIL_REPORT_DIR: ${{ runner.temp }}/veil-report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: veil-security-report
-          path: veil-report.html
+          path: ${{ env.VEIL_REPORT_DIR }}/veil-report.html
+          if-no-files-found: ignore

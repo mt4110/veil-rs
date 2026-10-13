@@ -1,15 +1,15 @@
 # Threat Model
 
 ## Asset
-- **User Source Code**: The primary asset `veil-rs` protects is the user's source code and configuration files, specifically ensuring no secrets (credentials, keys) are committed.
-- **Developer Environment**: `veil-rs` runs in the developer's local environment or CI/CD pipeline. Requires "safe" execution (no RCE/DoS).
+- **User Source Code**: The primary asset `veil-rs` protects is the user's source code and configuration files, helping detect accidental inclusion of secrets (credentials, keys). Detection cannot ensure that no secret is committed.
+- **Developer Environment**: `veil-rs` runs in the developer's local environment or CI/CD pipeline. The local scanner should bound resource use and avoid executing scanned content; these are design goals, not a proof against all RCE/DoS inputs.
 
 ## Threats & Mitigations
 
 ### 1. Denial of Service (DoS) via Malicious Input
 **Threat**: An attacker commits a crafted file (e.g. 10GB text, or ReDoS pattern) to the repo, causing `veil scan` to hang or crash CI.
 **Mitigation**:
-- **Max File Size**: Default limit (1MB) strictly enforced. Files larger than this are skipped.
+- **Max File Size**: Default limit (1,000,000 bytes) is applied. Files larger than this are skipped.
 - **Binary Detection**: Files with null bytes in header are skipped.
 - **Regex Safety**: `veil config check` detects risky patterns (e.g. nested quantifiers). Rust `regex` crate guarantees linear time execution for searches (automata-based).
 
@@ -17,17 +17,23 @@
 **Threat**: A secret is committed because `veil-rs` failed to detect it.
 **Mitigation**:
 - **Rule Confidence**: High-severity rules target high-entropy patterns with specific prefixes (e.g. `AKIA...`).
-- **Validation**: Some rules include checksum validation (e.g. Lush check).
-- **Dogfooding**: Continuous scanning of open-source datasets to tune rules.
+- **Validation**: Review changed rules with generated positive/negative examples. Rule coverage and dogfood results do not establish that every secret pattern is detected.
 
 ### 3. False Positives (Disrupted Workflow)
 **Threat**: Developers are blocked from committing safe code due to incorrect detection.
 **Mitigation**:
 - **Allowlisting**: Support for `// veil:ignore` comments and globally via `veil.toml`.
-- **Baseline**: `fail_on_score = 0` by default ensures non-blocking behavior unless explicitly configured.
+- **Failure policy**: Default configuration has no score failure threshold. `--fail-on-findings 1` fails on any unsuppressed finding; a threshold of 0 also fails on a clean scan. Generated init profiles can add score thresholds.
+- **Baseline limits**: Matching uses masked text and location, so a different raw value may remain suppressed at the same location. Baseline creation rejects finding/file-count truncation before opening its destination, returns exit code 2, and preserves any existing baseline. Ignored, binary, and oversized files may still be skipped.
 
 ### 4. Supply Chain / Remote Execution
 **Threat**: `veil-rs` fetches malicious remote rules or executes code.
 **Mitigation**:
-- **Remote Rules**: Fetched via HTTPS. Parsed as JSON. No executable code downloaded (only data).
+- **Local OSS profile**: Remote rule fetching is disabled. Legacy remote settings fail with a migration error. Local signed packs require an explicit trust anchor and expiration checks. The preserved legacy Guardian/UI crates have separate network boundaries.
 - **Sandboxing**: `veil-rs` does not execute found files; it only reads them.
+
+## Output and baseline metadata
+
+Masking applies to detected portions, not every possible secret or identifier. Paths, Git metadata, and undetected text can remain in output.
+Review reports before sharing and avoid raw-output options. Baseline suppression does not establish rotation, remediation, or acceptance of risk.
+See [usage guidelines](../cli/usage-guidelines.md) and [baseline matching](../baseline/usage.md).

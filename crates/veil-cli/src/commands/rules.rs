@@ -2,6 +2,7 @@ use crate::cli::TemplatePromoteArgs;
 use crate::config_loader::load_effective_config;
 use anyhow::{bail, Result};
 use colored::Colorize;
+#[cfg(feature = "table")]
 use prettytable::{format, Cell, Row, Table};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
@@ -26,23 +27,7 @@ struct TemplateManifestRow {
 fn load_rules(config_path: Option<&PathBuf>) -> Result<(veil_config::Config, Vec<Rule>)> {
     let config = load_effective_config(config_path)?;
 
-    let mut remote_rules = Vec::new();
-    let remote_url = std::env::var("VEIL_REMOTE_RULES_URL")
-        .ok()
-        .or_else(|| config.core.remote_rules_url.clone());
-
-    if let Some(url) = remote_url {
-        // Timeout 3s is reasonable for helpful commands
-        match veil_core::remote::fetch_remote_rules(&url, 3) {
-            Ok(rules) => remote_rules = rules,
-            Err(e) => eprintln!(
-                "Warning: Failed to fetch remote rules from {}: {}. Using local rules only.",
-                url, e
-            ),
-        }
-    }
-
-    let rules = try_get_all_rules(&config, remote_rules)?;
+    let rules = try_get_all_rules(&config, Vec::new())?;
     Ok((config, rules))
 }
 
@@ -57,28 +42,41 @@ pub fn list(config_path: Option<&PathBuf>, severity_filter: Option<Severity>) ->
     // Sort by ID to make it readable
     rules.sort_by(|a, b| a.id.cmp(&b.id));
 
-    let mut table = Table::new();
-    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+    #[cfg(feature = "table")]
+    {
+        let mut table = Table::new();
+        table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
 
-    table.set_titles(Row::new(vec![
-        Cell::new("ID").style_spec("b"),
-        Cell::new("Severity").style_spec("b"),
-        Cell::new("Score").style_spec("b"),
-        Cell::new("Category").style_spec("b"),
-        Cell::new("Description").style_spec("b"),
-    ]));
-
-    for rule in rules {
-        table.add_row(Row::new(vec![
-            Cell::new(&rule.id),
-            Cell::new(&rule.severity.to_string()),
-            Cell::new(&rule.score.to_string()),
-            Cell::new(&rule.category),
-            Cell::new(&rule.description),
+        table.set_titles(Row::new(vec![
+            Cell::new("ID").style_spec("b"),
+            Cell::new("Severity").style_spec("b"),
+            Cell::new("Score").style_spec("b"),
+            Cell::new("Category").style_spec("b"),
+            Cell::new("Description").style_spec("b"),
         ]));
-    }
 
-    table.printstd();
+        for rule in rules {
+            table.add_row(Row::new(vec![
+                Cell::new(&rule.id),
+                Cell::new(&rule.severity.to_string()),
+                Cell::new(&rule.score.to_string()),
+                Cell::new(&rule.category),
+                Cell::new(&rule.description),
+            ]));
+        }
+
+        table.printstd();
+    }
+    #[cfg(not(feature = "table"))]
+    {
+        println!("ID\tSeverity\tScore\tCategory\tDescription");
+        for rule in rules {
+            println!(
+                "{}\t{}\t{}\t{}\t{}",
+                rule.id, rule.severity, rule.score, rule.category, rule.description
+            );
+        }
+    }
 
     Ok(())
 }

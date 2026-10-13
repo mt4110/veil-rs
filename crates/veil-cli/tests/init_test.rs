@@ -31,11 +31,12 @@ fn test_init_ci_github() {
         content.contains("--tag v1.0.0"),
         "workflow should contain pinned tag v1.0.0"
     );
-    assert!(content.contains("veil scan . --format html"));
+    assert!(content.contains("scan . --format html --fail-on-severity High"));
+    assert!(content.contains("not evidence for the current candidate"));
 }
 
 #[test]
-fn test_init_ci_github_pinned_none() {
+fn test_init_ci_github_rejects_mutable_source() {
     let temp_dir = tempfile::tempdir().unwrap();
     let temp_path = temp_dir.path();
 
@@ -48,16 +49,10 @@ fn test_init_ci_github_pinned_none() {
         .arg("--pin-tag")
         .arg("none");
 
-    cmd.assert().success().stdout(predicate::str::contains(
-        "Generated GitHub Actions workflow",
+    cmd.assert().code(2).stderr(predicate::str::contains(
+        "automatic/mutable sources (auto/none) are disabled",
     ));
-
-    let workflow_path = temp_path.join(".github/workflows/veil.yml");
-    let content = fs::read_to_string(workflow_path).unwrap();
-    assert!(
-        !content.contains("--tag"),
-        "workflow should NOT contain --tag when pinned=none"
-    );
+    assert!(!temp_path.join(".github").exists());
 }
 
 #[test]

@@ -25,6 +25,8 @@ pub struct PackMetadata {
     pub schema_version: u32,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,6 +78,15 @@ pub fn load_rule_pack(dir: &Path) -> Result<Vec<Rule>> {
             .with_context(|| format!("Failed to read manifest at {:?}", manifest_path))?;
         let manifest = parse_manifest(&content)
             .with_context(|| format!("Failed to parse manifest at {:?}", manifest_path))?;
+        if let Some(expiry) = manifest.pack.expires_at {
+            if chrono::Utc::now() > expiry {
+                anyhow::bail!(
+                    "RulePack '{}' has expired (expires_at: {})",
+                    manifest.pack.id,
+                    expiry
+                );
+            }
+        }
         verify_rule_pack_signature_if_required(dir, &manifest).with_context(|| {
             format!("Failed to verify RulePack manifest at {:?}", manifest_path)
         })?;
@@ -393,6 +404,32 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::Write;
+
+    #[test]
+    fn expired_rule_packs_are_rejected_at_load_time_without_requiring_legacy_ttl() {
+        for age in [Some(-1), Some(1), None] {
+            let dir = tempfile::tempdir().unwrap();
+            let expiry = age
+                .map(|days| {
+                    format!(
+                        "expires_at = '{}'\n",
+                        (chrono::Utc::now() + chrono::Duration::days(days)).to_rfc3339()
+                    )
+                })
+                .unwrap_or_default();
+            std::fs::write(
+                dir.path().join("00_manifest.toml"),
+                format!("[pack]\nid='expiry-test'\nversion=1\nschema_version=1\n{expiry}"),
+            )
+            .unwrap();
+            let result = load_rule_pack(dir.path());
+            if age == Some(-1) {
+                assert!(result.unwrap_err().to_string().contains("has expired"));
+            } else {
+                assert!(result.is_ok());
+            }
+        }
+    }
 
     fn setup_test_dir(name: &str) -> PathBuf {
         let mut dir = std::env::temp_dir();

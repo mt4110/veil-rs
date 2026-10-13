@@ -977,7 +977,9 @@ pub fn verify_evidence_pack(
             )));
         }
 
-        total_uncompressed_bytes += uncompressed_size;
+        total_uncompressed_bytes = total_uncompressed_bytes
+            .checked_add(uncompressed_size)
+            .ok_or_else(|| VerifyError::ZipBombViolation("Expanded-size overflow".into()))?;
         if total_uncompressed_bytes > options.max_total_bytes {
             return Err(VerifyError::ZipBombViolation(format!(
                 "Total expanded size exceeds {}",
@@ -986,16 +988,20 @@ pub fn verify_evidence_pack(
         }
 
         let mut buf = Vec::with_capacity(uncompressed_size as usize);
-        zip_entry.read_to_end(&mut buf)?;
+        (&mut zip_entry)
+            .take(options.max_entry_bytes.saturating_add(1))
+            .read_to_end(&mut buf)?;
+        if buf.len() as u64 > options.max_entry_bytes || buf.len() as u64 != uncompressed_size {
+            return Err(VerifyError::ZipBombViolation(
+                "Entry expanded beyond its declared size or budget".into(),
+            ));
+        }
 
-        // Stream Leakage Check
+        // Do not echo a matched raw credential into verification diagnostics.
         if let Ok(text) = std::str::from_utf8(&buf) {
-            if let Some(mat) = leakage_regex.find(text) {
-                // Return a truncated matched context for the error to avoid printing a huge secret to the console
-                let context = &text[mat.start()..std::cmp::min(mat.end() + 10, text.len())];
+            if leakage_regex.is_match(text) {
                 return Err(VerifyError::LeakageDetected(format!(
-                    "In file '{}': matched pattern around '{}...'",
-                    name, context
+                    "In file '{name}': matched a token leakage pattern"
                 )));
             }
         }

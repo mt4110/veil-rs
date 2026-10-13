@@ -2,14 +2,14 @@ use veil_config::MaskMode;
 
 pub const DEFAULT_PLACEHOLDER: &str = "<REDACTED>";
 
+// Hide short secrets entirely and expose only the suffix of longer secrets.
 fn partial_mask(secret: &str) -> String {
-    let chars: Vec<char> = secret.chars().collect();
-    if chars.len() <= 4 {
+    let count = secret.chars().count();
+    if count <= 8 {
         return "****".to_string();
     }
-
-    let suffix: String = chars[chars.len().saturating_sub(4)..].iter().collect();
-    format!("****{suffix}")
+    let end: String = secret.chars().skip(count - 4).collect();
+    format!("****{end}")
 }
 
 pub fn apply_masks(
@@ -203,12 +203,69 @@ mod tests {
     }
 
     #[test]
+    fn partial_short_secrets_do_not_expose_overlapping_fragments() {
+        for text in ["12345", "12345678", "あいうえお", "あいうえおかきく"] {
+            assert_eq!(
+                apply_masks(
+                    text,
+                    vec![0..text.len()],
+                    MaskMode::Partial,
+                    DEFAULT_PLACEHOLDER
+                ),
+                "****"
+            );
+            let span = MaskSpan {
+                start: 0,
+                end: text.len(),
+                placeholder: DEFAULT_PLACEHOLDER.into(),
+                priority: 0,
+            };
+            assert_eq!(
+                apply_masks_spans(text, vec![span], MaskMode::Partial),
+                "****"
+            );
+        }
+    }
+
+    #[test]
+    fn partial_mask_keeps_a_hidden_middle_character_at_the_boundary() {
+        for (text, expected) in [
+            ("123456789", "****6789"),
+            ("あいうえおかきくけ", "****かきくけ"),
+        ] {
+            assert_eq!(
+                apply_masks(
+                    text,
+                    vec![0..text.len()],
+                    MaskMode::Partial,
+                    DEFAULT_PLACEHOLDER
+                ),
+                expected
+            );
+            let span = MaskSpan {
+                start: 0,
+                end: text.len(),
+                placeholder: DEFAULT_PLACEHOLDER.into(),
+                priority: 0,
+            };
+            assert_eq!(
+                apply_masks_spans(text, vec![span], MaskMode::Partial),
+                expected
+            );
+        }
+    }
+
+    #[test]
     fn test_mask_partial_is_unicode_safe() {
         let text = "秘密１２３４５６";
-        let ranges = vec![0..text.len()];
         assert_eq!(
-            apply_masks(text, ranges, MaskMode::Partial, DEFAULT_PLACEHOLDER),
-            "****３４５６"
+            apply_masks(
+                text,
+                vec![0..text.len()],
+                MaskMode::Partial,
+                DEFAULT_PLACEHOLDER
+            ),
+            "****"
         );
     }
 
@@ -419,6 +476,6 @@ mod tests {
         }];
 
         let result = apply_masks_spans(text, spans, MaskMode::Partial);
-        assert_eq!(result, "****３４５６");
+        assert_eq!(result, "****");
     }
 }

@@ -441,6 +441,6 @@ mod tests {
         let edit = action.edit.as_ref().expect("workspace edit");
         let changes = edit.changes.as_ref().expect("text edits");
         let text_edits = changes.get(&uri).expect("uri edits");
-        assert_eq!(text_edits[0].new_text, "****３４５６");
+        assert_eq!(text_edits[0].new_text, "****");
     }
 }
