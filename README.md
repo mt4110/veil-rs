@@ -1,5 +1,7 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
+今回の0.21.0-rc.1試用版はLinux x86_64 musl・macOS ARM64に限定します。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。以下のWindows候補の記述は過去の検証記録です。
+
 2026-10-13: 0.21.0-rc.1候補で、baseline適用による上限到達情報の消失と、Gitの最初のコミットの未スキャンを修正しました。修正後のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）の実機でビルド・起動・配布検査を確認しました。旧ARM64・QEMU・Windows候補の結果は現行候補へ流用せず、Windowsネイティブ／MSVCは未検証です。対話モードの不完全判定とGit blob欠損時の保存拒否も修正し、macOSでの回帰とLinuxネイティブでの全構成・配布物の再検証を確認しました。[リリース条件](docs/ci/oss-cli-release.md) に検証範囲を記載しています。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。

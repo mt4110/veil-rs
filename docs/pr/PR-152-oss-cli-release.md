@@ -26,6 +26,8 @@ The previously validated source candidate is `df2fae53c4432e885ca3d0b7e1869d39fa
 - Clarify Japanese and English README headings around local detection and masking.
 - Declare `MIT OR Apache-2.0` in workspace package metadata and inherit it in veil-cli, veil-core, veil-config, and veil-lsp. Existing license texts and legacy server/guardian/pro manifests remain unchanged.
 
+- Refresh stale release/README/Linux documentation for the Rust 1.92.0 Linux/macOS CI, two-platform RC scope, and macOS ad-hoc trial limitations. Final ZIPs and whole-archive SHA256 are prepared from the final documentation commit in new external output paths.
+
 ## Verification
 
 Historical hosted checks for `df2fae53` passed Linux/MSRV/musl/macOS and common guards; two checks failed.

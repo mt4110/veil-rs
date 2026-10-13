@@ -61,7 +61,7 @@ python3 scripts/verify_cli_archive.py --archive <新しいZIP> --require-static 
 ARM64・x86_64のリンクマップではRustのself-contained libc.aとlibunwind.aを確認し、GNU libgccアーカイブの取り込みがないことも確認した。
 別コンパイラ・別CPUで静的ランタイムが変われば再確認する。静的配布用の表記ゲートは今回確認したRust 1.92.0に限定する。
 
-現在のCIにx86_64 muslのビルド・静的検査を追加した。現行0.21.0-rc.1はx86_64実機上で検証した。GitHub-hosted CIは未検証。
+現在のCIにx86_64 muslのビルド・静的検査を追加した。現行0.21.0-rc.1はx86_64実機上で検証した。head `5cf3d1e` の[GitHub-hosted CI](https://github.com/mt4110/veil-rs/actions/runs/38400609392)でもmuslのビルド・展開アーカイブ検査が成功。後続文書headは別途確認する。
 配布用ZIP・バイナリは公開/自動アップロードせず、既存CIは検証記録だけを保存する。
 詳細なゲートは [OSS CLIリリース条件](../ci/oss-cli-release.md) を参照。
 
@@ -112,4 +112,4 @@ release構成の修正回帰・baseline上限・既存v1 verify/safetyの84件�
 完成ZIPからCLIを取り出し、ビルド時と同じバイナリhashを確認した上で21ケースを実行した。対話モードの各不完全判定、CLI/config由来のbaseline抑制、対話と保存の同時指定、Git commit/履歴/stagedのblob欠損、staged HEAD/tree欠損で終了コード2・部分結果非出力・新規baseline非作成・既存baselineのバイト保全を確認した。正常な対話q終了と、最初のコミット前の正常なstaged保存も確認した。Gitlinkの明示的なスキップ、baseline適用時の上限保持、最初のGitコミットと`--since`の検査はrelease回帰にも含める。[公開前の必須課題](../ci/oss-cli-release.md#公開前の必須課題) に残る範囲を記録する。
 release CLIからのpreset付きLSP起動とrelease LSP単体起動をstdioで確認。initializeの版表示0.21.0-rc.1、マスキング診断、Mask value修正候補、didChange/didCloseの診断更新、shutdown/exit 0を確認した。VS Code等のGUIクライアント実操作は未検証。
 CLI ZIPにはLSP本体を同梱しない。LSPバイナリを配布対象へ加える場合は、独自の依存・原文ライセンス・同梱packetを別途確認する。
-ZIPの564エントリーは許可ファイル一覧と完全一致し、文書リンク・原文/ソース/checksumを検査。第三者依存270件・ライセンスpayload 538件・native component 4件を照合した。ELFのインタープリター・NEEDED共有ライブラリ・GLIBC版付きシンボルはいずれもない。Windowsネイティブ/MSVC、現行RCのARM64/Alpine/旧カーネル、性能、hosted CIは未検証。
+ZIPの564エントリーは許可ファイル一覧と完全一致し、文書リンク・原文/ソース/checksumを検査。第三者依存270件・ライセンスpayload 538件・native component 4件を照合した。ELFのインタープリター・NEEDED共有ライブラリ・GLIBC版付きシンボルはいずれもない。Windowsネイティブ/MSVC、現行RCのARM64/Alpine/旧カーネル、性能は未検証。Hosted CIは上記headで成功。

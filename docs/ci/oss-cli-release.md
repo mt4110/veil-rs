@@ -9,22 +9,22 @@ Updated: 2026-10-13
 新規監査機能・台帳・署名v2・PatchGate/VEX契約・未使用breaker・重複legacy入口・Proへの新規機能指定は含めない。main既存のverifyテストは削除しない。
 旧メンバーと過去の公開文書は保全する。private・ローカル成果物は公開差分とZIPへ含めない。
 
-この隔離候補のmanifest・CLI・独立LSP・Nix CLI packageは0.21.0-rc.1へ統一。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。正式版案は0.21.0で、今回tag作成・公開は行わない。
+この隔離候補のmanifest・CLI・独立LSP・Nix CLI packageは0.21.0-rc.1へ統一。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。今回の試用版は0.21.0-rc.1。配布対象はLinux x86_64 musl・macOS ARM64に限定する。macOSはad-hoc署名で、Developer ID署名・公証済みではない。今回tag作成・公開は行わない。
 通常CLIのライセンスpacketは対象normal/buildグラフ用。依存・lock・コンパイラ・配布方式を変更したら再照合する。LSP本体やMSVC runtimeを同じpacketで監査済みと扱わない。
 
 ## 自動CI
 
 `ci.yml` がPR/main・develop push/手動実行の入口。`oss-profile.yml` を共通手順として呼ぶ。
-MSRV1.92.0、x86_64 Linux musl、stable Ubuntu/macOS/Windowsを定義する。通常・最小構成、JPチェックサム、独立LSPを検査する。
+MSRV1.92.0、x86_64 Linux musl、Rust 1.92.0固定のUbuntu/macOS nativeを定義する。Windowsは今回のCI・配布対象外。最新stableの検証とは扱わない。通常・最小構成、JPチェックサム、独立LSPを検査する。
 
 - 全workspace書式、対応crate全targetのClippy（警告をエラー扱い）とテスト。
 - 既存verifyの構造・ハッシュ・anchor・完全性・ZIP上限と29件のmain回帰。
 - アーキテクチャ・公開範囲・依存ライセンス・文書リンクとPythonガード。
 - 実release CLIのversion/help、veil-v1マスキング、0/1/2、不要な状態保存の検査。
 - 正確なallowlistでZIPを作り、展開後の起動・checksum・原文/ソース・相対リンクを検査。
-- macOSの非標準動的依存、Linux静的ELF、Windows通常/遅延DLL importを検査。
+- macOSの非標準動的依存、Linux静的ELFを検査。Windows import検査は旧候補用で、今回の対応を示さない。
 
-自動artifactはログ・JSON検証記録・checksumだけ。バイナリ/ZIPは自動公開しない。現在のhosted CI結果は未取得。
+自動artifactはログ・JSON検証記録・checksumだけ。バイナリ/ZIPは自動公開しない。head `5cf3d1e` の[CI](https://github.com/mt4110/veil-rs/actions/runs/38400609392)・[SOT Guard](https://github.com/mt4110/veil-rs/actions/runs/38400609028)は全7チェック成功。後続の文書更新headも再確認する。
 既存PR SOT guard、dogfood/release draftsの運用は保全。旧Go/Nix/Guardian/SQLx/UI検証は `legacy-checks.yml` の手動手順で、通常CLIの合格と区別する。
 
 ## ローカル検証
@@ -65,9 +65,9 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 ## 未検証と公開前の判断
 
 baseline適用時の上限情報、Gitの最初のコミット、対話モードの不完全判定、Git blob取得失敗時の保存拒否を修正した0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS / Linux 7.0.0-38-genericの実機でネイティブビルド・実行・同梱検査を確認。同じmusl targetの通常357件・最小356件・JP358件・LSP25件、release関連回帰84件は失敗/ignored 0件。配布ZIPから取り出したCLIの21ケースで終了コード2・部分結果非出力・新規baseline非作成・既存baseline保全と正常系を確認した。release LSPのCLI経由・単体のstdio実起動、診断更新、修正候補、正常終了も確認した。構成間の件数は重複するため固有テスト総数として合算しない。
-Windowsネイティブ/MSVC、現行RCのARM64/他ディストリビューション/旧カーネル、IDE GUI連携、LSPバイナリ配布のライセンスpacket、現在のhosted CI、署名/公証/SmartScreenは未検証。
+Windowsネイティブ/MSVC、現行RCのARM64/他ディストリビューション/旧カーネル、IDE GUI連携、LSPバイナリ配布のライセンスpacket、Developer ID署名/公証/ダウンロード後のGatekeeper/SmartScreenは未検証。
 [Linuxガイド](../cli/linux-distribution.md)・[Windowsガイド](../cli/windows-distribution.md)の旧候補の結果を、現在のソースに流用しない。
-公開するOS/CPU・番号・署名の扱いを決め、同じ承認済みソースで最終ZIPを生成・検証する。旧tagへ今回の変更を含めた扱いにしない。
+Linux x86_64 musl・macOS ARM64用0.21.0-rc.1試用版として、同じ承認済みソースで最終ZIPを生成・検証する。macOSはad-hoc署名とし、Gatekeeper回避を通常のインストール手順にしない。旧tagへ今回の変更を含めた扱いにしない。
 crates.io公開、旧UI/サービス全体の動作確認、性能の優位性、サイト・テレメトリ・DBはこの準備の合格条件へ追加しない。
 今回の実行結果・main向け差分・保全hashは別の準備レポートへ記録する。公開や元ブランチへの適用の承認を代替しない。
 
@@ -82,4 +82,12 @@ crates.io公開、旧UI/サービス全体の動作確認、性能の優位性�
 
 新しい回帰は24件。最初のstaged fixture作成でGit indexの参照検証に拒否されたケースはCLIの再現と数えず、削除を伴わない欠損参照のfixtureへ直して修正前・修正後を確認した。既存verifyのソース・期待値は変更しない。
 
-修正後のLinuxネイティブ検証を終えた本番コード・テスト・lock・ツールチェーンを保ち、文書更新後の同梱物も再生成・検査する。公開までに、固定commitの既存hosted CI、対象OS/CPU、署名・チェックサム公開の扱いを確認する。macOS最終配布物は今回の修正と最新文書に合わせた再生成・検査が必要。Windowsネイティブ/MSVCは未検証として保留し、現在のCLI ZIPへLSP本体を追加しない。
+修正後のLinuxネイティブ検証を終えた本番コード・テスト・lock・ツールチェーンを保ち、文書更新後の同梱物も再生成・検査する。公開までに、固定commitの既存hosted CI、対象OS/CPU、ad-hoc試用版の表記とZIP全体のSHA256を確認する。macOS最終配布物は今回の修正と最新文書に合わせた再生成・検査が必要。Windowsネイティブ/MSVCは未検証として保留し、現在のCLI ZIPへLSP本体を追加しない。
+
+## 最終候補の保全
+
+配布ZIP本体はCIの検査artifactに含まれない。最終文書コミットから両OSでreleaseビルドし、新規の候補保存先へZIP・検証JSON・ビルドログ・ZIP全体のSHA256SUMSを保存する。Git revision、実compiler、OS/CPUとネイティブ実行方式を記録する。既存候補は上書きしない。
+
+macOSのad-hoc署名は開発者の身元確認や公証を提供しない。ローカルの署名整合・起動検査と、ダウンロード由来の隔離属性を伴うGatekeeper試験を区別する。後者は未検証として明記し、今回のローカル起動成功で置き換えない。
+
+crates.io公開は今回の範囲外。Cargoのlicenseメタデータは4つのOSSクレートでMIT OR Apache-2.0を継承するが、ソースパッケージへのライセンス原文同梱はcrates.io公開前の別ゲート。
