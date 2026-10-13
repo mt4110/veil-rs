@@ -3,6 +3,7 @@ name = "veil-lsp"
 version = "0.21.0-rc.1"
 edition = "2021"
 rust-version.workspace = true
+license.workspace = true
 
 [[bin]]
 name = "veil-lsp"

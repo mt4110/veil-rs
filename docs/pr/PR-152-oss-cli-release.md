@@ -24,6 +24,7 @@ The previously validated source candidate is `df2fae53c4432e885ca3d0b7e1869d39fa
 - Limit this release's CI matrix to Linux and macOS. Windows remains outside verification and distribution scope pending a native test environment.
 - Name native CI jobs for Rust 1.92.0 and request that exact toolchain, matching the repository pin. This is not latest-stable coverage.
 - Clarify Japanese and English README headings around local detection and masking.
+- Declare `MIT OR Apache-2.0` in workspace package metadata and inherit it in veil-cli, veil-core, veil-config, and veil-lsp. Existing license texts and legacy server/guardian/pro manifests remain unchanged.
 
 ## Verification
 
@@ -41,7 +42,9 @@ Local follow-up checks on 2026-10-13 passed:
 - `actionlint` on the CI, reusable OSS profile, and SOT Guard workflows.
 - `git diff --check` and the SOT changed-file existence condition (including the new untracked PR record).
 
-No Rust runtime source changed in this follow-up; no full Rust rebuild was run here. Hosted CI on a new head remains pending until the changes are committed and pushed.
+The CI/documentation follow-up `5cd23e9` passed all seven hosted checks: [CI](https://github.com/mt4110/veil-rs/actions/runs/38398797938) and [SOT Guard](https://github.com/mt4110/veil-rs/actions/runs/38398797593).
+
+The license-metadata follow-up adds no runtime source or dependency changes. Local Cargo metadata resolves the four supported crates to `MIT OR Apache-2.0`; third-party inventory, release conditions, architecture, document taxonomy, and whitespace checks passed before push. `cargo package --list --allow-dirty --locked --offline` was inspected for all four crates: it does not include the repository-root license originals. CLI ZIP packaging includes both originals; crates.io source-package license inclusion remains a separate gate before any package publication. Hosted CI for the new metadata head remains pending.
 
 ## Evidence
 

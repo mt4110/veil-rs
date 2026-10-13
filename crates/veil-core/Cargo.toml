@@ -3,6 +3,7 @@ name = "veil-core"
 version = "0.21.0-rc.1"
 edition = "2021"
 rust-version.workspace = true
+license.workspace = true
 
 [features]
 default = []
