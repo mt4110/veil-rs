@@ -463,7 +463,7 @@ pub struct ScanArgs {
     #[arg(long, value_name = "PATH", conflicts_with = "write_baseline")]
     pub baseline: Option<PathBuf>,
     /// Write all current findings to a baseline file (exit 0)
-    #[arg(long, value_name = "PATH")]
+    #[arg(long, value_name = "PATH", conflicts_with = "interactive")]
     pub write_baseline: Option<PathBuf>,
 }
 

@@ -111,7 +111,7 @@ veil scan input --baseline reports/veil.baseline.json --fail-on-findings 1
 ```
 
 既存検知は抑制され、新しいファイルの検知によって終了コード1になります。
-`--limit` や設定の `output.max_findings` に達した通常の非対話スキャンは、baseline適用後に新規件数が0でも終了コード2になります。CIはこの2を成功に変換しません。[対話モード・Git読込み異常の残課題](../ci/oss-cli-release.md#公開前の必須課題) も確認してください。
+`--limit` や設定の `output.max_findings` に達した通常の非対話スキャンは、baseline適用後に新規件数が0でも終了コード2になります。CIはこの2を成功に変換しません。対話モードの不完全判定とGit読取り失敗時の保存拒否は追加修正済みで、Linux x86_64 musl候補でも終了コード2とbaseline保全を確認しています。[修正後の検証範囲](../ci/oss-cli-release.md#公開前の必須課題) も確認してください。
 ここでbaselineを作り直すと新しい検知も抑制されるため、CIを通す目的だけで作り直さないでください。
 
 ## 7. 設定は必要になったら作る

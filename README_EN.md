@@ -1,6 +1,6 @@
 # Veil — Local secret scanning
 
-2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Remaining completeness issues are recorded in the [release checklist](docs/ci/oss-cli-release.md).
+2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Additional fixes for interactive completeness and missing Git blobs passed regressions on macOS and native Linux tests and distribution revalidation. See the [release checklist](docs/ci/oss-cli-release.md).
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
@@ -30,7 +30,7 @@ The local candidate is preparation material, not evidence of publication or vali
 
 The preferred Linux distribution candidate uses static musl linking. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
 ELF checks found no PT_INTERP, DT_NEEDED or GLIBC references. Users need no installed Rust, shared libc, libz or libgcc runtime. License originals, required source archives, checksums and bundled links were checked.
-The corrected musl candidate passed 333 default, 332 minimal, 334 JP and 25 LSP tests, plus 60 related release-profile regressions. LSP stdio startup passed through both the CLI and the standalone server. These runs overlap and must not be added as distinct test cases.
+The musl candidate including the interactive/Git-read fixes passed 357 default, 356 minimal, 358 JP and 25 LSP tests, plus 84 related release-profile regressions. In 21 direct cases, the CLI extracted from the ZIP returned exit code 2 for incomplete scans, emitted no partial report, refused new baselines and preserved existing baselines. LSP stdio startup passed through both the CLI and the standalone server. These runs overlap and must not be added as distinct test cases.
 Older ARM64 and QEMU x86_64 results do not validate this RC on ARM64 or other distributions.
 The minimum kernel version is not established. Older kernels, other distributions, separate machines/VMs, other CPUs and performance remain untested.
 

@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Local, TimeZone};
 use git2::{Delta, DiffOptions, Repository};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 use veil_core::try_get_all_rules;
@@ -39,6 +39,35 @@ impl From<&str> for Format {
             _ => Format::Text,
         }
     }
+}
+
+fn incomplete_scan_reason(summary: &Summary) -> Option<&'static str> {
+    if summary.file_limit_reached {
+        Some("file count limit reached (core.max_file_count)")
+    } else if summary.max_file_size_reached {
+        Some("file size limit reached (core.max_file_size)")
+    } else if summary.read_error_reached {
+        Some("file read or UTF-8 decoding error")
+    } else if summary.limit_reached {
+        Some("finding limit reached (--limit or output.max_findings)")
+    } else {
+        None
+    }
+}
+
+fn read_git_blob<'repo>(
+    repo: &'repo Repository,
+    id: git2::Oid,
+    mode: u32,
+    path: &Path,
+) -> Result<Option<git2::Blob<'repo>>> {
+    // Gitlinks reference commits in a separate submodule repository, not blobs.
+    if mode == 0o160000 {
+        return Ok(None);
+    }
+    repo.find_blob(id)
+        .map(Some)
+        .with_context(|| format!("Cannot read Git blob for {}", path.display()))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -138,32 +167,35 @@ pub fn collect_findings(
             if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                 if let Some(path) = delta.new_file().path() {
                     let path_val = path;
-                    if let Ok(entry) = tree.get_path(path_val) {
-                        if let Ok(object) = entry.to_object(&repo) {
-                            if let Some(blob) = object.as_blob() {
-                                let file_findings =
-                                    veil_core::scan_data(path_val, blob.content(), &rules, &config);
+                    let entry = tree.get_path(path_val).with_context(|| {
+                        format!("Cannot read Git tree entry for {}", path_val.display())
+                    })?;
+                    let Some(blob) =
+                        read_git_blob(&repo, entry.id(), entry.filemode() as u32, path_val)?
+                    else {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    };
+                    let file_findings =
+                        veil_core::scan_data(path_val, blob.content(), &rules, &config);
 
-                                let mut is_skipped = false;
-                                if let Some(first) = file_findings.first() {
-                                    if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                        || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                    {
-                                        is_skipped = true;
-                                    }
-                                    if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                        any_max_file_size_reached = true;
-                                    }
-                                }
-
-                                if is_skipped {
-                                    skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                } else {
-                                    scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                    all_findings.extend(file_findings);
-                                }
-                            }
+                    let mut is_skipped = false;
+                    if let Some(first) = file_findings.first() {
+                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                        {
+                            is_skipped = true;
                         }
+                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                            any_max_file_size_reached = true;
+                        }
+                    }
+
+                    if is_skipped {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        all_findings.extend(file_findings);
                     }
                 }
             }
@@ -205,31 +237,34 @@ pub fn collect_findings(
             for delta in diff.deltas() {
                 if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                     if let Some(path) = delta.new_file().path() {
-                        if let Ok(entry) = tree.get_path(path) {
-                            if let Ok(object) = entry.to_object(&repo) {
-                                if let Some(blob) = object.as_blob() {
-                                    let file_findings =
-                                        veil_core::scan_data(path, blob.content(), &rules, &config);
-                                    let mut is_skipped = false;
-                                    if let Some(first) = file_findings.first() {
-                                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                        {
-                                            is_skipped = true;
-                                        }
-                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                            any_max_file_size_reached = true;
-                                        }
-                                    }
-
-                                    if is_skipped {
-                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                    } else {
-                                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        all_findings.extend(file_findings);
-                                    }
-                                }
+                        let entry = tree.get_path(path).with_context(|| {
+                            format!("Cannot read Git tree entry for {}", path.display())
+                        })?;
+                        let Some(blob) =
+                            read_git_blob(&repo, entry.id(), entry.filemode() as u32, path)?
+                        else {
+                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                            continue;
+                        };
+                        let file_findings =
+                            veil_core::scan_data(path, blob.content(), &rules, &config);
+                        let mut is_skipped = false;
+                        if let Some(first) = file_findings.first() {
+                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                            {
+                                is_skipped = true;
                             }
+                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                any_max_file_size_reached = true;
+                            }
+                        }
+
+                        if is_skipped {
+                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                            all_findings.extend(file_findings);
                         }
                     }
                 }
@@ -238,40 +273,16 @@ pub fn collect_findings(
     } else if staged {
         // 3. Scan staged
         let repo = Repository::open(".")?;
-        let diff = if let Ok(head) = repo.head() {
-            if let Ok(head_tree) = head.peel_to_tree() {
-                let index = repo.index()?;
-                let mut diff_opts = DiffOptions::new();
-                repo.diff_tree_to_index(Some(&head_tree), Some(&index), Some(&mut diff_opts))?
-            } else {
-                return Ok(ScanResultForCli {
-                    summary: Summary::new(
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0, // baseline_suppressed
-                        false,
-                        false,
-                        false,
-                        false,
-                        start_time.elapsed(),
-                        None, // baseline_path
-                        HashMap::new(),
-                        Vec::new(),
-                    ),
-                    findings: vec![],
-                    suppressed_findings: vec![],
-                });
-            }
-        } else {
-            let index = repo.index()?;
-            let mut diff_opts = DiffOptions::new();
-            repo.diff_tree_to_index(None, Some(&index), Some(&mut diff_opts))?
+        let head_tree = match repo.head() {
+            Ok(head) => Some(head.peel_to_tree().context("Cannot read Git HEAD tree")?),
+            Err(error) if error.code() == git2::ErrorCode::UnbornBranch => None,
+            Err(error) => return Err(error).context("Cannot read Git HEAD"),
         };
+        let index = repo.index().context("Cannot read Git index")?;
+        let mut diff_opts = DiffOptions::new();
+        let diff =
+            repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut diff_opts))?;
 
-        let index = repo.index()?;
         for delta in diff.deltas() {
             if delta.status() == Delta::Added || delta.status() == Delta::Modified {
                 if let Some(path) = delta.new_file().path() {
@@ -279,28 +290,31 @@ pub fn collect_findings(
                     if let Ok(true) = repo.is_path_ignored(path_val) {
                         continue;
                     }
-                    if let Some(entry) = index.get_path(path_val, 0) {
-                        if let Ok(blob) = repo.find_blob(entry.id) {
-                            let file_findings =
-                                veil_core::scan_data(path_val, blob.content(), &rules, &config);
-                            let mut is_skipped = false;
-                            if let Some(first) = file_findings.first() {
-                                if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                    || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                {
-                                    is_skipped = true;
-                                }
-                                if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                    any_max_file_size_reached = true;
-                                }
-                            }
-                            if is_skipped {
-                                skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                            } else {
-                                scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                all_findings.extend(file_findings);
-                            }
+                    let entry = index.get_path(path_val, 0).with_context(|| {
+                        format!("Cannot read Git index entry for {}", path_val.display())
+                    })?;
+                    let Some(blob) = read_git_blob(&repo, entry.id, entry.mode, path_val)? else {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        continue;
+                    };
+                    let file_findings =
+                        veil_core::scan_data(path_val, blob.content(), &rules, &config);
+                    let mut is_skipped = false;
+                    if let Some(first) = file_findings.first() {
+                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                        {
+                            is_skipped = true;
                         }
+                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                            any_max_file_size_reached = true;
+                        }
+                    }
+                    if is_skipped {
+                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                    } else {
+                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                        all_findings.extend(file_findings);
                     }
                 }
             }
@@ -466,6 +480,12 @@ pub fn scan(
     )?;
 
     if interactive {
+        if let Some(reason) = incomplete_scan_reason(&result.summary) {
+            anyhow::bail!(
+                "Cannot start interactive review: scan incomplete: {}.",
+                reason
+            );
+        }
         return crate::commands::interactive_scan::run_interactive(&result.findings);
     }
 
@@ -474,20 +494,7 @@ pub fn scan(
         use veil_core::baseline::{from_findings, save_baseline};
 
         // Reject partial snapshots before opening a new or existing destination.
-        if result.summary.file_limit_reached
-            || result.summary.limit_reached
-            || result.summary.max_file_size_reached
-            || result.summary.read_error_reached
-        {
-            let reason = if result.summary.file_limit_reached {
-                "file count limit reached (core.max_file_count)"
-            } else if result.summary.max_file_size_reached {
-                "file size limit reached (core.max_file_size)"
-            } else if result.summary.read_error_reached {
-                "file read or UTF-8 decoding error"
-            } else {
-                "finding limit reached (--limit or output.max_findings)"
-            };
+        if let Some(reason) = incomplete_scan_reason(&result.summary) {
             anyhow::bail!(
                 "Cannot write baseline: scan incomplete: {}. No baseline was saved.",
                 reason
