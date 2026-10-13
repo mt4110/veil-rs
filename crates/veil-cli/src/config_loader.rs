@@ -46,6 +46,8 @@ fn load_config_layers_with_preset_inner(
     // Merge logic: Preset -> User -> Org -> Repo (later overrides earlier)
     let mut effective = merge_configs(preset.as_ref(), org.as_ref(), user.as_ref(), repo.as_ref());
 
+    ensure_local_rules(&effective)?;
+
     // Resolve rules_dir before optional runtime asset validation and rule loading.
     if let Some(dir_str) = &effective.core.rules_dir {
         let base_dir = if let Some(p) = explicit_path {
@@ -81,6 +83,18 @@ fn load_config_layers_with_preset_inner(
         repo,
         effective,
     })
+}
+
+/// Reject obsolete network configuration rather than silently scanning with fewer rules.
+fn ensure_local_rules(config: &Config) -> Result<()> {
+    if config.core.remote_rules_url.is_some() || std::env::var_os("VEIL_REMOTE_RULES_URL").is_some()
+    {
+        anyhow::bail!(
+            "Remote rules are disabled in the local OSS CLI. Remove core.remote_rules_url \
+             and VEIL_REMOTE_RULES_URL, and configure a local rule pack with core.rules_dir."
+        );
+    }
+    Ok(())
 }
 
 /// wrapper for backward compatibility
@@ -297,6 +311,75 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use tempfile::tempdir;
+
+    #[test]
+    fn omitted_finding_limit_in_later_layer_preserves_explicit_limit() {
+        let dir = tempdir().unwrap();
+        let lower = dir.path().join("lower.toml");
+        let higher = dir.path().join("higher.toml");
+        std::fs::write(&lower, "[output]\nmax_findings = 1\n").unwrap();
+        for contents in [
+            "[core]\nfail_on_score = 99\n",
+            "[output]\nshow_snippets = false\n",
+        ] {
+            std::fs::write(&higher, contents).unwrap();
+            let lower = load_config(&lower).unwrap();
+            let higher = load_config(&higher).unwrap();
+            assert!(!higher.output.max_findings_is_set);
+            let config = merge_configs(None, Some(&lower), None, Some(&higher));
+            assert_eq!(config.output.max_findings, Some(1));
+        }
+    }
+
+    #[test]
+    fn explicit_finding_limit_in_later_layer_overrides_lower_layer() {
+        let dir = tempdir().unwrap();
+        let lower = dir.path().join("lower.toml");
+        let higher = dir.path().join("higher.toml");
+        std::fs::write(&lower, "[output]\nmax_findings = 1\n").unwrap();
+        std::fs::write(&higher, "[output]\nmax_findings = 1000\n").unwrap();
+        let lower = load_config(&lower).unwrap();
+        let higher = load_config(&higher).unwrap();
+        assert_eq!(
+            merge_configs(None, Some(&lower), None, Some(&higher))
+                .output
+                .max_findings,
+            Some(1000)
+        );
+    }
+
+    #[test]
+    fn absent_finding_limit_retains_effective_default() {
+        let dir = tempdir().unwrap();
+        let layer = load_config(&dir.path().join("missing.toml")).unwrap();
+        assert!(!layer.output.max_findings_is_set);
+        assert_eq!(
+            merge_configs(None, None, None, Some(&layer))
+                .output
+                .max_findings,
+            Some(1000)
+        );
+    }
+
+    #[test]
+    fn standalone_configuration_loading_retains_default_finding_limit() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("standalone.toml");
+        assert_eq!(
+            veil_config::load_config(&path).unwrap().output.max_findings,
+            Some(1000)
+        );
+        for contents in [
+            "[core]\nfail_on_score = 99\n",
+            "[output]\nshow_snippets = false\n",
+        ] {
+            std::fs::write(&path, contents).unwrap();
+            assert_eq!(
+                veil_config::load_config(&path).unwrap().output.max_findings,
+                Some(1000)
+            );
+        }
+    }
 
     #[test]
     fn test_repo_only_config() {

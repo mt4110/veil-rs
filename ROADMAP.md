@@ -1,5 +1,10 @@
 # Veil-rs Roadmap (v0.5 → v1.0)
 
+Status: `archive`
+
+Current scope and release tasks: [Local OSS Architecture](docs/architecture/local-oss.md).
+This historical roadmap does not define the current CLI completion criteria.
+
 This document tracks the evolution of veil-rs from the first "safe core" release (v0.5.0) to a stable v1.0.
 
 ## Phase 1 – Hardening (v0.5.x)

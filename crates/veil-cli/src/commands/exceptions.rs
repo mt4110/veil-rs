@@ -4,6 +4,7 @@ use crate::cli::{
 };
 use anyhow::Result;
 use chrono::Utc;
+#[cfg(feature = "table")]
 use prettytable::{format, Cell, Row, Table};
 use std::path::{Path, PathBuf};
 use veil_core::registry::{Registry, RegistryError};
@@ -201,39 +202,60 @@ fn run_list(registry_path: &Path, strict: bool, source: &RegistrySource) -> Resu
         return Ok(false);
     }
 
-    let mut table = Table::new();
-    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    table.set_titles(Row::new(vec![
-        Cell::new("ID").style_spec("b"),
-        Cell::new("Status").style_spec("b"),
-        Cell::new("Expiry").style_spec("b"),
-        Cell::new("Reason").style_spec("b"),
-    ]));
-
-    let now = Utc::now();
-
-    for entry in &registry.exceptions {
-        let status = registry.check(&entry.id, now);
-        let status_str = match status {
-            veil_core::registry::ExceptionStatus::Active => "Active",
-            veil_core::registry::ExceptionStatus::Expired(_) => "Expired",
-            veil_core::registry::ExceptionStatus::NotExcepted => "Inactive", // Should not happen for entry in registry unless logic changes
-        };
-
-        let expiry_str = entry
-            .expires_at
-            .map(|dt| dt.to_rfc3339())
-            .unwrap_or_else(|| "Never".to_string());
-
-        table.add_row(Row::new(vec![
-            Cell::new(&entry.id.to_string()),
-            Cell::new(status_str),
-            Cell::new(&expiry_str),
-            Cell::new(&entry.reason),
+    #[cfg(feature = "table")]
+    {
+        let mut table = Table::new();
+        table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+        table.set_titles(Row::new(vec![
+            Cell::new("ID").style_spec("b"),
+            Cell::new("Status").style_spec("b"),
+            Cell::new("Expiry").style_spec("b"),
+            Cell::new("Reason").style_spec("b"),
         ]));
+
+        let now = Utc::now();
+
+        for entry in &registry.exceptions {
+            let status = registry.check(&entry.id, now);
+            let status_str = match status {
+                veil_core::registry::ExceptionStatus::Active => "Active",
+                veil_core::registry::ExceptionStatus::Expired(_) => "Expired",
+                veil_core::registry::ExceptionStatus::NotExcepted => "Inactive", // Should not happen for entry in registry unless logic changes
+            };
+
+            let expiry_str = entry
+                .expires_at
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_else(|| "Never".to_string());
+
+            table.add_row(Row::new(vec![
+                Cell::new(&entry.id.to_string()),
+                Cell::new(status_str),
+                Cell::new(&expiry_str),
+                Cell::new(&entry.reason),
+            ]));
+        }
+
+        table.printstd();
+    }
+    #[cfg(not(feature = "table"))]
+    {
+        println!("ID\tStatus\tExpiry\tReason");
+        let now = Utc::now();
+        for entry in &registry.exceptions {
+            let status = match registry.check(&entry.id, now) {
+                veil_core::registry::ExceptionStatus::Active => "Active",
+                veil_core::registry::ExceptionStatus::Expired(_) => "Expired",
+                veil_core::registry::ExceptionStatus::NotExcepted => "Inactive",
+            };
+            let expiry = entry
+                .expires_at
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_else(|| "Never".into());
+            println!("{}\t{}\t{}\t{}", entry.id, status, expiry, entry.reason);
+        }
     }
 
-    table.printstd();
     Ok(false)
 }
 

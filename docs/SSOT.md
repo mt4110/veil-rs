@@ -1,108 +1,19 @@
-# Veil v2 SSOT
+# Veil OSS SSOT
 
 Status: `active`
-Owner: product + engineering
-Purpose: Veil v2 の製品定義、用語、境界、一次参照を 1 本に固定する
+Scope: ローカルCLIとスキャンエンジン
+Updated: 2026-10-13
 
----
+`veil scan` が通常の入口。ソースコードとログをローカルで検査し、マスキングした人間向け表示または `veil-v1` JSONを返す。初期化は任意。外部API・認証・テレメトリを前提にしない。
 
-## 1. 製品定義
+- `veil-config`: 設定型・読込み・継承・検証。
+- `veil-core`: ルール・マスキング・並列スキャン・baseline・結果モデル・既存Evidence v1検証。
+- `veil-cli`: 引数・設定レイヤー・Git読込み・出力・終了コード。
+- `veil-lsp`: 明示LSPコマンドで起動する独立stdioサーバー。通常CLIのRust依存ではない。
+- 旧UI/サーバー/Guardian: 既存ソースを保全。通常ビルド対象外。
 
-Veil v2 は **Audit Trail OS** である。
+不完全なスキャンのbaselineは保存せず終了2で既存を保全する。JSONは検知値と周辺行を既定で隠す。速度・精度の優位性を未測定のまま主張しない。
+既存 `verify` とその入力契約は通常・最小構成で保全する。新規監査機能、台帳、署名v2・VEX/PatchGate契約は今回の公開範囲に含まない。
 
-主語は次の 4 つに固定する。
-
-- `Detect`: findings を検知する
-- `Prove`: evidence を生成する
-- `Decide`: evidence と Case Ledger から verdict を出す
-- `Govern`: Case Ledger で承認・期限・責任・PatchGate 接続状態を運用する
-
----
-
-## 2. 一次導線
-
-公開面の一次導線は以下。
-
-1. `veil scan`
-2. `veil verify`
-3. `veil guardian`
-4. `veil fix`
-5. `veil-pro`
-
-`Detect` / `Prove` / `Decide` / `Govern` は製品概念の正本であり、現時点では standalone CLI command 名を意味しない。
-`veil exceptions` は **legacy/ops compat** とする。
-
----
-
-## 3. Source Of Truth
-
-### Governance
-
-`Case Ledger` が唯一の source of truth。
-
-- file: `.veil/case_ledger.json`
-- owner / reason / expires_at / approved_by を持つ
-- `Accept Risk` は case 属性で管理する
-- UI もこの ledger を読む
-
-### Baseline
-
-Baseline は historical debt suppression であり、ガバナンス判断ではない。
-
-- canonical path: `veil.baseline.json`
-- compat path: `.veil-baseline.json`
-- 用途: 既存検知の抑制
-- 非用途: 承認、例外、PatchGate 連携
-
-### Exceptions
-
-`ops/exceptions.toml` は legacy/ops reference。
-
-- `prverify` など旧運用では使う
-- v2 governance の一次ソースではない
-
----
-
-## 4. PatchGate 境界
-
-Veil:
-
-- Detect
-- Prove
-- Decide
-- Govern
-- remediation task export
-- patch result import
-
-PatchGate:
-
-- Patch
-- Gate
-- Merge
-- GitHub publish
-- waiver
-
-Veil は patch を生成しない。
-Veil は PR gate を実装しない。
-Veil は waiver を持ち込まない。
-
----
-
-## 5. Docs Hierarchy
-
-文書の読み順は次で固定する。
-
-1. この文書
-2. [README.md](../README.md)
-3. [docs/README.md](README.md)
-4. reference docs
-5. archive docs
-
-過去の `SSOT`、`STATUS`、`PR SOT`、`dogfood`、`ops phase` 文書は historical/reference として読む。
-この文書と衝突した場合は **この文書を正** とする。
-
----
-
-## 6. 人手最終チェック
-
-人間の最終レビューはローカル private checklist で行う。private 文書は public SSOT から直接リンクしない。
+[アーキテクチャ](architecture/local-oss.md)・[リリース条件](ci/oss-cli-release.md)・[利用ガイド](cli/usage-guidelines.md)を参照。
+公開・サイト・テレメトリ・DB・外部ディスク・旧ソースの物理削除は今回の準備に含まない。baselineは承認・修正完了や生値変更の識別を保証しない。

@@ -5,7 +5,7 @@ use veil_core::Severity;
 #[derive(Parser)]
 #[command(name = "veil")]
 #[command(version)]
-#[command(about = "A high-performance secret detection tool", long_about = None)]
+#[command(about = "Local secret scanning and masking", long_about = None)]
 pub struct Cli {
     /// Path to config file (default: ./veil.toml)
     #[arg(long, short, global = true)]
@@ -25,68 +25,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Scan files for secrets
-    Scan {
-        /// Paths to scan
-        #[arg(default_value = ".")]
-        paths: Vec<PathBuf>,
-        /// Apply a built-in preset as the base config layer
-        #[arg(long, value_name = "ID")]
-        preset: Option<String>,
-        /// Output format (text, json, html, markdown, table)
-        ///
-        /// - text:     Standard colorful terminal output (default)
-        /// - json:     Machine-readable JSON for integration
-        /// - html:     Self-contained HTML report
-        /// - table:    Simple key-value table
-        #[arg(long, default_value = "text")]
-        format: String,
-        /// Fail (exit 1) if the highest finding score exceeds this value (0-100)
-        /// This compares against the single highest score among all findings.
-        #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
-        fail_score: Option<u32>,
-        /// Fail (exit 1) if any finding score reaches this severity's score floor.
-        /// Values: Low, Medium, High, Critical
-        #[arg(long, value_parser = parse_severity)]
-        fail_on_severity: Option<Severity>,
-        /// Fail (exit 1) if the total number of findings is at or above this threshold (must be >= 1)
-        #[arg(long)]
-        fail_on_findings: Option<usize>,
-        /// Scan a specific commit (SHA)
-        #[arg(long)]
-        commit: Option<String>,
-        /// Scan commits since this time (e.g. "1 week ago", "2024-01-01").
-        /// This scans the Git history, not valid for file system scans.
-        #[arg(long)]
-        since: Option<String>,
-        /// Scan staged files only
-        #[arg(long)]
-        staged: bool,
-        /// Start interactive review mode
-        #[arg(long)]
-        interactive: bool,
-        /// Show progress bar (if TTY)
-        #[arg(long)]
-        progress: bool,
-        /// Masking mode (redact, partial, plain)
-        #[arg(long, value_name = "MODE")]
-        mask_mode: Option<String>,
-        /// Force plain/unsafe output (alias for --mask-mode plain)
-        #[arg(long = "unsafe")]
-        unsafe_output: bool,
-        /// Limit the number of findings (0 = unlimited)
-        /// Limit the number of findings (0 = unlimited)
-        #[arg(long)]
-        limit: Option<usize>,
-        /// Use a baseline file to suppress existing findings (S27)
-        #[arg(long, value_name = "PATH", conflicts_with = "write_baseline")]
-        baseline: Option<PathBuf>,
-        /// Write all current findings to a baseline file (exit 0)
-        #[arg(long, value_name = "PATH")]
-        write_baseline: Option<PathBuf>,
-    },
+    // Standard local CLI commands; secondary compatibility commands remain hidden.
+    /// Scan files and directories using local rules
+    Scan(ScanArgs),
     /// Filter STDIN and mask secrets (outputs to STDOUT)
     Filter,
+    #[command(hide = true)]
     /// Rewrite files in-place masking found secrets
     Mask {
         /// Paths to mask
@@ -99,6 +43,7 @@ pub enum Commands {
         backup_suffix: Option<String>,
     },
     /// Run project health checks (secrets, gitignore, CI config, etc)
+    #[command(hide = true)]
     /// This is a passive check that suggests improvements, it does not modify files.
     CheckProject,
     /// Initialize a new configuration file
@@ -118,13 +63,14 @@ pub enum Commands {
         /// Apply a built-in preset to the generated config
         #[arg(long, value_name = "ID")]
         preset: Option<String>,
-        /// Pin the GitHub Actions workflow to a specific version tag.
-        /// - "auto" (default): Use current version (if stable) or display warning (if prerelease)
-        /// - "none": Do not pin version (use latest from main/master)
-        /// - "vX.Y.Z": Pin to specific version
-        #[arg(long, default_value = "auto")]
-        pin_tag: String,
+        /// CI source: "checkout" for this repository, or a full 40-character Veil commit SHA
+        #[arg(long, requires = "ci", conflicts_with = "pin_tag")]
+        ci_source: Option<String>,
+        /// Explicit release tag (compatibility); does not identify the current working tree
+        #[arg(long, requires = "ci", conflicts_with = "ci_source")]
+        pin_tag: Option<String>,
     },
+    #[command(hide = true)]
     /// Add path to ignore list
     Ignore {
         /// Path to ignore
@@ -136,8 +82,10 @@ pub enum Commands {
     /// Pre-commit hook tools
     #[command(subcommand)]
     PreCommit(PreCommitCommand),
+    #[command(hide = true)]
     /// Interactive Triage
     Triage(TriageArgs),
+    #[command(hide = true)]
     /// Automatically fix findings (add inline ignores)
     Fix(FixArgs),
     /// Git history and operations
@@ -155,87 +103,21 @@ pub enum Commands {
         #[arg(long, value_name = "ID")]
         preset: Option<String>,
     },
-    /// Scan dependencies for vulnerabilities
-    Guardian(GuardianArgs),
     /// SOT (Source of Truth) tools
-    #[command(subcommand)]
+    #[command(subcommand, hide = true)]
     Sot(SotCommand),
+    #[command(hide = true)]
     /// Exception Registry management
     Exceptions(ExceptionsArgs),
-    /// Check for updates (stub)
-    Update,
-    /// Verify an Evidence Pack (ZIP)
-    Verify {
-        /// Path to the evidence.zip file
-        path: PathBuf,
-        /// Output format (json/text)
-        #[arg(long, default_value = "text")]
-        format: String,
-        /// Fail (exit 1) if the scan was incomplete
-        #[arg(long)]
-        require_complete: bool,
-        /// Fail (exit 1) if findings are at or above this threshold (must be >= 1)
-        #[arg(long)]
-        fail_on_findings: Option<usize>,
-        /// Expect this specific SHA-256 for the run_meta.json (External Anchor)
-        #[arg(long)]
-        expect_run_meta_sha256: Option<String>,
-        /// Maximum allowed size for the ZIP file (bytes)
-        #[arg(long, default_value_t = 500 * 1024 * 1024)]
-        max_zip_bytes: u64,
-        /// Maximum allowed size for any single uncompressed entry (bytes)
-        #[arg(long, default_value_t = 200 * 1024 * 1024)]
-        max_entry_bytes: u64,
-        /// Maximum allowed total uncompressed size for the ZIP (bytes)
-        #[arg(long, default_value_t = 1024 * 1024 * 1024)]
-        max_total_bytes: u64,
-        /// Maximum allowed number of files in the ZIP
-        #[arg(long, default_value_t = 64)]
-        max_files: usize,
-    },
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct GuardianArgs {
-    #[command(subcommand)]
-    pub command: GuardianCommands,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-pub enum GuardianCommands {
-    /// Check lockfile for vulnerabilities
-    Check {
-        /// Path to Cargo.lock or package-lock.json
-        #[arg(default_value = "Cargo.lock")]
-        lockfile: std::path::PathBuf,
-
-        /// Output format
-        #[arg(long, value_enum, default_value_t = OutputFormatCli::Human)]
-        format: OutputFormatCli,
-
-        /// Offline mode (use cache only)
-        #[arg(long)]
-        offline: bool,
-
-        /// Fetch detailed vulnerability info from OSV (requires online or cache)
-        #[arg(long)]
-        osv_details: bool,
-
-        /// Show performance metrics to stderr
-        #[arg(long)]
-        debug_metrics: bool,
-    },
-}
-
-#[derive(clap::ValueEnum, Clone, Debug)]
-pub enum OutputFormatCli {
-    Human,
-    Json,
+    /// Install a local signed RulePack (requires --local-pack)
+    Update(UpdateArgs),
+    /// Verify an Evidence Pack v1 ZIP
+    Verify(VerifyArgs),
 }
 
 #[derive(Subcommand)]
 pub enum RulesCommand {
-    /// List all effective rules (after config/remote merge)
+    /// List all effective local rules
     List {
         /// Filter by minimum severity (e.g. HIGH -> HIGH & CRITICAL)
         #[arg(long, value_parser = parse_severity)]
@@ -297,7 +179,7 @@ pub struct TemplatePromoteArgs {
     pub allow_all: bool,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum GitCommand {
     /// Scan git history
     Scan(GitScanArgs),
@@ -332,13 +214,13 @@ pub struct FixArgs {
     pub apply: bool,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum PreCommitCommand {
     /// Install the pre-commit hook
     Init,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum ConfigCommand {
     /// Validate configuration and rules
     Check {
@@ -377,7 +259,7 @@ pub enum ConfigFormat {
     Toml,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum SotCommand {
     /// Create a new SOT file
     New(SotNewArgs),
@@ -523,4 +405,98 @@ fn parse_severity(s: &str) -> Result<Severity, String> {
             "Invalid severity: {s}. Use Low|Medium|High|Critical"
         )),
     }
+}
+
+#[derive(Args, Debug)]
+pub struct ScanArgs {
+    /// Paths to scan
+    #[arg(default_value = ".")]
+    pub paths: Vec<PathBuf>,
+    /// Apply a built-in preset as the base config layer
+    #[arg(long, value_name = "ID")]
+    pub preset: Option<String>,
+    /// Output format (text, json, html, markdown, table)
+    ///
+    /// - text:     Standard colorful terminal output (default)
+    /// - json:     Machine-readable JSON for integration
+    /// - html:     Self-contained HTML report
+    /// - table:    Simple key-value table
+    #[arg(long, default_value = "text", value_parser = ["text", "json", "html", "table", "md", "markdown"], ignore_case = true)]
+    pub format: String,
+    /// Fail (exit 1) if the highest finding score exceeds this value (0-100)
+    /// This compares against the single highest score among all findings.
+    #[arg(long = "fail-on-score", alias = "fail-score", env = "VEIL_FAIL_SCORE")]
+    pub fail_score: Option<u32>,
+    /// Fail (exit 1) if any finding score reaches this severity's score floor.
+    /// Values: Low, Medium, High, Critical
+    #[arg(long, value_parser = parse_severity)]
+    pub fail_on_severity: Option<Severity>,
+    /// Fail (exit 1) if the total number of findings is at or above this threshold (must be >= 1)
+    #[arg(long)]
+    pub fail_on_findings: Option<usize>,
+    /// Scan a specific commit (SHA)
+    #[arg(long)]
+    pub commit: Option<String>,
+    /// Scan commits since this time (e.g. "1 week ago", "2024-01-01").
+    /// This scans the Git history, not valid for file system scans.
+    #[arg(long)]
+    pub since: Option<String>,
+    /// Scan staged files only
+    #[arg(long)]
+    pub staged: bool,
+    /// Start interactive review mode
+    #[arg(long)]
+    pub interactive: bool,
+    /// Show progress bar (if TTY)
+    #[arg(long)]
+    pub progress: bool,
+    /// Masking mode (redact, partial, plain)
+    #[arg(long, value_name = "MODE")]
+    pub mask_mode: Option<String>,
+    /// Force plain/unsafe output (alias for --mask-mode plain)
+    #[arg(long = "unsafe")]
+    pub unsafe_output: bool,
+    /// Limit the number of findings (0 = unlimited)
+    #[arg(long)]
+    pub limit: Option<usize>,
+    /// Use a baseline file to suppress existing findings (S27)
+    #[arg(long, value_name = "PATH", conflicts_with = "write_baseline")]
+    pub baseline: Option<PathBuf>,
+    /// Write all current findings to a baseline file (exit 0)
+    #[arg(long, value_name = "PATH")]
+    pub write_baseline: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct VerifyArgs {
+    pub path: PathBuf,
+    #[arg(long, default_value = "text")]
+    pub format: String,
+    #[arg(long)]
+    pub require_complete: bool,
+    #[arg(long)]
+    pub expect_run_meta_sha256: Option<String>,
+    #[arg(long)]
+    pub fail_on_findings: Option<usize>,
+    #[arg(long, default_value_t = 500 * 1024 * 1024)]
+    pub max_zip_bytes: u64,
+    #[arg(long, default_value_t = 200 * 1024 * 1024)]
+    pub max_entry_bytes: u64,
+    #[arg(long, default_value_t = 1024 * 1024 * 1024)]
+    pub max_total_bytes: u64,
+    #[arg(long, default_value_t = 64)]
+    pub max_files: usize,
+}
+
+#[derive(Args, Debug)]
+pub struct UpdateArgs {
+    #[arg(
+        long,
+        help = "Path to a hex-encoded public key to verify RulePack signature"
+    )]
+    pub public_key: Option<PathBuf>,
+    #[arg(long, hide = true, help = "Retired: remote downloads are disabled")]
+    pub url: Option<String>,
+    #[arg(long, help = "Path to a local signed RulePack for offline application")]
+    pub local_pack: Option<PathBuf>,
 }

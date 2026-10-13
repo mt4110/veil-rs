@@ -1,0 +1,19 @@
+Veil CLI — third-party attribution
+
+Veil project source: MIT OR Apache-2.0.
+Third-party components retain their original licenses and copyright notices.
+See THIRD_PARTY_NOTICES.md and third_party/manifest.json for the versioned inventory,
+license originals, public origins and checksums. The license texts and notices
+under third_party/licenses are part of this distribution.
+
+Unmodified source is supplied locally under third_party/sources for colored
+(MPL-2.0) and libgit2-sys (including vendored libgit2 and its linking exception).
+Original Rust standard-library attribution documents are also included.
+These source archives and texts must accompany the distribution.
+
+Static Linux candidates additionally retain musl and LLVM libunwind notices
+under third_party/licenses. The reviewed static runtime uses Rust 1.92.0.
+
+Windows GNU candidates additionally retain MinGW-w64 CRT attribution and GCC
+runtime GPLv3 / Runtime Library Exception 3.1 documents under third_party/licenses.
+The reviewed GNU runtime uses Rust 1.92.0, MinGW-w64 12.0.0 and GCC 14.2.0.

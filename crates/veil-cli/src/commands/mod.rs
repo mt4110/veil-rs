@@ -5,11 +5,9 @@ pub mod exceptions;
 pub mod filter;
 pub mod fix;
 pub mod git;
-pub mod guardian;
 pub mod ignore;
 pub mod init;
 pub mod interactive_scan;
-pub mod lsp;
 pub mod mask;
 pub mod pre_commit;
 pub mod rules;
@@ -18,3 +16,5 @@ pub mod sot;
 pub mod triage;
 pub mod update;
 pub mod verify;
+
+pub mod lsp;

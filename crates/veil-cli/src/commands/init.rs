@@ -13,12 +13,14 @@ struct LogPackAssets;
 #[cfg(feature = "wizard")]
 use inquire::{Confirm, Select, Text};
 
+#[cfg(feature = "wizard")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     En,
     Ja,
 }
 
+#[cfg(feature = "wizard")]
 impl std::fmt::Display for Language {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -36,6 +38,7 @@ pub enum Profile {
     Logs,
 }
 
+#[cfg(feature = "wizard")]
 impl Profile {
     fn display(&self, lang: Language) -> String {
         match lang {
@@ -55,6 +58,7 @@ impl Profile {
     }
 }
 
+#[cfg(feature = "wizard")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Goal {
     CreateNew,
@@ -63,6 +67,7 @@ enum Goal {
     Exit,
 }
 
+#[cfg(feature = "wizard")]
 impl Goal {
     fn display(&self, lang: Language) -> String {
         match lang {
@@ -93,10 +98,12 @@ pub struct InitAnswers {
     pub fail_score: Option<u32>,
     pub remote_rules_url: Option<String>,
     pub ignore_test_data: bool,
+    #[cfg(feature = "wizard")]
     pub ci_strategy: Option<CiStrategy>,
     pub target_path: Option<std::path::PathBuf>,
 }
 
+#[cfg(feature = "wizard")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CiStrategy {
     FailHigh,
@@ -143,11 +150,15 @@ pub fn build_config(answers: &InitAnswers) -> Config {
         None
     };
 
+    #[cfg(feature = "wizard")]
     let derived_score = match answers.ci_strategy {
         Some(CiStrategy::FailHigh) => Some(70),
         Some(CiStrategy::MonitorOnly) => None,
         None => fail_score,
     };
+
+    #[cfg(not(feature = "wizard"))]
+    let derived_score = fail_score;
 
     let final_fail_score = answers.fail_score.or(derived_score);
 
@@ -175,28 +186,20 @@ pub fn init(
     ci_provider: Option<String>,
     profile_override: Option<String>,
     preset: Option<String>,
-    pin_tag: String,
+    pin_tag: Option<String>,
+    ci_source: Option<String>,
 ) -> Result<()> {
     if let Some(provider) = ci_provider {
         if preset.is_some() {
-            anyhow::bail!(
-                "--preset cannot be combined with --ci. Run `veil init --preset <preset>` first, then `veil init --ci {}`.",
-                provider
-            );
+            anyhow::bail!("--preset cannot be combined with --ci. Run `veil init --preset <preset>` first, then `veil init --ci {} --ci-source checkout`.", provider);
         }
         if profile_override.is_some() {
-            anyhow::bail!(
-                "--profile cannot be combined with --ci. Run `veil init --profile <profile>` first, then `veil init --ci {}`.",
-                provider
-            );
+            anyhow::bail!("--profile cannot be combined with --ci. Run `veil init --profile <profile>` first, then `veil init --ci {} --ci-source checkout`.", provider);
         }
         if wizard {
-            anyhow::bail!(
-                "--wizard cannot be combined with --ci. Run `veil init --wizard` first, then `veil init --ci {}`.",
-                provider
-            );
+            anyhow::bail!("--wizard cannot be combined with --ci. Run `veil init --wizard` first, then `veil init --ci {} --ci-source checkout`.", provider);
         }
-        return generate_ci_template(&provider, &pin_tag);
+        return generate_ci_template(&provider, pin_tag.as_deref(), ci_source.as_deref());
     }
 
     let path = Path::new("veil.toml");
@@ -252,6 +255,7 @@ pub fn init(
             )
             .blue()
         );
+        #[cfg(feature = "wizard")]
         println!(
             "{}",
             "Tip: Run `veil init --wizard` for an interactive setup (recommended).".dimmed()
@@ -269,6 +273,7 @@ pub fn init(
             fail_score: None,
             remote_rules_url: None,
             ignore_test_data: false,
+            #[cfg(feature = "wizard")]
             ci_strategy: None,
             target_path: None,
         }
@@ -632,21 +637,7 @@ fn run_wizard(file_exists: bool) -> Result<Option<InitAnswers>> {
         .find(|p| p.display(lang_selection) == selected_profile_str)
         .expect("Selected profile matches one option");
 
-    // 3. Remote Rules
-    let use_remote = Confirm::new(&t("remote_q"))
-        .with_default(false)
-        .with_help_message(&t("remote_help"))
-        .prompt()?;
-
-    let remote_rules_url = if use_remote {
-        let url = Text::new(&t("remote_url_q")).prompt()?.trim().to_string();
-        if !url.starts_with("https://") {
-            eprintln!("{}", t("https_warn").yellow());
-        }
-        Some(url)
-    } else {
-        None
-    };
+    let remote_rules_url = None;
 
     // 4. Test Data
     let ignore_test_data = Confirm::new(&t("test_data_q"))
@@ -692,30 +683,19 @@ fn run_wizard(file_exists: bool) -> Result<Option<InitAnswers>> {
     }))
 }
 
-fn generate_ci_template(provider: &str, pin_tag: &str) -> Result<()> {
+fn generate_ci_template(provider: &str, pin_tag: Option<&str>, source: Option<&str>) -> Result<()> {
     match provider.to_lowercase().as_str() {
         "github" | "gh" | "actions" => {
+            let (install, description) = resolve_ci_source(pin_tag, source)?;
             let dir_path = Path::new(".github/workflows");
             let file_path = dir_path.join("veil.yml");
-
             if file_path.exists() {
                 anyhow::bail!("{} already exists!", file_path.display());
             }
-
+            let content = include_str!("../templates/ci_github.yml")
+                .replace("__VEIL_INSTALL__", &install)
+                .replace("__VEIL_SOURCE__", &description);
             fs::create_dir_all(dir_path)?;
-
-            let build_version = env!("CARGO_PKG_VERSION");
-            let tag_opt = resolve_pin_tag(pin_tag, build_version)?;
-
-            let mut content = include_str!("../templates/ci_github.yml")
-                .replace("{{VEIL_VERSION}}", build_version);
-
-            if let Some(tag) = tag_opt {
-                content = content.replace("__VEIL_TAG__", &tag);
-            } else {
-                content = content.replace(" --tag __VEIL_TAG__", "");
-            }
-
             fs::write(&file_path, content)?;
             println!(
                 "{}",
@@ -725,13 +705,10 @@ fn generate_ci_template(provider: &str, pin_tag: &str) -> Result<()> {
                 )
                 .green()
             );
-
+            println!("CI source: {}", description);
             println!(
-                "\n{}",
-                "Tip: You can also verify secrets locally with a pre-commit hook.".dimmed()
+                "Review the selected source before running CI; generation does not verify it."
             );
-            println!("See: https://github.com/mt4110/veil-rs#pre-commit-hook");
-
             Ok(())
         }
         _ => anyhow::bail!(
@@ -741,40 +718,30 @@ fn generate_ci_template(provider: &str, pin_tag: &str) -> Result<()> {
     }
 }
 
-fn resolve_pin_tag(pin_tag: &str, build_version: &str) -> Result<Option<String>> {
-    match pin_tag {
-        "auto" => {
-            if is_prerelease(build_version) {
-                println!(
-                    "{}",
-                    format!(
-                        "Warning: Current version '{}' is a prerelease/dev build.",
-                        build_version
-                    )
-                    .yellow()
-                );
-                println!(
-                    "{}",
-                    "Skipping version pinning for CI workflow to avoid install errors."
-                        .yellow()
-                );
-                println!(
-                    "{}",
-                    "To pin a specific version, use --pin-tag vX.Y.Z".dimmed()
-                );
-                Ok(None)
-            } else {
-                Ok(Some(format!("v{}", build_version)))
-            }
+fn resolve_ci_source(pin_tag: Option<&str>, source: Option<&str>) -> Result<(String, String)> {
+    let destination = r#"--root "$VEIL_INSTALL_DIR" --target-dir "$VEIL_BUILD_DIR""#;
+    match (pin_tag, source) {
+        (None, Some("checkout")) => Ok((
+            format!(r#"cargo install --locked --path "$GITHUB_WORKSPACE/crates/veil-cli" {}"#, destination),
+            "checked-out source (must contain crates/veil-cli; does not include uncommitted local work in GitHub CI)".to_string(),
+        )),
+        (None, Some(revision)) if revision.len() == 40 && revision.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            let revision = revision.to_ascii_lowercase();
+            Ok((
+                format!("cargo install --locked --git https://github.com/mt4110/veil-rs.git --rev {} veil-cli {}", revision, destination),
+                format!("explicit Veil commit {}", revision),
+            ))
         }
-        "none" => Ok(None),
-        val if val.starts_with('v') => Ok(Some(val.to_string())),
-        _ => anyhow::bail!("Invalid --pin-tag value: '{}'. Must be 'auto', 'none', or start with 'v' (e.g. v1.0.0)", pin_tag),
+        (Some(tag), None) if tag.starts_with('v') && tag.len() > 1 && tag.len() <= 128
+            && tag.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-+".contains(&b)) => Ok((
+                format!("cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag {} veil-cli {}", tag, destination),
+                format!("explicit release tag {} (compatibility; not evidence for the current candidate)", tag),
+            )),
+        (None, None) => anyhow::bail!("Select a CI source explicitly: --ci-source checkout, --ci-source <full 40-character commit SHA>, or --pin-tag <explicit release tag>. No version is inferred from the CLI manifest."),
+        (Some(_), Some(_)) => anyhow::bail!("--ci-source and --pin-tag cannot be combined"),
+        (Some(_), None) => anyhow::bail!("Invalid --pin-tag: automatic/mutable sources (auto/none) are disabled; specify an explicit v-prefixed release tag or use --ci-source"),
+        (None, Some(_)) => anyhow::bail!("Invalid --ci-source: use checkout or a full 40-character hexadecimal commit SHA"),
     }
-}
-
-fn is_prerelease(version: &str) -> bool {
-    version.contains('-') || version.contains('+')
 }
 
 #[cfg(test)]
@@ -789,6 +756,7 @@ mod tests {
             fail_score: None,
             remote_rules_url: None,
             ignore_test_data: false,
+            #[cfg(feature = "wizard")]
             ci_strategy: None,
             target_path: None,
         };

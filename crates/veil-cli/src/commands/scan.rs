@@ -1,6 +1,8 @@
+#[cfg(feature = "table")]
+use crate::formatters::TableFormatter;
 use crate::formatters::{
     DisplayFinding, FindingStatus, Formatter, HtmlFormatter, JsonFormatter, MarkdownFormatter,
-    Summary, TableFormatter,
+    Summary,
 };
 use crate::output::formatter::print_finding;
 use anyhow::{Context, Result};
@@ -51,8 +53,13 @@ pub fn collect_findings(
     limit: Option<usize>,
     baseline_path: Option<&PathBuf>,
 ) -> Result<ScanResultForCli> {
+    if commit.is_none() && since.is_none() && !staged {
+        for path in paths {
+            std::fs::metadata(path)
+                .with_context(|| format!("Cannot access scan path: {}", path.display()))?;
+        }
+    }
     let start_time = Instant::now();
-
     // 1. Load Config (Merge with Defaults)
     let mut config = if let Some(cfg) = config_override {
         cfg.clone()
@@ -85,25 +92,7 @@ pub fn collect_findings(
         config.output.mask_mode = Some(veil_config::MaskMode::Plain);
     }
 
-    // Remote Rules
-    let mut remote_rules = Vec::new();
-    let remote_url = std::env::var("VEIL_REMOTE_RULES_URL")
-        .ok()
-        .or_else(|| config.core.remote_rules_url.clone());
-
-    if let Some(url) = remote_url {
-        // Timeout 3s for CLI responsiveness
-        match veil_core::remote::fetch_remote_rules(&url, 3) {
-            Ok(rules) => {
-                remote_rules = rules;
-            }
-            Err(e) => {
-                eprintln!("Warning: Failed to fetch remote rules from {}: {}. Continuing with local rules only.", url, e);
-            }
-        }
-    }
-
-    let rules = try_get_all_rules(&config, remote_rules)?;
+    let rules = try_get_all_rules(&config, Vec::new())?;
 
     // Stats counters
     let scanned_files_atomic = AtomicUsize::new(0);
@@ -456,23 +445,23 @@ pub fn scan(
     }
 
     // Load config here for scan command to support --config arg
-    let config = if config_path.is_some() || preset.is_some() {
-        let loaded = crate::config_loader::load_effective_config_with_preset(
-            config_path,
-            preset.as_deref(),
-        )?;
-        if let Some(preset_id) = preset.as_deref() {
-            if !quiet {
-                eprintln!(
-                    "Using preset '{}' as the base config layer; user/org/repo config may override it.",
-                    preset_id
-                );
-            }
+    let config = Some(crate::config_loader::load_effective_config_with_preset(
+        config_path,
+        preset.as_deref(),
+    )?);
+    if let Some(preset_id) = preset.as_deref() {
+        if !quiet {
+            eprintln!(
+                "Using preset '{}' as the base config layer; user/org/repo config may override it.",
+                preset_id
+            );
         }
-        Some(loaded)
-    } else {
-        None
-    };
+    }
+    let reveal_raw = unsafe_output
+        || mask_mode_arg == Some("plain")
+        || (mask_mode_arg.is_none()
+            && config.as_ref().and_then(|c| c.output.mask_mode)
+                == Some(veil_config::MaskMode::Plain));
 
     let result = collect_findings(
         paths,
@@ -494,6 +483,27 @@ pub fn scan(
     if let Some(path) = &write_baseline {
         use veil_core::baseline::{from_findings, save_baseline};
 
+        // Reject partial snapshots before opening a new or existing destination.
+        if result.summary.file_limit_reached
+            || result.summary.limit_reached
+            || result.summary.max_file_size_reached
+            || result.summary.read_error_reached
+        {
+            let reason = if result.summary.file_limit_reached {
+                "file count limit reached (core.max_file_count)"
+            } else if result.summary.max_file_size_reached {
+                "file size limit reached (core.max_file_size)"
+            } else if result.summary.read_error_reached {
+                "file read or UTF-8 decoding error"
+            } else {
+                "finding limit reached (--limit or output.max_findings)"
+            };
+            anyhow::bail!(
+                "Cannot write baseline: scan incomplete: {}. No baseline was saved.",
+                reason
+            );
+        }
+
         // Convert findings to snapshot
         let snapshot = from_findings(&result.findings, env!("CARGO_PKG_VERSION"));
 
@@ -507,7 +517,7 @@ pub fn scan(
             snapshot.schema
         );
 
-        // Bootstrap is always success
+        // A complete bootstrap succeeds regardless of finding failure thresholds.
         return Ok(false);
     }
 
@@ -541,7 +551,7 @@ pub fn scan(
     };
 
     let formatter: Box<dyn Formatter> = match format {
-        Format::Json => Box::new(JsonFormatter),
+        Format::Json => Box::new(JsonFormatter::new(reveal_raw)),
         Format::Html => Box::new(HtmlFormatter::new()),
         #[cfg(feature = "table")]
         Format::Table => Box::new(TableFormatter),

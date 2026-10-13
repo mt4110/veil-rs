@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn test_json_output() {
-        let formatter = JsonFormatter;
+        let formatter = JsonFormatter::new(false);
         let findings = vec![DisplayFinding {
             inner: Finding {
                 path: PathBuf::from("test.txt"),
@@ -58,7 +58,33 @@ mod tests {
     }
 }
 
-pub struct JsonFormatter;
+pub struct JsonFormatter {
+    reveal_raw: bool,
+}
+
+impl JsonFormatter {
+    pub fn new(reveal_raw: bool) -> Self {
+        Self { reveal_raw }
+    }
+
+    fn output_finding(&self, finding: &Finding) -> Finding {
+        let mut output = finding.clone();
+        if !self.reveal_raw {
+            // Finding is the internal raw model. Its raw fields must not cross the
+            // normal CLI output boundary, including unclassified neighboring lines.
+            output.line_content = output.masked_snippet.clone();
+            output.matched_content = veil_core::DEFAULT_PLACEHOLDER.to_string();
+            for line in output
+                .context_before
+                .iter_mut()
+                .chain(output.context_after.iter_mut())
+            {
+                *line = veil_core::DEFAULT_PLACEHOLDER.to_string();
+            }
+        }
+        output
+    }
+}
 
 const SCHEMA_VERSION: &str = "veil-v1";
 
@@ -67,16 +93,15 @@ struct JsonReport<'a> {
     #[serde(rename = "schemaVersion")]
     schema_version: &'a str,
     summary: &'a Summary,
-    findings: Vec<&'a Finding>,
+    findings: Vec<Finding>,
 }
 
 impl Formatter for JsonFormatter {
     fn print(&self, findings: &[DisplayFinding], summary: &Summary) -> Result<()> {
-        // Map DisplayFinding back to Finding for JSON output to preserve contract
-        // We ignore the status since JSON currently only receives New findings anyway,
-        // (or if we decide to show suppressed in JSON later, we'd need a schema change).
-        // For now, we just unwrap `inner`.
-        let inner_findings: Vec<&Finding> = findings.iter().map(|f| &f.inner).collect();
+        let inner_findings = findings
+            .iter()
+            .map(|f| self.output_finding(&f.inner))
+            .collect();
 
         let report = JsonReport {
             schema_version: SCHEMA_VERSION,

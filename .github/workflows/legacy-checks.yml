@@ -1,0 +1,216 @@
+name: Legacy workspace checks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  nix-check:
+    name: Nix Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          clean: true
+      - uses: cachix/install-nix-action@v27
+      - run: nix run .#check
+
+  go-test:
+    name: Go Test
+    runs-on: ubuntu-latest
+    needs: [nix-check]
+    steps:
+      - uses: actions/checkout@v4.1.7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          clean: true
+      - uses: cachix/install-nix-action@v27
+      - name: Fetch base branch (origin/main) for format-patch based tests
+        run: |
+          echo "INFO: fetching origin/main (shallow) to satisfy base-ref dependent tests"
+          git fetch --no-tags --prune --depth=1 origin main:refs/remotes/origin/main || true
+          git show --no-patch --oneline origin/main 2>/dev/null || true
+
+      - run: nix develop -c go test ./...
+
+  msrv:
+    name: MSRV (1.92.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install MSRV
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0
+      - name: Versions
+        run: |
+          rustc -V
+          cargo -V
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+      - name: Check
+        run: cargo check --workspace --verbose
+      - name: Test (Unit Only)
+        run: cargo test --workspace --lib --bins --verbose
+
+  stable:
+    name: Stable (Latest)
+    runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: stable
+      CARGO_NET_RETRY: "10"
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_HTTP_TIMEOUT: "600"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create CI Artifact Dir
+        run: |
+          mkdir -p .local/ci
+          : > .local/ci/.keep
+      - name: Install Stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0
+          components: clippy, rustfmt
+
+      - name: Versions
+        run: |
+          rustc -V
+          cargo -V
+
+      - name: Cache Cargo Registry & Git
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Build
+        run: cargo build --workspace --verbose
+      - name: Check Future Incompatibilities
+        run: |
+          set -euo pipefail
+          mkdir -p .local/ci
+          cargo check --workspace --all-targets --future-incompat-report 2>&1 | tee .local/ci/check_future_incompat.log
+
+          # `cargo report future-incompatibilities` only works when a report exists.
+          # If no report exists, that's a valid state (no future-incompat warnings observed).
+          if cargo report future-incompatibilities > .local/ci/future_incompat.txt 2>&1; then
+            echo "✅ future-incompat report saved"
+          else
+            rm -f .local/ci/future_incompat.txt
+            echo "✅ no future-incompat report available"
+          fi
+
+      - name: Install sqlx-cli (Robust)
+        run: |
+          bash ops/ci/install_sqlx_cli.sh
+
+          if [ ! -s .local/ci/sqlx_cli_install.log ]; then
+            echo "Error: installation log missing or empty."
+            exit 1
+          fi
+
+      - name: Check SQLx Prepare
+        run: |
+          set -euo pipefail
+          SQLX_OFFLINE=true cargo sqlx prepare --check --workspace 2>&1 | tee .local/ci/sqlx_prepare_check.txt
+
+          if [ ! -s .local/ci/sqlx_prepare_check.txt ]; then
+             echo "Error: prepare check log missing or empty."
+             exit 1
+           fi
+
+      - name: Upload Guardrail Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardrail-logs
+          path: .local/ci/
+          if-no-files-found: ignore
+
+      - name: Test Unit
+        run: |
+          cargo test --workspace --lib --bins --verbose
+          cargo test --workspace --doc --verbose
+
+      - name: Test Integration (Guardian)
+        env:
+          RUST_TEST_THREADS: "1"
+          VEIL_OSV_FORCE_REFRESH: "0"
+        run: cargo test -p veil-guardian --tests --verbose
+
+      - name: Test Integration (Other)
+        run: cargo test --workspace --tests --exclude veil-guardian --verbose
+
+  docs-ai-min:
+      runs-on: ubuntu-22.04
+      steps:
+          - uses: actions/checkout@v4
+          - name: Minimal docs/ai rules
+            shell: bash
+            run: |
+                set -euo pipefail
+                # Check templates exist and are NOT empty (test -s)
+                test -s docs/ai/WORKFLOW_RULES.md
+                test -s docs/ai/PUBLISH_TEMPLATE.md
+                test -s docs/ai/RELEASE_BODY_TEMPLATE.md
+                test -s docs/ai/X_TEMPLATE.md
+
+                # Reject accidental duplicate headings marker (ignoring code blocks)
+                # awk logic: inside fenced block, don't count h1. outside, count h1.
+                h1count="$(awk '
+                  BEGIN{in_fence=0; c=0}
+                  /^```/ {in_fence=!in_fence; next}
+                  in_fence==0 && /^# / {c++}
+                  END{print c+0}
+                ' docs/ai/WORKFLOW_RULES.md)"
+
+                if [ "$h1count" -ne 1 ]; then
+                  echo "WORKFLOW_RULES.md must have exactly one H1 (# title). Found: $h1count"
+                  exit 1
+                fi
+
+                # Check for unclosed code fences (must be even number of ``` lines)
+                fences="$(grep -c '^```' docs/ai/WORKFLOW_RULES.md || true)"
+                if [ $((fences % 2)) -ne 0 ]; then
+                   echo "WORKFLOW_RULES.md has unclosed code fences (odd number of \`\`\`). Found: $fences"
+                   exit 1
+                fi
+
+  ai-pack-smoke:
+      runs-on: ubuntu-22.04
+      steps:
+          - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+              fetch-tags: true
+              clean: true
+          # v27
+          - uses: cachix/install-nix-action@v27
+          - name: AI_PACK smoke (Cockpit)
+            shell: bash
+            run: |
+                set -euo pipefail
+                nix run .#ai-pack -- origin/main /tmp/ai_pack.txt
+                test -s /tmp/ai_pack.txt

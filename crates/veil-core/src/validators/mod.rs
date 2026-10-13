@@ -39,7 +39,7 @@ fn luhn_values(values: &[u8]) -> bool {
         double = !double;
     }
 
-    sum % 10 == 0
+    sum.is_multiple_of(10)
 }
 
 fn card_digit_run_from(chars: &[char], start: usize) -> Option<Vec<u8>> {

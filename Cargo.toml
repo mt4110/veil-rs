@@ -8,18 +8,19 @@ members = [
     "crates/veil-pro",
     "crates/veil-lsp",
 ]
+default-members = ["crates/veil-config", "crates/veil-core", "crates/veil-cli"]
 resolver = "2"
 
 [workspace.package]
-version = "0.17.0"
-rust-version = "1.82.0"
+version = "0.21.0-rc.1"
+rust-version = "1.92.0"
 edition = "2021"
 
 [workspace.dependencies]
 fs2 = "0.4.3"
-veil-core = { path = "crates/veil-core", version = "0.17.0" }
+veil-core = { path = "crates/veil-core", version = "0.21.0-rc.1" }
 veil-guardian = { path = "crates/veil-guardian", version = "0.17.0" }
-veil-config = { path = "crates/veil-config", version = "0.17.0" }
+veil-config = { path = "crates/veil-config", version = "0.21.0-rc.1" }
 veil-server = { path = "crates/veil-server", version = "0.17.0" }
 
 [profile.bench]

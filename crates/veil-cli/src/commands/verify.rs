@@ -1,27 +1,26 @@
+use crate::cli::VerifyArgs;
 use anyhow::Result;
 use colored::Colorize;
-use std::path::PathBuf;
 use veil_core::verify::{verify_evidence_pack, VerifyOptions, VerifyStatus};
 
-#[allow(clippy::too_many_arguments)]
-pub fn verify(
-    path: PathBuf,
-    format: String,
-    require_complete: bool,
-    fail_on_findings: Option<usize>,
-    expect_run_meta_sha256: Option<String>,
-    max_zip_bytes: u64,
-    max_entry_bytes: u64,
-    max_total_bytes: u64,
-    max_files: usize,
-) -> Result<()> {
+pub fn verify(args: VerifyArgs) -> Result<()> {
+    let VerifyArgs {
+        path,
+        format,
+        fail_on_findings,
+        require_complete,
+        expect_run_meta_sha256,
+        max_zip_bytes,
+        max_entry_bytes,
+        max_total_bytes,
+        max_files,
+    } = args;
     if fail_on_findings == Some(0) {
         anyhow::bail!("--fail-on-findings must be >= 1");
     }
-
     let options = VerifyOptions {
-        require_complete,
         fail_on_findings,
+        require_complete,
         expect_run_meta_sha256,
         max_zip_bytes,
         max_entry_bytes,

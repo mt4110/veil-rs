@@ -25,6 +25,8 @@ pub struct PackMetadata {
     pub schema_version: u32,
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Deserialize)]

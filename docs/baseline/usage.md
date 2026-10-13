@@ -1,106 +1,62 @@
-# Baseline Scanning: "Stop the Bleeding"
+# Baselineによる段階的な導入
 
-Veil's **Baseline Scanning** allows you to adopt secret scanning in mature repositories without being blocked by existing technical debt.
+Status: `reference`
 
-Instead of demanding you fix hundreds of historical secrets immediately, Veil lets you **snapshot** the current state and fail CI only when **new** secrets are introduced. This philosophy is often called "Stop the Bleeding."
+baselineは既存検知を記録し、後続スキャンで一致した検知を抑制します。リスク承認や修正完了の証明には使いません。
+架空の入力での一連の操作は [チュートリアル](../cli/getting-started.md)。
 
-## Golden Path (3 Steps)
+## 作成と適用
 
-Adopt baseline scanning in less than 5 minutes:
-
-### 1. Create Baseline (Snapshot current debt)
-Run a scan and instruct Veil to write all current findings to a baseline file.
-
-```bash
-veil scan --write-baseline veil.baseline.json
-```
-> [!NOTE]
-> This command exits with `0` even if findings are detected, as its purpose is to create a snapshot. The file categorizes existing findings as "Suppressed Debt".
-
-### 2. Commit Baseline (Share it with CI)
-Commit the baseline file to your repository so your CI system (and teammates) can use it.
+通常スキャンで上限フラグと対象・スキップを確認してから、同じ入力を記録します。
+`reports` は事前に作り、スキャン対象外へ置いてください。保存先は新しい名前を使います。既存ファイルは上書きされます。
 
 ```bash
-git add veil.baseline.json
-git commit -m "chore: add veil security baseline"
-```
-> [!TIP]
-> **Security Note**: The baseline file contains hashed fingerprints and metadata (rule_id/path/line/severity), not raw secrets. However, it can reveal *where* potential secrets exist, so treat it as sensitive project data.
-
-### 3. Run Scan in CI (Fail only on new leaks)
-Update your CI pipeline to use the `--baseline` flag. Veil will now ignore the secrets listed in the baseline and report only fresh findings.
-
-```bash
-# In your CI script:
-veil scan --baseline veil.baseline.json
+veil scan src --format json > reports/before-baseline.json
+veil scan src --write-baseline reports/veil.baseline.json
+veil scan src --baseline reports/veil.baseline.json --fail-on-findings 1
 ```
 
----
+`src` は存在する対象パスへ置き換えます。baseline作成は通常のレポートを標準出力へ返しません。
+検知数・ファイル数・サイズ上限または読込みエラーがある作成は、保存先を開く前に拒否し、終了コード2を返します。新規baselineを作らず、既存baselineも変更しません。完全なスキャンでは検知があっても作成は終了コード0で成功します。無視・バイナリによるスキップは別に確認してください。
 
-## How it Works
+適用時には同じ作業ディレクトリ・対象パス・ルール・マスキング設定を使います。
+baselineを共有する場合は、保存されたパス・行番号・ルール・重大度等のメタデータの公開範囲を先に確認します。
+CLIは検知値そのものをbaselineのフィールドへ保存しませんが、ファイル名等に機密情報が入っていないことまで保証しません。
 
-When you run `veil scan --baseline <file>`:
+## 照合方式と制約
 
-1.  Veil detects secrets as usual.
-2.  It compares each finding against the fingerprints in the baseline file.
-3.  **Matches** are marked as **Suppressed**.
-4.  **Non-matches** are marked as **New**.
+schemaは `veil.baseline.v1`。現在のfingerprintは次の文字列のSHA-256です。
 
-Veil v0.9.1 uses a strict fingerprint: `SHA256(rule_id | path | line | masked_snippet)`. This favors safety over convenience—if you move a secret or change the surrounding code, it *will* reappear as "New" because the fingerprint changes. This is safe-by-design: it prevents you from accidentally re-exposing a secret you assumed was suppressed.
-
-## Output Formats
-
-Veil adjusts its output based on the format to suit the audience:
-
-| Format          | Content              | Purpose                                                                                                   |
-| :-------------- | :------------------- | :-------------------------------------------------------------------------------------------------------- |
-| **Text / JSON** | **New Only**         | Actionable developer output (new findings only). Suppressed findings are summarized but not listed.       |
-| **HTML**        | **New + Suppressed** | Full Context (without secrets; masked snippets only). Visually distinguishes new vs. suppressed findings. |
-
-## Exit Codes
-
-Veil's exit codes are designed for CI stability:
-
-*   **`0` (Success)**: No findings, OR only suppressed findings found. (CI Passes)
-*   **`1` (Failure)**: One or more **NEW** findings detected. (CI Fails)
-*   **`2` (Error)**: The baseline file is missing, corrupt, or invalid. (CI Fails Safely)
-
-## When to Re-baseline
-
-You should re-run `veil scan --write-baseline` when:
-
-1.  **Code Refactoring**: You moved files or changed lines containing suppressed secrets, causing them to show up as "New."
-2.  **Secret Rotation**: You rotated a secret and want to remove the old entry from legitimacy.
-3.  **Periodic Cleanup**: You fixed several historical secrets and want to update the baseline to reflect the cleaner state.
-
-> [!WARNING]
-> Baseline is strict by design. If you change the line number or content of a suppressed secret, it becomes "New" again. To fix, simply re-run `--write-baseline`.
-
-## CI Example (GitHub Actions)
-
-A minimal example for your `.github/workflows/security.yml` using the install script:
-
-```yaml
-jobs:
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Veil
-        run: curl -fsSL https://raw.githubusercontent.com/mt4110/veil-rs/main/scripts/install.sh | sh
-      
-      - name: Veil Scan (Baseline)
-        run: veil scan --baseline veil.baseline.json --format json
+```text
+rule_id | path | line_number | masked_snippet
 ```
 
-## FAQ
+これは**マスキング後の行を使う照合**です。秘密の生値の同一性を検証していません。
+同じ位置で値を置き換えてもマスキング後の行が同じなら、変更後の秘密も抑制されます。ハッシュの衝突ではなく、入力が同じになるためです。
+逆に、パス・行番号・マスキング後の文字列・ルールが変わると再検知されます。「値が変われば必ず新規検知」とは解釈しないでください。
+同じCLI・設定を使い、移動や修正後に出た検知はレビューします。CIを通す目的だけの再作成は避けます。
 
-**Q: "No secrets found" vs "No new secrets found"?**
-*   "No secrets found" means the repo is completely clean.
-*   "No new secrets found" means secrets exist but all match the baseline (suppressed).
+## 出力と終了条件
 
-**Q: What if the baseline file is corrupted?**
-Veil will exit with code `2` to prevent a false negative. Fix the JSON syntax or generate a new baseline.
+| 項目 | 内容 |
+| --- | --- |
+| Text / JSON / Markdown / Table | 抑制されない検知を表示 |
+| HTML | 新規と抑制済みの検知を表示 |
+| `summary.total_findings` | 抑制前の検知数 |
+| `summary.new_findings` | 抑制されない検知数 |
+| `summary.baseline_suppressed` | 抑制された検知数 |
 
-**Q: Should I edit the baseline JSON manually?**
-No. It is machine-generated. If you need to ignore a specific false positive permanently (not just suppress it as debt), use `.veilignore` or `veil.toml` rules instead.
+baselineを指定するだけでは「1件の新規検知で失敗」の条件は追加されません。CIでは `--fail-on-findings 1` 等を明示します。
+設定・環境変数のスコア条件も終了判定へ影響します。
+
+- `0`: 指定した失敗条件に該当しない。全件確認や安全性の証明ではない。
+- `1`: 新規検知が指定した件数・重大度・スコア条件に該当する。
+- `2`: baseline欠損・不正、その他の実行エラー、スキャンの上限による打ち切り（baseline作成も含む）。
+
+詳細は [scan](../cli/scan.md)、[JSON契約](../json-schema.md)、[利用ガイドライン](../cli/usage-guidelines.md)。
+
+## 更新の判断
+
+失効・修正後の検知、ファイル移動後の検知、誤検知を個別にレビューします。
+更新前のbaselineを保全し、新しい名前へ出力して差分を確認してから置き換えます。
+baselineの欠損・不正を空のbaselineへ自動置換したり、終了コード2を成功へ変換したりしないでください。

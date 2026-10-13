@@ -1,10 +1,10 @@
 name: Veil Security Scan
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   security-scan:
@@ -19,16 +19,14 @@ jobs:
           rustc -V
           cargo -V
 
-      # Install Veil pinned to the tag used for generation (no mutable refs)
-      - name: Install Veil
-        run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.17.0 veil-cli
+      - name: Build the checked-out default local CLI
+        run: cargo build --locked --release -p veil-cli --bin veil
       # Monitoring report (HTML)
       - name: Veil Scan (report)
         run: |
-          veil scan . --format html > veil-report.html
+          target/release/veil scan crates/veil-core/src crates/veil-cli/src crates/veil-config/src --format html > "$RUNNER_TEMP/veil-report.html"
 
-      # Fail the build on High severity findings
+      # Monitor-only policy is preserved; this is not a release enforcement gate.
       - name: Veil Scan (enforce)
         run: |
           echo "Veil Scan (enforce) skipped as requested"
@@ -39,4 +37,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: veil-security-report
-          path: veil-report.html
+          path: ${{ runner.temp }}/veil-report.html
