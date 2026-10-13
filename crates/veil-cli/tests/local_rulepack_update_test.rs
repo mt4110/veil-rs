@@ -5,11 +5,11 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::tempdir;
 
-fn signed_pack(root: &Path, expired: bool) {
+fn signed_pack_entries(root: &Path, expired: bool, prefix: &str, entries: &[(&str, &str)]) {
     let key = SigningKey::from_bytes(&[7; 32]); // Synthetic test key, never a trust anchor.
     let expiry = chrono::Utc::now() + chrono::Duration::days(if expired { -1 } else { 1 });
     let manifest = format!(
-        "[pack]\nid = 'test'\nversion = 1\nschema_version = 1\nexpires_at = '{}'\n",
+        "{prefix}[pack]\nid = 'test'\nversion = 1\nschema_version = 1\nexpires_at = '{}'\n",
         expiry.to_rfc3339()
     );
     let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -17,6 +17,12 @@ fn signed_pack(root: &Path, expired: bool) {
         .start_file("00_manifest.toml", zip::write::SimpleFileOptions::default())
         .unwrap();
     archive.write_all(manifest.as_bytes()).unwrap();
+    for (name, contents) in entries {
+        archive
+            .start_file(*name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(contents.as_bytes()).unwrap();
+    }
     let bytes = archive.finish().unwrap().into_inner();
     fs::write(root.join("rules.zip"), &bytes).unwrap();
     fs::write(
@@ -29,6 +35,10 @@ fn signed_pack(root: &Path, expired: bool) {
         hex::encode(key.verifying_key().to_bytes()),
     )
     .unwrap();
+}
+
+fn signed_pack(root: &Path, expired: bool) {
+    signed_pack_entries(root, expired, "", &[]);
 }
 
 fn update(root: &Path) -> std::process::Output {
@@ -94,4 +104,123 @@ fn expired_and_tampered_packs_are_rejected_before_installation() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("Signature verification FAILED"));
     assert!(!tampered.path().join(".veil").exists());
+}
+
+const CUSTOM_RULE: &str = "[[rules]]\nid='synthetic.custom'\ndescription='synthetic test'\npattern='ONLY_SYNTHETIC_TEST_123'\nseverity='high'\n";
+
+fn assert_no_installation(root: &Path) {
+    assert!(!root.join(".veil/rules").exists());
+    if root.join(".veil").exists() {
+        assert_eq!(fs::read_dir(root.join(".veil")).unwrap().count(), 0);
+    }
+}
+
+#[test]
+fn installed_rules_require_explicit_activation_without_rewriting_configuration() {
+    let dir = tempdir().unwrap();
+    let config = "[core]\nmax_file_count = 100\n";
+    fs::write(dir.path().join("veil.toml"), config).unwrap();
+    signed_pack_entries(dir.path(), false, "", &[("custom.toml", CUSTOM_RULE)]);
+    let output = update(dir.path());
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Not activated automatically"));
+    assert_eq!(
+        fs::read_to_string(dir.path().join("veil.toml")).unwrap(),
+        config
+    );
+    let list = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .args(["rules", "list"])
+        .output()
+        .unwrap();
+    assert!(list.status.success());
+    assert!(!String::from_utf8_lossy(&list.stdout).contains("synthetic.custom"));
+    fs::write(
+        dir.path().join("veil.toml"),
+        "[core]\nrules_dir = '.veil/rules'\n",
+    )
+    .unwrap();
+    let list = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .args(["rules", "list"])
+        .output()
+        .unwrap();
+    assert!(
+        list.status.success(),
+        "{}",
+        String::from_utf8_lossy(&list.stderr)
+    );
+    assert!(String::from_utf8_lossy(&list.stdout).contains("synthetic.custom"));
+    fs::write(dir.path().join("input.txt"), "ONLY_SYNTHETIC_TEST_123").unwrap();
+    let scan = Command::new(env!("CARGO_BIN_EXE_veil"))
+        .current_dir(dir.path())
+        .args(["scan", "input.txt", "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(
+        scan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&scan.stderr)
+    );
+    assert!(String::from_utf8_lossy(&scan.stdout).contains("synthetic.custom"));
+}
+
+#[test]
+fn invalid_signed_rule_contents_are_rejected_before_publication() {
+    for (prefix, rule) in [
+        ("files = ['missing.toml']\n", CUSTOM_RULE.to_string()),
+        ("", CUSTOM_RULE.replace("ONLY_SYNTHETIC_TEST_123", "[")),
+        ("", format!("{CUSTOM_RULE}{CUSTOM_RULE}")),
+    ] {
+        let dir = tempdir().unwrap();
+        signed_pack_entries(dir.path(), false, prefix, &[("custom.toml", &rule)]);
+        let output = update(dir.path());
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stderr).contains("validation failed"));
+        assert_no_installation(dir.path());
+    }
+}
+
+#[test]
+fn invalid_manifest_digest_is_rejected_before_publication() {
+    let dir = tempdir().unwrap();
+    let prefix = "[signature]\nrequired = true\npinned_digests = ['sha256:0000000000000000000000000000000000000000000000000000000000000000']\n";
+    signed_pack_entries(dir.path(), false, prefix, &[("custom.toml", CUSTOM_RULE)]);
+    let output = update(dir.path());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("digest mismatch"));
+    assert_no_installation(dir.path());
+}
+
+#[test]
+fn extraction_failure_leaves_no_target_and_allows_retry() {
+    let dir = tempdir().unwrap();
+    signed_pack_entries(
+        dir.path(),
+        false,
+        "",
+        &[("file", "first"), ("file/child", "second")],
+    );
+    assert_eq!(update(dir.path()).status.code(), Some(2));
+    assert_no_installation(dir.path());
+    signed_pack_entries(dir.path(), false, "", &[("custom.toml", CUSTOM_RULE)]);
+    assert!(update(dir.path()).status.success());
+    assert!(dir.path().join(".veil/rules/custom.toml").is_file());
+}
+
+#[test]
+fn escaping_manifest_paths_are_rejected_before_installation() {
+    let dir = tempdir().unwrap();
+    signed_pack_entries(dir.path(), false, "files = ['../outside.toml']\n", &[]);
+    assert_eq!(update(dir.path()).status.code(), Some(2));
+    assert_no_installation(dir.path());
 }

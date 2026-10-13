@@ -85,7 +85,7 @@ Initialization is optional and adds configured failure thresholds. Review the ge
 ## Local rules and migration
 
 Use `core.rules_dir` for a local RulePack. Old `core.remote_rules_url` / `VEIL_REMOTE_RULES_URL` settings produce an explicit migration error rather than silently reducing rule coverage.
-Built-in rules require no update. To apply a local signed pack:
+Built-in rules require no update. To install a local signed pack:
 
 ```bash
 veil update --local-pack rules.zip --public-key publisher.hex
@@ -93,6 +93,13 @@ veil update --local-pack rules.zip --public-key publisher.hex
 
 The matching `rules.sig` and an explicitly trusted hex-encoded Ed25519 public key are required. Signatures and expiration are checked.
 Existing `.veil/rules` is preserved. Configure another rules directory or apply the pack in a fresh project.
+
+Installation validates the signature, expiry, and rule contents before publishing the directory. It does not automatically activate the pack or rewrite your configuration. Add the following value to the existing `[core]` section of the configuration you use, then confirm the added rules with `veil rules list` (or `veil --config <path> rules list` for another configuration file).
+
+```toml
+[core]
+rules_dir = ".veil/rules"
+```
 
 ## Build boundary
 

@@ -21,12 +21,14 @@ jobs:
     name: MSRV (1.92.0)
     uses: ./.github/workflows/oss-profile.yml
     with:
+      profile: msrv
       runner: ubuntu-latest
       toolchain: 1.92.0
   linux-musl:
     name: Static Linux musl (x86_64, 1.92.0)
     uses: ./.github/workflows/oss-profile.yml
     with:
+      profile: linux-musl
       runner: ubuntu-latest
       toolchain: 1.92.0
       musl: true
@@ -38,5 +40,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     uses: ./.github/workflows/oss-profile.yml
     with:
+      profile: native
       runner: ${{ matrix.os }}
       toolchain: 1.92.0

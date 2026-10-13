@@ -3,6 +3,9 @@ name: Local OSS profile
 on:
   workflow_call:
     inputs:
+      profile:
+        type: string
+        required: true
       runner:
         type: string
         required: true
@@ -107,7 +110,7 @@ jobs:
       - name: Upload CLI verification record
         uses: actions/upload-artifact@v4
         with:
-          name: veil-cli-check-${{ inputs.runner }}-${{ inputs.toolchain }}-${{ inputs.musl && 'musl' || 'native' }}
+          name: veil-cli-check-${{ inputs.profile }}-${{ inputs.runner }}-${{ inputs.toolchain }}-${{ inputs.musl && 'musl' || 'native' }}
           path: |
             .local/ci/oss-release-check.txt
             .local/ci/oss-archive-check.json

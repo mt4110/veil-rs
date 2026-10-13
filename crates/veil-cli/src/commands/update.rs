@@ -4,7 +4,7 @@ use colored::*;
 use ed25519_dalek::{Verifier, VerifyingKey};
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Component, PathBuf};
 use zip::ZipArchive;
 
 pub fn update(args: &UpdateArgs) -> Result<()> {
@@ -69,8 +69,7 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
     let reader = std::io::Cursor::new(archive_bytes);
     let mut archive = ZipArchive::new(reader).context("Failed to parse downloaded file as ZIP")?;
 
-    // Anti-Downgrade / TTL Check (T12)
-    // Anti-Downgrade / TTL Check (T12 - Fail Closed)
+    // Check the signed manifest before creating any installation state.
     {
         let mut manifest_file = archive
             .by_name("00_manifest.toml")
@@ -91,22 +90,42 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
                 exp.to_rfc3339()
             );
         }
+        for name in &manifest.files {
+            let path = std::path::Path::new(name);
+            if path.as_os_str().is_empty()
+                || path
+                    .components()
+                    .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
+            {
+                anyhow::bail!("RulePack manifest contains an invalid rule path: {name}");
+            }
+        }
     }
 
     let target_dir = PathBuf::from(".veil/rules");
-    if target_dir.exists() {
+    if target_dir.symlink_metadata().is_ok() {
         anyhow::bail!(
             "Existing .veil/rules was preserved. Install into a fresh project or configure another core.rules_dir."
         );
     }
-    std::fs::create_dir_all(&target_dir).context("Failed to create .veil/rules directory")?;
+    std::fs::create_dir_all(".veil").context("Failed to create .veil directory")?;
+    let candidate = tempfile::Builder::new()
+        .prefix(".rules-install-")
+        .tempdir_in(".veil")
+        .context("Failed to create RulePack staging directory")?;
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
         let outpath = match file.enclosed_name() {
-            Some(path) => target_dir.join(path),
-            None => continue,
+            Some(path) => candidate.path().join(path),
+            None => anyhow::bail!("RulePack contains an invalid ZIP entry path"),
         };
+        if file
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
+            anyhow::bail!("RulePack contains a symbolic link entry");
+        }
 
         if file.name().ends_with('/') {
             std::fs::create_dir_all(&outpath)?;
@@ -116,11 +135,28 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
                     std::fs::create_dir_all(p)?;
                 }
             }
-            let mut outfile = File::create(&outpath)?;
+            let mut outfile = File::options()
+                .write(true)
+                .create_new(true)
+                .open(&outpath)?;
             std::io::copy(&mut file, &mut outfile)?;
         }
     }
 
-    eprintln!("{} RulePack updated successfully!", "🎉".green().bold());
+    veil_core::rules::pack::load_rule_pack(candidate.path())
+        .context("Extracted RulePack validation failed; existing rules were preserved")?;
+    if target_dir.symlink_metadata().is_ok() {
+        anyhow::bail!(
+            "Existing .veil/rules was preserved; installation target appeared during update"
+        );
+    }
+    std::fs::rename(candidate.path(), &target_dir)
+        .context("Failed to publish validated RulePack; retry the update")?;
+
+    eprintln!(
+        "{} Verified RulePack installed in .veil/rules.",
+        "✅".green()
+    );
+    eprintln!("Not activated automatically. Set rules_dir = \".veil/rules\" in the [core] section of your configuration, then run veil rules list to confirm.");
     Ok(())
 }

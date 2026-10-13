@@ -105,6 +105,13 @@ veil update --local-pack rules.zip --public-key publisher.hex
 
 `rules.zip` に対応する `rules.sig` と明示した信頼鍵が必要です。署名と有効期限を検証します。
 既存の `.veil/rules` は上書き・削除しません。別のルールディレクトリを設定するか、新しいプロジェクトで適用してください。
+更新は署名・期限・ルール内容を検証して配置します。自動では有効化せず、既存設定も書き換えません。使用する設定ファイルの既存 `[core]` 節に次を追加し、`veil rules list`（別の設定ファイルなら `veil --config <path> rules list`）で追加ルールを確認してください。
+
+```toml
+[core]
+rules_dir = ".veil/rules"
+```
+
 組み込みルールの利用に `veil update` は不要です。
 
 ## 開発構成と既存verify

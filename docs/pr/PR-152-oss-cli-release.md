@@ -28,6 +28,8 @@ The previously validated source candidate is `df2fae53c4432e885ca3d0b7e1869d39fa
 
 - Refresh stale release/README/Linux documentation for the Rust 1.92.0 Linux/macOS CI, two-platform RC scope, and macOS ad-hoc trial limitations. Final ZIPs and whole-archive SHA256 are prepared from the final documentation commit in new external output paths.
 
+- Validate local signed RulePack contents in sibling staging before atomic directory publication; reject invalid/duplicate rule contents and keep failed installations retryable. Explicit activation instructions preserve existing configuration. Give each CI profile a unique artifact name.
+
 ## Verification
 
 Historical hosted checks for `df2fae53` passed Linux/MSRV/musl/macOS and common guards; two checks failed.
@@ -46,7 +48,7 @@ Local follow-up checks on 2026-10-13 passed:
 
 The CI/documentation follow-up `5cd23e9` passed all seven hosted checks: [CI](https://github.com/mt4110/veil-rs/actions/runs/38398797938) and [SOT Guard](https://github.com/mt4110/veil-rs/actions/runs/38398797593).
 
-The license-metadata follow-up adds no runtime source or dependency changes. Local Cargo metadata resolves the four supported crates to `MIT OR Apache-2.0`; third-party inventory, release conditions, architecture, document taxonomy, and whitespace checks passed before push. `cargo package --list --allow-dirty --locked --offline` was inspected for all four crates: it does not include the repository-root license originals. CLI ZIP packaging includes both originals; crates.io source-package license inclusion remains a separate gate before any package publication. Hosted CI for the new metadata head remains pending.
+The license-metadata follow-up adds no runtime source or dependency changes. Local Cargo metadata resolves the four supported crates to `MIT OR Apache-2.0`; third-party inventory, release conditions, architecture, document taxonomy, and whitespace checks passed before push. `cargo package --list --allow-dirty --locked --offline` was inspected for all four crates: it does not include the repository-root license originals. CLI ZIP packaging includes both originals; crates.io source-package license inclusion remains a separate gate before any package publication. The metadata head passed all seven checks: [CI](https://github.com/mt4110/veil-rs/actions/runs/38400609392) and [SOT Guard](https://github.com/mt4110/veil-rs/actions/runs/38400609028).
 
 ## Evidence
 
@@ -63,3 +65,7 @@ macOS Developer ID signing, notarization, Gatekeeper download testing, Intel Mac
 ## Rollback
 
 Revert the follow-up commit if needed; retain the previously validated source candidate and its verification artifacts.
+
+The documentation head `b07b822` passed all seven checks and both native ZIP verifications. Final merge review found RulePack installation validation/retry defects and duplicate artifact names. The follow-up fixes are covered by RulePack integration regressions; new hosted CI and fresh two-platform ZIP verification must pass before merging or creating the release draft. Previous ZIPs are retained as historical candidates.
+
+Local follow-up verification: RulePack integration tests passed in default and minimal configurations (8 tests each; overlapping tests). Clippy for veil-cli all targets, Python 85 tests, architecture/release/license/document guards, actionlint, and git diff whitespace checks passed. No dependencies or Cargo.lock changes.
