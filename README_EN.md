@@ -1,4 +1,4 @@
-# Veil — Local secret scanning
+# Veil — Local secret detection and masking
 
 2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Additional fixes for interactive completeness and missing Git blobs passed regressions on macOS and native Linux tests and distribution revalidation. See the [release checklist](docs/ci/oss-cli-release.md).
 
