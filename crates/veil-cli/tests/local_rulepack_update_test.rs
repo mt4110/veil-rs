@@ -224,3 +224,40 @@ fn escaping_manifest_paths_are_rejected_before_installation() {
     assert_eq!(update(dir.path()).status.code(), Some(2));
     assert_no_installation(dir.path());
 }
+
+#[test]
+fn configured_expired_rules_fail_closed_without_mutating_the_pack() {
+    let dir = tempdir().unwrap();
+    fs::create_dir_all(dir.path().join(".veil/rules")).unwrap();
+    let expiry = chrono::Utc::now() - chrono::Duration::days(1);
+    let manifest =
+        format!("[pack]\nid='expired-local'\nversion=1\nschema_version=1\nexpires_at='{expiry}'\n");
+    fs::write(dir.path().join(".veil/rules/00_manifest.toml"), &manifest).unwrap();
+    fs::write(dir.path().join(".veil/rules/custom.toml"), CUSTOM_RULE).unwrap();
+    fs::write(
+        dir.path().join("veil.toml"),
+        "[core]\nrules_dir='.veil/rules'\n",
+    )
+    .unwrap();
+    fs::write(dir.path().join("input.txt"), "ONLY_SYNTHETIC_TEST_123").unwrap();
+    for args in [
+        vec!["rules", "list"],
+        vec!["scan", "input.txt", "--format", "json"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+            .current_dir(dir.path())
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("has expired"));
+    }
+    assert_eq!(
+        fs::read_to_string(dir.path().join(".veil/rules/00_manifest.toml")).unwrap(),
+        manifest
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join(".veil/rules/custom.toml")).unwrap(),
+        CUSTOM_RULE
+    );
+}

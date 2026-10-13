@@ -69,3 +69,7 @@ Revert the follow-up commit if needed; retain the previously validated source ca
 The documentation head `b07b822` passed all seven checks and both native ZIP verifications. Final merge review found RulePack installation validation/retry defects and duplicate artifact names. The follow-up fixes are covered by RulePack integration regressions; new hosted CI and fresh two-platform ZIP verification must pass before merging or creating the release draft. Previous ZIPs are retained as historical candidates.
 
 Local follow-up verification: RulePack integration tests passed in default and minimal configurations (8 tests each; overlapping tests). Clippy for veil-cli all targets, Python 85 tests, architecture/release/license/document guards, actionlint, and git diff whitespace checks passed. No dependencies or Cargo.lock changes.
+
+An explicit RulePack expiry is enforced whenever the normal loader is invoked, not only during installation. Packs without an expiry remain compatible. Core coverage checks expired/future/legacy TTL states; CLI regressions check expired configured rules fail with exit code 2 and preserve installed bytes.
+
+Expiry follow-up local checks passed: core expiry regression, 9 CLI RulePack integration tests in each default/minimal configuration, and core/CLI all-targets Clippy. Fresh final ZIPs must include this follow-up.
