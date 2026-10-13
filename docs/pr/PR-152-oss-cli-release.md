@@ -73,3 +73,7 @@ Local follow-up verification: RulePack integration tests passed in default and m
 An explicit RulePack expiry is enforced whenever the normal loader is invoked, not only during installation. Packs without an expiry remain compatible. Core coverage checks expired/future/legacy TTL states; CLI regressions check expired configured rules fail with exit code 2 and preserve installed bytes.
 
 Expiry follow-up local checks passed: core expiry regression, 9 CLI RulePack integration tests in each default/minimal configuration, and core/CLI all-targets Clippy. Fresh final ZIPs must include this follow-up.
+
+RulePack placement rejects a symlink or file at `.veil` before staging or publishing, and requires the canonical installation parent to remain beneath the canonical project directory. Unix regressions preserve both existing and dangling symlinks and outside-directory sentinel files.
+
+Placement follow-up local checks passed: 10 RulePack CLI integration tests in each default/minimal configuration and veil-cli all-targets Clippy. All new candidate ZIPs are regenerated from the final placement-fix head; intermediate ZIPs remain historical artifacts.

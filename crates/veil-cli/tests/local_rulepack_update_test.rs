@@ -261,3 +261,36 @@ fn configured_expired_rules_fail_closed_without_mutating_the_pack() {
         CUSTOM_RULE
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn symlinked_installation_parent_is_rejected_without_writing_outside_project() {
+    for dangling in [false, true] {
+        let dir = tempdir().unwrap();
+        let outside = tempdir().unwrap();
+        let destination = if dangling {
+            outside.path().join("missing")
+        } else {
+            outside.path().to_path_buf()
+        };
+        fs::write(outside.path().join("keep.txt"), "preserve-outside").unwrap();
+        std::os::unix::fs::symlink(&destination, dir.path().join(".veil")).unwrap();
+        signed_pack_entries(dir.path(), false, "", &[("custom.toml", CUSTOM_RULE)]);
+        let output = update(dir.path());
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("must be a real directory"));
+        assert!(!destination.join("rules").exists());
+        assert_eq!(
+            fs::read_to_string(outside.path().join("keep.txt")).unwrap(),
+            "preserve-outside"
+        );
+        assert!(dir
+            .path()
+            .join(".veil")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 1);
+    }
+}

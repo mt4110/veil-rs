@@ -4,7 +4,7 @@ use colored::*;
 use ed25519_dalek::{Verifier, VerifyingKey};
 use std::fs::File;
 use std::io::Read;
-use std::path::{Component, PathBuf};
+use std::path::Component;
 use zip::ZipArchive;
 
 pub fn update(args: &UpdateArgs) -> Result<()> {
@@ -102,16 +102,36 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
         }
     }
 
-    let target_dir = PathBuf::from(".veil/rules");
+    let project = std::env::current_dir()
+        .context("Failed to determine project directory")?
+        .canonicalize()
+        .context("Failed to resolve project directory")?;
+    let install_parent = project.join(".veil");
+    match install_parent.symlink_metadata() {
+        Ok(metadata) if !metadata.file_type().is_dir() => {
+            anyhow::bail!("Refusing to install RulePack: .veil must be a real directory, not a symlink or file");
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&install_parent).context("Failed to create .veil directory")?;
+        }
+        Err(error) => return Err(error).context("Failed to inspect .veil directory"),
+    }
+    let install_parent = install_parent
+        .canonicalize()
+        .context("Failed to resolve .veil directory")?;
+    if install_parent.parent() != Some(project.as_path()) {
+        anyhow::bail!("RulePack installation directory must remain inside the project");
+    }
+    let target_dir = install_parent.join("rules");
     if target_dir.symlink_metadata().is_ok() {
         anyhow::bail!(
             "Existing .veil/rules was preserved. Install into a fresh project or configure another core.rules_dir."
         );
     }
-    std::fs::create_dir_all(".veil").context("Failed to create .veil directory")?;
     let candidate = tempfile::Builder::new()
         .prefix(".rules-install-")
-        .tempdir_in(".veil")
+        .tempdir_in(&install_parent)
         .context("Failed to create RulePack staging directory")?;
 
     for i in 0..archive.len() {
