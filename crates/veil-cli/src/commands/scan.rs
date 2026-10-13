@@ -111,6 +111,7 @@ pub fn collect_findings(
         config.output.max_findings
     };
 
+    let mut any_finding_limit_reached = false;
     let mut any_file_limit_reached = false;
     let mut any_max_file_size_reached = false;
     let mut any_read_error_reached = false;
@@ -123,53 +124,49 @@ pub fn collect_findings(
         let commit = obj.as_commit().context("Not a commit")?;
         let tree = commit.tree()?;
 
-        if commit.parent_count() > 0 {
-            let parent = commit.parent(0)?;
-            let parent_tree = parent.tree()?;
-            let mut diff_opts = DiffOptions::new();
-            let diff =
-                repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))?;
+        // A root commit is compared against an empty tree.
+        let parent_tree = if commit.parent_count() > 0 {
+            Some(commit.parent(0)?.tree()?)
+        } else {
+            None
+        };
+        let mut diff_opts = DiffOptions::new();
+        let diff =
+            repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))?;
 
-            for delta in diff.deltas() {
-                if delta.status() == Delta::Added || delta.status() == Delta::Modified {
-                    if let Some(path) = delta.new_file().path() {
-                        let path_val = path;
-                        if let Ok(entry) = tree.get_path(path_val) {
-                            if let Ok(object) = entry.to_object(&repo) {
-                                if let Some(blob) = object.as_blob() {
-                                    let file_findings = veil_core::scan_data(
-                                        path_val,
-                                        blob.content(),
-                                        &rules,
-                                        &config,
-                                    );
+        for delta in diff.deltas() {
+            if delta.status() == Delta::Added || delta.status() == Delta::Modified {
+                if let Some(path) = delta.new_file().path() {
+                    let path_val = path;
+                    if let Ok(entry) = tree.get_path(path_val) {
+                        if let Ok(object) = entry.to_object(&repo) {
+                            if let Some(blob) = object.as_blob() {
+                                let file_findings =
+                                    veil_core::scan_data(path_val, blob.content(), &rules, &config);
 
-                                    let mut is_skipped = false;
-                                    if let Some(first) = file_findings.first() {
-                                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                        {
-                                            is_skipped = true;
-                                        }
-                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                            any_max_file_size_reached = true;
-                                        }
+                                let mut is_skipped = false;
+                                if let Some(first) = file_findings.first() {
+                                    if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                        || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                    {
+                                        is_skipped = true;
                                     }
-
-                                    if is_skipped {
-                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                    } else {
-                                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        all_findings.extend(file_findings);
+                                    if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                        any_max_file_size_reached = true;
                                     }
+                                }
+
+                                if is_skipped {
+                                    skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                } else {
+                                    scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                    all_findings.extend(file_findings);
                                 }
                             }
                         }
                     }
                 }
             }
-        } else {
-            eprintln!("Scanning root commit not fully optimized yet.");
         }
     } else if let Some(since_str) = since {
         // 2. Scan history since time
@@ -195,44 +192,41 @@ pub fn collect_findings(
                 break;
             }
 
-            if commit.parent_count() > 0 {
-                let parent = commit.parent(0)?;
-                let parent_tree = parent.tree()?;
-                let tree = commit.tree()?;
-                let mut diff_opts = DiffOptions::new();
-                let diff =
-                    repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), Some(&mut diff_opts))?;
+            let tree = commit.tree()?;
+            let parent_tree = if commit.parent_count() > 0 {
+                Some(commit.parent(0)?.tree()?)
+            } else {
+                None
+            };
+            let mut diff_opts = DiffOptions::new();
+            let diff =
+                repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))?;
 
-                for delta in diff.deltas() {
-                    if delta.status() == Delta::Added || delta.status() == Delta::Modified {
-                        if let Some(path) = delta.new_file().path() {
-                            if let Ok(entry) = tree.get_path(path) {
-                                if let Ok(object) = entry.to_object(&repo) {
-                                    if let Some(blob) = object.as_blob() {
-                                        let file_findings = veil_core::scan_data(
-                                            path,
-                                            blob.content(),
-                                            &rules,
-                                            &config,
-                                        );
-                                        let mut is_skipped = false;
-                                        if let Some(first) = file_findings.first() {
-                                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                            {
-                                                is_skipped = true;
-                                            }
-                                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                                any_max_file_size_reached = true;
-                                            }
+            for delta in diff.deltas() {
+                if delta.status() == Delta::Added || delta.status() == Delta::Modified {
+                    if let Some(path) = delta.new_file().path() {
+                        if let Ok(entry) = tree.get_path(path) {
+                            if let Ok(object) = entry.to_object(&repo) {
+                                if let Some(blob) = object.as_blob() {
+                                    let file_findings =
+                                        veil_core::scan_data(path, blob.content(), &rules, &config);
+                                    let mut is_skipped = false;
+                                    if let Some(first) = file_findings.first() {
+                                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
+                                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                        {
+                                            is_skipped = true;
                                         }
+                                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
+                                            any_max_file_size_reached = true;
+                                        }
+                                    }
 
-                                        if is_skipped {
-                                            skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                        } else {
-                                            scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
-                                            all_findings.extend(file_findings);
-                                        }
+                                    if is_skipped {
+                                        skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                    } else {
+                                        scanned_files_atomic.fetch_add(1, Ordering::Relaxed);
+                                        all_findings.extend(file_findings);
                                     }
                                 }
                             }
@@ -319,6 +313,7 @@ pub fn collect_findings(
         for path in targets {
             if let Some(max) = limit_val {
                 if current_total >= max {
+                    any_finding_limit_reached = true;
                     break;
                 }
             }
@@ -333,6 +328,7 @@ pub fn collect_findings(
             let result = veil_core::scan_path(&path, &rules, &run_config);
             scanned_files_atomic.fetch_add(result.scanned_files, Ordering::Relaxed);
             skipped_files_atomic.fetch_add(result.skipped_files, Ordering::Relaxed);
+            any_finding_limit_reached |= result.limit_reached;
             any_file_limit_reached |= result.file_limit_reached;
             any_max_file_size_reached |= result.max_file_size_reached;
             any_read_error_reached |= result.read_error_reached;
@@ -351,6 +347,10 @@ pub fn collect_findings(
     let skipped_files = skipped_files_atomic.load(Ordering::Relaxed);
     let total_files = scanned_files + skipped_files;
     let duration = start_time.elapsed();
+
+    // Baseline suppression changes the displayed findings, never scan completeness.
+    let is_truncated =
+        any_finding_limit_reached || limit_val.is_some_and(|max| all_findings.len() >= max);
 
     // Baseline Application (S27)
     let (final_findings, suppressed_findings, _new_count) = if let Some(path) = baseline_path {
@@ -374,16 +374,6 @@ pub fn collect_findings(
     let mut severity_counts: HashMap<veil_core::Severity, usize> = HashMap::new();
     for f in &final_findings {
         *severity_counts.entry(f.severity.clone()).or_insert(0) += 1;
-    }
-
-    let is_truncated = if let Some(max) = limit_val {
-        final_findings.len() >= max
-    } else {
-        false
-    };
-
-    if is_truncated {
-        // Will be handled in `scan` for detailed UX Output
     }
 
     let summary = Summary::new(

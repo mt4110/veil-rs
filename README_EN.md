@@ -1,6 +1,6 @@
 # Veil — Local secret scanning
 
-2026-10-13: The 0.21.0-rc.1 Linux x86_64 static musl candidate was built and checked natively on x86_64 Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows records describe pre-integration candidates and do not validate this RC. Native Windows/MSVC remains unverified.
+2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Remaining completeness issues are recorded in the [release checklist](docs/ci/oss-cli-release.md).
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
@@ -30,6 +30,7 @@ The local candidate is preparation material, not evidence of publication or vali
 
 The preferred Linux distribution candidate uses static musl linking. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
 ELF checks found no PT_INTERP, DT_NEEDED or GLIBC references. Users need no installed Rust, shared libc, libz or libgcc runtime. License originals, required source archives, checksums and bundled links were checked.
+The corrected musl candidate passed 333 default, 332 minimal, 334 JP and 25 LSP tests, plus 60 related release-profile regressions. LSP stdio startup passed through both the CLI and the standalone server. These runs overlap and must not be added as distinct test cases.
 Older ARM64 and QEMU x86_64 results do not validate this RC on ARM64 or other distributions.
 The minimum kernel version is not established. Older kernels, other distributions, separate machines/VMs, other CPUs and performance remain untested.
 
@@ -62,7 +63,7 @@ JSON has `schemaVersion: "veil-v1"`; diagnostics go to stderr. Results are maske
 `--unsafe`, `--mask-mode plain`, and an effective `output.mask_mode = "plain"` setting reveal raw secrets: avoid these modes in stored or shared reports.
 `--fail-on-findings N` fails when the new count is at least N: use `1` to fail on any finding. `0` is invalid input and returns exit code 2.
 Exit codes: `0` means the configured finding thresholds were not exceeded, `1` means a threshold was exceeded, and `2` means an execution error or a file-count truncation.
-Finding-count/file-count truncation, oversized text files and read/UTF-8 errors return 2. Check `limit_reached`, `file_limit_reached`, `max_file_size_reached` and `read_error_reached` in the summary. Ignored or binary files may be skipped, so exit code 0 does not prove a complete scan.
+In normal non-interactive filesystem scans, finding-count/file-count truncation, oversized text files and read/UTF-8 errors return 2. Baseline suppression retains finding-limit completeness even when no new findings remain. Check `limit_reached`, `file_limit_reached`, `max_file_size_reached` and `read_error_reached` in the summary. Ignored or binary files may be skipped, so exit code 0 does not prove a complete scan.
 
 ## Useful commands
 

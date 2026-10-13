@@ -64,9 +64,20 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 
 ## 未検証と公開前の判断
 
-0.21.0-rc.1のLinux x86_64 musl静的候補はUbuntu 24.04.5 LTS / Linux 7.0.0-38-genericの実機でネイティブビルド・実行・同梱検査を確認。同じmusl targetの通常320件・最小319件・JP321件・LSP25件は失敗/ignored 0件。release LSPのstdio実起動・診断更新・修正候補・正常終了も確認。
+baseline適用時の上限情報とGitの最初のコミットの検査を修正した0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS / Linux 7.0.0-38-genericの実機でネイティブビルド・実行・同梱検査を確認。同じmusl targetの通常333件・最小332件・JP334件・LSP25件、release関連回帰60件は失敗/ignored 0件。release LSPのCLI経由・単体のstdio実起動、診断更新、修正候補、正常終了も確認した。全テストが以下の未修正経路を網羅するわけではない。
 Windowsネイティブ/MSVC、現行RCのARM64/他ディストリビューション/旧カーネル、IDE GUI連携、LSPバイナリ配布のライセンスpacket、現在のhosted CI、署名/公証/SmartScreenは未検証。
 [Linuxガイド](../cli/linux-distribution.md)・[Windowsガイド](../cli/windows-distribution.md)の旧候補の結果を、現在のソースに流用しない。
 公開するOS/CPU・番号・署名の扱いを決め、同じ承認済みソースで最終ZIPを生成・検証する。旧tagへ今回の変更を含めた扱いにしない。
 crates.io公開、旧UI/サービス全体の動作確認、性能の優位性、サイト・テレメトリ・DBはこの準備の合格条件へ追加しない。
 今回の実行結果・main向け差分・保全hashは別の準備レポートへ記録する。公開や元ブランチへの適用の承認を代替しない。
+
+## 公開前の必須課題
+
+採用済みの修正と最新文書は隔離Gitブランチ・コミットに固定し、main向け差分の適用・再構成・公開範囲を確認する。ローカルの固定は公開・hosted CIの成功を意味しない。
+
+追加の完全性判定の課題は、修正済みコードと同じ本番ソースのmacOS ARM64 CLIで専用データを使って再現した。今回の文書更新ではコードを追加変更しない。公開前に修正と回帰が必要。
+
+- 対話モード：上限に達した結果がbaselineで全件抑制されると、不完全判定の前に対話処理から終了コード0を返す。対話経路でも上限・読み取り異常を保持して2とする必要がある。
+- Gitオブジェクト欠損：ツリーが参照するblobを取得できない場合、そのファイルを黙って落として空のbaselineを保存し得る。読取り失敗を不完全/エラーとして扱い、保存前に拒否して既存baselineを保全する必要がある。
+
+修正後の同一ソースで通常・最小・JP・LSP、異常系、配布物を再検証する。そのcommitの既存hosted CI、最終文書を含む配布物の再生成、対象OS/CPUと署名の扱いの確定を経て公開を判断する。Windowsネイティブ/MSVCは未検証として保留し、現在のCLI ZIPへLSP本体を追加しない。

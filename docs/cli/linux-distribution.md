@@ -106,8 +106,10 @@ python3 scripts/verify_cli_archive.py --archive <同じZIP> --require-static --l
 ```
 
 通常scan/verifyの終了コード0/1/2・マスキング、baseline上限・CI取得元・既存v1 verify・安全境界・libgit2版の回帰をネイティブで確認した。
-同じ0.21.0-rc.1のmusl targetで、通常320件・最小構成319件・JP321件（それぞれCLI/core/config）、独立LSP25件の全テストを確認。`--include-ignored` で1,000件のテンプレート読込みも実行し、失敗・ignoredはいずれも0件。構成間には重複テストがあるため合計を固有件数とはしない。
-通常・最小・LSPのClippy全target警告検査、書式・構造・metadata・文書・Python85件も成功。
+baseline上限判定と最初のGitコミットの検査を修正した同じ0.21.0-rc.1のmusl targetで、通常333件・最小構成332件・JP334件（それぞれCLI/core/config）、独立LSP25件の全テストを確認。`--include-ignored` で1,000件のテンプレート読込みも実行し、失敗・ignoredはいずれも0件。構成間には重複テストがあるため合計を固有件数とはしない。
+release構成の修正回帰・baseline上限・既存v1 verify/safetyの60件も成功。通常・最小・LSPのClippy全target警告検査、書式・構造・metadata・文書・Python85件も成功。
+検証コードはベースcommit `202c9727d87cc011a9dd0707df11cf681bdac7c3` に2ファイルの修正を適用したもので、ローカル修正版とLinux側2,949ファイルのバイト一致を確認した。文書更新による再固定では、本番コード・テスト・lock・ツールチェーンを変えず、同じ検証済みバイナリで新しい文書を同梱し直す。
+配布ZIPから展開したCLIでも、baseline適用＋上限は2・既存baseline不変、最初のコミットの検知は1、上限付きbaseline作成は2・既存ファイル不変、完全な最初のコミットのbaseline作成は0・実際の検知を保存、`--since` は最初のコミットを含むことを確認した。ビルドツールのPATHは与えていない。対話モード・Gitオブジェクト欠損の異常系は [公開前の必須課題](../ci/oss-cli-release.md#公開前の必須課題) に残る。
 release CLIからのpreset付きLSP起動とrelease LSP単体起動をstdioで確認。initializeの版表示0.21.0-rc.1、マスキング診断、Mask value修正候補、didChange/didCloseの診断更新、shutdown/exit 0を確認した。VS Code等のGUIクライアント実操作は未検証。
 CLI ZIPにはLSP本体を同梱しない。LSPバイナリを配布対象へ加える場合は、独自の依存・原文ライセンス・同梱packetを別途確認する。
 ZIPの文書リンク・許可ファイル一覧・原文/ソース/checksumを検査。Windowsネイティブ/MSVC、現行RCのARM64/Alpine/旧カーネル、性能、hosted CIは未検証。
