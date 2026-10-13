@@ -77,3 +77,7 @@ Expiry follow-up local checks passed: core expiry regression, 9 CLI RulePack int
 RulePack placement rejects a symlink or file at `.veil` before staging or publishing, and requires the canonical installation parent to remain beneath the canonical project directory. Unix regressions preserve both existing and dangling symlinks and outside-directory sentinel files.
 
 Placement follow-up local checks passed: 10 RulePack CLI integration tests in each default/minimal configuration and veil-cli all-targets Clippy. All new candidate ZIPs are regenerated from the final placement-fix head; intermediate ZIPs remain historical artifacts.
+
+RulePack resource budgets: compressed archive 16 MiB, each expanded entry 4 MiB, total expanded payload 64 MiB, and 4096 ZIP entries. These are trial policy bounds, not measured performance limits; the entry budget accommodates the existing 1000-template scale. Compressed input reads and actual entry copies are bounded, declared sizes are preflighted before staging, and excess inputs fail with exit code 2.
+
+Resource-budget follow-up local checks passed: 13 RulePack CLI integration tests in each default/minimal configuration and veil-cli all-targets Clippy. Oversized compressed input, high-ratio large entries, excessive entry counts, and total expansion are rejected before installation state is created.

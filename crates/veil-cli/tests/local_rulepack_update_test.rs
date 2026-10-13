@@ -14,12 +14,20 @@ fn signed_pack_entries(root: &Path, expired: bool, prefix: &str, entries: &[(&st
     );
     let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     archive
-        .start_file("00_manifest.toml", zip::write::SimpleFileOptions::default())
+        .start_file(
+            "00_manifest.toml",
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated),
+        )
         .unwrap();
     archive.write_all(manifest.as_bytes()).unwrap();
     for (name, contents) in entries {
         archive
-            .start_file(*name, zip::write::SimpleFileOptions::default())
+            .start_file(
+                *name,
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Deflated),
+            )
             .unwrap();
         archive.write_all(contents.as_bytes()).unwrap();
     }
@@ -293,4 +301,51 @@ fn symlinked_installation_parent_is_rejected_without_writing_outside_project() {
             .is_symlink());
         assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 1);
     }
+}
+
+#[test]
+fn oversized_compressed_input_is_rejected_without_reading_or_installation() {
+    let dir = tempdir().unwrap();
+    let file = fs::File::create(dir.path().join("rules.zip")).unwrap();
+    file.set_len(16 * 1024 * 1024 + 1).unwrap();
+    let output = update(dir.path());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("compressed-size budget"));
+    assert_no_installation(dir.path());
+}
+
+#[test]
+fn signed_oversized_entries_and_excessive_counts_are_rejected_before_staging() {
+    let dir = tempdir().unwrap();
+    let oversized = "a".repeat(4 * 1024 * 1024 + 1);
+    signed_pack_entries(dir.path(), false, "", &[("oversized.toml", &oversized)]);
+    let output = update(dir.path());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("expanded-size budget"));
+    assert!(!dir.path().join(".veil").exists());
+
+    let count = tempdir().unwrap();
+    let names: Vec<String> = (0..4096).map(|i| format!("rule-{i}.toml")).collect();
+    let entries: Vec<(&str, &str)> = names.iter().map(|name| (name.as_str(), "x")).collect();
+    signed_pack_entries(count.path(), false, "", &entries);
+    let output = update(count.path());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("4096-entry budget"));
+    assert!(!count.path().join(".veil").exists());
+}
+
+#[test]
+fn signed_total_expansion_is_rejected_before_staging() {
+    let dir = tempdir().unwrap();
+    let contents = "x".repeat(4 * 1024 * 1024);
+    let names: Vec<String> = (0..17).map(|i| format!("rule-{i}.toml")).collect();
+    let entries: Vec<(&str, &str)> = names
+        .iter()
+        .map(|name| (name.as_str(), contents.as_str()))
+        .collect();
+    signed_pack_entries(dir.path(), false, "", &entries);
+    let output = update(dir.path());
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("total expanded-size budget"));
+    assert!(!dir.path().join(".veil").exists());
 }

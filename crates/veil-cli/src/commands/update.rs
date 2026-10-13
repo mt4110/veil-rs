@@ -7,6 +7,12 @@ use std::io::Read;
 use std::path::Component;
 use zip::ZipArchive;
 
+// Trial resource budgets, not performance or compatibility claims.
+const MAX_ARCHIVE_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_ENTRY_BYTES: u64 = 4 * 1024 * 1024;
+const MAX_EXPANDED_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_ENTRIES: usize = 4096;
+
 pub fn update(args: &UpdateArgs) -> Result<()> {
     eprintln!("{} Starting Veil RulePack Update...", "🔄".cyan());
 
@@ -18,7 +24,18 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
     let local_path = args.local_pack.as_ref().context(
         "A local signed RulePack is required. Use --local-pack <archive.zip> --public-key <key.hex>. Built-in rules need no update.",
     )?;
-    let archive_bytes = std::fs::read(local_path).context("Failed to read local RulePack file")?;
+    let archive_file = File::open(local_path).context("Failed to open local RulePack file")?;
+    if archive_file.metadata()?.len() > MAX_ARCHIVE_BYTES {
+        anyhow::bail!("RulePack archive exceeds the 16 MiB compressed-size budget");
+    }
+    let mut archive_bytes = Vec::new();
+    archive_file
+        .take(MAX_ARCHIVE_BYTES + 1)
+        .read_to_end(&mut archive_bytes)
+        .context("Failed to read local RulePack file")?;
+    if archive_bytes.len() as u64 > MAX_ARCHIVE_BYTES {
+        anyhow::bail!("RulePack archive exceeds the 16 MiB compressed-size budget");
+    }
     let sig_path = local_path.with_extension("sig");
     let signature_hex = std::fs::read_to_string(&sig_path)
         .context("Missing or unreadable .sig file alongside local RulePack")?;
@@ -68,16 +85,36 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
     eprintln!("  {} Installing RulePack to .veil/rules/...", "📦".blue());
     let reader = std::io::Cursor::new(archive_bytes);
     let mut archive = ZipArchive::new(reader).context("Failed to parse downloaded file as ZIP")?;
+    if archive.len() > MAX_ENTRIES {
+        anyhow::bail!("RulePack exceeds the 4096-entry budget");
+    }
+    let mut declared_total = 0u64;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index)?;
+        if entry.size() > MAX_ENTRY_BYTES {
+            anyhow::bail!("RulePack entry exceeds the 4 MiB expanded-size budget");
+        }
+        declared_total = declared_total
+            .checked_add(entry.size())
+            .context("RulePack expanded size overflow")?;
+        if declared_total > MAX_EXPANDED_BYTES {
+            anyhow::bail!("RulePack exceeds the 64 MiB total expanded-size budget");
+        }
+    }
 
     // Check the signed manifest before creating any installation state.
     {
-        let mut manifest_file = archive
+        let manifest_file = archive
             .by_name("00_manifest.toml")
             .context("❌ Missing 00_manifest.toml in RulePack. Update aborted.")?;
         let mut content = String::new();
         manifest_file
+            .take(MAX_ENTRY_BYTES + 1)
             .read_to_string(&mut content)
             .context("❌ Failed to read 00_manifest.toml. Update aborted.")?;
+        if content.len() as u64 > MAX_ENTRY_BYTES {
+            anyhow::bail!("RulePack manifest exceeds the expanded-size budget");
+        }
         let manifest = veil_core::rules::pack::parse_manifest(&content)
             .context("❌ Failed to parse 00_manifest.toml. Update aborted.")?;
         let exp = manifest.pack.expires_at.context(
@@ -134,8 +171,9 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
         .tempdir_in(&install_parent)
         .context("Failed to create RulePack staging directory")?;
 
+    let mut expanded_total = 0u64;
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
+        let file = archive.by_index(i)?;
         let outpath = match file.enclosed_name() {
             Some(path) => candidate.path().join(path),
             None => anyhow::bail!("RulePack contains an invalid ZIP entry path"),
@@ -159,7 +197,17 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
                 .write(true)
                 .create_new(true)
                 .open(&outpath)?;
-            std::io::copy(&mut file, &mut outfile)?;
+            let declared_size = file.size();
+            let copied = std::io::copy(&mut file.take(MAX_ENTRY_BYTES + 1), &mut outfile)?;
+            expanded_total = expanded_total
+                .checked_add(copied)
+                .context("RulePack expanded size overflow")?;
+            if copied > MAX_ENTRY_BYTES || expanded_total > MAX_EXPANDED_BYTES {
+                anyhow::bail!("RulePack actual expanded contents exceed the resource budget");
+            }
+            if copied != declared_size {
+                anyhow::bail!("RulePack entry size does not match ZIP metadata");
+            }
         }
     }
 

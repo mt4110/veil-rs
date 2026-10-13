@@ -94,6 +94,8 @@ veil update --local-pack rules.zip --public-key publisher.hex
 The matching `rules.sig` and an explicitly trusted hex-encoded Ed25519 public key are required. Signatures and expiration are checked.
 Existing `.veil/rules` is preserved. Configure another rules directory or apply the pack in a fresh project.
 
+Trial installation budgets are 16 MiB per archive, 4 MiB per expanded entry, 64 MiB total expanded contents, and 4096 entries. Signed packs exceeding a budget are rejected with exit code 2.
+
 Installation validates the signature, expiry, and rule contents before publishing the directory. Packs with an explicit expiry are also rejected by scans and rule listing after expiration. It does not automatically activate the pack or rewrite your configuration. Add the following value to the existing `[core]` section of the configuration you use, then confirm the added rules with `veil rules list` (or `veil --config <path> rules list` for another configuration file).
 
 ```toml
