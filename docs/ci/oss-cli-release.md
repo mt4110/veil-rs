@@ -18,6 +18,7 @@ Updated: 2026-10-14
 MSRV1.92.0、x86_64 Linux musl、Rust 1.92.0固定のUbuntu/macOS nativeを定義する。Windowsは今回のCI・配布対象外。最新stableの検証とは扱わない。通常・最小構成、JPチェックサム、独立LSPを検査する。
 
 - 全workspace書式、対応crate全targetのClippy（警告をエラー扱い）とテスト。
+- 実CLIで対話プレビューの複数/反復一致の秘匿、引用文字列/別IDのignore非抑制、Git staged/commit/historyの不正UTF-8拒否とbaseline保全、TOML診断の生値非出力、maskの設定失敗時の入力/バックアップ保全を通常・最小構成で確認する。
 - 既存verifyの構造・ハッシュ・anchor・完全性・ZIP上限と29件のmain回帰。
 - アーキテクチャ・公開範囲・依存ライセンス・文書リンクとPythonガード。
 - 実release CLIのversion/help、veil-v1マスキング、0/1/2、不要な状態保存の検査。

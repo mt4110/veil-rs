@@ -365,6 +365,42 @@ pub fn scan_content(content: &str, path: &Path, rules: &[Rule], config: &Config)
     findings
 }
 
+/// A single directive at the start of an unquoted # or // line comment.
+/// This conservative line lexer does not parse every source language.
+fn inline_ignore(content: &str, rule_id: &str) -> bool {
+    let mut quote = None;
+    let mut escaped = false;
+    let mut chars = content.char_indices().peekable();
+    while let Some((offset, ch)) = chars.next() {
+        if let Some(delimiter) = quote {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+        if matches!(ch, '\'' | '"' | '`') {
+            quote = Some(ch);
+            continue;
+        }
+        let comment_start = if ch == '#' {
+            Some(offset + 1)
+        } else if ch == '/' && chars.peek().is_some_and(|(_, next)| *next == '/') {
+            Some(offset + 2)
+        } else {
+            None
+        };
+        if let Some(start) = comment_start {
+            let token = content[start..].split_whitespace().next().unwrap_or("");
+            return token == "veil:ignore" || token.strip_prefix("veil:ignore=") == Some(rule_id);
+        }
+    }
+    false
+}
+
 fn scan_line(
     content: &str,
     line_number: usize,
@@ -392,32 +428,8 @@ fn scan_line(
             continue;
         }
 
-        // Inline Ignore Logic
-        // Support "# veil:ignore" (Python/Shell/YAML) and "// veil:ignore" (Rust/JS/C family)
-        if content.contains("veil:ignore") {
-            // Check specific ignore first: "veil:ignore=rule.id"
-            // Both "# veil:ignore=X" and "// veil:ignore=X"
-            if content.contains(&format!("veil:ignore={}", rule.id)) {
-                continue;
-            }
-            // Generic ignore: "veil:ignore" NOT immediately followed by "="
-            // e.g. "// veil:ignore" or "# veil:ignore"
-            // We need to be careful not to match "veil:ignore_something_else" if that existed,
-            // but for now "veil:ignore" is the keyword.
-            // Simplest check: if it contains "veil:ignore" and doesn't contain "veil:ignore=" it might be a generic ignore.
-            // But what if it contains "veil:ignore=OTHER_ID"?
-            // If the line has "veil:ignore=OTHER", we should NOT skip THIS rule unless it also has "veil:ignore" generic or "veil:ignore=THIS".
-            // Implementation Decision for v0.7.4:
-            // "If line contains `veil:ignore` and does NOT contain `=`, it is a generic ignore for ALL rules."
-            // This is a heuristic. Better: check if "veil:ignore" exists as a token?
-            // User requested: "Simple line ignore".
-            // Let's stick to the existing logic extended for `//`.
-
-            let is_comment_ignore =
-                content.contains("# veil:ignore") || content.contains("// veil:ignore");
-            if is_comment_ignore && !content.contains("veil:ignore=") {
-                continue;
-            }
+        if inline_ignore(content, &rule.id) {
+            continue;
         }
 
         // Raw matching preserves existing custom-rule semantics.

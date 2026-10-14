@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
-use veil_config::{load_config, Config};
+use veil_config::load_config;
 use veil_core::{get_default_rules, scan_path};
 
 pub fn mask(
@@ -13,7 +13,7 @@ pub fn mask(
     let config_file = config_path
         .cloned()
         .unwrap_or_else(|| PathBuf::from("veil.toml"));
-    let config = load_config(&config_file).unwrap_or_else(|_| Config::default());
+    let config = load_config(&config_file)?;
     let rules = get_default_rules();
 
     for path in paths {

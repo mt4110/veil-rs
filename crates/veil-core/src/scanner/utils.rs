@@ -2,6 +2,7 @@ use crate::model::{Finding, Rule, Severity};
 use crate::rules::grade::Grade;
 use crate::scanner::{
     scan_content, DEFAULT_MAX_FILE_SIZE_BYTES, RULE_ID_BINARY_FILE, RULE_ID_MAX_FILE_SIZE,
+    RULE_ID_READ_ERROR,
 };
 use std::path::Path;
 use veil_config::Config;
@@ -41,9 +42,9 @@ pub fn scan_data(path: &Path, data: &[u8], rules: &[Rule], config: &Config) -> V
         Ok(content) => scan_content(content, path, rules, config),
         Err(_) => vec![create_skipped_finding(
             path,
-            RULE_ID_BINARY_FILE,
-            "Binary file detected (invalid UTF-8)".to_string(),
-            Severity::Medium,
+            RULE_ID_READ_ERROR,
+            "Text could not be decoded as UTF-8".to_string(),
+            Severity::High,
         )],
     }
 }
