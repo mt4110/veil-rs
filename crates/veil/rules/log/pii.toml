@@ -17,6 +17,7 @@ context_lines_after = 1
 
 [[rules]]
 id = "log.pii.ipv4"
+validator = "ipv4_non_unspecified"
 pattern = '\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b'
 description = "IPv4 address"
 severity = "low"
