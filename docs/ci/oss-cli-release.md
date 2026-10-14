@@ -9,15 +9,15 @@ Updated: 2026-10-14
 新規監査機能・台帳・署名v2・PatchGate/VEX契約・未使用breaker・重複legacy入口・Proへの新規機能指定は含めない。main既存のverifyテストは削除しない。
 旧メンバーと過去の公開文書は保全する。private・ローカル成果物は公開差分とZIPへ含めない。
 
-この隔離候補のmanifest・CLI・独立LSP・Nix CLI packageは0.21.0-rc.1へ統一。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。今回の試用版は0.21.0-rc.1。配布対象はLinux x86_64 musl・macOS ARM64に限定する。macOSはad-hoc署名で、Developer ID署名・公証済みではない。[tag v0.21.0-rc.1とGitHubプレリリース](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) は公開済みで、検証済みZIP2種とZIP全体のSHA256SUMSを添付している。main統合コミットは `a090a3c871d166046e14df2f8f11214bc9dc4641`。今回の文書修正は既存のtag・Release・ZIPを変更しない。
+以下はrc.1の公開履歴。manifest・CLI・独立LSP・Nix CLI packageを当時0.21.0-rc.1へ統一した。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。当時の試用版は0.21.0-rc.1。配布対象はLinux x86_64 musl・macOS ARM64に限定する。macOSはad-hoc署名で、Developer ID署名・公証済みではない。[tag v0.21.0-rc.1とGitHubプレリリース](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) は公開済みで、検証済みZIP2種とZIP全体のSHA256SUMSを添付している。main統合コミットは `a090a3c871d166046e14df2f8f11214bc9dc4641`。今回の文書修正は既存のtag・Release・ZIPを変更しない。
 通常CLIのライセンスpacketは対象normal/buildグラフ用。依存・lock・コンパイラ・配布方式を変更したら再照合する。LSP本体やMSVC runtimeを同じpacketで監査済みと扱わない。
 
-## 0.21.0-rc.2ドラフト候補
+## 0.21.0-rc.2公開済みプレリリース
 
-main `5ae098face5f671efc106a2848f2eaf7d8ae3f79` の修正を基準に、対応4クレート・workspace依存・Cargo.lock・Nixの版番号をrc.2へ揃える。PR #155〜#157の出力秘匿、テキスト入力/ignore/設定診断、設定とルール読込み、maskの改行/安全な書換え、ignore後の件数予算の修正を含む。
-最終ソースコミットを固定してLinux x86_64 musl・macOS ARM64を別々にビルドし、展開ZIPから起動・配布検査・回帰を実行する。検証記録は候補保存先とReleaseドラフト本文に残す。版番号だけから検証済みとは判断しない。
+main `5ae098face5f671efc106a2848f2eaf7d8ae3f79` の修正を基準に、対応4クレート・workspace依存・Cargo.lock・Nixの版番号をrc.2へ揃えた。PR #155〜#157の出力秘匿、テキスト入力/ignore/設定診断、設定とルール読込み、maskの改行/安全な書換え、ignore後の件数予算の修正を含む。
+配布元 `449a1e2e` からLinux x86_64 musl・macOS ARM64を別々にビルドし、展開ZIPの起動・配布検査・回帰を確認した。PR #158マージ後main `b1d3234` とtreeが一致し、[main CI](https://github.com/mt4110/veil-rs/actions/runs/38544422228)の全6ジョブが成功。[rc.2のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2)にZIP2種とSHA256SUMSを公開済み。版番号だけから検証済みとは判断しない。
 
-GitHub Releaseはドラフトのみ。既存rc.1のRelease/ZIPは更新せず、署名タグのpushも公開操作として別途判断する。macOSはad-hoc署名の整合検査・ローカル実行のみで、Developer ID、公証、ダウンロード隔離属性付きのGatekeeper試験は提供しない。
+署名タグ `v0.21.0-rc.2` は検証済み配布元を指し、注記にZIPとSHA256SUMSのハッシュを含む。rc.2はプレリリースとして公開済みで、安定版Latestはv0.20.0のまま。今回の文書更新は公開済みRelease/ZIPを差し替えない。macOSはad-hoc署名の整合検査・ローカル実行のみで、Developer ID、公証、ダウンロード隔離属性付きのGatekeeper試験は提供しない。
 
 ## 自動CI
 

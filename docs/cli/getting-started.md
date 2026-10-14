@@ -1,26 +1,26 @@
 # はじめてのローカルスキャン
 
-0.21.0-rc.2は修正版のドラフト候補です。table/対話プレビューの秘匿、Git入力・設定エラーの扱い、maskのルール適用と安全な書換えの修正を含みます。まだ一般公開していないため、以下の公開RC取得例は0.21.0-rc.1のままです。rc.2のZIPを手元に持つ場合は `veil --version` が `0.21.0-rc.2` であることを確認し、展開した `veil` で同じスキャン手順を実行してください。
+[0.21.0-rc.2](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2) は公開済みプレリリースです。table/対話プレビューの秘匿、Git入力・設定エラーの扱い、maskのルール適用と安全な書換えの修正を含みます。以下の取得手順はrc.2を使用します。
 
 Status: `reference`
 
 まず自分のソースファイルを一つ検査し、結果を読めるところまで進めます。その後、Gitのステージ済み変更を点検し、次の変更でも同じ手順を使います。設定生成・baseline・CI導入は初回には不要です。
-0.21.0-rc.1は [公開済みプレリリース](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) です。この文書の後続修正は、既存の配布ZIP内の文書には自動反映されません。
+0.21.0-rc.2は [公開済みプレリリース](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2) です。この文書の後続修正は、既存の配布ZIP内の文書には自動反映されません。
 
 ## Ubuntuで自分のコードを試す
 
 ### 取得してチェックサムを確認する
 
-対象はUbuntu 24.04のx86_64環境です。RCはUbuntu 24.04.5 LTSの実機で検証しています。他のCPU・ディストリビューション・旧カーネルの動作はこの検証から保証しません。
+対象はUbuntuのx86_64環境です。rc.2のLinux版はx86_64実機とGitHub-hosted CIで検証しています。他のCPU・ディストリビューション・旧カーネルの動作はこの検証から保証しません。
 `curl`・`unzip`・`sha256sum` が必要です。取得時はネット接続が必要ですが、組み込みルールによる通常のスキャンは外部APIを呼びません。RustやPythonのインストールはこの初回手順には不要です。
 
 以下は新しい保存先を作り、既存CLIやプロジェクトを上書きせず展開します。途中でエラーになったら次へ進まず、取得・チェックサム確認・展開のどこで止まったかを確認してください。
 
 ```bash
-trial_dir=$(mktemp -d "$HOME/veil-rc1.XXXXXX") &&
+trial_dir=$(mktemp -d "$HOME/veil-rc2.XXXXXX") &&
 cd "$trial_dir" &&
-release_url="https://github.com/mt4110/veil-rs/releases/download/v0.21.0-rc.1" &&
-zip_name="veil-0.21.0-rc.1-x86_64-unknown-linux-musl.zip" &&
+release_url="https://github.com/mt4110/veil-rs/releases/download/v0.21.0-rc.2" &&
+zip_name="veil-0.21.0-rc.2-x86_64-unknown-linux-musl.zip" &&
 curl -fLO "$release_url/$zip_name" &&
 curl -fLO "$release_url/SHA256SUMS" &&
 sha256sum --ignore-missing -c SHA256SUMS &&
@@ -30,7 +30,7 @@ veil_bin="$PWD/cli/veil" &&
 printf 'CLIの保存先: %s\n' "$veil_bin"
 ```
 
-ZIP名に対する `OK` とバージョン `0.21.0-rc.1` を確認してください。外側の `SHA256SUMS` にはmacOS ZIPも載るので、Linux ZIPのみ取得する手順では `--ignore-missing` を使います。チェックサムは配布された値との一致を確認するもので、独立した発行者署名の検証ではありません。
+ZIP名に対する `OK` とバージョン `0.21.0-rc.2` を確認してください。外側の `SHA256SUMS` にはmacOS ZIPも載るので、Linux ZIPのみ取得する手順では `--ignore-missing` を使います。チェックサムは配布された値との一致を確認するもので、独立した発行者署名の検証ではありません。
 表示したCLIの絶対パスを控えてください。ZIP内のREADME・docs・ライセンス文書はオフラインでも読めます。macOS ARM64版はad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows版はこのRCの配布対象外です。
 
 ### 自分のファイルを一つスキャンする
@@ -100,7 +100,7 @@ printf '終了コード: %s\n' "$scan_status"
 次にコードやAPI設定を変更したとき、commit前にこの点検を繰り返します。新しいシェルでは、控えたCLIの保存先を設定し直し、プロジェクトへ移動します。下の両方のパスは実際のものに置き換えてください。
 
 ```bash
-veil_bin="/absolute/path/to/veil-rc1.XXXXXX/cli/veil"
+veil_bin="/absolute/path/to/veil-rc2.XXXXXX/cli/veil"
 cd "/absolute/path/to/your-project"
 ```
 
@@ -143,7 +143,7 @@ veil scan --help
 `cargo install` のインストール先がPATHに入っている必要があります。既存のveilがある場合は、まず `veil --version` と実行ファイルの場所を確認してください。
 既存インストールを変更せず試す場合は、新しいディレクトリを `--root` に指定し、そこに生成された `bin/veil` を使えます。
 初回の依存取得にはネットワークが必要です。スキャン処理自体は外部APIを呼びません。
-公開リポジトリからの取得例は [README](../../README.md)。0.21.0-rc.1の配布版は公開済みです。ソースの後続変更と公開タグ・配布ZIPの内容は区別してください。
+公開リポジトリからの取得例は [README](../../README.md)。0.21.0-rc.2の配布版は公開済みです。ソースの後続変更と公開タグ・配布ZIPの内容は区別してください。
 
 組織・ユーザー設定や `VEIL_*` 環境変数がある場合は結果に影響します。既存設定を削除せず、`veil config check` と `veil config dump` で確認します。
 設定の表示結果にはローカルのパス等が含まれるため、そのまま公開しないでください。
