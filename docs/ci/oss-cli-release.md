@@ -1,7 +1,7 @@
 # OSS CLI release checks
 
 Status: `reference`
-Updated: 2026-10-13
+Updated: 2026-10-14
 
 ## 公開対象と現在の制限
 
@@ -9,7 +9,7 @@ Updated: 2026-10-13
 新規監査機能・台帳・署名v2・PatchGate/VEX契約・未使用breaker・重複legacy入口・Proへの新規機能指定は含めない。main既存のverifyテストは削除しない。
 旧メンバーと過去の公開文書は保全する。private・ローカル成果物は公開差分とZIPへ含めない。
 
-この隔離候補のmanifest・CLI・独立LSP・Nix CLI packageは0.21.0-rc.1へ統一。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。今回の試用版は0.21.0-rc.1。配布対象はLinux x86_64 musl・macOS ARM64に限定する。macOSはad-hoc署名で、Developer ID署名・公証済みではない。今回tag作成・公開は行わない。
+この隔離候補のmanifest・CLI・独立LSP・Nix CLI packageは0.21.0-rc.1へ統一。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。今回の試用版は0.21.0-rc.1。配布対象はLinux x86_64 musl・macOS ARM64に限定する。macOSはad-hoc署名で、Developer ID署名・公証済みではない。[tag v0.21.0-rc.1とGitHubプレリリース](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) は公開済みで、検証済みZIP2種とZIP全体のSHA256SUMSを添付している。main統合コミットは `a090a3c871d166046e14df2f8f11214bc9dc4641`。今回の文書修正は既存のtag・Release・ZIPを変更しない。
 通常CLIのライセンスpacketは対象normal/buildグラフ用。依存・lock・コンパイラ・配布方式を変更したら再照合する。LSP本体やMSVC runtimeを同じpacketで監査済みと扱わない。
 
 ## 自動CI
@@ -72,6 +72,8 @@ crates.io公開、旧UI/サービス全体の動作確認、性能の優位性�
 今回の実行結果・main向け差分・保全hashは別の準備レポートへ記録する。公開や元ブランチへの適用の承認を代替しない。
 
 ## 公開前の必須課題
+
+以下はRC作成時の検証・公開前ゲートの記録。0.21.0-rc.1は公開済みであり、ここに残る再生成・公開前確認の記述を現在の未公開状態と解釈しない。
 
 採用済みの修正と最新文書は隔離Gitブランチ・コミットに固定し、main向け差分の適用・再構成・公開範囲を確認する。ローカルの固定は公開・hosted CIの成功を意味しない。
 

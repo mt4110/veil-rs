@@ -1,14 +1,33 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
-今回の0.21.0-rc.1試用版はLinux x86_64 musl・macOS ARM64に限定します。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。以下のWindows候補の記述は過去の検証記録です。
-
-2026-10-13: 0.21.0-rc.1候補で、baseline適用による上限到達情報の消失と、Gitの最初のコミットの未スキャンを修正しました。修正後のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）の実機でビルド・起動・配布検査を確認しました。旧ARM64・QEMU・Windows候補の結果は現行候補へ流用せず、Windowsネイティブ／MSVCは未検証です。対話モードの不完全判定とGit blob欠損時の保存拒否も修正し、macOSでの回帰とLinuxネイティブでの全構成・配布物の再検証を確認しました。[リリース条件](docs/ci/oss-cli-release.md) に検証範囲を記載しています。
-
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
 通常ビルドは外部API、ライセンス認証、テレメトリ送信を含みません。組み込みルールで、設定ファイルを作らずにスキャンを始められます。
 検出結果には誤検知・見逃しがあり、秘密情報が存在しないことを保証するものではありません。
 
 [English](README_EN.md) · [チュートリアル](docs/cli/getting-started.md) · [利用ガイドライン](docs/cli/usage-guidelines.md) · [CLI](docs/cli/README.md) · [開発ガイド](docs/DEVELOPMENT.md) · [アーキテクチャ](docs/architecture/local-oss.md)
+
+## Ubuntuで自分のコードを初回スキャンする
+
+GitHubに公開する前に、自分のPythonプロジェクトなどのソースファイルを一つ点検してみてください。Python以外のソースも対象にできます。
+[0.21.0-rc.1](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) は公開済みのプレリリースです。Linux x86_64 musl版をUbuntu 24.04.5 LTSの実機で検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
+
+Ubuntuのx86_64環境と `curl`・`unzip`・`sha256sum` を用意し、[チュートリアルの取得・チェックサム確認](docs/cli/getting-started.md#ubuntuで自分のコードを試す)から始めてください。取得したCLIの絶対パスを `veil_bin` に入れたら、自分のプロジェクトへ移動して実行します。
+
+```bash
+# 実際のプロジェクトの絶対パスと、存在するソースファイルへ置き換える
+cd "/absolute/path/to/your-project" &&
+"$veil_bin" scan "main.py" --mask-mode redact --no-color --fail-on-findings 1
+scan_status=$?
+printf '終了コード: %s\n' "$scan_status"
+```
+
+`cd` に失敗した場合はスキャン未実行です。成功した場合、終了コード `0` は検出による失敗条件に該当しない、`1` は検出がありスキャンは完了、`2` は実行エラー・不完全なスキャンです。`1` をインストール失敗と扱わず、手元で検出内容を確認してください。
+初回の完了は、自分のファイルを検査し、結果を読んで次の行動を判断できた状態です。検出ゼロや終了コード0は安全性の保証ではありません。
+
+`scan` はソースを書き換えません。指定した現在のファイルが対象で、Git履歴全体や無視されたファイルまで検査したとは扱いません。マスク後もパスや未検出の文字列は残り得るため、出力全文を公開しないでください。
+次にコードやAPI設定を変更したら、push前に同じコマンドを再実行します。CLIの保存先と結果の読み方は [チュートリアル](docs/cli/getting-started.md) を参照してください。
+
+今回のRCの配布対象はLinux x86_64 musl・macOS ARM64です。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。
 
 ## インストール
 
@@ -26,7 +45,7 @@ veil --help
 Windows PowerShellでは `./veil.exe --version` で確認し、以降も実行ファイルの絶対パスを使うか、そのディレクトリをPATHへ追加します。
 同梱の [チュートリアル](docs/cli/getting-started.md) と [利用ガイドライン](docs/cli/usage-guidelines.md) はネット接続なしで読めます。
 ソースコードと開発用スクリプトは同梱しません。開発ガイドのビルド・検証はソースを取得してから行います。
-ここで作成している候補は公開前の準備物であり、配布済み・全OS検証済みを意味しません。
+0.21.0-rc.1のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書はRC作成時の版で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
 
 ### Linuxの対応環境・最低条件
 
@@ -47,7 +66,7 @@ PEの通常/遅延importはWindows提供の12 DLLのみで、追加MinGW DLLは�
 
 ### ソースからインストールする場合
 
-以下はこのチェックアウトのソースに対する手順です。未公開の変更を過去の公開タグに含まれるものとして扱わないでください。[リリース前の課題](docs/ci/oss-cli-release.md)を参照してください。
+以下はこのチェックアウトのソースに対する手順です。公開済みRCを試す場合は上の配布版手順を使ってください。mainの後続変更を公開タグに含まれるものとして扱わないでください。[リリース前の課題](docs/ci/oss-cli-release.md)を参照してください。
 
 ソースからのインストールには Rust 1.92.0 以上が必要です。macOS の開発環境は `nix develop` を利用できます。
 ネイティブ依存のビルドにCツールチェーンも必要です。通常の `cargo install` はその環境向けのビルドであり、Linuxの静的配布候補には専用のmusl targetと検査を使います。
@@ -120,7 +139,7 @@ rules_dir = ".veil/rules"
 
 通常の `cargo build` / `cargo test` は `veil-config`・`veil-core`・`veil-cli` を対象にします。
 既存のEvidence Pack v1を検査する `veil verify` は通常CLIと最小構成の両方で利用できます。ハッシュ・外部run_meta anchor・完全性・入力上限を確認し、既存の入力契約を維持します。
-新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約はこの公開候補に含みません。
+新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約は公開済み0.21.0-rc.1に含みません。
 `veil-pro`・`veil-server`・`veil-guardian` は保全した旧メンバーで、通常CLIの依存には含みません。物理削除や公開リリースは未実施です。
 
 ライセンス文書: [LICENSE-MIT](LICENSE-MIT)、[LICENSE-APACHE](LICENSE-APACHE)。
@@ -133,3 +152,9 @@ rules_dir = ".veil/rules"
 部分マスクは8文字以下を全て隠し、9文字以上は末尾4文字だけを表示します。先頭4文字は表示しません。
 
 `veil lsp --preset fintech-jp` は独立した `veil-lsp` を標準入出力で起動します。CLI配布ZIPにはLSP本体を同梱しません。ソースから `cargo install --locked --path crates/veil-lsp` で導入し、PATHへ追加してください。設定・presetはCLIから子プロセスへ渡します。通常スキャンはLSPを起動せず、LSPのサーバー依存をリンクしません。
+
+## RC作成時の検証記録
+
+以下は配布対象の判断に使った履歴です。公開済みRCの取得は冒頭の手順を使ってください。
+
+2026-10-13: 0.21.0-rc.1候補で、baseline適用による上限到達情報の消失と、Gitの最初のコミットの未スキャンを修正しました。修正後のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）の実機でビルド・起動・配布検査を確認しました。旧ARM64・QEMU・Windows候補の結果は現行候補へ流用せず、Windowsネイティブ／MSVCは未検証です。対話モードの不完全判定とGit blob欠損時の保存拒否も修正し、macOSでの回帰とLinuxネイティブでの全構成・配布物の再検証を確認しました。[リリース条件](docs/ci/oss-cli-release.md) に検証範囲を記載しています。

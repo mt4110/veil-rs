@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
+hook_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+python3 "$hook_dir/../scripts/check_pr_sot.py" --staged
 repo_root="$(git rev-parse --show-toplevel)"
 "$repo_root/ops/cleanFormatter"
