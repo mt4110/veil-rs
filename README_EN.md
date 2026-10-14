@@ -62,7 +62,9 @@ veil scan . --fail-on-findings 1
 ```
 
 JSON has `schemaVersion: "veil-v1"`; diagnostics go to stderr. Results are masked by default.
-`--unsafe`, `--mask-mode plain`, and an effective `output.mask_mode = "plain"` setting reveal raw secrets: avoid these modes in stored or shared reports.
+CLI `--unsafe` and `--mask-mode plain` reveal raw secrets: avoid these modes in stored or shared reports. Config-file `output.mask_mode = "plain"` is rejected with exit code 2.
+
+**Published 0.21.0-rc.1 limitation:** The ZIP's table format prints raw matches even with `--mask-mode redact`. This source fixes the issue, but existing ZIPs are unchanged. Until a corrected binary is distributed, use text or JSON with `--mask-mode redact` for shared reports.
 `--fail-on-findings N` fails when the new count is at least N: use `1` to fail on any finding. `0` is invalid input and returns exit code 2.
 Exit codes: `0` means the configured finding thresholds were not exceeded, `1` means a threshold was exceeded, and `2` means an execution error or a file-count truncation.
 In normal non-interactive filesystem scans, finding-count/file-count truncation, oversized text files and read/UTF-8 errors return 2. Baseline suppression retains finding-limit completeness even when no new findings remain. Check `limit_reached`, `file_limit_reached`, `max_file_size_reached` and `read_error_reached` in the summary. Ignored or binary files may be skipped, so exit code 0 does not prove a complete scan.

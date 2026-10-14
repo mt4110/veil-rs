@@ -100,7 +100,9 @@ veil scan . --fail-on-findings 1
 ```
 
 `scan` は通常、ファイルを読み取り、結果を標準出力へ表示します。JSON は `schemaVersion: "veil-v1"` を持ち、診断は標準エラーへ出力します。
-結果は既定でマスキングします。`--unsafe`、`--mask-mode plain`、設定の `output.mask_mode = "plain"` は生の秘密情報を表示するため、保存・共有する出力には使わないでください。
+結果は既定でマスキングします。CLIの `--unsafe`、`--mask-mode plain` は生の秘密情報を表示するため、保存・共有する出力には使わないでください。設定ファイルの `output.mask_mode = "plain"` は終了コード2で拒否します。
+
+**公開済み0.21.0-rc.1の注意:** ZIPのtable形式は `--mask-mode redact` でも生の一致値を表示します。このソースでは修正していますが、既存ZIPは更新していません。修正版の配布までは、共有用にtextまたはJSONと `--mask-mode redact` を使用してください。
 
 `--fail-on-findings` は指定値以上で失敗します。「1件以上」は `1` です。`0` は無効な入力として終了コード2になります。
 

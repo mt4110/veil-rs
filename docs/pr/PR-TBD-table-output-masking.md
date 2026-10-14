@@ -16,6 +16,7 @@ Scope: 公開CLIのtable出力の秘匿、出力形式の回帰検査、関連�
 tableのMatch列を既定で `<REDACTED>` にし、JSONと同じ明示生出力判定を使う。
 CLIの `--unsafe`、`--mask-mode plain` は生出力を許可する。設定plainはredact同時指定でも終了2で拒否する。
 text/JSON/HTML/Markdown/md/tableの実CLI回帰を通常・最小構成と配布検査に追加する。
+日英READMEでも設定plainの禁止と公開RCのtable制限を明記する。
 パス、未検出文字列の匿名化、baseline契約変更、版番号変更は含めない。
 
 # Verification
