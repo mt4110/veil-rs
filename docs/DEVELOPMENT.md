@@ -3,6 +3,30 @@
 これは `veil-rs` の開発者およびコントリビューター向けのガイドです。
 利用者向けのマニュアルは [README.md](../README.md) を参照してください。
 
+## コミット前のSOT検査
+
+クローン後、コミットする前にPython 3を用意してフックを有効化します。Node.jsやHuskyは不要です。
+
+```bash
+bash scripts/install_git_hooks.sh
+```
+
+既存のMarkdown検査を保持し、SOT Guardと共通の `scripts/check_pr_sot.py` を追加します。
+READMEを含む `docs/`・`.github/` 以外の変更では、PR差分に `docs/pr/PR-TBD-*.md` または `PR-<number>-*.md` の追加・更新が必要です。[SOTテンプレート](https://github.com/mt4110/veil-rs/blob/main/docs/pr/sot_template.md)を使い、文書も `git add` してください。既存・未ステージ・削除済みのSOTだけでは通りません。
+検査対象はベースとのmerge-baseからコミット予定のindexまでなので、先行コミットの変更も含みます。作業ファイルを変更する処理はありません。
+
+```bash
+# 通常はorigin/main。develop向けならベースを明示する
+# git config sot.baseRef origin/develop
+python3 scripts/check_pr_sot.py --staged
+# CIと同じ、コミット済みのPR差分を確認する
+python3 scripts/check_pr_sot.py --base origin/main --head HEAD
+```
+
+ベース参照がない場合は失敗します。必要なベースをfetchして再実行してください。
+インストールはリポジトリローカルの `core.hooksPath` に絶対パスを設定し、このリポジトリの既存worktreeにも適用します。元のフックファイルは削除・上書きしません。インストール元worktreeはフックの参照先になるため、移動・整理の前に保持するチェックアウトから再インストールしてください。
+新規クローンでは再度有効化が必要です。Gitのローカルフックは迂回可能なので、CIのSOT Guardも維持します。Rustテスト等の全CI成功をこのフックだけで保証するものではありません。
+
 ## Minimum Supported Rust Version (MSRV)
 We support the latest stable Rust and **MSRV 1.92.0**.
 - **Patch Policy**: Patch releases never bump MSRV.
