@@ -24,7 +24,7 @@ python3 scripts/check_pr_sot.py --base origin/main --head HEAD
 ```
 
 ベース参照がない場合は失敗します。必要なベースをfetchして再実行してください。
-インストールはリポジトリローカルの `core.hooksPath` に絶対パスを設定し、このリポジトリの既存worktreeにも適用します。元のフックファイルは削除・上書きしません。インストール元worktreeはフックの参照先になるため、移動・整理の前に保持するチェックアウトから再インストールしてください。
+インストールはリポジトリローカルの `core.hooksPath` に絶対パスを設定し、このリポジトリの既存worktreeにも適用します。同じ導入先への再実行は可能です。独自のglobal/local/worktree `core.hooksPath` や、既定 `.git/hooks` の実行可能フックがある場合は、既存検査を止めないよう設定を変更せず拒否します。既存のフック管理に `python3 <このチェックアウトの絶対パス>/scripts/check_pr_sot.py --staged` を組み込んでください。元のフックファイルは削除・上書きしません。インストール元worktreeはフックの参照先になるため、移動・整理の前に保持するチェックアウトから再インストールしてください。
 新規クローンでは再度有効化が必要です。Gitのローカルフックは迂回可能なので、CIのSOT Guardも維持します。Rustテスト等の全CI成功をこのフックだけで保証するものではありません。
 
 ## Minimum Supported Rust Version (MSRV)

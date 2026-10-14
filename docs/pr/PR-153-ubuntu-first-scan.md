@@ -34,3 +34,9 @@ The original PR head is `e2b8a7d1aa4e15fd69011b5b276719b5f963d7ae`. Hosted check
 ## Non-goals
 
 No merge, Release changes, publication, automatic SOT content generation, or edits to the preserved owner checkout. Hooks do not replace the full Rust CI matrix or establish user adoption.
+
+## Review follow-up (2026-10-14)
+
+- Refuse installation without configuration changes if a different effective hooksPath or an executable default hook exists. Preserve existing checks rather than merely retaining their files; repeated installation to the same directory is allowed.
+- Synchronize the linked Linux distribution and release-condition docs with the published v0.21.0-rc.1. Keep historical build gates and unsupported-platform/signing limitations explicit.
+- Add regression coverage for local/global custom hooks, default executable hooks, preserved execution, and idempotent installation. Hosted results require verification on this follow-up head.

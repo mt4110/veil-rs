@@ -15,6 +15,7 @@ class SotGuardTests(unittest.TestCase):
     def setUp(self):
         # Preserve isolated fixtures for inspection; never touch the owner checkout.
         self.repo = Path(tempfile.mkdtemp(prefix='veil-sot-test-'))
+        self.env = {**os.environ, 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_CONFIG_NOSYSTEM': '1'}
         self.run_git('init', '-q', '-b', 'main')
         self.run_git('config', 'user.name', 'Fixture')
         self.run_git('config', 'user.email', 'fixture@example.invalid')
@@ -27,7 +28,7 @@ class SotGuardTests(unittest.TestCase):
         self.run_git('update-ref', 'refs/remotes/origin/main', 'HEAD')
 
     def run_git(self, *args, check=True):
-        return subprocess.run(['git', *args], cwd=self.repo, text=True, capture_output=True, check=check)
+        return subprocess.run(['git', *args], cwd=self.repo, text=True, capture_output=True, check=check, env=self.env)
 
     def write(self, name, content, stage=False):
         path = self.repo / name
@@ -37,7 +38,7 @@ class SotGuardTests(unittest.TestCase):
             self.run_git('add', name)
 
     def guard(self, *args):
-        return subprocess.run(['python3', str(CHECKER), *args], cwd=self.repo, text=True, capture_output=True)
+        return subprocess.run(['python3', str(CHECKER), *args], cwd=self.repo, text=True, capture_output=True, env=self.env)
 
     def test_original_readme_failure_ci_and_index(self):
         self.write('README.md', 'updated\n', True)
@@ -87,6 +88,51 @@ class SotGuardTests(unittest.TestCase):
         self.write('source\nfile.py', 'code\n', True)
         self.assertEqual(self.guard('--staged').returncode, 1)
 
+    def install(self):
+        return subprocess.run(['bash', str(ROOT / 'scripts/install_git_hooks.sh')], cwd=self.repo,
+                              text=True, capture_output=True, env=self.env)
+
+    def test_installer_preserves_local_custom_path_and_hook_execution(self):
+        hooks = self.repo / 'empty-hooks'
+        hook = hooks / 'pre-commit'
+        hook.write_text('#!/bin/sh\necho existing-check >&2\nexit 37\n')
+        hook.chmod(0o755)
+        result = self.install()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(self.run_git('config', '--get', 'core.hooksPath').stdout.strip(), str(hooks))
+        self.write('README.md', 'changed\n', True)
+        commit = self.run_git('commit', '-qm', 'existing hook still runs', check=False)
+        self.assertNotEqual(commit.returncode, 0)
+        self.assertIn('existing-check', commit.stderr)
+
+    def test_installer_preserves_global_custom_path(self):
+        self.run_git('config', '--unset', 'core.hooksPath')
+        config = self.repo / 'global-config'
+        config.write_text('[core]\n hooksPath = /example/custom-hooks\n')
+        self.env['GIT_CONFIG_GLOBAL'] = str(config)
+        before = config.read_bytes()
+        self.assertEqual(self.install().returncode, 1)
+        self.assertEqual(config.read_bytes(), before)
+        self.assertEqual(self.run_git('config', '--local', '--get', 'core.hooksPath', check=False).returncode, 1)
+
+    def test_installer_preserves_worktree_override(self):
+        self.run_git('config', 'extensions.worktreeConfig', 'true')
+        self.run_git('config', '--worktree', 'core.hooksPath', '/example/worktree-hooks')
+        before = self.run_git('config', '--local', '--get', 'core.hooksPath').stdout
+        self.assertEqual(self.install().returncode, 1)
+        self.assertEqual(self.run_git('config', '--worktree', '--get', 'core.hooksPath').stdout.strip(), '/example/worktree-hooks')
+        self.assertEqual(self.run_git('config', '--local', '--get', 'core.hooksPath').stdout, before)
+
+    def test_installer_preserves_default_executable_hook(self):
+        self.run_git('config', '--unset', 'core.hooksPath')
+        hook = self.repo / '.git/hooks/pre-push'
+        hook.write_text('#!/bin/sh\nexit 0\n')
+        hook.chmod(0o755)
+        before = hook.read_bytes()
+        self.assertEqual(self.install().returncode, 1)
+        self.assertEqual(hook.read_bytes(), before)
+        self.assertEqual(self.run_git('config', '--get', 'core.hooksPath', check=False).returncode, 1)
+
     def test_installed_hook_blocks_actual_commit_and_keeps_formatter(self):
         for name in ['scripts/check_pr_sot.py', 'scripts/install_git_hooks.sh', '.githooks/pre-commit', 'ops/cleanFormatter']:
             path = self.repo / name
@@ -95,7 +141,9 @@ class SotGuardTests(unittest.TestCase):
         self.run_git('add', 'scripts', '.githooks', 'ops')
         self.run_git('commit', '-qm', 'fixture hook baseline')
         self.run_git('update-ref', 'refs/remotes/origin/main', 'HEAD')
-        subprocess.run(['bash', 'scripts/install_git_hooks.sh'], cwd=self.repo, check=True, capture_output=True)
+        self.run_git('config', '--unset', 'core.hooksPath')
+        subprocess.run(['bash', 'scripts/install_git_hooks.sh'], cwd=self.repo, check=True, capture_output=True, env=self.env)
+        subprocess.run(['bash', 'scripts/install_git_hooks.sh'], cwd=self.repo, check=True, capture_output=True, env=self.env)
         self.write('README.md', 'updated\n', True)
         before = self.run_git('rev-parse', 'HEAD').stdout
         result = self.run_git('commit', '-qm', 'must fail', check=False)
