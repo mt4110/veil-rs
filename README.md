@@ -25,7 +25,19 @@ printf '終了コード: %s\n' "$scan_status"
 初回の完了は、自分のファイルを検査し、結果を読んで次の行動を判断できた状態です。検出ゼロや終了コード0は安全性の保証ではありません。
 
 `scan` はソースを書き換えません。指定した現在のファイルが対象で、Git履歴全体や無視されたファイルまで検査したとは扱いません。マスク後もパスや未検出の文字列は残り得るため、出力全文を公開しないでください。
-次にコードやAPI設定を変更したら、push前に同じコマンドを再実行します。CLIの保存先と結果の読み方は [チュートリアル](docs/cli/getting-started.md) を参照してください。
+初回の結果を理解したら、Gitのプロジェクト内でcommitしたいファイルだけをステージし、対象一覧を確認して点検します。
+
+```bash
+git add -- main.py
+git diff --cached --name-only
+# Gitの操作と対象一覧を確認してから実行する
+"$veil_bin" scan --staged --mask-mode redact --no-color --fail-on-findings 1
+scan_status=$?
+printf '終了コード: %s\n' "$scan_status"
+```
+
+Git操作が失敗した場合は点検へ進まないでください。`--staged` は追加・変更ファイルのインデックス内の内容全体を読みます。修正後は再ステージが必要です。未ステージ・未追跡・変更のないファイルや無視対象まで確認したとは扱いません。空のステージでも終了コード0になります。
+次の変更でもcommit前に同じ順序で点検します。CLIの保存先、対象外ファイル、結果の読み方は [初回から次回までのチュートリアル](docs/cli/getting-started.md#commit前にステージ済み変更を点検する) を参照してください。
 
 今回のRCの配布対象はLinux x86_64 musl・macOS ARM64です。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。
 
