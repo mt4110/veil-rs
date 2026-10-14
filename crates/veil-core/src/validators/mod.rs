@@ -15,7 +15,7 @@ pub fn resolve_validator(id: &str) -> Option<ValidatorFn> {
 }
 
 // Keep all existing IPv4 regex matches except the all-zero unspecified address.
-// Regex rules also accept zero-padded octets, which std::net parsing rejects.
+// Check zero-padded octets directly to preserve the existing regex semantics.
 fn ipv4_non_unspecified(candidate: &str) -> bool {
     let octets: Vec<_> = candidate.split('.').collect();
     !(octets.len() == 4
