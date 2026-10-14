@@ -1,8 +1,8 @@
 # Veil — Local secret detection and masking
 
-0.21.0-rc.2 is a draft candidate containing the main fixes for output masking, input/configuration errors, and safe file rewriting. It is not publicly released. Public download examples still point to rc.1; for a local rc.2 archive, confirm `veil --version` reports `0.21.0-rc.2`. The macOS candidate is ad-hoc signed, without Developer ID signing or notarization.
+[0.21.0-rc.2](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2) is a published prerelease with fixes for output masking, input/configuration errors, and safe file rewriting. Download the platform ZIP and SHA256SUMS from that release, verify the checksum, and confirm `veil --version` reports `0.21.0-rc.2`. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the rc.2 download URLs.
 
-The 0.21.0-rc.1 trial is limited to Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. Windows candidate notes below describe historical checks.
+The 0.21.0-rc.2 trial is limited to Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. Windows candidate notes below describe historical checks.
 
 2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Additional fixes for interactive completeness and missing Git blobs passed regressions on macOS and native Linux tests and distribution revalidation. See the [release checklist](docs/ci/oss-cli-release.md).
 
@@ -28,11 +28,11 @@ veil --help
 On Windows PowerShell, check `./veil.exe --version`, then use the binary's full path or add its directory to PATH.
 The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
 Source code and development scripts are not bundled; development commands require a source checkout.
-The local candidate is preparation material, not evidence of publication or validation on every OS.
+The rc.2 ZIPs are published. Their bundled documentation is the release-time snapshot; later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
 
 ### Linux environments and requirements
 
-The preferred Linux distribution candidate uses static musl linking. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
+The rc.2 Linux ZIP is statically linked for x86_64 musl and passed native runtime and archive checks on an x86_64 machine and GitHub-hosted CI. The following records describe rc.1 validation. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
 ELF checks found no PT_INTERP, DT_NEEDED or GLIBC references. Users need no installed Rust, shared libc, libz or libgcc runtime. License originals, required source archives, checksums and bundled links were checked.
 The musl candidate including the interactive/Git-read fixes passed 357 default, 356 minimal, 358 JP and 25 LSP tests, plus 84 related release-profile regressions. In 21 direct cases, the CLI extracted from the ZIP returned exit code 2 for incomplete scans, emitted no partial report, refused new baselines and preserved existing baselines. LSP stdio startup passed through both the CLI and the standalone server. These runs overlap and must not be added as distinct test cases.
 Older ARM64 and QEMU x86_64 results do not validate this RC on ARM64 or other distributions.
@@ -66,7 +66,7 @@ veil scan . --fail-on-findings 1
 JSON has `schemaVersion: "veil-v1"`; diagnostics go to stderr. Results are masked by default.
 CLI `--unsafe` and `--mask-mode plain` reveal raw secrets: avoid these modes in stored or shared reports. Config-file `output.mask_mode = "plain"` is rejected with exit code 2.
 
-**Published 0.21.0-rc.1 limitation:** The ZIP's table format prints raw matches even with `--mask-mode redact`. This source fixes the issue, but existing ZIPs are unchanged. Until a corrected binary is distributed, use text or JSON with `--mask-mode redact` for shared reports.
+**Older 0.21.0-rc.1 limitation:** Its ZIP's table format prints raw matches even with `--mask-mode redact`. The published rc.2 ZIP fixes this. Existing rc.1 ZIPs are unchanged; download rc.2.
 `--fail-on-findings N` fails when the new count is at least N: use `1` to fail on any finding. `0` is invalid input and returns exit code 2.
 Exit codes: `0` means the configured finding thresholds were not exceeded, `1` means a threshold was exceeded, and `2` means an execution error or a file-count truncation.
 In normal non-interactive filesystem scans, finding-count/file-count truncation, oversized text files and read/UTF-8 errors return 2. Baseline suppression retains finding-limit completeness even when no new findings remain. Check `limit_reached`, `file_limit_reached`, `max_file_size_reached` and `read_error_reached` in the summary. Ignored or binary files may be skipped, so exit code 0 does not prove a complete scan.

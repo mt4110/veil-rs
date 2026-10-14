@@ -73,4 +73,4 @@ veil scan src --format html > reports/scan.html
 
 検出前に変更先blob全体のUTF-8とサイズを検査する。不正UTF-8・サイズ上限・範囲全体の変更先blob件数上限・検知上限は終了2。NULを含むバイナリ、削除、submoduleのGitlinkは対象外。検出対象は追加行のため、終了0でも既存行の秘密がない保証にはならない。正常完了時は検知があっても終了0で、通常scanの `--fail-on-*` やJSON/baseline機能はこの補助コマンドにはない。
 
-これらは修正済みソースの動作で、公開RCのZIPにはまだ反映されていない。
+これらの修正は公開済みrc.2のZIPに含まれる。rc.1の既存ZIPには反映されない。

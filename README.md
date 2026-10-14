@@ -1,6 +1,6 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
-0.21.0-rc.2は修正版のドラフト候補です。table/対話プレビューの秘匿、Git入力・設定エラーの扱い、maskのルール適用と安全な書換えの修正を含みます。まだ一般公開していないため、以下の公開RC取得例は0.21.0-rc.1のままです。rc.2のZIPを手元に持つ場合は `veil --version` が `0.21.0-rc.2` であることを確認し、展開した `veil` で同じスキャン手順を実行してください。
+[0.21.0-rc.2](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2) は公開済みプレリリースです。table/対話プレビューの秘匿、Git入力・設定エラーの扱い、maskのルール適用と安全な書換えの修正を含みます。以下の取得手順はrc.2を使用します。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
 通常ビルドは外部API、ライセンス認証、テレメトリ送信を含みません。組み込みルールで、設定ファイルを作らずにスキャンを始められます。
@@ -11,7 +11,7 @@ Veil は、ソースコードやログに含まれるシークレットをロー
 ## Ubuntuで自分のコードを初回スキャンする
 
 GitHubに公開する前に、自分のPythonプロジェクトなどのソースファイルを一つ点検してみてください。Python以外のソースも対象にできます。
-[0.21.0-rc.1](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.1) は公開済みのプレリリースです。Linux x86_64 musl版をUbuntu 24.04.5 LTSの実機で検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
+[0.21.0-rc.2](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2) のLinux x86_64 musl版を、x86_64実機とGitHub-hosted CIで検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
 
 Ubuntuのx86_64環境と `curl`・`unzip`・`sha256sum` を用意し、[チュートリアルの取得・チェックサム確認](docs/cli/getting-started.md#ubuntuで自分のコードを試す)から始めてください。取得したCLIの絶対パスを `veil_bin` に入れたら、自分のプロジェクトへ移動して実行します。
 
@@ -59,11 +59,12 @@ veil --help
 Windows PowerShellでは `./veil.exe --version` で確認し、以降も実行ファイルの絶対パスを使うか、そのディレクトリをPATHへ追加します。
 同梱の [チュートリアル](docs/cli/getting-started.md) と [利用ガイドライン](docs/cli/usage-guidelines.md) はネット接続なしで読めます。
 ソースコードと開発用スクリプトは同梱しません。開発ガイドのビルド・検証はソースを取得してから行います。
-0.21.0-rc.1のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書はRC作成時の版で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
+0.21.0-rc.2のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書はRC作成時の版で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
 
 ### Linuxの対応環境・最低条件
 
-Linux配布候補はmusl静的リンクを優先します。0.21.0-rc.1のx86_64候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でネイティブビルド・起動・スキャン・マスキング・終了コード0/1/2を確認しました。
+0.21.0-rc.2のLinux版はx86_64 musl静的リンクです。実機とGitHub-hosted CIで起動・配布検査・回帰を確認しています。
+以下は0.21.0-rc.1当時の検証記録です。0.21.0-rc.1のx86_64候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でネイティブビルド・起動・スキャン・マスキング・終了コード0/1/2を確認しました。
 ELFのPT_INTERP・DT_NEEDED・GLIBC参照がなく、利用時のRust・共有libc・libz・libgccの追加インストールは不要です。ライセンス原文・ソース・チェックサム・同梱リンクも検査しました。
 対話/Git読取り異常の修正後のmusl候補で、通常357件・最小356件・JP358件・LSP25件の全テストと、release構成の関連回帰84件が成功しました。配布ZIPから取り出したCLIの21ケースで、不完全時の終了コード2・部分結果非出力・新規baseline非作成・既存baseline保全を確認しています。CLI経由・単体のLSP stdio起動も確認しました。構成間のテストは重複するため合計を固有件数としません。
 旧ARM64候補とQEMUによるx86_64候補の成功は、現行RCのARM64・他ディストリビューションの成功を示しません。
@@ -104,7 +105,7 @@ veil scan . --fail-on-findings 1
 `scan` は通常、ファイルを読み取り、結果を標準出力へ表示します。JSON は `schemaVersion: "veil-v1"` を持ち、診断は標準エラーへ出力します。
 結果は既定でマスキングします。CLIの `--unsafe`、`--mask-mode plain` は生の秘密情報を表示するため、保存・共有する出力には使わないでください。設定ファイルの `output.mask_mode = "plain"` は終了コード2で拒否します。
 
-**公開済み0.21.0-rc.1の注意:** ZIPのtable形式は `--mask-mode redact` でも生の一致値を表示します。このソースでは修正していますが、既存ZIPは更新していません。修正版の配布までは、共有用にtextまたはJSONと `--mask-mode redact` を使用してください。
+**旧0.21.0-rc.1の注意:** ZIPのtable形式は `--mask-mode redact` でも生の一致値を表示します。公開済み0.21.0-rc.2では修正済みです。rc.1の既存ZIPは変更していないため、rc.2を取得してください。
 
 `--fail-on-findings` は指定値以上で失敗します。「1件以上」は `1` です。`0` は無効な入力として終了コード2になります。
 
@@ -155,7 +156,7 @@ rules_dir = ".veil/rules"
 
 通常の `cargo build` / `cargo test` は `veil-config`・`veil-core`・`veil-cli` を対象にします。
 既存のEvidence Pack v1を検査する `veil verify` は通常CLIと最小構成の両方で利用できます。ハッシュ・外部run_meta anchor・完全性・入力上限を確認し、既存の入力契約を維持します。
-新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約は公開済み0.21.0-rc.1に含みません。
+新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約は公開済み0.21.0-rc.2に含みません。
 `veil-pro`・`veil-server`・`veil-guardian` は保全した旧メンバーで、通常CLIの依存には含みません。物理削除や公開リリースは未実施です。
 
 ライセンス文書: [LICENSE-MIT](LICENSE-MIT)、[LICENSE-APACHE](LICENSE-APACHE)。
