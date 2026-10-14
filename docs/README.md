@@ -5,7 +5,7 @@ Status: `active`
 通常利用は [README](../README.md)、製品の範囲は [SSOT](SSOT.md) を参照してください。
 配布アーカイブでは、以下のガイドを含む選定済みの文書だけを同梱します。開発・検証コマンドは別途ソースを取得して実行します。
 
-- [初回利用チュートリアル](cli/getting-started.md): 架空の入力から検知・baseline・CI終了条件を確認。
+- [初回利用チュートリアル](cli/getting-started.md): 自分のファイルの初回スキャン、ステージ済み変更の点検、次回利用。架空入力の学習手順は任意。
 - [利用ガイドライン](cli/usage-guidelines.md): 結果の読み方、安全な共有、スキップ・上限・書込み操作。
 - [Linux配布ガイド](cli/linux-distribution.md): GNU/musl、CPU・libc・カーネルの条件と検証範囲。
 - [Windows配布ガイド](cli/windows-distribution.md): GNU/MSVC、DLL・互換実行とネイティブ未検証の区別。
