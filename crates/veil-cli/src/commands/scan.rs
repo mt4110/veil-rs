@@ -183,11 +183,15 @@ pub fn collect_findings(
                     if let Some(first) = file_findings.first() {
                         if first.rule_id == veil_core::RULE_ID_BINARY_FILE
                             || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                            || first.rule_id == veil_core::RULE_ID_READ_ERROR
                         {
                             is_skipped = true;
                         }
                         if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
                             any_max_file_size_reached = true;
+                        }
+                        if first.rule_id == veil_core::RULE_ID_READ_ERROR {
+                            any_read_error_reached = true;
                         }
                     }
 
@@ -252,11 +256,15 @@ pub fn collect_findings(
                         if let Some(first) = file_findings.first() {
                             if first.rule_id == veil_core::RULE_ID_BINARY_FILE
                                 || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                                || first.rule_id == veil_core::RULE_ID_READ_ERROR
                             {
                                 is_skipped = true;
                             }
                             if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
                                 any_max_file_size_reached = true;
+                            }
+                            if first.rule_id == veil_core::RULE_ID_READ_ERROR {
+                                any_read_error_reached = true;
                             }
                         }
 
@@ -303,11 +311,15 @@ pub fn collect_findings(
                     if let Some(first) = file_findings.first() {
                         if first.rule_id == veil_core::RULE_ID_BINARY_FILE
                             || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
+                            || first.rule_id == veil_core::RULE_ID_READ_ERROR
                         {
                             is_skipped = true;
                         }
                         if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
                             any_max_file_size_reached = true;
+                        }
+                        if first.rule_id == veil_core::RULE_ID_READ_ERROR {
+                            any_read_error_reached = true;
                         }
                     }
                     if is_skipped {
