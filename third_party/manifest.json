@@ -1,7 +1,7 @@
 {
   "schemaVersion": "veil-third-party-v1",
   "profile": "veil-cli/default/normal,build/all-targets",
-  "cargo_lock_sha256": "8dcc7335284c2c0419fea5be2d3b3b4565306af120991e5021d00faf1e78ed78",
+  "cargo_lock_sha256": "744ce85a1dafaae18633a155fd49a0615cb31d5a4726f753269ca56fb67f8d88",
   "rust_versions": [
     "1.98.1",
     "1.92.0"

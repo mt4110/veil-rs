@@ -13,15 +13,15 @@ resolver = "2"
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
-version = "0.21.0-rc.1"
+version = "0.21.0-rc.2"
 rust-version = "1.92.0"
 edition = "2021"
 
 [workspace.dependencies]
 fs2 = "0.4.3"
-veil-core = { path = "crates/veil-core", version = "0.21.0-rc.1" }
+veil-core = { path = "crates/veil-core", version = "0.21.0-rc.2" }
 veil-guardian = { path = "crates/veil-guardian", version = "0.17.0" }
-veil-config = { path = "crates/veil-config", version = "0.21.0-rc.1" }
+veil-config = { path = "crates/veil-config", version = "0.21.0-rc.2" }
 veil-server = { path = "crates/veil-server", version = "0.17.0" }
 
 [profile.bench]
