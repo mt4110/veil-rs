@@ -3,7 +3,15 @@ use anyhow::Result;
 use prettytable::{color, format, Attr, Cell, Row, Table};
 use veil_core::model::Severity;
 
-pub struct TableFormatter;
+pub struct TableFormatter {
+    reveal_raw: bool,
+}
+
+impl TableFormatter {
+    pub fn new(reveal_raw: bool) -> Self {
+        Self { reveal_raw }
+    }
+}
 
 impl Formatter for TableFormatter {
     fn print(&self, findings: &[DisplayFinding], summary: &Summary) -> Result<()> {
@@ -41,7 +49,11 @@ impl Formatter for TableFormatter {
                 Cell::new(&inner.rule_id),
                 Cell::new(&inner.path.display().to_string()),
                 Cell::new(&inner.line_number.to_string()),
-                Cell::new(&inner.matched_content),
+                Cell::new(if self.reveal_raw {
+                    &inner.matched_content
+                } else {
+                    veil_core::DEFAULT_PLACEHOLDER
+                }),
             ]));
         }
 
@@ -66,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_table_output() {
-        let formatter = TableFormatter;
+        let formatter = TableFormatter::new(false);
         let findings = vec![DisplayFinding {
             inner: Finding {
                 path: PathBuf::from("test.txt"),

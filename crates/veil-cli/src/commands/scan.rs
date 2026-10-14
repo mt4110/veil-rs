@@ -551,7 +551,7 @@ pub fn scan(
         Format::Json => Box::new(JsonFormatter::new(reveal_raw)),
         Format::Html => Box::new(HtmlFormatter::new()),
         #[cfg(feature = "table")]
-        Format::Table => Box::new(TableFormatter),
+        Format::Table => Box::new(TableFormatter::new(reveal_raw)),
         #[cfg(not(feature = "table"))]
         Format::Table => {
             eprintln!("Table format not compiled in");

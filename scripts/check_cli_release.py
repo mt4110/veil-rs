@@ -210,6 +210,27 @@ def check_binary(binary: Path, version: str, *, windows_runner: str | None = Non
         result = run("scan", "sample.txt", "--format", "json", "--mask-mode", "redact", "--fail-on-findings", "1")
         if result.returncode != 1 or token in result.stdout:
             raise ValueError("release binary must fail the finding threshold with masked output")
+        # Exercise actual release executables on each CI OS, including table's
+        # default feature and its text fallback in minimal builds.
+        (root / "safe.toml").write_text("", encoding="utf-8")
+        (root / "plain.toml").write_text('[output]\nmask_mode = "plain"\n', encoding="utf-8")
+        for format_name in ("text", "json", "html", "md", "markdown", "table"):
+            for config_name, options, reveal_raw in (
+                ("safe.toml", (), False),
+                ("safe.toml", ("--mask-mode", "redact"), False),
+                ("safe.toml", ("--mask-mode", "partial"), False),
+                ("safe.toml", ("--unsafe",), True),
+                ("safe.toml", ("--mask-mode", "plain"), True),
+                ("plain.toml", (), False),
+                ("plain.toml", ("--mask-mode", "redact"), False),
+            ):
+                result = run("--config", config_name, "scan", "sample.txt", "--format", format_name,
+                             "--no-color", "--fail-on-findings", "1", *options)
+                expected_exit = 2 if config_name == "plain.toml" else 1
+                valid_report = ("creds.aws.access_key_id" in result.stdout) if expected_exit == 1 else not result.stdout
+                if (result.returncode != expected_exit or not valid_report
+                        or (token in result.stdout) != reveal_raw or token in result.stderr):
+                    raise ValueError(f"release output masking contract failed: {format_name}, {config_name}, {options}")
         result = run("scan", "missing", "--format", "json")
         if result.returncode != 2 or result.stdout:
             raise ValueError("release binary must reject missing paths")

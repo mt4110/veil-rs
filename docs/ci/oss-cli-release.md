@@ -21,6 +21,7 @@ MSRV1.92.0、x86_64 Linux musl、Rust 1.92.0固定のUbuntu/macOS nativeを定�
 - 既存verifyの構造・ハッシュ・anchor・完全性・ZIP上限と29件のmain回帰。
 - アーキテクチャ・公開範囲・依存ライセンス・文書リンクとPythonガード。
 - 実release CLIのversion/help、veil-v1マスキング、0/1/2、不要な状態保存の検査。
+- text/JSON/HTML/Markdown（md別名含む）/tableで既定・redact・partialの秘匿、unsafe/plainのCLI明示生出力、設定plainの拒否（redact同時指定を含む）を実行検査する。tableのMatch列は秘匿時に `<REDACTED>`。公開済み0.21.0-rc.1 ZIPのtableには生値出力問題が残り、このソース修正だけで既存配布物は更新されない。
 - 正確なallowlistでZIPを作り、展開後の起動・checksum・原文/ソース・相対リンクを検査。
 - macOSの非標準動的依存、Linux静的ELFを検査。Windows import検査は旧候補用で、今回の対応を示さない。
 

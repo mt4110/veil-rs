@@ -45,7 +45,7 @@ Default masked output uses `masked_snippet` for `line_content`, `<REDACTED>` for
 Context length is preserved, but neighboring raw text is not emitted. Rule-specific or configured masking controls `masked_snippet`.
 Partial masking completely hides secrets of eight characters or fewer, preventing overlapping head/tail fragments from disclosing the full value. Longer values show only the last four characters; the leading characters remain hidden.
 
-Explicit `--unsafe`, `--mask-mode plain`, or an effective `output.mask_mode = "plain"` configuration permits raw output. Do not save or share this output without reviewing its contents.
+Explicit CLI `--unsafe` or `--mask-mode plain` permits raw output. Config-file `output.mask_mode = "plain"` is forbidden and causes exit code 2, even with a CLI redact override. Do not save or share this output without reviewing its contents.
 
 This corrects the previous raw-field disclosure while retaining field names and types. Consumers needing raw material must opt in deliberately.
 Internal `veil-core::Finding` retains raw values; the CLI applies this masking contract when serializing shared scan output.
