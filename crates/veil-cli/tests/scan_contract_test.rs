@@ -422,3 +422,54 @@ fn regular_git_scan_modes_apply_file_count_limits_and_preserve_baselines() {
         );
     }
 }
+
+#[test]
+fn ignored_mask_inputs_do_not_consume_the_file_budget() {
+    let dir = tempdir().unwrap();
+    let root = dir.path();
+    let body = format!("key=AKIA{}\n", "A".repeat(16));
+    fs::write(root.join("secret.txt"), &body).unwrap();
+    let ignored = [b'x', 0xff, b'\n'];
+    fs::write(root.join("ignored.txt"), ignored).unwrap();
+    fs::write(
+        root.join("veil.toml"),
+        "[core]\nmax_file_count = 1\nignore = ['ignored.txt']\n",
+    )
+    .unwrap();
+    let dry_run = cli(root)
+        .args(["mask", "secret.txt", "ignored.txt", "--dry-run"])
+        .output()
+        .unwrap();
+    assert!(
+        dry_run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&dry_run.stderr)
+    );
+    assert!(String::from_utf8_lossy(&dry_run.stdout).contains("Would mask 1 secrets"));
+    assert_eq!(fs::read_to_string(root.join("secret.txt")).unwrap(), body);
+    let masked = cli(root)
+        .args([
+            "mask",
+            "secret.txt",
+            "ignored.txt",
+            "--backup-suffix",
+            ".bak",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        masked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&masked.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("secret.txt")).unwrap(),
+        "key=<REDACTED>\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("secret.txt.bak")).unwrap(),
+        body
+    );
+    assert_eq!(fs::read(root.join("ignored.txt")).unwrap(), ignored);
+    assert!(!root.join("ignored.txt.bak").exists());
+}

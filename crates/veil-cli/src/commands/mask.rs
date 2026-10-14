@@ -43,6 +43,13 @@ pub fn mask(
         }
         inputs.push((path, canonical));
     }
+    inputs.retain(|(display_path, _)| {
+        !config
+            .core
+            .ignore
+            .iter()
+            .any(|pattern| display_path.to_string_lossy().contains(pattern))
+    });
     if inputs.len()
         > config
             .core
@@ -55,14 +62,6 @@ pub fn mask(
     let mut prepared = Vec::new();
     let mut total_findings = 0;
     for (display_path, path) in inputs {
-        if config
-            .core
-            .ignore
-            .iter()
-            .any(|pattern| display_path.to_string_lossy().contains(pattern))
-        {
-            continue;
-        }
         let backup = backup_suffix.as_ref().map(|suffix| {
             let mut name = path.as_os_str().to_os_string();
             name.push(suffix);
