@@ -1,5 +1,7 @@
 # Veil — Local secret detection and masking
 
+0.21.0-rc.2 is a draft candidate containing the main fixes for output masking, input/configuration errors, and safe file rewriting. It is not publicly released. Public download examples still point to rc.1; for a local rc.2 archive, confirm `veil --version` reports `0.21.0-rc.2`. The macOS candidate is ad-hoc signed, without Developer ID signing or notarization.
+
 The 0.21.0-rc.1 trial is limited to Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. Windows candidate notes below describe historical checks.
 
 2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Additional fixes for interactive completeness and missing Git blobs passed regressions on macOS and native Linux tests and distribution revalidation. See the [release checklist](docs/ci/oss-cli-release.md).
