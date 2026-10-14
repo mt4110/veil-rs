@@ -9,8 +9,19 @@ pub fn resolve_validator(id: &str) -> Option<ValidatorFn> {
         "jp_person_name_keyword" => Some(jp::person_name_keyword),
         "jp_phone_mobile" => Some(jp::phone_mobile),
         "luhn" => Some(luhn),
+        "ipv4_non_unspecified" => Some(ipv4_non_unspecified),
         _ => None,
     }
+}
+
+// Keep all existing IPv4 regex matches except the all-zero unspecified address.
+// Check zero-padded octets directly to preserve the existing regex semantics.
+fn ipv4_non_unspecified(candidate: &str) -> bool {
+    let octets: Vec<_> = candidate.split('.').collect();
+    !(octets.len() == 4
+        && octets
+            .iter()
+            .all(|octet| !octet.is_empty() && octet.bytes().all(|b| b == b'0')))
 }
 
 pub fn luhn(candidate: &str) -> bool {
