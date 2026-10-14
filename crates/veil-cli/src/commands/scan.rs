@@ -42,17 +42,12 @@ impl From<&str> for Format {
 }
 
 fn incomplete_scan_reason(summary: &Summary) -> Option<&'static str> {
-    if summary.file_limit_reached {
-        Some("file count limit reached (core.max_file_count)")
-    } else if summary.max_file_size_reached {
-        Some("file size limit reached (core.max_file_size)")
-    } else if summary.read_error_reached {
-        Some("file read or UTF-8 decoding error")
-    } else if summary.limit_reached {
-        Some("finding limit reached (--limit or output.max_findings)")
-    } else {
-        None
-    }
+    veil_core::scanner::result::incomplete_scan_reason(
+        summary.limit_reached,
+        summary.file_limit_reached,
+        summary.max_file_size_reached,
+        summary.read_error_reached,
+    )
 }
 
 fn read_git_blob<'repo>(
@@ -144,6 +139,11 @@ pub fn collect_findings(
     let mut any_file_limit_reached = false;
     let mut any_max_file_size_reached = false;
     let mut any_read_error_reached = false;
+    let mut processed_git_files = 0;
+    let max_git_files = config
+        .core
+        .max_file_count
+        .unwrap_or(veil_core::DEFAULT_MAX_FILE_COUNT);
 
     // Strategy Selection
     if let Some(commit_sha) = commit {
@@ -176,24 +176,21 @@ pub fn collect_findings(
                         skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                         continue;
                     };
+                    if processed_git_files >= max_git_files {
+                        any_file_limit_reached = true;
+                        break;
+                    }
+                    processed_git_files += 1;
                     let file_findings =
                         veil_core::scan_data(path_val, blob.content(), &rules, &config);
 
-                    let mut is_skipped = false;
-                    if let Some(first) = file_findings.first() {
-                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                            || first.rule_id == veil_core::RULE_ID_READ_ERROR
-                        {
-                            is_skipped = true;
-                        }
-                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                            any_max_file_size_reached = true;
-                        }
-                        if first.rule_id == veil_core::RULE_ID_READ_ERROR {
-                            any_read_error_reached = true;
-                        }
-                    }
+                    let status =
+                        veil_core::scanner::result::FileScanStatus::from_findings(&file_findings);
+                    let is_skipped = status != veil_core::scanner::result::FileScanStatus::Scanned;
+                    any_max_file_size_reached |=
+                        status == veil_core::scanner::result::FileScanStatus::TooLarge;
+                    any_read_error_reached |=
+                        status == veil_core::scanner::result::FileScanStatus::ReadError;
 
                     if is_skipped {
                         skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
@@ -219,7 +216,7 @@ pub fn collect_findings(
         revwalk.push_head()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
 
-        for oid in revwalk {
+        'history: for oid in revwalk {
             let oid = oid?;
             let commit = repo.find_commit(oid)?;
             let commit_time = TimeZone::timestamp_opt(&Local, commit.time().seconds(), 0).unwrap();
@@ -250,23 +247,22 @@ pub fn collect_findings(
                             skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                             continue;
                         };
+                        if processed_git_files >= max_git_files {
+                            any_file_limit_reached = true;
+                            break 'history;
+                        }
+                        processed_git_files += 1;
                         let file_findings =
                             veil_core::scan_data(path, blob.content(), &rules, &config);
-                        let mut is_skipped = false;
-                        if let Some(first) = file_findings.first() {
-                            if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                                || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                                || first.rule_id == veil_core::RULE_ID_READ_ERROR
-                            {
-                                is_skipped = true;
-                            }
-                            if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                                any_max_file_size_reached = true;
-                            }
-                            if first.rule_id == veil_core::RULE_ID_READ_ERROR {
-                                any_read_error_reached = true;
-                            }
-                        }
+                        let status = veil_core::scanner::result::FileScanStatus::from_findings(
+                            &file_findings,
+                        );
+                        let is_skipped =
+                            status != veil_core::scanner::result::FileScanStatus::Scanned;
+                        any_max_file_size_reached |=
+                            status == veil_core::scanner::result::FileScanStatus::TooLarge;
+                        any_read_error_reached |=
+                            status == veil_core::scanner::result::FileScanStatus::ReadError;
 
                         if is_skipped {
                             skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
@@ -305,23 +301,21 @@ pub fn collect_findings(
                         skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                         continue;
                     };
+                    if processed_git_files >= max_git_files {
+                        any_file_limit_reached = true;
+                        break;
+                    }
+                    processed_git_files += 1;
                     let file_findings =
                         veil_core::scan_data(path_val, blob.content(), &rules, &config);
-                    let mut is_skipped = false;
-                    if let Some(first) = file_findings.first() {
-                        if first.rule_id == veil_core::RULE_ID_BINARY_FILE
-                            || first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE
-                            || first.rule_id == veil_core::RULE_ID_READ_ERROR
-                        {
-                            is_skipped = true;
-                        }
-                        if first.rule_id == veil_core::RULE_ID_MAX_FILE_SIZE {
-                            any_max_file_size_reached = true;
-                        }
-                        if first.rule_id == veil_core::RULE_ID_READ_ERROR {
-                            any_read_error_reached = true;
-                        }
-                    }
+                    let status =
+                        veil_core::scanner::result::FileScanStatus::from_findings(&file_findings);
+                    let is_skipped = status != veil_core::scanner::result::FileScanStatus::Scanned;
+                    any_max_file_size_reached |=
+                        status == veil_core::scanner::result::FileScanStatus::TooLarge;
+                    any_read_error_reached |=
+                        status == veil_core::scanner::result::FileScanStatus::ReadError;
+
                     if is_skipped {
                         skipped_files_atomic.fetch_add(1, Ordering::Relaxed);
                     } else {
@@ -579,25 +573,11 @@ pub fn scan(
     let effective_fail_score = if let Some(fs) = fail_score {
         Some(fs)
     } else {
-        config
-            .as_ref()
-            .and_then(|c| c.core.fail_on_score)
-            .or_else(|| {
-                crate::config_loader::load_effective_config(None)
-                    .ok()
-                    .and_then(|c| c.core.fail_on_score)
-            })
+        config.as_ref().and_then(|c| c.core.fail_on_score)
     };
-    let effective_findings_limit = limit.filter(|limit| *limit != 0).or_else(|| {
-        config
-            .as_ref()
-            .and_then(|c| c.output.max_findings)
-            .or_else(|| {
-                crate::config_loader::load_effective_config(None)
-                    .ok()
-                    .and_then(|c| c.output.max_findings)
-            })
-    });
+    let effective_findings_limit = limit
+        .filter(|limit| *limit != 0)
+        .or_else(|| config.as_ref().and_then(|c| c.output.max_findings));
 
     if !result.summary.builtin_skips.is_empty() {
         eprintln!(

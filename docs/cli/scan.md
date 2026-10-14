@@ -24,7 +24,7 @@ veil scan [OPTIONS] [PATHS]...
 | `--staged` | Gitインデックスの対象を検査 |
 | `--commit <SHA>` | 第1親との差分にある追加・変更ファイルを検査。最初のコミットは空ツリーとの差分で検査 |
 | `--since <TIME>` | 指定時刻以降の各コミットの追加・変更ファイルを検査。最初のコミットも対象 |
-| `--config <PATH>` | 設定ファイルを指定 |
+| `--config <PATH>` | 存在する通常の設定ファイルを指定。存在しない指定は終了2 |
 
 全オプションは `veil scan --help` で確認します。組織・ユーザー・プロジェクト設定と環境変数も適用されます。
 ファイル数上限は `core.max_file_count`、サイズ上限は `core.max_file_size`、検知上限は `output.max_findings` でも設定できます。
@@ -66,3 +66,11 @@ veil scan src --format html > reports/scan.html
 行のignore指定は、引用符（single/double/backtick）の外にある `#` または `//` コメントの先頭へ1つ置く。`veil:ignore` は行全体、`veil:ignore=rule.id` はそのIDの完全一致だけを抑制する。理由は空白で区切って後ろへ書ける。文字列内の指定、IDの前方一致、コメントの途中の指定は抑制しない。これは行単位の保守的な判定で、全言語のraw文字列・複数行構文を解析する機能ではない。認識できない指定は検査を継続する。
 
 対話プレビューの変更前行は全文を隠し、変更後はスキャン時のマスキング済みsnippetを表示する。生出力を明示した場合は変更後も生値を含み得るため、共有には使わない。
+
+## 独立したGit履歴コマンド
+
+`veil --config project.toml git scan HEAD~1..HEAD` は、通常scanと同じ有効設定・ローカルルールを使い、範囲内の各コミットを第1親と比較して追加行を検出する。`HEAD` 単独指定はそのコミットから到達する履歴全体で、`scan --commit HEAD` の一コミット検査とは異なる。`--pr` はupstream/origin/main/origin/masterから範囲を選ぶ。Gitのfetchや外部通信は行わない。
+
+検出前に変更先blob全体のUTF-8とサイズを検査する。不正UTF-8・サイズ上限・範囲全体の変更先blob件数上限・検知上限は終了2。NULを含むバイナリ、削除、submoduleのGitlinkは対象外。検出対象は追加行のため、終了0でも既存行の秘密がない保証にはならない。正常完了時は検知があっても終了0で、通常scanの `--fail-on-*` やJSON/baseline機能はこの補助コマンドにはない。
+
+これらは修正済みソースの動作で、公開RCのZIPにはまだ反映されていない。

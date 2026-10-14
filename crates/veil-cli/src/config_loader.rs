@@ -285,24 +285,16 @@ fn load_repo_config(explicit_path: Option<&PathBuf>) -> Result<Option<Config>> {
     let config_file = explicit_path
         .cloned()
         .unwrap_or_else(|| PathBuf::from("veil.toml"));
-
-    match load_config(&config_file) {
-        Ok(c) => Ok(Some(c)),
-        Err(e) => {
-            // Fail if explicit path was given and missing
-            if explicit_path.is_some() && !config_file.exists() {
-                anyhow::bail!("Config file not found: {:?}", config_file);
-            }
-            // If default path logic failed (e.g. file missing), just return None (use defaults)
-            // Note: The previous logic returned Config::default() here, but for "repo layer"
-            // specifically, returning None is cleaner if no file exists.
-            if config_file.exists() {
-                // Return error if file exists but failed to parse
-                return Err(anyhow::anyhow!(e));
-            }
-            Ok(None)
-        }
+    if explicit_path.is_some() && !config_file.is_file() {
+        anyhow::bail!(
+            "Config file not found or not a regular file: {:?}",
+            config_file
+        );
     }
+
+    // Missing implicit veil.toml keeps the existing default-layer behavior.
+    // Explicit paths were checked above; parsing and I/O errors always propagate.
+    Ok(Some(load_config(&config_file)?))
 }
 
 #[cfg(test)]
