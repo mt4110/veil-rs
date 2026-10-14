@@ -156,21 +156,13 @@ pub fn scan_path(root: &Path, rules: &[Rule], config: &Config) -> ScanResult {
 
             let file_findings = scan_file(entry.path(), rules, config, Some(&limit));
 
-            // Check if file was skipped due to binary/size
-            let mut is_skipped = false;
-            if let Some(first) = file_findings.first() {
-                if first.rule_id == RULE_ID_BINARY_FILE
-                    || first.rule_id == RULE_ID_MAX_FILE_SIZE
-                    || first.rule_id == RULE_ID_READ_ERROR
-                {
-                    is_skipped = true;
-                }
-                if first.rule_id == RULE_ID_MAX_FILE_SIZE {
-                    max_file_size_counter.fetch_add(1, Ordering::Relaxed);
-                }
-                if first.rule_id == RULE_ID_READ_ERROR {
-                    read_error_counter.fetch_add(1, Ordering::Relaxed);
-                }
+            let status = result::FileScanStatus::from_findings(&file_findings);
+            let is_skipped = status != result::FileScanStatus::Scanned;
+            if status == result::FileScanStatus::TooLarge {
+                max_file_size_counter.fetch_add(1, Ordering::Relaxed);
+            }
+            if status == result::FileScanStatus::ReadError {
+                read_error_counter.fetch_add(1, Ordering::Relaxed);
             }
 
             if is_skipped {

@@ -1,7 +1,7 @@
 # Local OSS Architecture
 
 Status: `active`
-Updated: 2026-10-13
+Updated: 2026-10-14
 
 ## 責務
 
@@ -28,9 +28,17 @@ mainにあるpreset・対話スキャン・テンプレート昇格・スキャ�
 - `update` はローカル署名・TTL検証。既存ルールディレクトリを保全する。
 - LSPは別ソース導入が必要。CLI配布ZIPには同梱せず、通常scanから起動しない。
 
+## 設定・検査・書換えの境界
+
+`scan`、`filter`、`mask`、`git scan` は同じCLIの有効設定ローダーと `try_get_all_rules` を使う。明示 `--config` は存在する通常ファイルを要求し、読込み・構文・ルールエラーを終了2へ伝播する。未指定の `veil.toml` がない場合は既定設定を維持する。従来の自動探索によるuser/org設定の警告付きフォールバックは維持し、明示環境変数による設定は厳格に扱う。
+
+`scan_file` / `scan_data` の公開戻り値は互換性のため維持する。BINARY_FILE・MAX_FILE_SIZE・READ_ERRORのsentinel解釈はcoreの `FileScanStatus` に集約し、通常ファイルとGitで読取り異常を検知扱いに混ぜない。検出対象はコマンドごとに異なる。`filter` は標準入力の行、`git scan` は履歴の追加行、`mask` は明示した通常ファイルを扱う。
+
+`mask` は全入力を事前確認し、同じディレクトリの一時ファイルから各入力を置換する。行末・末尾改行・権限を保持し、直前に入力バイト列を再確認する。既存backupとsymlinkは拒否する。複数ファイルの一括トランザクション、他プロセスへの排他、クラッシュ時のディレクトリエントリ永続化保証は提供しない。
+
 ## 公開準備
 
 [リリース条件](../ci/oss-cli-release.md)と[Linux](../cli/linux-distribution.md)・[Windows](../cli/windows-distribution.md)の検証範囲を参照する。
-統合前のOS候補の成功を現在のソースへ流用しない。Windowsネイティブ/MSVC、現行hosted CI、署名・公証、性能優位性は未検証。
-隔離候補の番号は0.21.0-rc.1。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。原文ライセンス・依存lock・配布対象・実際の公開ソースの検証を確定する。
+統合前のOS候補の成功を現在のソースへ流用しない。Rust 1.92.0のUbuntu/macOS native・Linux x86_64 muslはhosted CIで検証する。Windowsネイティブ/MSVC、Developer ID署名・公証、性能優位性は未検証。
+0.21.0-rc.1は公開済みプレリリース。公開済みZIPには後続のmain修正が入っておらず、ソースのCI成功で配布物の更新を意味しない。制限は[利用ガイドライン](../cli/usage-guidelines.md#公開rcと修正済みソースの区別)を参照する。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。
 局所のレビュー履歴は配布文書へ累積せず、準備レポートで保全する。旧ロードマップのタスクを新しい通常CLIの完成条件として自動復活させない。

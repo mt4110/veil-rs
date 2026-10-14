@@ -116,7 +116,9 @@ fn main() -> anyhow::Result<()> {
         Some(Commands::Triage(args)) => commands::triage::triage(&args).map(|_| false),
         Some(Commands::Fix(args)) => commands::fix::fix(&args).map(|_| false),
         Some(Commands::Git(cmd)) => match cmd {
-            crate::cli::GitCommand::Scan(args) => commands::git::scan(&args).map(|_| false),
+            crate::cli::GitCommand::Scan(args) => {
+                commands::git::scan(&args, config.as_ref()).map(|_| false)
+            }
         },
         Some(Commands::Doctor) => commands::doctor::doctor().map(|_| false),
         Some(Commands::Rules(cmd)) => match cmd {
