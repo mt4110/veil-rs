@@ -3,6 +3,13 @@
 Status: `reference`
 Updated: 2026-10-14
 
+## rc.3準備中（未公開）
+
+mainの未指定IPv4誤検出修正を含む0.21.0-rc.3を、Linux x86_64 musl・macOS ARM64向けに準備する。
+公開済みrc.2とその添付は保持し、rc.3のZIP2種とSHA256SUMSはGitHub Releaseドラフトに添付する。
+macOSはad-hoc署名の試用版。Developer ID署名・Apple公証・ダウンロード後のGatekeeper動作は未検証。
+検証結果・配布元コミットはドラフト本文と準備レポートに記録し、この記述だけで合格・公開済みとは扱わない。
+
 ## 公開対象と現在の制限
 
 対象はconfig/core/cli、既存Evidence Pack v1 verify、ローカルのルールとGit、チュートリアルと利用ガイド、依存・梱包ガード。
