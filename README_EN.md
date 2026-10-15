@@ -21,7 +21,6 @@ export PATH="$PWD:$PATH"
 veil --help
 ```
 
-On Windows PowerShell, check `./veil.exe --version`, then use the binary's full path or add its directory to PATH.
 The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
 Source code and development scripts are not bundled; development commands require a source checkout.
 The rc.4 ZIPs are published. Their bundled documentation is the release-time snapshot; later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
