@@ -620,15 +620,32 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
                 if let Some(quote) = value.chars().next().filter(|ch| matches!(ch, '\'' | '"')) {
                     // The name regex stops before the closing quote. Require
                     // the same quote in the original line before suppressing.
-                    if !content[span.byte_end..].starts_with(quote) {
+                    if !content[span.byte_end..].starts_with(quote)
+                        || !ends_yaml_scalar(content, span.byte_end + quote.len_utf8())
+                    {
                         return false;
                     }
                     value[quote.len_utf8()..].trim()
                 } else {
+                    if !ends_yaml_scalar(content, span.byte_end) {
+                        return false;
+                    }
                     value
                 };
             matches!(value, "check formatting" | "run clippy")
         })
+}
+
+// The name regex may stop at punctuation inside a longer YAML scalar.
+fn ends_yaml_scalar(content: &str, end: usize) -> bool {
+    let after = &content[end..];
+    after.trim().is_empty()
+        || (after.trim_start().starts_with('#')
+            && (after.starts_with(char::is_whitespace)
+                || content[..end]
+                    .chars()
+                    .next_back()
+                    .is_some_and(char::is_whitespace)))
 }
 
 fn contains_person_name_label(content: &str) -> bool {

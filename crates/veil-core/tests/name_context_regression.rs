@@ -56,7 +56,7 @@ fn name_context_preserves_person_labels_across_formats() {
 fn name_context_preserves_other_rules_on_the_same_line() {
     let config = Config::default();
     let rules = try_get_all_rules(&config, vec![]).unwrap();
-    let content = "- name: Run clippy; token=AKIAIOSFODNN7EXAMPLE; bind=127.0.0.1";
+    let content = "- name: \"Run clippy\" # token=AKIAIOSFODNN7EXAMPLE; bind=127.0.0.1";
     let findings = scan_content(content, Path::new("workflow.yml"), &rules, &config);
     assert!(findings
         .iter()
@@ -106,5 +106,29 @@ fn name_context_handles_matching_yaml_scalar_quotes() {
             names(content, "workflow.yml") > 0,
             "person or unclosed scalar remains a candidate"
         );
+    }
+}
+
+#[test]
+fn name_context_requires_complete_unquoted_action_scalar() {
+    for content in [
+        "- name: Run clippy-v2",
+        "- name: Run clippy / Smith Jones",
+        "- name: Check formatting-v2",
+        "- name: Run clippy#suffix",
+        "- name: \"Run clippy\"-v2",
+        "- name: 'Run clippy''suffix'",
+    ] {
+        assert!(
+            names(content, "workflow.yml") > 0,
+            "partial action must not be exempt: {content}"
+        );
+    }
+    for content in [
+        "- name: Run clippy # action comment",
+        "- name: Check formatting   # action comment",
+        "- name: Run clippy   ",
+    ] {
+        assert_eq!(names(content, "workflow.yml"), 0, "complete action scalar");
     }
 }
