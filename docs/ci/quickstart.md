@@ -6,7 +6,9 @@ Automate secret detection in your pipeline to catch secrets before they are merg
 
 Copy to `.github/workflows/veil-scan.yml`:
 
-Use a published **stable** release tag (no `-rc`). As of 2026-10-15, the current stable tag is `v0.20.0`; prereleases such as `v0.21.0-rc.4` are not stable.
+Use a published **stable** release tag (no `-rc`). As of 2026-10-16, the current stable tag is `v0.20.0`; prereleases such as `v0.21.0-rc.4` are not stable.
+
+Version 0.21.0 is being prepared and is not available as a public tag yet. The examples intentionally retain the published v0.20.0 tag. Switch both installation examples to v0.21.0 only after that signed tag and release are published; use a source checkout for prepublication verification.
 
 ```yaml
 name: Veil Scan
@@ -65,7 +67,7 @@ jobs:
 
       - name: Install veil
         run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag vX.Y.Z veil-cli
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.20.0 veil-cli
 
       - name: Run veil scan (HTML)
         run: |

@@ -3,12 +3,16 @@
 検証履歴（2026-10-13）: 0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でビルド・起動・配布検査を確認しました。以下の旧ARM64・QEMU・Windows候補の記録は統合前の結果で、現行候補へ流用しません。Windowsネイティブ／MSVCは未検証です。
 
 Status: `reference`
-Updated: 2026-10-15
+Updated: 2026-10-16
 
 [v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースで、Linux x86_64 musl・macOS ARM64を対象とします。このページには旧候補や別のビルド対象の記録も含みます。過去の検証証拠として扱ってください。現行RCにはLinux ARM64版・Windows版のZIPはありません。
 
 [v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリース。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
 以下の候補作成・検証記録は全Linux環境の対応を意味しない。旧ARM64候補は今回の配布対象ではない。リポジトリの後続文書修正は既存配布ZIPへ自動反映されない。
+
+## 0.21.0正式版の準備
+
+0.21.0は未公開。Linux x86_64 muslの配布方式を維持し、正式版ソースのCI・静的リンク・展開ZIP・ライセンス・チェックサムを再検証する。rc.4のZIPを改名して正式版にはしない。公開前の候補操作は[チュートリアル](getting-started.md#正式版候補zipを取得済みの場合)を参照する。
 
 ## 選定した方式と最低条件
 
@@ -126,4 +130,4 @@ ZIPの564エントリーは許可ファイル一覧と完全一致し、文書�
 
 ## rc.4の公開状態（公開時点の履歴）
 
-配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[公開時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。現在のmain `dd86f92` は後続文書PRを含み、rc.4タグとは別のtreeである。rc.4の取得は上記Releaseとチュートリアルを使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、後続の文書変更で公開済みZIPは差し替えない。
+配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[公開時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。PR #165マージ時点のmain `dd86f92` は後続文書を含む別treeだった。これは当時の記録であり、現在のmainを示さない。rc.4の取得は上記Releaseとチュートリアルを使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、後続の文書変更で公開済みZIPは差し替えない。

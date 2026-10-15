@@ -1,5 +1,7 @@
 # Veil — Local secret detection and masking
 
+**0.21.0 is in preparation and is not published.** This source checkout uses version 0.21.0; the public download instructions below still use rc.4. For an already obtained 0.21.0 candidate archive, use the [candidate archive instructions](docs/cli/getting-started.md#正式版候補zipを取得済みの場合). Published rc.4 archives and tags are unchanged.
+
 [0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is a published prerelease, not the current stable release (`v0.20.0`). Its trial archives target Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. See the [release status and history](docs/ci/oss-cli-release.md) for current conditions and candidate-specific evidence. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the rc.4 download URLs.
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
