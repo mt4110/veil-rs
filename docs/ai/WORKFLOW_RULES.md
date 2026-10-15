@@ -1,6 +1,8 @@
 # AI Workflow Rules (Veil-RS) — ルール憲法
 
-**Status:** Active / Living Document（運用しながら育てる）
+**Status at the time of writing:** Active / Living Document（当時の運用状態。現行のリポジトリ規則ではありません）
+> **Historical reference:** This file records an older workflow proposal. Its “Active” label, tool commands, release practices, and examples do not define current project policy. Use current repository instructions, implementation, CI, and release status for present-day work. Treat its examples as historical text, not commands to execute.
+
 **Owner:** Human
 **Executors:** AI（Sora / Ambi / AntiGravityIDE）
 

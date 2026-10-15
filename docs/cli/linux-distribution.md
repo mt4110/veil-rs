@@ -3,7 +3,9 @@
 検証履歴（2026-10-13）: 0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でビルド・起動・配布検査を確認しました。以下の旧ARM64・QEMU・Windows候補の記録は統合前の結果で、現行候補へ流用しません。Windowsネイティブ／MSVCは未検証です。
 
 Status: `reference`
-Updated: 2026-10-14
+Updated: 2026-10-15
+
+[v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is the current published prerelease, targeting Linux x86_64 musl and macOS ARM64. This page contains extensive records for older candidates and other build targets; treat those as historical evidence only. The current RC does not provide an ARM64 Linux or Windows archive.
 
 [v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリース。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
 以下の候補作成・検証記録は全Linux環境の対応を意味しない。旧ARM64候補は今回の配布対象ではない。リポジトリの後続文書修正は既存配布ZIPへ自動反映されない。
@@ -25,9 +27,9 @@ macOS・Windowsには各OS用の実行ファイルが必要。Linux ELFをその
 GNU候補のGLIBC_2.39参照はRustのプロセス起動に使われるweakなpidfd_spawnp / pidfd_getpidだったが、リンク時のversion requirementにより旧glibcのローダーで実際に拒否された。
 シンボル名だけを書き換えたり、チェックを無効にして最低条件を下げたりしない。古いglibc向けGNUビルドが必要なら古いsysroot/ビルド環境から再作成し、別の候補として受け入れる。今回は実施していない。
 
-## ARM64上での静的候補の作成
+## ARM64上での静的候補の作成（旧候補の手順）
 
-以下はLinux ARM64上で検証した構成。macOS上やx86_64からARM64へ渡すクロスコンパイルの手順ではない。
+以下は統合前のLinux ARM64候補を作成した履歴で、現行配布対象ではない。macOS上やx86_64からARM64へ渡すクロスコンパイルの手順でもない。
 Rust 1.92.0、同じCPU向けのmusl Cツール（Debian/Ubuntuのmusl-tools）、binutilsのreadelf、Python 3.12以上、Gitが必要。
 MSRVのRust標準ライブラリに同梱されたmusl 1.2.3とLLVM libunwindを使用する。Rust側のmusl構築・修正は [1.92.0の公式スクリプト](https://github.com/rust-lang/rust/blob/1.92.0/src/ci/docker/scripts/musl.sh) を参照。
 
@@ -56,6 +58,8 @@ python3 scripts/verify_cli_archive.py --archive <新しいZIP> --require-static 
 同じ候補のリンクマップにRust self-containedのlibc/libunwindがなく、または未確認のGNU libgccアーカイブがコードを提供した場合は成功記録を作らず、表記を再確認する。
 
 ## 表記と確認範囲
+
+以下のARM64実装・表記検査は旧候補についての履歴である。現行rc.4のLinux対象はx86_64 muslに限る。
 
 [第三者表記](../../THIRD_PARTY_NOTICES.md) と [NOTICE](../../NOTICE) は、muslとLLVM libunwindの原文も同梱する。
 ARM64・x86_64のリンクマップではRustのself-contained libc.aとlibunwind.aを確認し、GNU libgccアーカイブの取り込みがないことも確認した。
@@ -115,11 +119,11 @@ python3 scripts/verify_cli_archive.py --archive <同じZIP> --require-static --l
 対話モードの不完全判定とGit blob取得失敗時の保存拒否も含む0.21.0-rc.1のmusl targetで、通常357件・最小構成356件・JP358件（それぞれCLI/core/config）、独立LSP25件の全テストを確認。`--include-ignored` で1,000件のテンプレート読込みも実行し、失敗・ignoredはいずれも0件。構成間には重複テストがあるため合計を固有件数とはしない。
 release構成の修正回帰・baseline上限・既存v1 verify/safetyの84件も成功。通常・最小・LSPのClippy全target警告検査、書式・構造・metadata・文書・Python85件も成功。
 検証コードはベースcommit `aa67bc4c34029a6745deee51e39c7b163c75dd7e` に追加修正を適用したもので、ローカル修正版とLinux側2,950ファイルのハッシュ一致を確認した。既存verifyは変更しない。文書更新による再固定では、本番コード・テスト・lock・ツールチェーンを変えず、同じ検証済みバイナリで新しい文書を同梱し直す。ソースと配布物のハッシュ、固定commit、検証記録は別の準備レポートへ記録する。
-完成ZIPからCLIを取り出し、ビルド時と同じバイナリhashを確認した上で21ケースを実行した。対話モードの各不完全判定、CLI/config由来のbaseline抑制、対話と保存の同時指定、Git commit/履歴/stagedのblob欠損、staged HEAD/tree欠損で終了コード2・部分結果非出力・新規baseline非作成・既存baselineのバイト保全を確認した。正常な対話q終了と、最初のコミット前の正常なstaged保存も確認した。Gitlinkの明示的なスキップ、baseline適用時の上限保持、最初のGitコミットと`--since`の検査はrelease回帰にも含める。[公開前の必須課題](../ci/oss-cli-release.md#公開前の必須課題) に残る範囲を記録する。
+完成ZIPからCLIを取り出し、ビルド時と同じバイナリhashを確認した上で21ケースを実行した。対話モードの各不完全判定、CLI/config由来のbaseline抑制、対話と保存の同時指定、Git commit/履歴/stagedのblob欠損、staged HEAD/tree欠損で終了コード2・部分結果非出力・新規baseline非作成・既存baselineのバイト保全を確認した。正常な対話q終了と、最初のコミット前の正常なstaged保存も確認した。Gitlinkの明示的なスキップ、baseline適用時の上限保持、最初のGitコミットと`--since`の検査はrelease回帰にも含める。rc.1作成当時の[公開前ゲートの記録](../ci/oss-cli-release.md#公開前の必須課題)に試験範囲を残す。これは現行正式版の残条件ではない。
 release CLIからのpreset付きLSP起動とrelease LSP単体起動をstdioで確認。initializeの版表示0.21.0-rc.1、マスキング診断、Mask value修正候補、didChange/didCloseの診断更新、shutdown/exit 0を確認した。VS Code等のGUIクライアント実操作は未検証。
 CLI ZIPにはLSP本体を同梱しない。LSPバイナリを配布対象へ加える場合は、独自の依存・原文ライセンス・同梱packetを別途確認する。
 ZIPの564エントリーは許可ファイル一覧と完全一致し、文書リンク・原文/ソース/checksumを検査。第三者依存270件・ライセンスpayload 538件・native component 4件を照合した。ELFのインタープリター・NEEDED共有ライブラリ・GLIBC版付きシンボルはいずれもない。Windowsネイティブ/MSVC、現行RCのARM64/Alpine/旧カーネル、性能は未検証。Hosted CIは上記headで成功。
 
-## rc.4の公開状態
+## rc.4の公開状態（公開時点の履歴）
 
-配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[main CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。rc.4の取得は上記Releaseとチュートリアルを使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、今回の文書更新で公開済みZIPは差し替えない。
+配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[公開時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。現在のmain `dd86f92` は後続文書PRを含み、rc.4タグとは別のtreeである。rc.4の取得は上記Releaseとチュートリアルを使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、後続の文書変更で公開済みZIPは差し替えない。
