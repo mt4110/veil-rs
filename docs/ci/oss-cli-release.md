@@ -1,15 +1,16 @@
 # OSS CLI release checks
 
 Status: `reference`
-Updated: 2026-10-15
+Updated: 2026-10-16
 
-## 現在の状態（2026-10-15）
+## 正式版0.21.0の準備状態（2026-10-16）
 
-- 最新の安定版は `v0.20.0`。`v0.21.0-rc.4` は公開済みプレリリースで、Linux x86_64 musl・macOS ARM64のZIPとSHA256SUMSが添付されている。macOSはad-hoc署名のみで、Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。
-- このPRの作業開始前の基準点はmain `dd86f92` で、その時点の[main CI](https://github.com/mt4110/veil-rs/actions/runs/38697625189)は成功していた。これはPR #166の検証結果ではなく、マージ後のmain/CIを示すものでもない。PR #166の検証状況はPR Checksを参照する。rc.4の署名タグは配布元 `a897e8f` を指し、公開時点のmain `08538de` とtreeが一致した。公開済みrc.4タグは後続の文書変更を含まない。
-- 0.21.0正式版は未公開。残るリリース作業は、正式版の版番号・変更記録を確定し、その内容でmainのCIを通し、正式版ZIPとSHA256SUMSを再生成・検証し、署名tagとRelease本文・添付を照合したうえで公開すること。現在の公開RCで「正式版も公開済み」とは扱わない。
-- 実作業での再利用は未確認として公開後に追跡する。利用者による再利用実績は利用継続の証拠であり、技術的な正式版公開条件とは分ける。
-
+- 0.21.0は準備中・未公開。manifest・CLI/core/config/LSP・Cargo.lock・Nixの版番号を0.21.0へ揃える。製品コード・外部依存の内容は公開済みrc.4から変更しない。
+- 準備開始前の基準点はPR #166マージ後main `1db42b7`。[そのコミットのCI](https://github.com/mt4110/veil-rs/actions/runs/38736368362)は全6ジョブ成功した。これは今回の準備差分や将来のマージ後mainに対する検証結果ではない。今回の結果は準備PRのChecksで確認する。
+- 公開済み安定版Latestはv0.20.0、プレリリースはv0.21.0-rc.4。公開済みrc.4の署名タグ・ZIP2種・SHA256SUMSを差し替えない。正式版の取得URLは、タグとReleaseが公開されるまで利用可能と案内しない。
+- 対象はLinux x86_64 muslとmacOS ARM64。macOSは引き続きad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。Windows、Intel Mac、Linux ARM64、LSP単体配布とcrates.io公開は含めない。
+- 公開前に、準備PRの両OS・musl・MSRV・ガード成功、承認後のマージとmain CI、正式版最終ZIP・SHA256SUMSの再生成と展開検査、署名タグの参照先とRelease本文・添付の一致を確認する。タグpush・公開は別途承認後に行う。
+- 実作業での再利用は未確認の追跡項目として保持する。合成検査と独立利用実績を同一視せず、技術的な正式版公開条件とは分ける。
 
 ## M1入りrc.3の準備記録（公開済み・履歴）
 
@@ -123,4 +124,4 @@ crates.io公開は今回の範囲外。Cargoのlicenseメタデータは4つのO
 
 ## 0.21.0-rc.4公開済みプレリリース（履歴）
 
-[rc.4のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)は公開済み。署名タグは配布元 `a897e8f` を指し、PR #164マージ後main `08538de` とtreeが一致する。[その時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)は全6ジョブ成功。Linux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを公開後に再取得して照合済み。現在のmainは後続文書PRを含む `dd86f92` で、rc.4タグのソースは変わらない。macOSはad-hoc署名のみで、Developer ID・公証・ダウンロード時Gatekeeperは未確認。実作業での再利用も未確認。公開済みZIPの本文書変更による差し替えは行わない。
+[rc.4のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)は公開済み。署名タグは配布元 `a897e8f` を指し、PR #164マージ後main `08538de` とtreeが一致する。[その時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)は全6ジョブ成功。Linux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを公開後に再取得して照合済み。PR #165マージ時点のmainは `dd86f92` だった。これは当時の記録であり、後続mainの状態を示さない。rc.4タグのソースは変わらない。macOSはad-hoc署名のみで、Developer ID・公証・ダウンロード時Gatekeeperは未確認。実作業での再利用も未確認。公開済みZIPの本文書変更による差し替えは行わない。
