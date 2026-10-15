@@ -569,6 +569,7 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
 
 pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> bool {
     match rule.id.as_str() {
+        "pii.person.name.keyword" => is_non_person_name_context(content, span),
         "pii.jp.mynumber.unlabeled" => {
             let context = nearby_match_context(content, span, 24, 16);
             contains_any_literal(context, &["注文番号", "受付番号", "伝票番号"])
@@ -580,6 +581,39 @@ pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> b
         "pii.jp.postal_code" => has_adjacent_postal_version_marker(content, span),
         _ => false,
     }
+}
+
+// Scope exclusions to the current candidate, never a whole line or file.
+fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
+    let (Some(before), Some(candidate)) = (
+        content.get(..span.byte_start),
+        content.get(span.byte_start..span.byte_end),
+    ) else {
+        return false;
+    };
+    let candidate = candidate.to_ascii_lowercase();
+    // A documentation compound noun, not a standalone person-name label.
+    let compound_prefix = before.strip_suffix("container-").is_some_and(|prefix| {
+        prefix
+            .chars()
+            .next_back()
+            .is_none_or(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, '_' | '-'))
+    });
+    if compound_prefix
+        && candidate.strip_prefix("name mapping").is_some_and(|rest| {
+            rest.chars()
+                .next()
+                .is_none_or(|ch| !ch.is_ascii_alphanumeric() && ch != '_')
+        })
+    {
+        return true;
+    }
+    // These complete CI action labels are not personal names. Other YAML names,
+    // including names on another part of the same line, remain candidates.
+    before.trim() == "-"
+        && candidate
+            .strip_prefix("name:")
+            .is_some_and(|value| matches!(value.trim(), "check formatting" | "run clippy"))
 }
 
 fn has_adjacent_postal_version_marker(content: &str, span: FindingSpan) -> bool {

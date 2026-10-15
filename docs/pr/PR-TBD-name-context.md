@@ -1,0 +1,21 @@
+# SOT
+
+氏名ルールのCI処理名・複合語の誤検出を候補単位で抑制する。公開済みrc.3と配布物は変更しない。
+
+## What
+
+- `pii.person.name.keyword` の既存文脈判定に、YAMLステップの完全な処理名 `Check formatting` / `Run clippy` と、文書の複合語 `container-name mapping` の限定判定を追加。
+- 拡張子・ディレクトリ・name項目全体は除外しない。別の人物名・同じ行の人物名と認証情報・IPv4を保持する。
+- 氏名判定の正規表現・validator・スコア・IPv4ルールは変更しない。
+
+## Verification
+
+架空データの回帰検査、既存JP PII/IPv4検査、macOSとLinuxのCIで確認する。Crossportのソースや検出値は転記しない。
+
+## Evidence
+
+Crossport PR #5の固定コミットで、従来の氏名誤検出3件を再現。修正CLIで氏名0件・テストIPv4の7件維持を確認する。最終結果はPR本文に記録する。
+
+## Limits
+
+構文を完全に解析する仕組みではなく、上記の明確な非人物文脈だけを扱う。他の任意のCI処理名や技術用語まで一般化しない。カスタムの同一rule IDにも既存文脈判定と同様に適用される。マージ・Release更新・公開は別判断。
