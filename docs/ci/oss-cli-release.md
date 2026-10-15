@@ -3,6 +3,13 @@
 Status: `reference`
 Updated: 2026-10-14
 
+## M1入りrc.3候補の更新（未公開）
+
+main `bded3ae` は別インデックスの検査・生成フックの停止条件・既存フック保全を修正し、[マージ後CI](https://github.com/mt4110/veil-rs/actions/runs/38670786876)全6ジョブが成功した。
+旧候補04745e7のZIP・本文・検証記録を保全し、新しい固定コミットからLinux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを再生成・検証して、同じrc.3ドラフトへ反映する。公開済みrc.2は変更せず、rc.4は作らない。
+最終ZIPから取り出したCLIで、既存の安全性検査に加え、別index、実際の部分コミット、フック停止と既存フック保全を両OSで確認する。macOSはad-hocのみでDeveloper ID・公証・隔離属性付きGatekeeperは未検証。
+署名タグのpush・マージ・公開・X投稿は行わない。新候補の配布元コミットとハッシュは準備レポートとReleaseドラフト本文に記録する。
+
 ## 公開対象と現在の制限
 
 対象はconfig/core/cli、既存Evidence Pack v1 verify、ローカルのルールとGit、チュートリアルと利用ガイド、依存・梱包ガード。
