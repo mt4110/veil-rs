@@ -4,7 +4,7 @@ main 0149cd4の氏名ルール文脈判定修正を含む0.21.0-rc.4配布候補
 
 ## What
 
-workspace/config/core/CLI/LSP/NixとCargo.lock内の自プロジェクト版番号をrc.4へ揃え、第三者表記manifestのlock hashを更新する。外部依存・製品コードはmainから変更しない。
+workspace/config/core/CLI/LSP/NixとCargo.lock内の自プロジェクト版番号をrc.4へ揃え、第三者表記manifestのlock hashを更新する。外部依存・製品コードはmainから変更しない。同梱ガイドのrc.3公開状態とrc.4候補の入口を整合させる。
 
 ## Verification
 
