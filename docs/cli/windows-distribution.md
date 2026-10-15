@@ -9,7 +9,7 @@ Updated: 2026-10-12
 
 ## 旧候補の対象と検証の区別
 
-現在のローカル候補は **x86_64-pc-windows-gnu / Rust 1.92.0**。ARM64 Linux上のMinGW-w64 12.0.0、GCC 14.2.0 POSIX、binutils 2.44でクロスビルドしたPE32+コンソール実行ファイルです。
+当時のローカル候補は **x86_64-pc-windows-gnu / Rust 1.92.0**。ARM64 Linux上のMinGW-w64 12.0.0、GCC 14.2.0 POSIX、binutils 2.44でクロスビルドしたPE32+コンソール実行ファイルです。
 [同じRust版の対応表](https://github.com/rust-lang/rust/blob/1.92.0/src/doc/rustc/src/platform-support.md)に従い、対象は64bit x86 Windows 10以降 / Windows Server 2016以降とします。この最低条件を実Windowsで確認したわけではありません。
 
 | 項目 | 現在の証拠 |

@@ -5,7 +5,7 @@
 Status: `reference`
 Updated: 2026-10-15
 
-[v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is the current published prerelease, targeting Linux x86_64 musl and macOS ARM64. This page contains extensive records for older candidates and other build targets; treat those as historical evidence only. The current RC does not provide an ARM64 Linux or Windows archive.
+[v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースで、Linux x86_64 musl・macOS ARM64を対象とします。このページには旧候補や別のビルド対象の記録も含みます。過去の検証証拠として扱ってください。現行RCにはLinux ARM64版・Windows版のZIPはありません。
 
 [v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリース。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
 以下の候補作成・検証記録は全Linux環境の対応を意味しない。旧ARM64候補は今回の配布対象ではない。リポジトリの後続文書修正は既存配布ZIPへ自動反映されない。
