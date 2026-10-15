@@ -275,8 +275,14 @@ pub fn collect_findings(
             }
         }
     } else if staged {
-        // 3. Scan staged
-        let repo = Repository::open(".")?;
+        // 3. Scan the index selected by Git, including temporary commit indexes.
+        if let Some(path) = std::env::var_os("GIT_INDEX_FILE") {
+            anyhow::ensure!(!path.is_empty(), "GIT_INDEX_FILE must not be empty");
+            let metadata = std::fs::metadata(&path).context("Cannot read GIT_INDEX_FILE")?;
+            anyhow::ensure!(metadata.is_file(), "GIT_INDEX_FILE must be a regular file");
+        }
+        // open() ignores index selection; open_from_env() enables libgit2's Git environment handling.
+        let repo = Repository::open_from_env().context("Cannot open Git repository")?;
         let head_tree = match repo.head() {
             Ok(head) => Some(head.peel_to_tree().context("Cannot read Git HEAD tree")?),
             Err(error) if error.code() == git2::ErrorCode::UnbornBranch => None,
