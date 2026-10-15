@@ -1,5 +1,7 @@
 # veil-rs 国内エンタープライズ向け詳細設計書パック
 
+> **設計資料:** このパックは将来案・契約案を含む保管用設計資料です。ここに記載された製品範囲、API、SOT優先順位、受け入れ条件を現行実装の事実やCLIのリリース条件として扱わないでください。現行状態はコード・CI・[リリース状況](../../ci/oss-cli-release.md)で確認します。
+
 ## 対象
 - 国内Fintech / 官公庁 / SIer 向け、完全ローカル実行の JP-PII / Secret 検知・マスキング・監査証跡ツール。
 - 現行 `veil-rs` リポジトリを土台に、以下の実装対象を製品版として完成させる。
@@ -41,14 +43,14 @@
 | `implementation/evidence_signing_playbook.md` | Evidence ZIPの外部署名・承認運用runbook |
 | `implementation/rulepack_update_flow.md` | 署名検証済みRulePackのstaging/promote/rollback運用runbook |
 
-## SOT方針
+## この設計パック内のSOT方針（現行CLIの正本ではない）
 - 正本優先順は `00_contract_decisions.md` → Rust DTO/Core型 → 生成OpenAPI/JSON Schema → 各章本文。
 - 既存の `veil-core`, `veil-cli`, `veil-pro` 実装を活かし、不足機能は差分実装として明記する。
 - 外部送信、クラウド集約、0.0.0.0公開は製品思想と矛盾するため、対象外。
 
 
 
-## v4.4 contract note
+## v4.4 contract note（当時の設計パック内の記録）
 
 - 実装時は `00_contract_decisions.md` を最上位SOTとし、`PR-0 Contract Alignment` から開始する。
 - acceptance gate の唯一の正本は `14_bulk_implementation_safety.md` の `14.4 Acceptance Gate`。

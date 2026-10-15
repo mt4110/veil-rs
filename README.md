@@ -1,6 +1,6 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
-[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースです。既存の出力秘匿・安全な書換えに加え、別インデックスとフックの修正、氏名ルールの限定的な誤検出修正を含みます。以下の取得手順はrc.4を使用します。
+[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースです。現行の安定版は `v0.20.0` で、rc.4はLinux x86_64 musl・macOS ARM64向けの試用版です。正式版への条件と検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
 通常ビルドは外部API、ライセンス認証、テレメトリ送信を含みません。組み込みルールで、設定ファイルを作らずにスキャンを始められます。
@@ -47,7 +47,7 @@ Git操作が失敗した場合は点検へ進まないでください。`--stage
 
 ### 配布アーカイブを使う場合
 
-展開したディレクトリには `veil`（Windowsは `veil.exe`）、このREADME、`docs/`、ライセンス文書、`SHA256SUMS` が入ります。
+公開済みrc.4のZIPには `veil`、README、`docs/`、ライセンス文書、`SHA256SUMS` が入ります。現行RCのWindows版ZIPはありません。
 macOS/Linuxでは、そのディレクトリで以下を実行します。PATHの変更は現在のシェルだけに適用されます。
 
 ```bash
@@ -56,7 +56,7 @@ export PATH="$PWD:$PATH"
 veil --help
 ```
 
-Windows PowerShellでは `./veil.exe --version` で確認し、以降も実行ファイルの絶対パスを使うか、そのディレクトリをPATHへ追加します。
+Windows向けの過去の候補検証記録は、現在の配布対象を示しません。
 同梱の [チュートリアル](docs/cli/getting-started.md) と [利用ガイドライン](docs/cli/usage-guidelines.md) はネット接続なしで読めます。
 ソースコードと開発用スクリプトは同梱しません。開発ガイドのビルド・検証はソースを取得してから行います。
 0.21.0-rc.4のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書はRC作成時の版で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
@@ -73,7 +73,9 @@ ELFのPT_INTERP・DT_NEEDED・GLIBC参照がなく、利用時のRust・共有li
 前回のDebian 13製GNU候補はglibc 2.39以上とlibz.so.1 / libgcc_s.so.1が必要です。Ubuntu 22.04のglibc 2.35では起動に失敗しました。
 CPU/配布方式を区別して候補を選んでください。作成・検査手順と詳しい制限は [Linux配布ガイド](docs/cli/linux-distribution.md) にまとめています。
 
-### Windowsの対応環境・検証範囲
+### Windowsの過去の候補検証記録（現行RCの対象外）
+
+以下は旧候補に対する記録で、現行rc.4のWindows対応を意味しません。
 
 x86_64 Windows GNU候補をRust 1.92.0 / MinGW-w64で実ビルドし、Wine 10.0＋QEMU（ARM64実ホスト）で起動・マスキングJSON・終了コード0/1/2を確認しました。対象はWindows 10以降 / Server 2016以降ですが、Windowsネイティブと既存CIのMSVC候補は未検証です。
 PEの通常/遅延importはWindows提供の12 DLLのみで、追加MinGW DLLは検出しませんでした。静的MinGW/GCCランタイムの原文も同梱します。実WindowsでのDLL解決・クリーン環境・署名は未検証です。[Windows配布ガイド](docs/cli/windows-distribution.md)に具体的なDLL名と制限を記載しています。
@@ -172,6 +174,4 @@ rules_dir = ".veil/rules"
 
 ## RC作成時の検証記録
 
-以下は配布対象の判断に使った履歴です。公開済みRCの取得は冒頭の手順を使ってください。
-
-2026-10-13: 0.21.0-rc.1候補で、baseline適用による上限到達情報の消失と、Gitの最初のコミットの未スキャンを修正しました。修正後のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）の実機でビルド・起動・配布検査を確認しました。旧ARM64・QEMU・Windows候補の結果は現行候補へ流用せず、Windowsネイティブ／MSVCは未検証です。対話モードの不完全判定とGit blob欠損時の保存拒否も修正し、macOSでの回帰とLinuxネイティブでの全構成・配布物の再検証を確認しました。[リリース条件](docs/ci/oss-cli-release.md) に検証範囲を記載しています。
+候補ごとの固定コミット、試験条件、未検証事項は[リリース履歴](docs/ci/oss-cli-release.md)に集約しています。記録を現行RCの検証へ流用せず、公開済みRCの取得は冒頭の手順を使ってください。

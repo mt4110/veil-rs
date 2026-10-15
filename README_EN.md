@@ -1,10 +1,6 @@
 # Veil — Local secret detection and masking
 
-[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is a published prerelease with output masking and safe rewriting fixes, Git index and hook fixes, and narrowly scoped person-name false-positive fixes. Download the platform ZIP and SHA256SUMS from that release, verify the checksum, and confirm `veil --version` reports `0.21.0-rc.4`. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the rc.4 download URLs.
-
-The 0.21.0-rc.4 trial is limited to Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. Windows candidate notes below describe historical checks.
-
-2026-10-13: The 0.21.0-rc.1 candidate fixes finding-limit completeness being lost after baseline suppression and the first Git commit being left unscanned. The corrected Linux x86_64 static musl candidate passed native build, startup and distribution checks on Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic). Older ARM64, QEMU and Windows results do not validate this candidate; native Windows/MSVC remains unverified. Additional fixes for interactive completeness and missing Git blobs passed regressions on macOS and native Linux tests and distribution revalidation. See the [release checklist](docs/ci/oss-cli-release.md).
+[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is a published prerelease, not the current stable release (`v0.20.0`). Its trial archives target Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. See the [release status and history](docs/ci/oss-cli-release.md) for current conditions and candidate-specific evidence. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the rc.4 download URLs.
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
@@ -16,7 +12,7 @@ Detection can produce false positives and miss secrets; it does not prove that a
 
 ### Binary archive
 
-Extract the archive; it contains `veil` (`veil.exe` on Windows), both READMEs, `docs/`, project license texts, and `SHA256SUMS`.
+The published rc.4 archives contain `veil`, the READMEs, `docs/`, project license texts, and `SHA256SUMS`. There is no Windows archive for the current RC.
 On macOS/Linux, run the following from the extracted directory. The PATH change applies to the current shell.
 
 ```bash
@@ -25,7 +21,6 @@ export PATH="$PWD:$PATH"
 veil --help
 ```
 
-On Windows PowerShell, check `./veil.exe --version`, then use the binary's full path or add its directory to PATH.
 The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
 Source code and development scripts are not bundled; development commands require a source checkout.
 The rc.4 ZIPs are published. Their bundled documentation is the release-time snapshot; later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
@@ -41,7 +36,7 @@ The minimum kernel version is not established. Older kernels, other distribution
 The previous Debian 13 GNU candidate needs glibc 2.39 or later plus libz.so.1 and libgcc_s.so.1; it failed to start on Ubuntu 22.04 with glibc 2.35.
 Choose the correct CPU and distribution variant. See the [Linux distribution guide (日本語)](docs/cli/linux-distribution.md) for build instructions, verification and limits.
 
-### Windows requirements and validation scope
+### Historical Windows candidate validation (not current release support)
 
 The x86_64 Windows GNU candidate was cross-built with Rust 1.92.0 / MinGW-w64 and passed startup, masked JSON and exit codes 0/1/2 under Wine 10.0 plus QEMU on an actual ARM64 host. The target baseline is Windows 10+ / Server 2016+; native Windows and the existing MSVC CI candidate remain untested.
 Declared normal/delay PE imports contain 12 Windows-provided dependencies and no additional MinGW runtime DLLs. Static MinGW/GCC runtime notices are included. Clean Windows DLL resolution and signing remain unverified. See the [Windows distribution guide](docs/cli/windows-distribution.md) for exact dependencies and limits.

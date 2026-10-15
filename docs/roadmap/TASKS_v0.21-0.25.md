@@ -1,5 +1,7 @@
 # v0.21.x〜v0.25.x — TASKS（Always Run）
 
+> **履歴資料:** ここにあるAlways Run手順は旧計画で、現行リポジトリのPR必須条件ではありません。現行CLIリリース条件は[リリース状況](../ci/oss-cli-release.md)を参照してください。コマンド例は実行手順として使わないでください。
+
 ## 1) PR共通 Always Run（毎PR必須）
 ### 1.1 Start（repo / clean）
 ```bash

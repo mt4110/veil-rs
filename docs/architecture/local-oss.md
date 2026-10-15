@@ -1,7 +1,7 @@
 # Local OSS Architecture
 
 Status: `active`
-Updated: 2026-10-14
+Updated: 2026-10-15
 
 ## 責務
 
@@ -40,11 +40,5 @@ mainにあるpreset・対話スキャン・テンプレート昇格・スキャ�
 
 ## 公開準備
 
-[リリース条件](../ci/oss-cli-release.md)と[Linux](../cli/linux-distribution.md)・[Windows](../cli/windows-distribution.md)の検証範囲を参照する。
-統合前のOS候補の成功を現在のソースへ流用しない。Rust 1.92.0のUbuntu/macOS native・Linux x86_64 muslはhosted CIで検証する。Windowsネイティブ/MSVC、Developer ID署名・公証、性能優位性は未検証。
-0.21.0-rc.1は公開済みプレリリース。公開済みZIPには後続のmain修正が入っておらず、ソースのCI成功で配布物の更新を意味しない。制限は[利用ガイドライン](../cli/usage-guidelines.md#公開rcと修正済みソースの区別)を参照する。公開tag v0.20.0と旧manifest0.17.0は過去の履歴として保全する。
-局所のレビュー履歴は配布文書へ累積せず、準備レポートで保全する。旧ロードマップのタスクを新しい通常CLIの完成条件として自動復活させない。
-
-0.21.0-rc.2は公開済みプレリリース。配布元 `449a1e2e` とPR #158マージ後main `b1d3234` のtree一致・main CI成功を確認した。公開後の文書更新で既存ZIPは差し替えない。
-
-0.21.0-rc.4は公開済みプレリリース。配布元 `a897e8f` とPR #164マージ後main `08538de` のtree一致・main CI成功を確認した。既存ZIPは差し替えず、実作業での再利用は未確認の追跡項目として扱う。
+[現在のリリース条件・状態](../ci/oss-cli-release.md)を正本として、OS別の詳細は[Linux](../cli/linux-distribution.md)・[Windows](../cli/windows-distribution.md)の各記録を参照する。旧候補の成功を現行ソースや別OSへ流用しない。Windowsネイティブ/MSVC、Developer ID署名・公証、性能優位性は未検証。公開済みRCのタグ・ZIPは後続main変更で変わらず、main CI成功だけで配布物の更新を意味しない。
+局所のレビュー履歴は配布文書へ累積せず、準備レポートで保全する。roadmapと設計資料の未完了タスクを現行通常CLIの完了条件として自動復活させない。

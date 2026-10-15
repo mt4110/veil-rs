@@ -1,9 +1,17 @@
 # OSS CLI release checks
 
 Status: `reference`
-Updated: 2026-10-14
+Updated: 2026-10-15
 
-## M1入りrc.3の準備記録（公開済み）
+## 現在の状態（2026-10-15）
+
+- 最新の安定版は `v0.20.0`。`v0.21.0-rc.4` は公開済みプレリリースで、Linux x86_64 musl・macOS ARM64のZIPとSHA256SUMSが添付されている。macOSはad-hoc署名のみで、Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。
+- このPRの作業開始前の基準点はmain `dd86f92` で、その時点の[main CI](https://github.com/mt4110/veil-rs/actions/runs/38697625189)は成功していた。これはPR #166の検証結果ではなく、マージ後のmain/CIを示すものでもない。PR #166の検証状況はPR Checksを参照する。rc.4の署名タグは配布元 `a897e8f` を指し、公開時点のmain `08538de` とtreeが一致した。公開済みrc.4タグは後続の文書変更を含まない。
+- 0.21.0正式版は未公開。残るリリース作業は、正式版の版番号・変更記録を確定し、その内容でmainのCIを通し、正式版ZIPとSHA256SUMSを再生成・検証し、署名tagとRelease本文・添付を照合したうえで公開すること。現在の公開RCで「正式版も公開済み」とは扱わない。
+- 実作業での再利用は未確認として公開後に追跡する。利用者による再利用実績は利用継続の証拠であり、技術的な正式版公開条件とは分ける。
+
+
+## M1入りrc.3の準備記録（公開済み・履歴）
 
 main `bded3ae` は別インデックスの検査・生成フックの停止条件・既存フック保全を修正し、[マージ後CI](https://github.com/mt4110/veil-rs/actions/runs/38670786876)全6ジョブが成功した。
 旧候補04745e7のZIP・本文・検証記録を保全し、新しい固定コミットからLinux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを再生成・検証して、同じrc.3ドラフトへ反映する。この準備時点では公開済みrc.2を変更せず、rc.4は作らない方針だった。その後rc.3を公開し、PR #163の氏名ルール修正に伴いrc.4を別候補として準備する。
@@ -81,6 +89,8 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 
 ## 未検証と公開前の判断
 
+以下はrc.1作成時の判断記録であり、現行0.21.0正式版の残条件ではない。現行の未完了作業は冒頭の「現在の状態」を参照する。
+
 baseline適用時の上限情報、Gitの最初のコミット、対話モードの不完全判定、Git blob取得失敗時の保存拒否を修正した0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS / Linux 7.0.0-38-genericの実機でネイティブビルド・実行・同梱検査を確認。同じmusl targetの通常357件・最小356件・JP358件・LSP25件、release関連回帰84件は失敗/ignored 0件。配布ZIPから取り出したCLIの21ケースで終了コード2・部分結果非出力・新規baseline非作成・既存baseline保全と正常系を確認した。release LSPのCLI経由・単体のstdio実起動、診断更新、修正候補、正常終了も確認した。構成間の件数は重複するため固有テスト総数として合算しない。
 Windowsネイティブ/MSVC、現行RCのARM64/他ディストリビューション/旧カーネル、IDE GUI連携、LSPバイナリ配布のライセンスpacket、Developer ID署名/公証/ダウンロード後のGatekeeper/SmartScreenは未検証。
 [Linuxガイド](../cli/linux-distribution.md)・[Windowsガイド](../cli/windows-distribution.md)の旧候補の結果を、現在のソースに流用しない。
@@ -90,7 +100,7 @@ crates.io公開、旧UI/サービス全体の動作確認、性能の優位性�
 
 ## 公開前の必須課題
 
-以下はRC作成時の検証・公開前ゲートの記録。0.21.0-rc.1は公開済みであり、ここに残る再生成・公開前確認の記述を現在の未公開状態と解釈しない。
+以下は0.21.0-rc.1作成時の検証・公開前ゲートの履歴。ここに残る再生成・公開前確認を現行の未完了条件として扱わない。
 
 採用済みの修正と最新文書は隔離Gitブランチ・コミットに固定し、main向け差分の適用・再構成・公開範囲を確認する。ローカルの固定は公開・hosted CIの成功を意味しない。
 
@@ -111,6 +121,6 @@ macOSのad-hoc署名は開発者の身元確認や公証を提供しない。ロ
 
 crates.io公開は今回の範囲外。Cargoのlicenseメタデータは4つのOSSクレートでMIT OR Apache-2.0を継承するが、ソースパッケージへのライセンス原文同梱はcrates.io公開前の別ゲート。
 
-## 0.21.0-rc.4公開済みプレリリース
+## 0.21.0-rc.4公開済みプレリリース（履歴）
 
-[rc.4のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)は公開済み。署名タグは配布元 `a897e8f` を指し、PR #164マージ後main `08538de` とtreeが一致する。[main CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)は全6ジョブ成功。Linux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを公開後に再取得して照合済み。macOSはad-hoc署名のみで、Developer ID・公証・ダウンロード時Gatekeeperは未確認。実作業での再利用も未確認。今回のREADME/チュートリアル更新では、公開済みZIPを変更しない。
+[rc.4のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)は公開済み。署名タグは配布元 `a897e8f` を指し、PR #164マージ後main `08538de` とtreeが一致する。[その時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)は全6ジョブ成功。Linux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを公開後に再取得して照合済み。現在のmainは後続文書PRを含む `dd86f92` で、rc.4タグのソースは変わらない。macOSはad-hoc署名のみで、Developer ID・公証・ダウンロード時Gatekeeperは未確認。実作業での再利用も未確認。公開済みZIPの本文書変更による差し替えは行わない。

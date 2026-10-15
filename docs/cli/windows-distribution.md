@@ -1,13 +1,15 @@
-# Windows配布候補
+# Windows配布候補（過去のGNU候補記録）
+
+> **現行RCの対象外:** 0.21.0-rc.4はLinux x86_64 musl・macOS ARM64のみを配布します。以下のWindows GNU/Wine/MSVCの情報は旧候補の証拠であり、現在のWindows対応・配布を示すものではありません。
 
 2026-10-13: 0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でビルド・起動・配布検査を確認しました。以下の旧ARM64・QEMU・Windows候補の記録は統合前の結果で、現行候補へ流用しません。Windowsネイティブ／MSVCは未検証です。
 
 Status: `reference`
 Updated: 2026-10-12
 
-## 対応対象と検証の区別
+## 旧候補の対象と検証の区別
 
-現在のローカル候補は **x86_64-pc-windows-gnu / Rust 1.92.0**。ARM64 Linux上のMinGW-w64 12.0.0、GCC 14.2.0 POSIX、binutils 2.44でクロスビルドしたPE32+コンソール実行ファイルです。
+当時のローカル候補は **x86_64-pc-windows-gnu / Rust 1.92.0**。ARM64 Linux上のMinGW-w64 12.0.0、GCC 14.2.0 POSIX、binutils 2.44でクロスビルドしたPE32+コンソール実行ファイルです。
 [同じRust版の対応表](https://github.com/rust-lang/rust/blob/1.92.0/src/doc/rustc/src/platform-support.md)に従い、対象は64bit x86 Windows 10以降 / Windows Server 2016以降とします。この最低条件を実Windowsで確認したわけではありません。
 
 | 項目 | 現在の証拠 |

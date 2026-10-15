@@ -1,8 +1,10 @@
 # Docs Portal
 
+Use this page as the map. Current release conditions and candidate history live in [OSS CLI release status](ci/oss-cli-release.md); other pages explain product behavior, architecture, and historical designs. Historical or reference documents do not override current code, CI, or release status.
+
 Status: `active`
 
-通常利用は [README](../README.md)、製品の範囲は [SSOT](SSOT.md) を参照してください。
+通常利用は [README](../README.md)、製品の範囲は [SSOT](SSOT.md) を参照してください。公開済みRCと正式版の条件は[リリース状況](ci/oss-cli-release.md)で確認してください。
 配布アーカイブでは、以下のガイドを含む選定済みの文書だけを同梱します。開発・検証コマンドは別途ソースを取得して実行します。
 
 - [初回利用チュートリアル](cli/getting-started.md): 自分のファイルの初回スキャン、ステージ済み変更の点検、次回利用。架空入力の学習手順は任意。
@@ -21,7 +23,7 @@ Status: `active`
 
 `docs/architecture/**` と上記の製品・開発入口は active。
 CLI・baseline・rules・integrations・runbook・security/threat_model は reference。
-過去のops・PR・roadmap・設計・商用検討は、その時点の資料として読みます。通常CLIの仕様はSSOTと実装を優先します。
+過去のops・PR・roadmap・設計・商用検討は、その時点の資料として読みます。通常CLIの仕様はSSOTと実装を優先します。roadmapや設計資料に残る未完了チェックリストを現行必須条件として復活させません。
 細かい分類は `scripts/check_docs_taxonomy.py` のRULESを参照してください。
 
 ```bash
