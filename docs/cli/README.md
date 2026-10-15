@@ -41,7 +41,7 @@ veil scan --help
 導入前に手動の [ステージ済み点検](getting-started.md#commit前にステージ済み変更を点検する) を確認します。Gitと同じCLIをPATHへ用意し、`veil pre-commit init` を実行します。生成フックは `veil scan --staged --fail-on-findings 1 --mask-mode redact --no-color` を使い、未抑制の検出があれば停止します。
 
 - フックスクリプトの終了0は検出条件に該当しない状態、1は検出による停止、2は実行エラーによる停止です。CLIがPATHにない場合もエラーとして止めます。Git commit自体の終了値とは区別してください。
-- 配置先はGitが選ぶhooksディレクトリです。global/localの `core.hooksPath` とlinked worktreeを反映し、設定値は変更しません。worktreeでは他のworktreeとhooksを共有する場合があります。
+- 配置先はGitが選ぶhooksディレクトリです。global/localの `core.hooksPath` とlinked worktreeを反映し、設定値は変更しません。worktreeでは他のworktreeとhooksを共有する場合があります。globalの `core.hooksPath` が共有ディレクトリを指す場合、新規フックが他のリポジトリにも適用されることがあるため、導入先を確認してください。
 - 既存の `pre-commit` がある場合は、通常ファイル・symlink・壊れたsymlinkを含め置換・退避せずに拒否します。再導入も同様です。既存のチェックを維持したまま、上記のscanコマンドと終了判定を既存フックへ手動で統合してください。既存フックの正常終了より前へ追加し、scanが失敗した場合はその終了値を返すようにしてください（例：`veil scan --staged --fail-on-findings 1 --mask-mode redact --no-color || exit $?`）。別のフック管理ツールを黙って無効化しません。
 - 旧版が作った `pre-commit.veil.bak` は自動実行・復元しません。内容を確認して必要なチェックを統合します。
 - 入力・設定・無視範囲の制限は通常scanと同じです。0件や終了0をリポジトリ全体の安全保証にしません。Git GUI等からの実行でも、その環境のPATHと有効フックを確認してください。
