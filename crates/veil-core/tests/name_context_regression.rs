@@ -68,3 +68,43 @@ fn name_context_preserves_other_rules_on_the_same_line() {
         .iter()
         .any(|finding| finding.rule_id == "pii.person.name.keyword"));
 }
+
+#[test]
+fn name_context_preserves_adjacent_labels_without_punctuation() {
+    for content in [
+        "container-name mapping Name Alice Morgan",
+        "container-name mapping name Alice Morgan",
+        "container-name mapping Name Hanako Sato",
+    ] {
+        assert!(
+            names(content, "guide.md") > 0,
+            "adjacent person label must survive"
+        );
+    }
+}
+
+#[test]
+fn name_context_handles_matching_yaml_scalar_quotes() {
+    for content in [
+        "- name: \"Run clippy\"",
+        "- name: 'Run clippy'",
+        "- name: \"Check formatting\"",
+        "- name: 'Check formatting'",
+        "- name: \" Run clippy \"",
+    ] {
+        assert_eq!(names(content, "workflow.yml"), 0, "quoted CI action");
+    }
+    for content in [
+        "- name: \"Alice Morgan\"",
+        "- name: 'Hanako Sato'",
+        "- name: \"Run clippy\"; Name Alice Morgan",
+        "- name: 'Check formatting'; Name Alice Morgan",
+        "- name: \"Run clippy",
+        "- name: 'Run clippy\"",
+    ] {
+        assert!(
+            names(content, "workflow.yml") > 0,
+            "person or unclosed scalar remains a candidate"
+        );
+    }
+}

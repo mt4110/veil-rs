@@ -604,6 +604,9 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
             rest.chars()
                 .next()
                 .is_none_or(|ch| !ch.is_ascii_alphanumeric() && ch != '_')
+                // The regex may greedily include another labeled person in the
+                // same candidate. Keep that candidate rather than hiding it.
+                && !contains_person_name_label(rest)
         })
     {
         return true;
@@ -611,9 +614,29 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
     // These complete CI action labels are not personal names. Other YAML names,
     // including names on another part of the same line, remain candidates.
     before.trim() == "-"
-        && candidate
-            .strip_prefix("name:")
-            .is_some_and(|value| matches!(value.trim(), "check formatting" | "run clippy"))
+        && candidate.strip_prefix("name:").is_some_and(|value| {
+            let value = value.trim();
+            let value =
+                if let Some(quote) = value.chars().next().filter(|ch| matches!(ch, '\'' | '"')) {
+                    // The name regex stops before the closing quote. Require
+                    // the same quote in the original line before suppressing.
+                    if !content[span.byte_end..].starts_with(quote) {
+                        return false;
+                    }
+                    value[quote.len_utf8()..].trim()
+                } else {
+                    value
+                };
+            matches!(value, "check formatting" | "run clippy")
+        })
+}
+
+fn contains_person_name_label(content: &str) -> bool {
+    content.contains("氏名")
+        || content.contains("名前")
+        || content
+            .split(|ch: char| !ch.is_ascii_alphabetic() && ch != '_')
+            .any(|token| token.eq_ignore_ascii_case("name"))
 }
 
 fn has_adjacent_postal_version_marker(content: &str, span: FindingSpan) -> bool {
