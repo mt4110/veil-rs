@@ -8,7 +8,7 @@ Updated: 2026-10-14
 main `bded3ae` は別インデックスの検査・生成フックの停止条件・既存フック保全を修正し、[マージ後CI](https://github.com/mt4110/veil-rs/actions/runs/38670786876)全6ジョブが成功した。
 旧候補04745e7のZIP・本文・検証記録を保全し、新しい固定コミットからLinux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを再生成・検証して、同じrc.3ドラフトへ反映する。この準備時点では公開済みrc.2を変更せず、rc.4は作らない方針だった。その後rc.3を公開し、PR #163の氏名ルール修正に伴いrc.4を別候補として準備する。
 最終ZIPから取り出したCLIで、既存の安全性検査に加え、別index、実際の部分コミット、フック停止と既存フック保全を両OSで確認する。macOSはad-hocのみでDeveloper ID・公証・隔離属性付きGatekeeperは未検証。
-上記はrc.3準備時の記録で、現在rc.3は公開済み。rc.4の配布元コミットとハッシュは新しい準備記録とReleaseドラフト本文に記録し、rc.4のタグpush・公開・X投稿は行わない。
+上記はrc.3準備時の記録で、現在rc.3は公開済み。rc.4準備時も配布元コミットとハッシュを準備記録とドラフト本文へ記録し、当時はタグpush・公開を行わなかった。現在の公開状態は以下のrc.4節を参照する。
 
 ## 公開対象と現在の制限
 
@@ -110,3 +110,7 @@ crates.io公開、旧UI/サービス全体の動作確認、性能の優位性�
 macOSのad-hoc署名は開発者の身元確認や公証を提供しない。ローカルの署名整合・起動検査と、ダウンロード由来の隔離属性を伴うGatekeeper試験を区別する。後者は未検証として明記し、今回のローカル起動成功で置き換えない。
 
 crates.io公開は今回の範囲外。Cargoのlicenseメタデータは4つのOSSクレートでMIT OR Apache-2.0を継承するが、ソースパッケージへのライセンス原文同梱はcrates.io公開前の別ゲート。
+
+## 0.21.0-rc.4公開済みプレリリース
+
+[rc.4のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)は公開済み。署名タグは配布元 `a897e8f` を指し、PR #164マージ後main `08538de` とtreeが一致する。[main CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)は全6ジョブ成功。Linux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを公開後に再取得して照合済み。macOSはad-hoc署名のみで、Developer ID・公証・ダウンロード時Gatekeeperは未確認。実作業での再利用も未確認。今回のREADME/チュートリアル更新では、公開済みZIPを変更しない。
