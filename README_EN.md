@@ -36,7 +36,7 @@ The minimum kernel version is not established. Older kernels, other distribution
 The previous Debian 13 GNU candidate needs glibc 2.39 or later plus libz.so.1 and libgcc_s.so.1; it failed to start on Ubuntu 22.04 with glibc 2.35.
 Choose the correct CPU and distribution variant. See the [Linux distribution guide (日本語)](docs/cli/linux-distribution.md) for build instructions, verification and limits.
 
-### Windows requirements and validation scope
+### Historical Windows candidate validation (not current release support)
 
 The x86_64 Windows GNU candidate was cross-built with Rust 1.92.0 / MinGW-w64 and passed startup, masked JSON and exit codes 0/1/2 under Wine 10.0 plus QEMU on an actual ARM64 host. The target baseline is Windows 10+ / Server 2016+; native Windows and the existing MSVC CI candidate remain untested.
 Declared normal/delay PE imports contain 12 Windows-provided dependencies and no additional MinGW runtime DLLs. Static MinGW/GCC runtime notices are included. Clean Windows DLL resolution and signing remain unverified. See the [Windows distribution guide](docs/cli/windows-distribution.md) for exact dependencies and limits.
