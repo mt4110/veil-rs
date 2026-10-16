@@ -31,7 +31,7 @@ DOCUMENTS = (
     "NOTICE", "THIRD_PARTY_NOTICES.md", MANIFEST,
     "docs/README.md", "docs/SSOT.md", "docs/DEVELOPMENT.md", "docs/DEVELOPMENT_EN.md",
     "docs/TESTING_SECRETS.md", "docs/architecture/local-oss.md", "docs/ci/oss-cli-release.md",
-    "docs/cli/README.md", "docs/cli/getting-started.md", "docs/cli/usage-guidelines.md",
+    "docs/cli/README.md", "docs/cli/getting-started.md", "docs/cli/getting-started.en.md", "docs/cli/usage-guidelines.md",
     "docs/cli/linux-distribution.md",
     "docs/cli/windows-distribution.md",
     "docs/cli/scan.md", "docs/cli/init.md", "docs/baseline/usage.md", "docs/json-schema.md",

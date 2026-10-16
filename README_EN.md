@@ -6,7 +6,7 @@ Veil is an open-source Rust CLI for local secret detection and masking in source
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
 Detection can produce false positives and miss secrets; it does not prove that a project is secret-free.
 
-[日本語](README.md) · [Tutorial (日本語)](docs/cli/getting-started.md) · [Usage guidelines (日本語)](docs/cli/usage-guidelines.md) · [CLI](docs/cli/README.md) · [Development](docs/DEVELOPMENT_EN.md) · [Architecture](docs/architecture/local-oss.md)
+[日本語](README.md) · [Tutorial](docs/cli/getting-started.en.md) · [Usage guidelines (日本語)](docs/cli/usage-guidelines.md) · [CLI](docs/cli/README.md) · [Development](docs/DEVELOPMENT_EN.md) · [Architecture](docs/architecture/local-oss.md)
 
 ## Install and scan
 
@@ -25,7 +25,7 @@ The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usag
 Source code and development scripts are not bundled; development commands require a source checkout.
 The 0.21.0 ZIPs are published. Their bundled documentation is the build-time snapshot and still includes preparation status and rc.4 download instructions; use this release's assets and the current tutorial. Later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
 
-M1 development adds an offline installer to newly generated candidate ZIPs. See the [installation and PATH guide](docs/cli/install.en.md). Published 0.21.0 and rc.4 ZIPs do not contain this script; 0.22.0 is not published.
+0.22.0 development adds bilingual CLI help, an English tutorial and an offline installer to newly generated candidate ZIPs. See the [installation and PATH guide](docs/cli/install.en.md). Published 0.21.0 and rc.4 ZIPs do not contain this script; 0.22.0 is not published.
 
 ### Linux environments and requirements
 
