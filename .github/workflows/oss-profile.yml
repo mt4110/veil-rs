@@ -110,6 +110,9 @@ jobs:
       - name: First scan and staged workflow on release CLI
         run: |
           python scripts/check_staged_workflow.py --binary .local/ci/oss-release/veil | tee .local/ci/staged-workflow.json
+      - name: Local installer acceptance on extracted CLI ZIP
+        run: |
+          python scripts/check_cli_install.py --archive .local/ci/oss-release.zip | tee .local/ci/installer-check.json
       - name: Upload CLI verification record
         uses: actions/upload-artifact@v4
         with:
@@ -118,5 +121,6 @@ jobs:
             .local/ci/oss-release-check.txt
             .local/ci/oss-archive-check.json
             .local/ci/staged-workflow.json
+            .local/ci/installer-check.json
             .local/ci/oss-release/SHA256SUMS
           if-no-files-found: error

@@ -26,7 +26,8 @@ PACKAGES = ("veil-config", "veil-core", "veil-cli")
 ALIGNED_PACKAGES = (*PACKAGES, "veil-lsp")
 # Reviewed explicitly; links never add new files to the bundle.
 DOCUMENTS = (
-    "README.md", "README_EN.md", "LICENSE-MIT", "LICENSE-APACHE",
+    "README.md", "README_EN.md", "LICENSE-MIT", "LICENSE-APACHE", "install.sh",
+    "docs/cli/install.md", "docs/cli/install.en.md",
     "NOTICE", "THIRD_PARTY_NOTICES.md", MANIFEST,
     "docs/README.md", "docs/SSOT.md", "docs/DEVELOPMENT.md", "docs/DEVELOPMENT_EN.md",
     "docs/TESTING_SECRETS.md", "docs/architecture/local-oss.md", "docs/ci/oss-cli-release.md",
