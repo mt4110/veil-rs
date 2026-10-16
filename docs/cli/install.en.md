@@ -49,7 +49,7 @@ command -v veil
 veil --version
 ```
 
-Use the version reported by the bundled CLI. M1 development still uses 0.21.0; this does not mean 0.22.0 has been released. Continue with the [first scan, staged check and next use](getting-started.md#自分のファイルを一つスキャンする) (Japanese). CLI-wide help language support belongs to M2; `--lang` here applies only to this installer.
+Use the version reported by the bundled CLI. M1 development still uses 0.21.0; this does not mean 0.22.0 has been released. Continue with the [first scan, staged check and next use](getting-started.md#自分のファイルを一つスキャンする) (Japanese). The installer and CLI select their help language separately; see the M2 candidate guidance below.
 
 ## Conflicts, failures and returning to a previous version
 
@@ -64,3 +64,11 @@ sh install.sh --lang en --activate
 Version ordering is not inferred; a downgrade is also explicit. Keep previous archives: run their `install.sh --activate` with the same prefix to switch back. Older 0.21.0 archives without an installer can still run directly from their original location; restore the previous PATH manually if appropriate. `--activate` does not force replacement of another tool's CLI.
 
 Failures return exit code 2. An existing link is not switched before copying and verification finish. Failed `.install.*` staging directories or activation links may remain at the reported path for inspection. Retries use a new staging directory; old versions are not deleted, automatically uninstalled or cleaned up. After an activation failure, check command resolution and version again.
+
+## CLI help language in M2 development candidates
+
+Candidates containing M2 support `veil --lang en --help` and `veil --lang ja help scan`. Published 0.21.0 / rc.4 binaries do not support this CLI option. Version 0.22.0 is not published.
+
+Priority: `--lang` > `VEIL_LANG` > `LC_ALL` > `LC_MESSAGES` > `LANG` > English. Empty environment values are ignored. Only the first nonempty locale is considered: a `ja` primary language selects Japanese; all other locales select English. Invalid explicit or `VEIL_LANG` values exit 2; a valid explicit option overrides an invalid environment value.
+
+Across the 19 public help pages, `-h` summarizes the operation; `--help` and `help <command>` include examples and essential constraints. No arguments shows help in the same language. This does not translate scan results, JSON/SARIF or general runtime errors. The existing `init --wizard` language selection remains separate. The English tutorial and full onboarding acceptance remain M3 work.

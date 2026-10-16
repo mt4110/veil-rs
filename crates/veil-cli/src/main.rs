@@ -2,9 +2,9 @@ mod cli;
 mod commands;
 mod config_loader;
 mod formatters;
+mod help;
 mod output;
 
-use clap::Parser;
 use cli::{Cli, Commands, RulesCommand};
 use colored::Colorize;
 
@@ -32,8 +32,9 @@ fn main() -> anyhow::Result<()> {
     })
     .expect("Error setting Ctrl-C handler");
 
-    let cli = Cli::parse();
+    let (cli, language) = help::parse();
     let Cli {
+        lang: _,
         config,
         no_color,
         quiet,
@@ -141,8 +142,7 @@ fn main() -> anyhow::Result<()> {
         Some(Commands::Verify(args)) => commands::verify::verify(args).map(|_| false),
         None => {
             // If no subcommand is provided, print help
-            use clap::CommandFactory;
-            let _ = Cli::command().print_help();
+            let _ = help::command(language).print_long_help();
             exit(0);
         }
     };

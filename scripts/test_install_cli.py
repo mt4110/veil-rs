@@ -290,6 +290,12 @@ class InstallerTests(unittest.TestCase):
         self.run_install(packet, code=2)
         self.assertFalse(self.prefix.exists())
 
+    def test_explicit_install_language_overrides_invalid_cli_environment(self):
+        result = self.run_install(None, '--lang', 'en',
+                                  env={**self.env, 'VEIL_LANG': 'invalid'})
+        self.assertIn('PATH', result.stdout)
+        self.assertTrue((self.prefix / 'bin/veil').is_symlink())
+
     def test_language_priority_invalid_values_and_help_are_side_effect_free(self):
         r = self.run_install(None, '--help', env={**self.env, 'LANG': 'ja_JP.UTF-8'})
         self.assertIn('ユーザー領域', r.stdout)

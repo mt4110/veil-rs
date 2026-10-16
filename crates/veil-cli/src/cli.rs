@@ -7,6 +7,10 @@ use veil_core::Severity;
 #[command(version)]
 #[command(about = "Local secret scanning and masking", long_about = None)]
 pub struct Cli {
+    /// Language for help (ja/en); does not translate scan output
+    #[arg(long, global = true)]
+    pub lang: Option<String>,
+
     /// Path to config file (default: ./veil.toml)
     #[arg(long, short, global = true)]
     pub config: Option<PathBuf>,
