@@ -67,7 +67,7 @@ verify_packet() (
     LC_ALL=C awk '
         NF != 2 || length($1) != 64 || $1 ~ /[^0-9a-f]/ { exit 1 }
         $2 ~ /[^A-Za-z0-9_.+\/-]/ || $2 ~ /^\// || $2 ~ /(^|\/)\.\.?($|\/)/ || $2 ~ /\/\// { exit 1 }
-        $2 == "SHA256SUMS" || seen[$2]++ { exit 1 }
+        $2 == "-" || $2 == "SHA256SUMS" || seen[$2]++ { exit 1 }
         { required[$2] = 1; count++ }
         END { if (!count || !required["veil"] || !required["install.sh"] || !required["LICENSE-MIT"] || !required["LICENSE-APACHE"] || !required["NOTICE"] || !required["THIRD_PARTY_NOTICES.md"] || !required["third_party/manifest.json"]) exit 1 }
     ' "$packet/SHA256SUMS" || exit 1

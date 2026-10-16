@@ -183,7 +183,9 @@ class InstallerTests(unittest.TestCase):
         packet = self.mutable_packet()
         manifest = packet / 'SHA256SUMS'
         original = manifest.read_text()
+        (packet / '-').write_text('Never treat this regular file as standard input.\n')
         for content in [original + 'a' * 64 + '  ../outside\n',
+                        original + 'a' * 64 + '  -\n',
                         original + original.splitlines()[0] + '\n',
                         '\n'.join(l for l in original.splitlines() if not l.endswith('  LICENSE-MIT')) + '\n']:
             manifest.write_text(content)
