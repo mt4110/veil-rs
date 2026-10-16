@@ -1,5 +1,5 @@
 bin.name = "veil"
-args = ["lsp", "--help"]
+args = ["--lang", "en", "lsp", "--help"]
 status = "success"
 stdout = """
 Run the Veil language server over stdio
@@ -7,10 +7,27 @@ Run the Veil language server over stdio
 Usage: veil lsp [OPTIONS]
 
 Options:
-  -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
-      --preset <ID>      Apply a built-in preset as the base config layer
-      --no-color         Disable colored output
-  -q, --quiet            Suppress non-essential output
-  -h, --help             Print help
+      --lang <LANG>
+          Language for help (ja/en); does not translate scan output
+
+      --preset <ID>
+          Apply a built-in preset as the base config layer
+
+  -c, --config <CONFIG>
+          Path to config file (default: ./veil.toml)
+
+  -h, --help
+          Print help
+
+      --no-color
+          Disable colored output
+
+  -q, --quiet
+          Suppress non-essential output
+
+Examples:
+veil lsp --preset fintech-jp
+
+Requires a separately installed veil-lsp on PATH. The CLI ZIP does not include the server; normal scans do not start it.
 """
 stderr = ""

@@ -1,5 +1,5 @@
 bin.name = "veil"
-args = ["--help"]
+args = ["--lang", "en", "--help"]
 status = "success"
 stdout = """
 Local secret scanning and masking
@@ -21,10 +21,28 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config <CONFIG>  Path to config file (default: ./veil.toml)
-      --no-color         Disable colored output
-  -q, --quiet            Suppress non-essential output
-  -h, --help             Print help
-  -V, --version          Print version
+      --lang <LANG>
+          Language for help (ja/en); does not translate scan output
+
+  -c, --config <CONFIG>
+          Path to config file (default: ./veil.toml)
+
+      --no-color
+          Disable colored output
+
+  -q, --quiet
+          Suppress non-essential output
+
+  -h, --help
+          Print help
+
+  -V, --version
+          Print version
+
+Examples:
+veil scan main.py --mask-mode redact --fail-on-findings 1
+veil scan --staged --mask-mode redact --fail-on-findings 1
+
+Exit codes: 0 below thresholds, 1 findings threshold, 2 error/incomplete scan. Ignored files and empty stages are not proof of safety. Help language does not translate reports or runtime errors.
 """
 stderr = ""

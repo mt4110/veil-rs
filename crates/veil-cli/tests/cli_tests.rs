@@ -15,7 +15,7 @@ fn cli_tests() {
 #[test]
 fn help_surface_matches_the_selected_profile() {
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_veil"))
-        .arg("--help")
+        .args(["--lang", "en", "--help"])
         .output()
         .unwrap();
     assert!(output.status.success());

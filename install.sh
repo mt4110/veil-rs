@@ -89,7 +89,7 @@ case "$(uname -s):$(uname -m):$header" in
     Darwin:arm64:cffaedfe0c000001*) target=aarch64-darwin ;;
     *) fail 'This archive does not match this supported OS/CPU.' '配布物と対応OS・CPUが一致しません。' ;;
 esac
-version_output=$("$source_dir/veil" --version) || fail 'Cannot run the CLI; nothing activated.' 'CLIを実行できません。呼出先は切り替えていません。'
+version_output=$(VEIL_LANG=en "$source_dir/veil" --version) || fail 'Cannot run the CLI; nothing activated.' 'CLIを実行できません。呼出先は切り替えていません。'
 version=${version_output#veil }
 valid_version() { printf '%s\n' "$1" | LC_ALL=C awk 'NR != 1 || $0 !~ /^[0-9]+\.[0-9]+\.[0-9]+([-+][A-Za-z0-9_.+-]+)?$/ { exit 1 }'; }
 if [ "$version_output" = "$version" ] || ! valid_version "$version"; then
