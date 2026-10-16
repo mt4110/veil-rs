@@ -1,6 +1,6 @@
 # Windows配布候補（過去のGNU候補記録）
 
-> **現行RCの対象外:** 0.21.0-rc.4はLinux x86_64 musl・macOS ARM64のみを配布します。以下のWindows GNU/Wine/MSVCの情報は旧候補の証拠であり、現在のWindows対応・配布を示すものではありません。
+> **現行正式版の対象外:** 0.21.0はLinux x86_64 musl・macOS ARM64のみを配布します。以下のWindows GNU/Wine/MSVCの情報は旧候補の証拠であり、現在のWindows対応・配布を示すものではありません。
 
 2026-10-13: 0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でビルド・起動・配布検査を確認しました。以下の旧ARM64・QEMU・Windows候補の記録は統合前の結果で、現行候補へ流用しません。Windowsネイティブ／MSVCは未検証です。
 

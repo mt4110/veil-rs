@@ -1,8 +1,6 @@
 # Veil — Local secret detection and masking
 
-**0.21.0 is in preparation and is not published.** This source checkout uses version 0.21.0; the public download instructions below still use rc.4. For an already obtained 0.21.0 candidate archive, use the [candidate archive instructions](docs/cli/getting-started.md#正式版候補zipを取得済みの場合). Published rc.4 archives and tags are unchanged.
-
-[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) is a published prerelease, not the current stable release (`v0.20.0`). Its trial archives target Linux x86_64 musl and macOS ARM64. The macOS binary is ad-hoc signed; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. See the [release status and history](docs/ci/oss-cli-release.md) for current conditions and candidate-specific evidence. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the rc.4 download URLs.
+**[0.21.0 is published as a stable release](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0).** ZIPs and SHA256SUMS are available for Linux x86_64 musl and macOS ARM64. The macOS binary remains an ad-hoc-signed trial asset; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. See the [release status and history](docs/ci/oss-cli-release.md) for source and validation evidence. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the stable download URLs. Published rc.4 assets remain unchanged.
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
@@ -14,7 +12,7 @@ Detection can produce false positives and miss secrets; it does not prove that a
 
 ### Binary archive
 
-The published rc.4 archives contain `veil`, the READMEs, `docs/`, project license texts, and `SHA256SUMS`. There is no Windows archive for the current RC.
+The published 0.21.0 archives contain `veil`, the READMEs, `docs/`, project license texts, and `SHA256SUMS`. There is no Windows archive for the current release.
 On macOS/Linux, run the following from the extracted directory. The PATH change applies to the current shell.
 
 ```bash
@@ -25,14 +23,14 @@ veil --help
 
 The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
 Source code and development scripts are not bundled; development commands require a source checkout.
-The rc.4 ZIPs are published. Their bundled documentation is the release-time snapshot; later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
+The 0.21.0 ZIPs are published. Their bundled documentation is the build-time snapshot and still includes preparation status and rc.4 download instructions; use this release's assets and the current tutorial. Later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
 
 ### Linux environments and requirements
 
-The rc.4 Linux ZIP is statically linked for x86_64 musl and passed native runtime and archive checks on an x86_64 machine and GitHub-hosted CI. The following records describe rc.1 validation. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
+The 0.21.0 Linux ZIP is statically linked for x86_64 musl and passed native runtime and archive checks on an x86_64 machine and GitHub-hosted CI. The following records describe rc.1 validation. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
 ELF checks found no PT_INTERP, DT_NEEDED or GLIBC references. Users need no installed Rust, shared libc, libz or libgcc runtime. License originals, required source archives, checksums and bundled links were checked.
 The musl candidate including the interactive/Git-read fixes passed 357 default, 356 minimal, 358 JP and 25 LSP tests, plus 84 related release-profile regressions. In 21 direct cases, the CLI extracted from the ZIP returned exit code 2 for incomplete scans, emitted no partial report, refused new baselines and preserved existing baselines. LSP stdio startup passed through both the CLI and the standalone server. These runs overlap and must not be added as distinct test cases.
-Older ARM64 and QEMU x86_64 results do not validate this RC on ARM64 or other distributions.
+Older ARM64 and QEMU x86_64 results do not validate this release on ARM64 or other distributions.
 The minimum kernel version is not established. Older kernels, other distributions, separate machines/VMs, other CPUs and performance remain untested.
 
 The previous Debian 13 GNU candidate needs glibc 2.39 or later plus libz.so.1 and libgcc_s.so.1; it failed to start on Ubuntu 22.04 with glibc 2.35.
@@ -63,7 +61,7 @@ veil scan . --fail-on-findings 1
 JSON has `schemaVersion: "veil-v1"`; diagnostics go to stderr. Results are masked by default.
 CLI `--unsafe` and `--mask-mode plain` reveal raw secrets: avoid these modes in stored or shared reports. Config-file `output.mask_mode = "plain"` is rejected with exit code 2.
 
-**Older 0.21.0-rc.1 limitation:** Its ZIP's table format prints raw matches even with `--mask-mode redact`. The published rc.4 ZIP fixes this. Existing rc.1 ZIPs are unchanged; download rc.4.
+**Older 0.21.0-rc.1 limitation:** Its ZIP's table format prints raw matches even with `--mask-mode redact`. The published 0.21.0 ZIP fixes this. Existing rc.1 ZIPs are unchanged; download 0.21.0.
 `--fail-on-findings N` fails when the new count is at least N: use `1` to fail on any finding. `0` is invalid input and returns exit code 2.
 Exit codes: `0` means the configured finding thresholds were not exceeded, `1` means a threshold was exceeded, and `2` means an execution error or a file-count truncation.
 In normal non-interactive filesystem scans, finding-count/file-count truncation, oversized text files and read/UTF-8 errors return 2. Baseline suppression retains finding-limit completeness even when no new findings remain. Check `limit_reached`, `file_limit_reached`, `max_file_size_reached` and `read_error_reached` in the summary. Ignored or binary files may be skipped, so exit code 0 does not prove a complete scan.
@@ -108,7 +106,7 @@ rules_dir = ".veil/rules"
 
 Default workspace commands target `veil-config`, `veil-core`, and `veil-cli`.
 The existing `veil verify` command validates Evidence Pack v1 in both default and minimal builds, including hashes, optional external run_meta anchors, completeness and resource budgets. Its existing input contract is preserved.
-New ledger/Detect/Prove/Decide, PatchGate/VEX and signed-v2 contracts are outside this source candidate. Legacy UI/server/Guardian sources are retained without becoming normal CLI dependencies.
+New ledger/Detect/Prove/Decide, PatchGate/VEX and signed-v2 contracts are outside the 0.21.0 release. Legacy UI/server/Guardian sources are retained without becoming normal CLI dependencies.
 
 See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
 Third-party licenses, copyright notices and included source archives are listed in [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) and [NOTICE](NOTICE).

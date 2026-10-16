@@ -1,8 +1,6 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
-**0.21.0正式版を準備中です（未公開）。** このソースの版番号は0.21.0ですが、以下の公開版取得手順は引き続きrc.4を使用します。新しい保存先へ生成した0.21.0候補ZIPを検査する場合は、[候補ZIPの操作](docs/cli/getting-started.md#正式版候補zipを取得済みの場合)を使ってください。公開済みrc.4のZIP・タグは変更しません。
-
-[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースです。現行の安定版は `v0.20.0` で、rc.4はLinux x86_64 musl・macOS ARM64向けの試用版です。正式版への条件と検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。
+**[0.21.0正式版](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)を公開しました。** Linux x86_64 musl・macOS ARM64のZIPとSHA256SUMSを提供しています。macOSはad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。取得・初回スキャンは以下の手順、配布元と検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。公開済みrc.4も履歴として保持しています。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
 通常ビルドは外部API、ライセンス認証、テレメトリ送信を含みません。組み込みルールで、設定ファイルを作らずにスキャンを始められます。
@@ -13,7 +11,7 @@ Veil は、ソースコードやログに含まれるシークレットをロー
 ## Ubuntuで自分のコードを初回スキャンする
 
 GitHubに公開する前に、自分のPythonプロジェクトなどのソースファイルを一つ点検してみてください。Python以外のソースも対象にできます。
-[0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) のLinux x86_64 musl版を、x86_64実機とGitHub-hosted CIで検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
+[0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) のLinux x86_64 musl版を、x86_64実機とGitHub-hosted CIで検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
 
 Ubuntuのx86_64環境と `curl`・`unzip`・`sha256sum` を用意し、[チュートリアルの取得・チェックサム確認](docs/cli/getting-started.md#ubuntuで自分のコードを試す)から始めてください。取得したCLIの絶対パスを `veil_bin` に入れたら、自分のプロジェクトへ移動して実行します。
 
@@ -43,13 +41,13 @@ printf '終了コード: %s\n' "$scan_status"
 Git操作が失敗した場合は点検へ進まないでください。`--staged` は追加・変更ファイルのインデックス内の内容全体を読みます。修正後は再ステージが必要です。未ステージ・未追跡・変更のないファイルや無視対象まで確認したとは扱いません。空のステージでも終了コード0になります。
 次の変更でもcommit前に同じ順序で点検します。CLIの保存先、対象外ファイル、結果の読み方は [初回から次回までのチュートリアル](docs/cli/getting-started.md#commit前にステージ済み変更を点検する) を参照してください。
 
-今回のRCの配布対象はLinux x86_64 musl・macOS ARM64です。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。
+0.21.0の配布対象はLinux x86_64 musl・macOS ARM64です。macOSはad-hoc署名で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布は対象外です。
 
 ## インストール
 
 ### 配布アーカイブを使う場合
 
-公開済みrc.4のZIPには `veil`、README、`docs/`、ライセンス文書、`SHA256SUMS` が入ります。現行RCのWindows版ZIPはありません。
+公開済み0.21.0のZIPには `veil`、README、`docs/`、ライセンス文書、`SHA256SUMS` が入ります。現行正式版のWindows版ZIPはありません。
 macOS/Linuxでは、そのディレクトリで以下を実行します。PATHの変更は現在のシェルだけに適用されます。
 
 ```bash
@@ -61,23 +59,23 @@ veil --help
 Windows向けの過去の候補検証記録は、現在の配布対象を示しません。
 同梱の [チュートリアル](docs/cli/getting-started.md) と [利用ガイドライン](docs/cli/usage-guidelines.md) はネット接続なしで読めます。
 ソースコードと開発用スクリプトは同梱しません。開発ガイドのビルド・検証はソースを取得してから行います。
-0.21.0-rc.4のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書はRC作成時の版で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
+0.21.0のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書は配布物作成時の版（正式版準備中の記述・rc.4取得手順が残ります）で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
 
 ### Linuxの対応環境・最低条件
 
-0.21.0-rc.4のLinux版はx86_64 musl静的リンクです。実機とGitHub-hosted CIで起動・配布検査・回帰を確認しています。
+0.21.0のLinux版はx86_64 musl静的リンクです。実機とGitHub-hosted CIで起動・配布検査・回帰を確認しています。
 以下は0.21.0-rc.1当時の検証記録です。0.21.0-rc.1のx86_64候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でネイティブビルド・起動・スキャン・マスキング・終了コード0/1/2を確認しました。
 ELFのPT_INTERP・DT_NEEDED・GLIBC参照がなく、利用時のRust・共有libc・libz・libgccの追加インストールは不要です。ライセンス原文・ソース・チェックサム・同梱リンクも検査しました。
 対話/Git読取り異常の修正後のmusl候補で、通常357件・最小356件・JP358件・LSP25件の全テストと、release構成の関連回帰84件が成功しました。配布ZIPから取り出したCLIの21ケースで、不完全時の終了コード2・部分結果非出力・新規baseline非作成・既存baseline保全を確認しています。CLI経由・単体のLSP stdio起動も確認しました。構成間のテストは重複するため合計を固有件数としません。
-旧ARM64候補とQEMUによるx86_64候補の成功は、現行RCのARM64・他ディストリビューションの成功を示しません。
+旧ARM64候補とQEMUによるx86_64候補の成功は、現行正式版のARM64・他ディストリビューションの成功を示しません。
 最低カーネル版は未確定で、旧カーネル・他ディストリビューション・別の実機/VM・他CPU・性能は未検証です。
 
 前回のDebian 13製GNU候補はglibc 2.39以上とlibz.so.1 / libgcc_s.so.1が必要です。Ubuntu 22.04のglibc 2.35では起動に失敗しました。
 CPU/配布方式を区別して候補を選んでください。作成・検査手順と詳しい制限は [Linux配布ガイド](docs/cli/linux-distribution.md) にまとめています。
 
-### Windowsの過去の候補検証記録（現行RCの対象外）
+### Windowsの過去の候補検証記録（現行正式版の対象外）
 
-以下は旧候補に対する記録で、現行rc.4のWindows対応を意味しません。
+以下は旧候補に対する記録で、現行0.21.0のWindows対応を意味しません。
 
 x86_64 Windows GNU候補をRust 1.92.0 / MinGW-w64で実ビルドし、Wine 10.0＋QEMU（ARM64実ホスト）で起動・マスキングJSON・終了コード0/1/2を確認しました。対象はWindows 10以降 / Server 2016以降ですが、Windowsネイティブと既存CIのMSVC候補は未検証です。
 PEの通常/遅延importはWindows提供の12 DLLのみで、追加MinGW DLLは検出しませんでした。静的MinGW/GCCランタイムの原文も同梱します。実WindowsでのDLL解決・クリーン環境・署名は未検証です。[Windows配布ガイド](docs/cli/windows-distribution.md)に具体的なDLL名と制限を記載しています。
@@ -109,7 +107,7 @@ veil scan . --fail-on-findings 1
 `scan` は通常、ファイルを読み取り、結果を標準出力へ表示します。JSON は `schemaVersion: "veil-v1"` を持ち、診断は標準エラーへ出力します。
 結果は既定でマスキングします。CLIの `--unsafe`、`--mask-mode plain` は生の秘密情報を表示するため、保存・共有する出力には使わないでください。設定ファイルの `output.mask_mode = "plain"` は終了コード2で拒否します。
 
-**旧0.21.0-rc.1の注意:** ZIPのtable形式は `--mask-mode redact` でも生の一致値を表示します。公開済み0.21.0-rc.4では修正済みです。rc.1の既存ZIPは変更していないため、rc.4を取得してください。
+**旧0.21.0-rc.1の注意:** ZIPのtable形式は `--mask-mode redact` でも生の一致値を表示します。公開済み0.21.0では修正済みです。rc.1の既存ZIPは変更していないため、0.21.0を取得してください。
 
 `--fail-on-findings` は指定値以上で失敗します。「1件以上」は `1` です。`0` は無効な入力として終了コード2になります。
 
@@ -160,7 +158,7 @@ rules_dir = ".veil/rules"
 
 通常の `cargo build` / `cargo test` は `veil-config`・`veil-core`・`veil-cli` を対象にします。
 既存のEvidence Pack v1を検査する `veil verify` は通常CLIと最小構成の両方で利用できます。ハッシュ・外部run_meta anchor・完全性・入力上限を確認し、既存の入力契約を維持します。
-新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約は公開済み0.21.0-rc.4に含みません。
+新規の台帳・Detect/Prove/Decide・PatchGate/VEX・署名v2契約は公開済み0.21.0に含みません。
 `veil-pro`・`veil-server`・`veil-guardian` は保全した旧メンバーで、通常CLIの依存には含みません。物理削除や公開リリースは未実施です。
 
 ライセンス文書: [LICENSE-MIT](LICENSE-MIT)、[LICENSE-APACHE](LICENSE-APACHE)。
@@ -176,4 +174,4 @@ rules_dir = ".veil/rules"
 
 ## RC作成時の検証記録
 
-候補ごとの固定コミット、試験条件、未検証事項は[リリース履歴](docs/ci/oss-cli-release.md)に集約しています。記録を現行RCの検証へ流用せず、公開済みRCの取得は冒頭の手順を使ってください。
+候補ごとの固定コミット、試験条件、未検証事項は[リリース履歴](docs/ci/oss-cli-release.md)に集約しています。記録を現行正式版の検証へ流用せず、正式版の取得は冒頭の手順、旧RCの取得先はリリース履歴を使ってください。

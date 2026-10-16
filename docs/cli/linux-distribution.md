@@ -5,14 +5,14 @@
 Status: `reference`
 Updated: 2026-10-16
 
-[v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリースで、Linux x86_64 musl・macOS ARM64を対象とします。このページには旧候補や別のビルド対象の記録も含みます。過去の検証証拠として扱ってください。現行RCにはLinux ARM64版・Windows版のZIPはありません。
+[v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) は公開済み正式版で、Linux x86_64 musl・macOS ARM64を対象とします。このページには旧候補や別のビルド対象の記録も含みます。過去の検証証拠として扱ってください。現行正式版にはLinux ARM64版・Windows版のZIPはありません。
 
-[v0.21.0-rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4) は公開済みプレリリース。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
+[v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) は公開済み正式版。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
 以下の候補作成・検証記録は全Linux環境の対応を意味しない。旧ARM64候補は今回の配布対象ではない。リポジトリの後続文書修正は既存配布ZIPへ自動反映されない。
 
-## 0.21.0正式版の準備
+## 0.21.0正式版の公開結果
 
-0.21.0は未公開。Linux x86_64 muslの配布方式を維持し、正式版ソースのCI・静的リンク・展開ZIP・ライセンス・チェックサムを再検証する。rc.4のZIPを改名して正式版にはしない。公開前の候補操作は[チュートリアル](getting-started.md#正式版候補zipを取得済みの場合)を参照する。
+配布元main `61fda63` から最終ZIPを新たにビルドし、静的リンク・展開CLI・ライセンス・チェックサム・回帰を検証した。[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38824887889)は成功し、署名タグ `v0.21.0` は同じコミットを指す。公開後のZIP・SHA256SUMSも再取得して一致を確認済み。Linux ZIP用の独立した署名ファイルはないが、署名タグのメッセージに両ZIPのSHA-256を含む。rc.4のZIPは保持し、改名・差し替えを行っていない。
 
 ## 選定した方式と最低条件
 
@@ -22,7 +22,7 @@ Linux向けの配布候補はmusl静的リンクを優先する。GNUビルド�
 | --- | --- | --- | --- |
 | 旧ARM64 musl静的候補（統合前） | 64bit・little endian ARMv8-AのLinux。共有libc、libz、libgccの追加インストール不要 | Ubuntu 22.04.5 / Alpine 3.22.6のARM64コンテナ。両方ともLinux 6.8.0-90-generic | 最低カーネル版は未確定。旧カーネル、他CPU、実機/別VMでの動作は未検証 |
 | ARM64 GNU候補（前回のDebian 13ビルド） | glibc 2.39以上、libz.so.1、libgcc_s.so.1、標準libm/libc/ローダー | Debian 13 ARM64で起動 | Ubuntu 22.04のglibc 2.35では起動失敗。glibc 2.39より古い環境に配布しない |
-| x86_64 musl静的配布版（0.21.0-rc.4） | x86_64専用の64bit Linuxバイナリ。共有libc/libz/libgcc不要 | x86_64実機とGitHub-hosted CIでネイティブ起動・マスキング・終了コード0/1/2・展開ZIP検査を確認 | 最低カーネル版、旧カーネル、他ディストリビューション・他CPU・性能は未検証 |
+| x86_64 musl静的配布版（0.21.0） | x86_64専用の64bit Linuxバイナリ。共有libc/libz/libgcc不要 | x86_64実機とGitHub-hosted CIでネイティブ起動・マスキング・終了コード0/1/2・展開ZIP検査を確認 | 最低カーネル版、旧カーネル、他ディストリビューション・他CPU・性能は未検証 |
 
 静的候補はRustやmuslを利用者の端末へインストールせずに起動できる。ファイルの読み取り権限と、一時処理・明示した出力先への書込み権限は必要。
 カーネル下限を検証できていないため、上記より古いカーネルでの対応を約束しない。コンテナ試験は同じホストカーネルを共有しており、2種類のカーネルを試したものではない。
@@ -63,7 +63,7 @@ python3 scripts/verify_cli_archive.py --archive <新しいZIP> --require-static 
 
 ## 表記と確認範囲
 
-以下のARM64実装・表記検査は旧候補についての履歴である。現行rc.4のLinux対象はx86_64 muslに限る。
+以下のARM64実装・表記検査は旧候補についての履歴である。現行0.21.0のLinux対象はx86_64 muslに限る。
 
 [第三者表記](../../THIRD_PARTY_NOTICES.md) と [NOTICE](../../NOTICE) は、muslとLLVM libunwindの原文も同梱する。
 ARM64・x86_64のリンクマップではRustのself-contained libc.aとlibunwind.aを確認し、GNU libgccアーカイブの取り込みがないことも確認した。
@@ -126,8 +126,8 @@ release構成の修正回帰・baseline上限・既存v1 verify/safetyの84件�
 完成ZIPからCLIを取り出し、ビルド時と同じバイナリhashを確認した上で21ケースを実行した。対話モードの各不完全判定、CLI/config由来のbaseline抑制、対話と保存の同時指定、Git commit/履歴/stagedのblob欠損、staged HEAD/tree欠損で終了コード2・部分結果非出力・新規baseline非作成・既存baselineのバイト保全を確認した。正常な対話q終了と、最初のコミット前の正常なstaged保存も確認した。Gitlinkの明示的なスキップ、baseline適用時の上限保持、最初のGitコミットと`--since`の検査はrelease回帰にも含める。rc.1作成当時の[公開前ゲートの記録](../ci/oss-cli-release.md#公開前の必須課題)に試験範囲を残す。これは現行正式版の残条件ではない。
 release CLIからのpreset付きLSP起動とrelease LSP単体起動をstdioで確認。initializeの版表示0.21.0-rc.1、マスキング診断、Mask value修正候補、didChange/didCloseの診断更新、shutdown/exit 0を確認した。VS Code等のGUIクライアント実操作は未検証。
 CLI ZIPにはLSP本体を同梱しない。LSPバイナリを配布対象へ加える場合は、独自の依存・原文ライセンス・同梱packetを別途確認する。
-ZIPの564エントリーは許可ファイル一覧と完全一致し、文書リンク・原文/ソース/checksumを検査。第三者依存270件・ライセンスpayload 538件・native component 4件を照合した。ELFのインタープリター・NEEDED共有ライブラリ・GLIBC版付きシンボルはいずれもない。Windowsネイティブ/MSVC、現行RCのARM64/Alpine/旧カーネル、性能は未検証。Hosted CIは上記headで成功。
+ZIPの564エントリーは許可ファイル一覧と完全一致し、文書リンク・原文/ソース/checksumを検査。第三者依存270件・ライセンスpayload 538件・native component 4件を照合した。ELFのインタープリター・NEEDED共有ライブラリ・GLIBC版付きシンボルはいずれもない。Windowsネイティブ/MSVC、現行正式版のARM64/Alpine/旧カーネル、性能は未検証。Hosted CIは上記headで成功。
 
 ## rc.4の公開状態（公開時点の履歴）
 
-配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[公開時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。PR #165マージ時点のmain `dd86f92` は後続文書を含む別treeだった。これは当時の記録であり、現在のmainを示さない。rc.4の取得は上記Releaseとチュートリアルを使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、後続の文書変更で公開済みZIPは差し替えない。
+配布元 `a897e8f` からx86_64実機で最終ZIPをビルド・展開検証し、[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38692792051)も成功。PR #164マージ後main `08538de` は同じtreeで、[公開時点のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38695150522)も成功した。PR #165マージ時点のmain `dd86f92` は後続文書を含む別treeだった。これは当時の記録であり、現在のmainを示さない。rc.4の取得先は[旧rc.4 Release](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)。通常の取得手順は正式版を使う。rc.1/rc.2の旧環境・件数は歴史記録として区別し、後続の文書変更で公開済みZIPは差し替えない。

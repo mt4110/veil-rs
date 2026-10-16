@@ -34,11 +34,11 @@ mainにあるpreset・対話スキャン・テンプレート昇格・スキャ�
 
 `scan_file` / `scan_data` の公開戻り値は互換性のため維持する。BINARY_FILE・MAX_FILE_SIZE・READ_ERRORのsentinel解釈はcoreの `FileScanStatus` に集約し、通常ファイルとGitで読取り異常を検知扱いに混ぜない。検出対象はコマンドごとに異なる。`filter` は標準入力の行、`git scan` は履歴の追加行、`mask` は明示した通常ファイルを扱う。
 
-`scan --staged` はlibgit2のGit環境変数対応の入口を使い、`GIT_INDEX_FILE` を含むインデックス選択を反映する。明示インデックスの空・欠損・非通常ファイル・読込み不正は終了2。生成フックは未抑制検出1件以上で停止し、実行エラーと区別する。導入はGitの有効hooks配置先へ排他的に新規作成し、既存pre-commitの置換・退避やcore.hooksPath変更を行わない。このM1修正は公開済みrc.2/旧rc.3候補（04745e7）には未反映。公開済みrc.3には反映済み。氏名ルール修正を含むrc.4も公開済み。
+`scan --staged` はlibgit2のGit環境変数対応の入口を使い、`GIT_INDEX_FILE` を含むインデックス選択を反映する。明示インデックスの空・欠損・非通常ファイル・読込み不正は終了2。生成フックは未抑制検出1件以上で停止し、実行エラーと区別する。導入はGitの有効hooks配置先へ排他的に新規作成し、既存pre-commitの置換・退避やcore.hooksPath変更を行わない。このM1修正は公開済みrc.2/旧rc.3候補（04745e7）には未反映。公開済みrc.3には反映済み。氏名ルール修正も含む0.21.0正式版は公開済み。
 
 `mask` は全入力を事前確認し、同じディレクトリの一時ファイルから各入力を置換する。行末・末尾改行・権限を保持し、直前に入力バイト列を再確認する。既存backupとsymlinkは拒否する。複数ファイルの一括トランザクション、他プロセスへの排他、クラッシュ時のディレクトリエントリ永続化保証は提供しない。
 
-## 公開準備
+## 配布状態と検証範囲
 
-[現在のリリース条件・状態](../ci/oss-cli-release.md)を正本として、OS別の詳細は[Linux](../cli/linux-distribution.md)・[Windows](../cli/windows-distribution.md)の各記録を参照する。旧候補の成功を現行ソースや別OSへ流用しない。Windowsネイティブ/MSVC、Developer ID署名・公証、性能優位性は未検証。公開済みRCのタグ・ZIPは後続main変更で変わらず、main CI成功だけで配布物の更新を意味しない。
+[現在のリリース条件・状態](../ci/oss-cli-release.md)を正本として、OS別の詳細は[Linux](../cli/linux-distribution.md)・[Windows](../cli/windows-distribution.md)の各記録を参照する。旧候補の成功を現行ソースや別OSへ流用しない。Windowsネイティブ/MSVC、Developer ID署名・公証、性能優位性は未検証。公開済み正式版・RCのタグ・ZIPは後続main変更で変わらず、main CI成功だけで配布物の更新を意味しない。
 局所のレビュー履歴は配布文書へ累積せず、準備レポートで保全する。roadmapと設計資料の未完了タスクを現行通常CLIの完了条件として自動復活させない。

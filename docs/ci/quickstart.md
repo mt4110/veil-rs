@@ -6,9 +6,9 @@ Automate secret detection in your pipeline to catch secrets before they are merg
 
 Copy to `.github/workflows/veil-scan.yml`:
 
-Use a published **stable** release tag (no `-rc`). As of 2026-10-16, the current stable tag is `v0.20.0`; prereleases such as `v0.21.0-rc.4` are not stable.
+Use a published **stable** release tag (no `-rc`). As of 2026-10-16, the current stable tag is `v0.21.0`; prereleases such as `v0.21.0-rc.4` are not stable.
 
-Version 0.21.0 is being prepared and is not available as a public tag yet. The examples intentionally retain the published v0.20.0 tag. Switch both installation examples to v0.21.0 only after that signed tag and release are published; use a source checkout for prepublication verification.
+The signed tag and [0.21.0 release](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) are published. Both installation examples use that fixed tag. Later main changes are not included in its immutable source or published ZIPs.
 
 ```yaml
 name: Veil Scan
@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.20.0 veil-cli
+      - run: cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.21.0 veil-cli
       - run: veil scan . --format json --mask-mode redact --fail-on-severity High > veil-report.json
 ```
 
@@ -67,7 +67,7 @@ jobs:
 
       - name: Install veil
         run: |
-          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.20.0 veil-cli
+          cargo install --locked --git https://github.com/mt4110/veil-rs.git --tag v0.21.0 veil-cli
 
       - name: Run veil scan (HTML)
         run: |
