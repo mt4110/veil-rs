@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 
 
-def verify(binary: Path) -> dict:
+def verify(binary: Path, language: str | None = None) -> dict:
     binary = binary.resolve(strict=True)
     # Retain isolated fixtures for diagnostics; no owner repository is modified.
     root = Path(tempfile.mkdtemp(prefix='veil-staged-workflow-'))
@@ -54,7 +54,7 @@ def verify(binary: Path) -> dict:
     def scan(name: str, expected: int, args: list[str], *, cwd: Path = repo,
              scanned: int | None = None, skipped: int | None = None, finding_path: str | None = None) -> None:
         before = snapshot()
-        result = subprocess.run([str(binary), 'scan', *args, '--mask-mode', 'redact',
+        result = subprocess.run([str(binary), *(['--lang', language] if language else []), 'scan', *args, '--mask-mode', 'redact',
                                  '--no-color', '--fail-on-findings', '1', '--format', 'json'],
                                 cwd=cwd, env=env, capture_output=True, text=True, timeout=60)
         if result.returncode != expected:
@@ -119,6 +119,8 @@ def verify(binary: Path) -> dict:
     git('add', '-f', 'ignored.txt')
     scan('force-added-ignored-secret-excluded', 0, ['--staged'], scanned=0, skipped=1)
     scan('explicit-ignored-file', 1, ['ignored.txt'], finding_path='ignored.txt')
+    (repo / 'invalid-utf8.txt').write_bytes(b'hello\xff\n')
+    scan('incomplete-utf8-error', 2, ['invalid-utf8.txt'])
     scan('missing-input-error', 2, ['missing.py'])
     scan('outside-git-error', 2, ['--staged'], cwd=home)
     return {'status': 'pass', 'cases': results, 'fixture': str(root)}
@@ -127,9 +129,10 @@ def verify(binary: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', required=True, type=Path)
+    parser.add_argument('--lang', choices=('ja', 'en'))
     args = parser.parse_args()
     try:
-        result = verify(args.binary)
+        result = verify(args.binary, args.lang)
     except (AssertionError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as error:
         print(f'Staged workflow check failed: {error}')
         return 1

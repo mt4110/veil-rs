@@ -49,7 +49,7 @@ command -v veil
 veil --version
 ```
 
-Use the version reported by the bundled CLI. M1 development still uses 0.21.0; this does not mean 0.22.0 has been released. Continue with the [first scan, staged check and next use](getting-started.md#自分のファイルを一つスキャンする) (Japanese). The installer and CLI select their help language separately; see the M2 candidate guidance below.
+Use the version reported by the bundled CLI. The candidate reports 0.22.0; this does not mean it has been released. Continue with the [first scan, staged check and next use](getting-started.en.md#scan-one-of-your-own-files). The installer and CLI select their help language separately; see the M2 candidate guidance below.
 
 ## Conflicts, failures and returning to a previous version
 
@@ -71,4 +71,4 @@ Candidates containing M2 support `veil --lang en --help` and `veil --lang ja hel
 
 Priority: `--lang` > `VEIL_LANG` > `LC_ALL` > `LC_MESSAGES` > `LANG` > English. Empty environment values are ignored. Only the first nonempty locale is considered: a `ja` primary language selects Japanese; all other locales select English. Invalid explicit or `VEIL_LANG` values exit 2; a valid explicit option overrides an invalid environment value.
 
-Across the 19 public help pages, `-h` summarizes the operation; `--help` and `help <command>` include examples and essential constraints. No arguments shows help in the same language. This does not translate scan results, JSON/SARIF or general runtime errors. The existing `init --wizard` language selection remains separate. The English tutorial and full onboarding acceptance remain M3 work.
+Across the 19 public help pages, `-h` summarizes the operation; `--help` and `help <command>` include examples and essential constraints. No arguments shows help in the same language. This does not translate scan results, JSON/SARIF or general runtime errors. The existing `init --wizard` language selection remains separate. The [English tutorial](getting-started.en.md) covers the first scan, staged checks and next use. Synthetic acceptance is separate from real development reuse.

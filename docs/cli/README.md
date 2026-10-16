@@ -45,3 +45,5 @@ veil scan --help
 - 既存の `pre-commit` がある場合は、通常ファイル・symlink・壊れたsymlinkを含め置換・退避せずに拒否します。再導入も同様です。既存のチェックを維持したまま、上記のscanコマンドと終了判定を既存フックへ手動で統合してください。既存フックの正常終了より前へ追加し、scanが失敗した場合はその終了値を返すようにしてください（例：`veil scan --staged --fail-on-findings 1 --mask-mode redact --no-color || exit $?`）。別のフック管理ツールを黙って無効化しません。
 - 旧版が作った `pre-commit.veil.bak` は自動実行・復元しません。内容を確認して必要なチェックを統合します。
 - 入力・設定・無視範囲の制限は通常scanと同じです。0件や終了0をリポジトリ全体の安全保証にしません。Git GUI等からの実行でも、その環境のPATHと有効フックを確認してください。
+
+日英の初回→ステージ点検→次回利用: [日本語](getting-started.md) / [English](getting-started.en.md)。0.22.0は準備中です。

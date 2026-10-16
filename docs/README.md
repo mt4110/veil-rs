@@ -31,3 +31,5 @@ CLI・baseline・rules・integrations・runbook・security/threat_model は refe
 python3 scripts/check_docs_taxonomy.py
 python3 scripts/check_architecture.py
 ```
+
+日英の初回→ステージ点検→次回利用: [日本語](cli/getting-started.md) / [English](cli/getting-started.en.md)。0.22.0は準備中です。

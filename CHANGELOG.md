@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - Unreleased
+
+- Install from the extracted ZIP without Rust, sudo, network access or automatic shell-file edits; retain prior versions and refuse unmanaged CLI conflicts.
+- Japanese/English help for the 19 public pages; explicit `--lang` overrides VEIL_LANG and locale. Reports, schemas, command identifiers and runtime messages retain existing contracts.
+- Bilingual installation and first-file → staged-content → repair/restage → next-use guides, included in the archive and linked from help.
+- Native archive acceptance exercises both languages, new shells, exit 0/1/2, ignored/binary/empty-stage cases and source/index preservation using synthetic data. This is not independent-user or real-development reuse evidence.
+- ZIPからのローカル導入、日英help・導入案内、初回から次回までの合成検査を追加。検出ルール・秘匿・不完全検査・フックの安全条件は保持します。
+- Linux x86_64 musl / macOS ARM64 only. macOS remains an ad-hoc-signed trial asset; Developer ID, notarization and downloaded Gatekeeper behavior remain unverified. Published 0.21.0 and rc.4 assets remain unchanged.
+
 ## [0.21.0] - 2026-10-16
 
 [0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) is published as the latest stable release. Published rc.4 remains available as a prerelease. Versions and documentation changed from rc.4; product code and external dependencies did not.
