@@ -2,11 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.21.0] - Unreleased / 正式版準備中
+## [0.21.0] - 2026-10-16
 
-0.21.0 is not published yet. The latest stable release remains v0.20.0; v0.21.0-rc.4 remains available as a prerelease. This preparation changes versions and documentation, with no product-code or external-dependency changes from rc.4.
+[0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) is published as the latest stable release. Published rc.4 remains available as a prerelease. Versions and documentation changed from rc.4; product code and external dependencies did not.
 
-0.21.0は未公開です。最新安定版はv0.20.0、公開済みプレリリースはv0.21.0-rc.4です。今回の正式版準備ではrc.4から製品コード・外部依存を変更せず、版番号と文書を揃えています。
+0.21.0正式版を公開しました。rc.4は公開済みプレリリースとして保持しています。rc.4から製品コード・外部依存を変更せず、版番号と文書を揃えています。
 
 ### Changes since v0.20.0 / v0.20.0からの変更
 
@@ -20,11 +20,11 @@ All notable changes to this project will be documented in this file.
 - 通常CLIの責務・出力秘匿・不完全な検査の終了コード2とbaseline保全を揃え、maskの改行・権限保持と安全な書換え、別インデックスとフック保全、限定的な誤検出修正を含みます。
 - 初回スキャン→ステージ済み変更→次回利用の導線と、公開状態・履歴の区別を整備しました。実作業でのrc.4継続利用は未確認で、合成検査の成功とは区別します。
 
-### Release gates / 公開前の残作業
+### Publication evidence / 公開結果
 
-The preparation PR must pass native Ubuntu/macOS, Linux musl, MSRV and guard checks. After an approved merge, verify main CI, rebuild and verify final versioned archives, and compare signed-tag source and release assets before publication. crates.io publication is outside this release preparation.
+The signed tag points to main `61fda63`, whose Ubuntu/macOS, musl, MSRV and guard CI passed. Final archives were rebuilt and verified natively on both OSes, then public downloads were matched to those verified assets. crates.io publication is excluded.
 
-承認後のマージ、main CI確認、正式版最終ZIP・SHA256SUMSの生成検証、署名タグとRelease本文・添付の照合が必要です。本項目は実施済み・公開済みを意味しません。
+署名タグ・最終ZIP2種・SHA256SUMSを公開し、公開後の取得と一致を確認済みです。[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38824887889)は公開元の検証記録であり、後続の文書更新のCI結果ではありません。macOSの署名制限・実開発での継続利用未確認は引き続き適用されます。
 
 ## Legacy development record labelled 0.22.0 - 2026-02-07 "Guardrails & Evidence / ガードレールと証拠"
 

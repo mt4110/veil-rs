@@ -36,7 +36,7 @@ veil scan --help
 
 ## コミット前フック（現行ソースの修正）
 
-以下はM1修正を含む現行ソースと公開済みrc.3以降の仕様です。公開済みrc.2と旧rc.3候補（固定ソース04745e7）には未反映です。旧候補では生成フックの自動停止や別インデックスの検査を前提にしないでください。M1入りrc.3は公開済みです。氏名ルール修正を含む[rc.4](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.4)も公開済みです。Release本文の配布元コミットとSHA256SUMSを確認してください。
+以下はM1修正を含む現行ソースと公開済みrc.3以降の仕様です。公開済みrc.2と旧rc.3候補（固定ソース04745e7）には未反映です。旧候補では生成フックの自動停止や別インデックスの検査を前提にしないでください。M1入りrc.3は公開済みです。氏名ルール修正も含む[0.21.0正式版](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)は公開済みです。Release本文の配布元コミットとSHA256SUMSを確認してください。
 
 導入前に手動の [ステージ済み点検](getting-started.md#commit前にステージ済み変更を点検する) を確認します。Gitと同じCLIをPATHへ用意し、`veil pre-commit init` を実行します。生成フックは `veil scan --staged --fail-on-findings 1 --mask-mode redact --no-color` を使い、未抑制の検出があれば停止します。
 

@@ -3,21 +3,22 @@
 Status: `reference`
 Updated: 2026-10-16
 
-## 正式版0.21.0の準備状態（2026-10-16）
+## 正式版0.21.0の公開状態（2026-10-16）
 
-- 0.21.0は準備中・未公開。manifest・CLI/core/config/LSP・Cargo.lock・Nixの版番号を0.21.0へ揃える。製品コード・外部依存の内容は公開済みrc.4から変更しない。
-- 準備開始前の基準点はPR #166マージ後main `1db42b7`。[そのコミットのCI](https://github.com/mt4110/veil-rs/actions/runs/38736368362)は全6ジョブ成功した。これは今回の準備差分や将来のマージ後mainに対する検証結果ではない。今回の結果は準備PRのChecksで確認する。
-- 公開済み安定版Latestはv0.20.0、プレリリースはv0.21.0-rc.4。公開済みrc.4の署名タグ・ZIP2種・SHA256SUMSを差し替えない。正式版の取得URLは、タグとReleaseが公開されるまで利用可能と案内しない。
-- 対象はLinux x86_64 muslとmacOS ARM64。macOSは引き続きad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。Windows、Intel Mac、Linux ARM64、LSP単体配布とcrates.io公開は含めない。
-- 公開前に、準備PRの両OS・musl・MSRV・ガード成功、承認後のマージとmain CI、正式版最終ZIP・SHA256SUMSの再生成と展開検査、署名タグの参照先とRelease本文・添付の一致を確認する。タグpush・公開は別途承認後に行う。
-- 実作業での再利用は未確認の追跡項目として保持する。合成検査と独立利用実績を同一視せず、技術的な正式版公開条件とは分ける。
+- [v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)は公開済み正式版で、Latest。manifest・CLI/core/config/LSP・Cargo.lock・Nixの版番号は0.21.0。rc.4から製品コード・外部依存の変更はない。
+- 配布元・署名タグの参照先はPR #167マージ後main `61fda637a63993349a73f7256e4d38108e1258d2`。[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38824887889)はUbuntu/macOS・musl・MSRV・ガード2件の全6ジョブ成功。これは配布元の記録であり、後続の文書更新や現在のmainのCI結果を示さない。
+- Linux x86_64 musl・macOS ARM64の最終ZIPをRust 1.92.0でネイティブ生成し、展開CLIの動作・秘匿・異常系・Gitステージ/フック・ライセンス・内部チェックサム・Linux静的リンクを確認した。ZIP2種とSHA256SUMSを公開後に認証なしで再取得し、検証済み成果物との完全一致を確認した。
+- 署名タグはローカル・push後の参照先一致・GitHubの署名検証を確認済み。タグメッセージには両ZIPのSHA-256を含む。Linux ZIP用の独立した署名ファイルは添付しない。SHA256SUMS単独は発行者の真正性を証明しない。
+- macOSはad-hoc署名の試用版。Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。Windows、Intel Mac、Linux ARM64、LSP単体配布とcrates.io公開は含めない。
+- 公開済み正式版とrc.4のタグ・ZIP・SHA256SUMSは後続の文書変更で差し替えない。正式版ZIP内には作成時点の準備中表記・rc.4取得手順が残るため、取得には[最新版チュートリアル](../cli/getting-started.md#ubuntuで自分のコードを試す)を使う。
+- 実作業での継続利用は未確認の追跡項目として保持する。合成検査と独立利用実績を同一視せず、技術的な公開完了とは分ける。
 
 ## M1入りrc.3の準備記録（公開済み・履歴）
 
 main `bded3ae` は別インデックスの検査・生成フックの停止条件・既存フック保全を修正し、[マージ後CI](https://github.com/mt4110/veil-rs/actions/runs/38670786876)全6ジョブが成功した。
 旧候補04745e7のZIP・本文・検証記録を保全し、新しい固定コミットからLinux x86_64 musl・macOS ARM64のZIP2種とSHA256SUMSを再生成・検証して、同じrc.3ドラフトへ反映する。この準備時点では公開済みrc.2を変更せず、rc.4は作らない方針だった。その後rc.3を公開し、PR #163の氏名ルール修正に伴いrc.4を別候補として準備する。
 最終ZIPから取り出したCLIで、既存の安全性検査に加え、別index、実際の部分コミット、フック停止と既存フック保全を両OSで確認する。macOSはad-hocのみでDeveloper ID・公証・隔離属性付きGatekeeperは未検証。
-上記はrc.3準備時の記録で、現在rc.3は公開済み。rc.4準備時も配布元コミットとハッシュを準備記録とドラフト本文へ記録し、当時はタグpush・公開を行わなかった。現在の公開状態は以下のrc.4節を参照する。
+上記はrc.3準備時の記録で、現在rc.3は公開済み。rc.4準備時も配布元コミットとハッシュを準備記録とドラフト本文へ記録し、当時はタグpush・公開を行わなかった。現在の公開状態は冒頭の正式版節を参照する。
 
 ## 公開対象と現在の制限
 
@@ -33,7 +34,7 @@ main `bded3ae` は別インデックスの検査・生成フックの停止条�
 main `5ae098face5f671efc106a2848f2eaf7d8ae3f79` の修正を基準に、対応4クレート・workspace依存・Cargo.lock・Nixの版番号をrc.2へ揃えた。PR #155〜#157の出力秘匿、テキスト入力/ignore/設定診断、設定とルール読込み、maskの改行/安全な書換え、ignore後の件数予算の修正を含む。
 配布元 `449a1e2e` からLinux x86_64 musl・macOS ARM64を別々にビルドし、展開ZIPの起動・配布検査・回帰を確認した。PR #158マージ後main `b1d3234` とtreeが一致し、[main CI](https://github.com/mt4110/veil-rs/actions/runs/38544422228)の全6ジョブが成功。[rc.2のRelease](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0-rc.2)にZIP2種とSHA256SUMSを公開済み。版番号だけから検証済みとは判断しない。
 
-署名タグ `v0.21.0-rc.2` は検証済み配布元を指し、注記にZIPとSHA256SUMSのハッシュを含む。rc.2はプレリリースとして公開済みで、安定版Latestはv0.20.0のまま。今回の文書更新は公開済みRelease/ZIPを差し替えない。macOSはad-hoc署名の整合検査・ローカル実行のみで、Developer ID、公証、ダウンロード隔離属性付きのGatekeeper試験は提供しない。
+署名タグ `v0.21.0-rc.2` は検証済み配布元を指し、注記にZIPとSHA256SUMSのハッシュを含む。rc.2公開当時、安定版Latestはv0.20.0のままだった。今回の文書更新は公開済みRelease/ZIPを差し替えない。macOSはad-hoc署名の整合検査・ローカル実行のみで、Developer ID、公証、ダウンロード隔離属性付きのGatekeeper試験は提供しない。
 
 ## 自動CI
 
@@ -90,7 +91,7 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 
 ## 未検証と公開前の判断
 
-以下はrc.1作成時の判断記録であり、現行0.21.0正式版の残条件ではない。現行の未完了作業は冒頭の「現在の状態」を参照する。
+以下はrc.1作成時の判断記録であり、現行0.21.0正式版の残条件ではない。現行の未完了作業は冒頭の「正式版0.21.0の公開状態」を参照する。
 
 baseline適用時の上限情報、Gitの最初のコミット、対話モードの不完全判定、Git blob取得失敗時の保存拒否を修正した0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS / Linux 7.0.0-38-genericの実機でネイティブビルド・実行・同梱検査を確認。同じmusl targetの通常357件・最小356件・JP358件・LSP25件、release関連回帰84件は失敗/ignored 0件。配布ZIPから取り出したCLIの21ケースで終了コード2・部分結果非出力・新規baseline非作成・既存baseline保全と正常系を確認した。release LSPのCLI経由・単体のstdio実起動、診断更新、修正候補、正常終了も確認した。構成間の件数は重複するため固有テスト総数として合算しない。
 Windowsネイティブ/MSVC、現行RCのARM64/他ディストリビューション/旧カーネル、IDE GUI連携、LSPバイナリ配布のライセンスpacket、Developer ID署名/公証/ダウンロード後のGatekeeper/SmartScreenは未検証。
