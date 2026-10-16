@@ -28,6 +28,7 @@ Options:
 Examples:
 veil lsp --preset fintech-jp
 
-Requires a separately installed veil-lsp on PATH. The CLI ZIP does not include the server; normal scans do not start it.
+Requires a separately installed veil-lsp on PATH.
+The CLI ZIP does not include the server; normal scans do not start it.
 """
 stderr = ""

@@ -43,6 +43,8 @@ Examples:
 veil scan main.py --mask-mode redact --fail-on-findings 1
 veil scan --staged --mask-mode redact --fail-on-findings 1
 
-Exit codes: 0 below thresholds, 1 findings threshold, 2 error/incomplete scan. Ignored files and empty stages are not proof of safety. Help language does not translate reports or runtime errors.
+Exit codes: 0 below thresholds, 1 findings threshold, 2 error/incomplete scan.
+Ignored files and empty stages are not proof of safety.
+Help language does not translate reports or runtime errors.
 """
 stderr = ""
