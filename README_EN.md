@@ -25,6 +25,8 @@ The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usag
 Source code and development scripts are not bundled; development commands require a source checkout.
 The 0.21.0 ZIPs are published. Their bundled documentation is the build-time snapshot and still includes preparation status and rc.4 download instructions; use this release's assets and the current tutorial. Later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
 
+M1 development adds an offline installer to newly generated candidate ZIPs. See the [installation and PATH guide](docs/cli/install.en.md). Published 0.21.0 and rc.4 ZIPs do not contain this script; 0.22.0 is not published.
+
 ### Linux environments and requirements
 
 The 0.21.0 Linux ZIP is statically linked for x86_64 musl and passed native runtime and archive checks on an x86_64 machine and GitHub-hosted CI. The following records describe rc.1 validation. The 0.21.0-rc.1 x86_64 candidate passed native build, startup, scans, masking and exit codes 0/1/2 on an x86_64 machine running Ubuntu 24.04.5 LTS (Linux 7.0.0-38-generic).
