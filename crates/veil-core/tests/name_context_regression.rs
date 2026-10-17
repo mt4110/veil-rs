@@ -132,3 +132,25 @@ fn name_context_requires_complete_unquoted_action_scalar() {
         assert_eq!(names(content, "workflow.yml"), 0, "complete action scalar");
     }
 }
+
+#[test]
+fn name_context_rejects_port_mapping_prose_only() {
+    for content in [
+        "Docker port/name mapping and refresh operation.",
+        "Docker published-port/name mapping and refresh operation.",
+        "port/name mapping for local development.",
+    ] {
+        assert_eq!(names(content, "guide.md"), 0);
+    }
+    for content in [
+        "port/name Mapping Morgan",
+        "port/name mapping Name Alice Morgan",
+        "port/name mapping and refresh Name Alice Morgan",
+        "port/name mapping and refresh; 氏名: 山田 太郎",
+        "myport/name mapping Name Alice Morgan",
+        "port/name: Alice Morgan",
+        "Name: Alice Morgan",
+    ] {
+        assert!(names(content, "guide.md") > 0, "personal name must survive");
+    }
+}
