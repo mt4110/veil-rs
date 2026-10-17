@@ -64,3 +64,22 @@ fn member_id_context_preserves_test_ipv4() {
         .iter()
         .any(|finding| finding.rule_id == "pii.id.customer_member.keyword"));
 }
+
+#[test]
+fn member_id_context_keeps_the_actual_id_after_an_accessor() {
+    let config = Config::default();
+    let rules = try_get_all_rules(&config, vec![]).unwrap();
+    for label in ["customer_id", "member_id", "user_id", "顧客番号", "会員ID"] {
+        let content = format!(
+            "matches!((task.and_then(|item| item.user_id()), active_uid), (Some(owner), Some(active)) if owner == active); {label}: RECORD-1234"
+        );
+        let findings = scan_content(&content, Path::new("synthetic.rs"), &rules, &config);
+        assert!(
+            findings.iter().any(|finding| {
+                finding.rule_id == "pii.id.customer_member.keyword"
+                    && finding.matched_content.contains("RECORD-1234")
+            }),
+            "the labeled value itself must remain detectable"
+        );
+    }
+}
