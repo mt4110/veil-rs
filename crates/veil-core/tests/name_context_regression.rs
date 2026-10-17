@@ -144,6 +144,8 @@ fn name_context_rejects_port_mapping_prose_only() {
     }
     for content in [
         "port/name Mapping Morgan",
+        "port/name mapping and 佐藤花子",
+        "port/name mapping and refresh with additional explanatory words Name Alice Morgan",
         "port/name mapping Name Alice Morgan",
         "port/name mapping and refresh Name Alice Morgan",
         "port/name mapping and refresh; 氏名: 山田 太郎",

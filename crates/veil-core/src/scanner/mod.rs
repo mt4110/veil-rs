@@ -600,7 +600,9 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
             .chars()
             .next_back()
             .is_none_or(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, '_' | '/'))
-    }) && candidate == candidate.to_ascii_lowercase()
+    }) && candidate
+        .bytes()
+        .all(|ch| ch.is_ascii_lowercase() || ch == b' ')
         && candidate.strip_prefix("name mapping ").is_some_and(|rest| {
             matches!(
                 rest.split_whitespace().next(),
