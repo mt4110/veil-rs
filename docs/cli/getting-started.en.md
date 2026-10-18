@@ -4,19 +4,19 @@ Status: `reference`
 
 [日本語](getting-started.md) · [Installation, PATH and rollback](install.en.md)
 
-0.22.1 is an unpublished preparation candidate containing two narrow false-positive fixes.
-The candidate instructions below use an extracted native ZIP. Published
-[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) includes the installer
-and bilingual help, but not these fixes. Its [download instructions](getting-started.md#ubuntuで自分のコードを試す)
-remain available. Published ZIPs are unchanged.
+[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1) is published as a stable release.
+It includes two narrow false-positive fixes, the offline installer and bilingual help.
+Download the native ZIP and SHA256SUMS from that release, or follow the
+[Ubuntu download and checksum instructions](getting-started.md#ubuntuで自分のコードを試す).
+Bundled documents are fixed build-time snapshots and may still describe preparation;
+use this release's assets and the current guide. Published ZIPs remain unchanged.
 
-## Install the candidate and open a new terminal
+## Install 0.22.1 and open a new terminal
 
 Supported archives: Linux x86_64 musl and macOS ARM64. Before extracting into a new
 directory, compare the exact ZIP with its outer SHA256SUMS and check its source.
 Checksums alone do not authenticate a publisher; use a trusted key to verify a
-signed tag and its recorded ZIP hashes when available. Do not treat an unsigned
-candidate as a signed release. Keep the bundled license texts and notices.
+signed tag and its recorded ZIP hashes. Keep the bundled license texts and notices.
 
 From the extracted archive directory:
 
@@ -40,10 +40,10 @@ veil --lang en scan --help
 veil_bin=$(command -v veil)
 ```
 
-Confirm the expected prefix and candidate version `0.22.1`. Stop if resolution or
+Confirm the expected prefix and release version `0.22.1`. Stop if resolution or
 startup fails. `--lang ja|en` selects help, not all reports or runtime messages.
 Priority is explicit option, VEIL_LANG, LC_ALL, LC_MESSAGES, LANG, then English.
-See the [language details](install.en.md#cli-help-language-in-m2-development-candidates).
+See the [language details](install.en.md#cli-help-language).
 macOS is an ad-hoc-signed trial asset: Developer ID signing, notarization and
 downloaded Gatekeeper behavior remain unverified. Do not disable OS protection.
 

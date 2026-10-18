@@ -7,7 +7,7 @@ Updated: 2026-10-18
 
 ## 現在の配布状態（2026-10-18）
 
-公開済み正式版は[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)で、Linux x86_64 muslのZIPとSHA256SUMSを提供します。[取得手順](getting-started.md#ubuntuで自分のコードを試す)を使用してください。現行ソースは誤検出2件を修正した未公開0.22.1候補です。公開済みZIPを変更せず、候補の検証と公開を区別します。
+公開済み正式版は[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1)で、Linux x86_64 muslのZIPとSHA256SUMSを提供します。[取得手順](getting-started.md#ubuntuで自分のコードを試す)を使用してください。0.22.1は氏名・顧客／会員IDの誤検出2件の限定修正を含みます。公開済みZIPは作成時点の内容を保持し、後続の文書更新で差し替えません。
 
 以下の0.21.0・RCに関する配布検証は過去の版の記録です。後続の候補の検証成功を示しません。
 

@@ -4,7 +4,7 @@ Status: `reference`
 
 [日本語](install.md)
 
-This guide applies to published [0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) and unpublished 0.22.1 candidate ZIPs containing `install.sh`. Published 0.21.0 and rc.4 ZIPs lack the installer and remain unchanged; run `./veil` directly from their extracted directory and compare its version with the original Release.
+This guide applies to published [0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1) and 0.22.0 ZIPs containing `install.sh`. Published 0.21.0 and rc.4 ZIPs lack the installer and remain unchanged; run `./veil` directly from their extracted directory and compare its version with the original Release.
 
 ## Install
 
@@ -49,7 +49,7 @@ command -v veil
 veil --version
 ```
 
-Use the version reported by the bundled CLI. Published 0.22.0 reports 0.22.0; the unpublished candidate reports 0.22.1. Continue with the [first scan, staged check and next use](getting-started.en.md#scan-one-of-your-own-files). The installer and CLI select their help language separately; see the M2 candidate guidance below.
+Use the version reported by the bundled CLI. The current stable release reports `veil 0.22.1`. Older releases report their own version. Continue with the [first scan, staged check and next use](getting-started.en.md#scan-one-of-your-own-files). The installer and CLI select their help language separately; see the help-language guidance below.
 
 ## Conflicts, failures and returning to a previous version
 
@@ -65,9 +65,9 @@ Version ordering is not inferred; a downgrade is also explicit. Keep previous ar
 
 Failures return exit code 2. An existing link is not switched before copying and verification finish. Failed `.install.*` staging directories or activation links may remain at the reported path for inspection. Retries use a new staging directory; old versions are not deleted, automatically uninstalled or cleaned up. After an activation failure, check command resolution and version again.
 
-## CLI help language in M2 development candidates
+## CLI help language
 
-Published 0.22.0 and the 0.22.1 candidate support `veil --lang en --help` and `veil --lang ja help scan`. Published 0.21.0 / rc.4 binaries do not support this CLI option. Version 0.22.1 is not published.
+Published 0.22.1 and 0.22.0 support `veil --lang en --help` and `veil --lang ja help scan`. Published 0.21.0 / rc.4 binaries do not support this CLI option.
 
 Priority: `--lang` > `VEIL_LANG` > `LC_ALL` > `LC_MESSAGES` > `LANG` > English. Empty environment values are ignored. Only the first nonempty locale is considered: a `ja` primary language selects Japanese; all other locales select English. Invalid explicit or `VEIL_LANG` values exit 2; a valid explicit option overrides an invalid environment value.
 

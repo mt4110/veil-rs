@@ -3,15 +3,20 @@
 Status: `reference`
 Updated: 2026-10-18
 
-## 0.22.0の公開状態と0.22.1の準備状態（2026-10-18）
+## 正式版0.22.1の公開状態（2026-10-18）
 
-[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)は公開済み正式版です。Rust不要の導入スクリプト、日英help・チュートリアルを含みます。署名タグの配布元は `5de440e` で、公開時のmain `f995c70` とtreeが一致し、[公開元main CI](https://github.com/mt4110/veil-rs/actions/runs/38843403179)も成功しています。公開後のZIP2種・SHA256SUMSは認証なしの取得と一致を確認済みです。これは公開元の証拠であり、後続変更の検証結果ではありません。
+[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1)は公開済み正式版で、Latestです。氏名・顧客／会員IDの誤検出2件の限定修正を含みます。通常の個人情報、同じ行の別ID、テスト用IPv4の検出を維持しています。
 
-0.22.1は未公開の準備候補です。PR #172で修正した氏名・顧客／会員IDの誤検出2件を含みます。[修正マージ後main CI](https://github.com/mt4110/veil-rs/actions/runs/39082115209)は `481406f` の検証結果です。版番号・文書を揃えた今回の候補は、別途そのheadのCIを成功条件とします。
+- 署名タグの配布元はPR #173マージ後main `62b713cccf23b02eb4210d743dce12b0b7f1186f`。[配布元main CI](https://github.com/mt4110/veil-rs/actions/runs/39083584473)は全6件成功。これは配布元の記録で、後続の文書更新や現行headの検証結果ではありません。
+- 固定ソースからRust1.92.0でLinux x86_64 musl・macOS ARM64をネイティブ生成し、ZIP展開後のCLI・秘匿・終了コード0/1/2・Gitステージ点検・導入時の保全・日英操作導線・第三者表記・内部チェックサム・今回の修正を検証済みです。
+- 署名タグをローカルとpush後に検証し、GitHub側の署名検証と配布元一致も確認済み。タグメッセージには両ZIPのSHA-256を含みます。ZIPごとの独立署名は添付していません。SHA256SUMS単独は発行者の真正性を証明しません。
+- 公開後、ZIP2種とSHA256SUMSを認証なしで再取得し、検証済み成果物とのバイト単位の一致を確認済みです。公開済みZIPには準備中の文書が残るため、取得には[最新チュートリアル](../cli/getting-started.md#ubuntuで自分のコードを試す)を使用します。後続の文書更新は既存ZIPを差し替えません。
+- macOSはad-hoc署名の試用版。Developer ID署名・公証は未実施で、ダウンロード後のGatekeeperは未検証です。Windows・Intel Mac・Linux ARM64・LSP単体配布・crates.io公開は対象外です。
+- 実作業の限定的な自己利用・合成検査と、独立利用者の継続利用は区別します。
 
-CLI/core/config/LSP・lock・Nixを0.22.1へ揃え、通常の個人情報とテスト用IPv4の検出、導入・日英helpの既存契約を保持します。準備段階ではマージ・署名タグpush・Release公開を行いません。公開済み0.22.0・0.21.0・rc.4は変更しません。
+## 0.22.0の公開記録
 
-両OSの候補検証と最終配布元のCI、署名タグ・添付の確認、Release公開は別工程です。macOSはad-hoc署名の試用版で、Developer ID・公証・ダウンロード時Gatekeeperは未確認です。実作業の限定的な自己利用と、独立利用者の継続利用を区別します。新機能は追加しません。
+[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)も公開済み正式版として保持しています。Rust不要の導入スクリプト、日英help・チュートリアルを含みます。署名タグの配布元は `5de440e` で、公開時のmain `f995c70` とtreeが一致し、[当時のmain CI](https://github.com/mt4110/veil-rs/actions/runs/38843403179)も成功しました。タグ・Release・ZIP・SHA256SUMSは変更していません。
 
 ## 正式版0.21.0の公開状態（2026-10-16）
 
