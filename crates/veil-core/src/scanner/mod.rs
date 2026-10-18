@@ -570,6 +570,7 @@ fn uses_jp_normalization(rule: &Rule) -> bool {
 pub fn should_suppress_match(rule: &Rule, content: &str, span: FindingSpan) -> bool {
     match rule.id.as_str() {
         "pii.person.name.keyword" => is_non_person_name_context(content, span),
+        "pii.id.customer_member.keyword" => is_uid_accessor_context(content, span),
         "pii.jp.mynumber.unlabeled" => {
             let context = nearby_match_context(content, span, 24, 16);
             contains_any_literal(context, &["注文番号", "受付番号", "伝票番号"])
@@ -591,6 +592,27 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
     ) else {
         return false;
     };
+    // A lowercase port/name mapping phrase followed by a prose connective.
+    // Inspect the whole remaining line: a greedy/truncated regex candidate can
+    // otherwise swallow a later person label.
+    if before.strip_suffix("port/").is_some_and(|prefix| {
+        prefix
+            .chars()
+            .next_back()
+            .is_none_or(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, '_' | '/'))
+    }) && candidate
+        .bytes()
+        .all(|ch| ch.is_ascii_lowercase() || ch == b' ')
+        && candidate.strip_prefix("name mapping ").is_some_and(|rest| {
+            matches!(
+                rest.split_whitespace().next(),
+                Some("and" | "or" | "for" | "to" | "is")
+            )
+        })
+        && !contains_person_name_label(&content[span.byte_start + "name mapping".len()..])
+    {
+        return true;
+    }
     let candidate = candidate.to_ascii_lowercase();
     // A documentation compound noun, not a standalone person-name label.
     let compound_prefix = before.strip_suffix("container-").is_some_and(|prefix| {
@@ -634,6 +656,32 @@ fn is_non_person_name_context(content: &str, span: FindingSpan) -> bool {
                 };
             matches!(value, "check formatting" | "run clippy")
         })
+}
+
+// Recognize only a Rust matches! tuple comparing optional UID references.
+// A method call is code, not a labeled ID value. Anchoring the whole expression
+// keeps strings, comments, literal IDs and additional ID labels out of this case.
+fn is_uid_accessor_context(content: &str, span: FindingSpan) -> bool {
+    use std::sync::LazyLock;
+    static UID_COMPARISON: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?x)
+            ^ \s* (?: \|\| \s*)? matches! \( \(
+                [a-zA-Z0-9_().|?&\x20]+ \.user_id\(\)\) \s*,
+                \s* [a-z_][a-z0-9_]* \) \s*, \s*
+                \(Some\([a-z_][a-z0-9_]*\), \s* Some\([a-z_][a-z0-9_]*\)\)
+                \s* if \s* [a-z_][a-z0-9_]* \s* == \s* [a-z_][a-z0-9_]*
+            \) \s*,? \s* $",
+        )
+        .expect("valid UID comparison context regex")
+    });
+    content
+        .get(..span.byte_start)
+        .is_some_and(|before| before.ends_with('.'))
+        && content
+            .get(span.byte_start..span.byte_end)
+            .is_some_and(|candidate| candidate.starts_with("user_id()"))
+        && UID_COMPARISON.is_match(content)
 }
 
 // The name regex may stop at punctuation inside a longer YAML scalar.
