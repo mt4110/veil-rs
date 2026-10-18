@@ -46,4 +46,4 @@ veil scan --help
 - 旧版が作った `pre-commit.veil.bak` は自動実行・復元しません。内容を確認して必要なチェックを統合します。
 - 入力・設定・無視範囲の制限は通常scanと同じです。0件や終了0をリポジトリ全体の安全保証にしません。Git GUI等からの実行でも、その環境のPATHと有効フックを確認してください。
 
-日英の初回→ステージ点検→次回利用: [日本語](getting-started.md) / [English](getting-started.en.md)。0.22.0は準備中です。
+日英の初回→ステージ点検→次回利用: [日本語](getting-started.md) / [English](getting-started.en.md)。0.22.0は公開済みです。現行ソースの0.22.1は誤検出2件を修正した未公開候補です。

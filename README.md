@@ -1,6 +1,6 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
-**[0.21.0正式版](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)を公開しました。** Linux x86_64 musl・macOS ARM64のZIPとSHA256SUMSを提供しています。macOSはad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。取得・初回スキャンは以下の手順、配布元と検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。公開済みrc.4も履歴として保持しています。
+**[0.22.0正式版](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)を公開しました。** Linux x86_64 musl・macOS ARM64のZIPとSHA256SUMSを提供しています。macOSはad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。取得・初回スキャンは以下の手順、配布元と検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。公開済みrc.4も履歴として保持しています。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
 通常ビルドは外部API、ライセンス認証、テレメトリ送信を含みません。組み込みルールで、設定ファイルを作らずにスキャンを始められます。
@@ -11,7 +11,7 @@ Veil は、ソースコードやログに含まれるシークレットをロー
 ## Ubuntuで自分のコードを初回スキャンする
 
 GitHubに公開する前に、自分のPythonプロジェクトなどのソースファイルを一つ点検してみてください。Python以外のソースも対象にできます。
-[0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) のLinux x86_64 musl版を、x86_64実機とGitHub-hosted CIで検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
+[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) のLinux x86_64 musl版を、x86_64実機とGitHub-hosted CIで検証しています。Rustのインストール、設定ファイルの生成、RulePack更新は初回には不要です。
 
 Ubuntuのx86_64環境と `curl`・`unzip`・`sha256sum` を用意し、[チュートリアルの取得・チェックサム確認](docs/cli/getting-started.md#ubuntuで自分のコードを試す)から始めてください。取得したCLIの絶対パスを `veil_bin` に入れたら、自分のプロジェクトへ移動して実行します。
 
@@ -59,9 +59,9 @@ veil --help
 Windows向けの過去の候補検証記録は、現在の配布対象を示しません。
 同梱の [チュートリアル](docs/cli/getting-started.md) と [利用ガイドライン](docs/cli/usage-guidelines.md) はネット接続なしで読めます。
 ソースコードと開発用スクリプトは同梱しません。開発ガイドのビルド・検証はソースを取得してから行います。
-0.21.0のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書は配布物作成時の版（正式版準備中の記述・rc.4取得手順が残ります）で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
+0.22.0のLinux x86_64 musl版・macOS ARM64版は公開済みです。公開は全OSの検証完了を意味しません。同梱文書は配布物作成時の版（準備中の記述や以前の版の取得手順が残ります）で、このREADMEやチュートリアルの後続修正は既存ZIPへ自動では反映されません。
 
-0.22.0準備では、ローカル導入スクリプト・日英CLI help・[英語チュートリアル](docs/cli/getting-started.en.md)を新しい候補ZIPに追加しています。[日英の導入・PATH案内](docs/cli/install.md)を参照してください。公開済み0.21.0・rc.4のZIPにはこのスクリプトはなく、0.22.0は未公開です。
+公開済み0.22.0はローカル導入スクリプト・日英CLI help・[英語チュートリアル](docs/cli/getting-started.en.md)を同梱しています。[日英の導入・PATH案内](docs/cli/install.md)を参照してください。現在のソースは誤検出2件を修正した0.22.1候補で、未公開です。公開済み0.22.0・0.21.0・rc.4のZIPは変更しません。
 
 ### Linuxの対応環境・最低条件
 
@@ -77,7 +77,7 @@ CPU/配布方式を区別して候補を選んでください。作成・検査�
 
 ### Windowsの過去の候補検証記録（現行正式版の対象外）
 
-以下は旧候補に対する記録で、現行0.21.0のWindows対応を意味しません。
+以下は旧候補に対する記録で、公開済み0.21.0のWindows対応を意味しません。
 
 x86_64 Windows GNU候補をRust 1.92.0 / MinGW-w64で実ビルドし、Wine 10.0＋QEMU（ARM64実ホスト）で起動・マスキングJSON・終了コード0/1/2を確認しました。対象はWindows 10以降 / Server 2016以降ですが、Windowsネイティブと既存CIのMSVC候補は未検証です。
 PEの通常/遅延importはWindows提供の12 DLLのみで、追加MinGW DLLは検出しませんでした。静的MinGW/GCCランタイムの原文も同梱します。実WindowsでのDLL解決・クリーン環境・署名は未検証です。[Windows配布ガイド](docs/cli/windows-distribution.md)に具体的なDLL名と制限を記載しています。
