@@ -1,23 +1,27 @@
 # OSS CLI release checks
 
 Status: `reference`
-Updated: 2026-10-16
+Updated: 2026-10-18
+
+## 0.22.0の公開状態と0.22.1の準備状態（2026-10-18）
+
+[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)は公開済み正式版です。Rust不要の導入スクリプト、日英help・チュートリアルを含みます。署名タグの配布元は `5de440e` で、公開時のmain `f995c70` とtreeが一致し、[公開元main CI](https://github.com/mt4110/veil-rs/actions/runs/38843403179)も成功しています。公開後のZIP2種・SHA256SUMSは認証なしの取得と一致を確認済みです。これは公開元の証拠であり、後続変更の検証結果ではありません。
+
+0.22.1は未公開の準備候補です。PR #172で修正した氏名・顧客／会員IDの誤検出2件を含みます。[修正マージ後main CI](https://github.com/mt4110/veil-rs/actions/runs/39082115209)は `481406f` の検証結果です。版番号・文書を揃えた今回の候補は、別途そのheadのCIを成功条件とします。
+
+CLI/core/config/LSP・lock・Nixを0.22.1へ揃え、通常の個人情報とテスト用IPv4の検出、導入・日英helpの既存契約を保持します。準備段階ではマージ・署名タグpush・Release公開を行いません。公開済み0.22.0・0.21.0・rc.4は変更しません。
+
+両OSの候補検証と最終配布元のCI、署名タグ・添付の確認、Release公開は別工程です。macOSはad-hoc署名の試用版で、Developer ID・公証・ダウンロード時Gatekeeperは未確認です。実作業の限定的な自己利用と、独立利用者の継続利用を区別します。新機能は追加しません。
 
 ## 正式版0.21.0の公開状態（2026-10-16）
 
-- [v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)は公開済み正式版で、Latest。公開元時点のmanifest・CLI/core/config/LSP・Cargo.lock・Nixの版番号は0.21.0。rc.4から製品コード・外部依存の変更はない。
+- [v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)は公開済み正式版（公開時点ではLatest）。公開元時点のmanifest・CLI/core/config/LSP・Cargo.lock・Nixの版番号は0.21.0。rc.4から製品コード・外部依存の変更はない。
 - 配布元・署名タグの参照先はPR #167マージ後main `61fda637a63993349a73f7256e4d38108e1258d2`。[配布元CI](https://github.com/mt4110/veil-rs/actions/runs/38824887889)はUbuntu/macOS・musl・MSRV・ガード2件の全6ジョブ成功。これは配布元の記録であり、後続の文書更新や現在のmainのCI結果を示さない。
 - Linux x86_64 musl・macOS ARM64の最終ZIPをRust 1.92.0でネイティブ生成し、展開CLIの動作・秘匿・異常系・Gitステージ/フック・ライセンス・内部チェックサム・Linux静的リンクを確認した。ZIP2種とSHA256SUMSを公開後に認証なしで再取得し、検証済み成果物との完全一致を確認した。
 - 署名タグはローカル・push後の参照先一致・GitHubの署名検証を確認済み。タグメッセージには両ZIPのSHA-256を含む。Linux ZIP用の独立した署名ファイルは添付しない。SHA256SUMS単独は発行者の真正性を証明しない。
 - macOSはad-hoc署名の試用版。Developer ID署名・公証・ダウンロード後のGatekeeperは未検証。Windows、Intel Mac、Linux ARM64、LSP単体配布とcrates.io公開は含めない。
 - 公開済み正式版とrc.4のタグ・ZIP・SHA256SUMSは後続の文書変更で差し替えない。正式版ZIP内には作成時点の準備中表記・rc.4取得手順が残るため、取得には[最新版チュートリアル](../cli/getting-started.md#ubuntuで自分のコードを試す)を使う。
 - 実作業での継続利用は未確認の追跡項目として保持する。合成検査と独立利用実績を同一視せず、技術的な公開完了とは分ける。
-
-## 0.22.0候補の準備状態
-
-M1のローカル導入とM2の公開19画面の日英helpはmainへマージ済み。M3では日英チュートリアル、ZIPに同梱した導入から初回・ステージ点検・次回利用までの合成検査を追加し、CLI/core/config/LSP・lock・Nixを0.22.0へ揃える。公開済み0.21.0とrc.4は保持する。
-
-0.22.0は未公開。候補ブランチの検証成功とmainへの反映、最終配布元のCI、署名タグ・添付の確認、Release公開を区別する。macOSはad-hoc署名の試用版で、Developer ID・公証・ダウンロード時Gatekeeper・実開発での継続利用は未確認。追加の大規模機能は出荷条件にしない。
 
 ## M1入りrc.3の準備記録（公開済み・履歴）
 
