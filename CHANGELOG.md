@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.22.0] - Unreleased
+## [0.22.1] - Unreleased
+
+- Narrowly suppress lowercase technical port/name-mapping prose while retaining ordinary person labels and other findings.
+- Distinguish a limited Rust `matches!` UID-accessor comparison from a customer/member ID value; retain labeled IDs, including values on the same line.
+- Add synthetic regressions for both false positives and detection-preservation boundaries. Test/loopback IPv4 addresses are not blanket-excluded.
+- 氏名・顧客／会員IDの誤検出2件を限定修正。通常の個人情報、同じ行の別ID、テスト用IPv4の検出を回帰検査で確認します。
+- Align CLI/core/config/LSP, Cargo.lock and Nix metadata to 0.22.1; correct release-status documentation. External dependencies are unchanged.
+- This is an unpublished preparation candidate. Published 0.22.0 assets remain unchanged. Linux x86_64 musl and macOS ARM64 only; macOS remains an ad-hoc-signed trial asset with Developer ID, notarization and downloaded Gatekeeper behavior unverified.
+
+## [0.22.0] - 2026-10-16
+
+[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) is published. The signed tag and both ZIPs with SHA256SUMS were verified, including anonymous public downloads. Bundled documents are build-time snapshots; later documentation changes do not replace these assets.
+
 
 - Install from the extracted ZIP without Rust, sudo, network access or automatic shell-file edits; retain prior versions and refuse unmanaged CLI conflicts.
 - Japanese/English help for the 19 public pages; explicit `--lang` overrides VEIL_LANG and locale. Reports, schemas, command identifiers and runtime messages retain existing contracts.

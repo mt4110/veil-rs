@@ -4,10 +4,11 @@ Status: `reference`
 
 [日本語](getting-started.md) · [Installation, PATH and rollback](install.en.md)
 
-0.22.0 is a development candidate, not a published release. The instructions below
-use its extracted native ZIP. Published [0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0)
-remains available but has neither `install.sh` nor the CLI `--lang` option; its
-[existing download instructions](getting-started.md#ubuntuで自分のコードを試す) still apply.
+0.22.1 is an unpublished preparation candidate containing two narrow false-positive fixes.
+The candidate instructions below use an extracted native ZIP. Published
+[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) includes the installer
+and bilingual help, but not these fixes. Its [download instructions](getting-started.md#ubuntuで自分のコードを試す)
+remain available. Published ZIPs are unchanged.
 
 ## Install the candidate and open a new terminal
 
@@ -39,7 +40,7 @@ veil --lang en scan --help
 veil_bin=$(command -v veil)
 ```
 
-Confirm the expected prefix and candidate version `0.22.0`. Stop if resolution or
+Confirm the expected prefix and candidate version `0.22.1`. Stop if resolution or
 startup fails. `--lang ja|en` selects help, not all reports or runtime messages.
 Priority is explicit option, VEIL_LANG, LC_ALL, LC_MESSAGES, LANG, then English.
 See the [language details](install.en.md#cli-help-language-in-m2-development-candidates).

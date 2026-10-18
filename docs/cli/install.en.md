@@ -4,7 +4,7 @@ Status: `reference`
 
 [日本語](install.md)
 
-This guide applies to new candidate archives built from the M1 development source. Published 0.21.0 and rc.4 ZIPs do **not** contain `install.sh` and remain unchanged. [Direct execution](getting-started.md#ubuntuで自分のコードを試す) remains available. Version 0.22.0 is not published.
+This guide applies to published [0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0) and unpublished 0.22.1 candidate ZIPs containing `install.sh`. Published 0.21.0 and rc.4 ZIPs lack the installer and remain unchanged; run `./veil` directly from their extracted directory and compare its version with the original Release.
 
 ## Install
 
@@ -49,7 +49,7 @@ command -v veil
 veil --version
 ```
 
-Use the version reported by the bundled CLI. The candidate reports 0.22.0; this does not mean it has been released. Continue with the [first scan, staged check and next use](getting-started.en.md#scan-one-of-your-own-files). The installer and CLI select their help language separately; see the M2 candidate guidance below.
+Use the version reported by the bundled CLI. Published 0.22.0 reports 0.22.0; the unpublished candidate reports 0.22.1. Continue with the [first scan, staged check and next use](getting-started.en.md#scan-one-of-your-own-files). The installer and CLI select their help language separately; see the M2 candidate guidance below.
 
 ## Conflicts, failures and returning to a previous version
 
@@ -67,7 +67,7 @@ Failures return exit code 2. An existing link is not switched before copying and
 
 ## CLI help language in M2 development candidates
 
-Candidates containing M2 support `veil --lang en --help` and `veil --lang ja help scan`. Published 0.21.0 / rc.4 binaries do not support this CLI option. Version 0.22.0 is not published.
+Published 0.22.0 and the 0.22.1 candidate support `veil --lang en --help` and `veil --lang ja help scan`. Published 0.21.0 / rc.4 binaries do not support this CLI option. Version 0.22.1 is not published.
 
 Priority: `--lang` > `VEIL_LANG` > `LC_ALL` > `LC_MESSAGES` > `LANG` > English. Empty environment values are ignored. Only the first nonempty locale is considered: a `ja` primary language selects Japanese; all other locales select English. Invalid explicit or `VEIL_LANG` values exit 2; a valid explicit option overrides an invalid environment value.
 

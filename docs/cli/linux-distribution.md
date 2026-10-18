@@ -3,12 +3,19 @@
 検証履歴（2026-10-13）: 0.21.0-rc.1のLinux x86_64 musl静的候補は、Ubuntu 24.04.5 LTS（Linux 7.0.0-38-generic）のx86_64実機でビルド・起動・配布検査を確認しました。以下の旧ARM64・QEMU・Windows候補の記録は統合前の結果で、現行候補へ流用しません。Windowsネイティブ／MSVCは未検証です。
 
 Status: `reference`
-Updated: 2026-10-16
+Updated: 2026-10-18
+
+## 現在の配布状態（2026-10-18）
+
+公開済み正式版は[0.22.0](https://github.com/mt4110/veil-rs/releases/tag/v0.22.0)で、Linux x86_64 muslのZIPとSHA256SUMSを提供します。[取得手順](getting-started.md#ubuntuで自分のコードを試す)を使用してください。現行ソースは誤検出2件を修正した未公開0.22.1候補です。公開済みZIPを変更せず、候補の検証と公開を区別します。
+
+以下の0.21.0・RCに関する配布検証は過去の版の記録です。後続の候補の検証成功を示しません。
 
 [v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) は公開済み正式版で、Linux x86_64 musl・macOS ARM64を対象とします。このページには旧候補や別のビルド対象の記録も含みます。過去の検証証拠として扱ってください。現行正式版にはLinux ARM64版・Windows版のZIPはありません。
 
 [v0.21.0](https://github.com/mt4110/veil-rs/releases/tag/v0.21.0) は公開済み正式版。Linux版はx86_64 muslのZIPを配布している。初回の取得・チェックサム確認・自分のコードのスキャンは [チュートリアル](getting-started.md#ubuntuで自分のコードを試す) を参照する。同梱README・NOTICE・第三者表記・SHA256SUMSを保持する。
 以下の候補作成・検証記録は全Linux環境の対応を意味しない。旧ARM64候補は今回の配布対象ではない。リポジトリの後続文書修正は既存配布ZIPへ自動反映されない。
+
 
 ## 0.21.0正式版の公開結果
 
