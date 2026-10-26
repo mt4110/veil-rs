@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "metrics": {
+    "counts_by_reason": {},
+    "counts_by_hint": {}
+  },
+  "meta": {
+    "period": "2026-W44",
+    "repo": "github.com/mt4110/veil-rs",
+    "git_commit": "69fa33d3977f0d3296546edb4b275fb29a7d4e0a",
+    "toolchain": "nix"
+  }
+}
