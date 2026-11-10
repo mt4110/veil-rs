@@ -7,8 +7,7 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,8 +15,12 @@ concurrency:
 
 jobs:
   guardrails:
+    permissions:
+      contents: read
     uses: ./.github/workflows/ai_guardrails.yml
   msrv:
+    permissions:
+      contents: read
     name: MSRV (1.92.0)
     uses: ./.github/workflows/oss-profile.yml
     with:
@@ -25,6 +28,8 @@ jobs:
       runner: ubuntu-latest
       toolchain: 1.92.0
   linux-musl:
+    permissions:
+      contents: read
     name: Static Linux musl (x86_64, 1.92.0)
     uses: ./.github/workflows/oss-profile.yml
     with:
@@ -33,6 +38,8 @@ jobs:
       toolchain: 1.92.0
       musl: true
   native:
+    permissions:
+      contents: read
     name: Native (${{ matrix.os }}, 1.92.0)
     strategy:
       fail-fast: false

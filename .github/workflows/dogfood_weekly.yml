@@ -11,8 +11,7 @@ on:
         required: false
         default: ""
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: dogfood-weekly
@@ -25,6 +24,8 @@ env:
 
 jobs:
   dogfood-weekly:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -40,15 +41,14 @@ jobs:
           EOF
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           fetch-tags: true
           clean: true
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v27
-
+        uses: cachix/install-nix-action@ba0dd844c9180cbf77aa72a116d6fbc515d0e87b # v27
       - name: Compute WEEK_ID
         id: week
         shell: bash
@@ -137,7 +137,7 @@ jobs:
 
       - name: Upload dogfood artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dogfood-${{ steps.week.outputs.week_id }}-Tokyo
           path: docs/dogfood/${{ steps.week.outputs.week_id }}-Tokyo
