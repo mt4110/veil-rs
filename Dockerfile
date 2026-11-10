@@ -1,5 +1,5 @@
 # Build Stage
-FROM rust:1.83-slim-bookworm AS builder
+FROM rust:1.92.0-slim-bookworm@sha256:f1f73538ebe623fd3673a35aff3df358ae1084c64c55646516e5b17b321b6c9b AS builder
 
 WORKDIR /usr/src/app
 
@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y git libssl-dev pkg-config && rm -rf /va
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ ./crates/
-COPY veil.toml .
 
 # Build release binary features
 # We enable 'wizard' and 'table' as they are user-facing, though wizard is less relevant for CI.
@@ -17,7 +16,7 @@ COPY veil.toml .
 RUN cargo build --release -p veil-cli --features table
 
 # Runtime Stage
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 WORKDIR /app
 
