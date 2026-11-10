@@ -210,3 +210,39 @@ tags = ["log", "pii"]
     assert!(stderr.contains("missing required logs-jp rules"));
     assert!(stderr.contains("log.pii.credit_card"));
 }
+
+#[test]
+fn test_init_log_pack_toml_errors_omit_source_text() {
+    const MARKER: &str = "SYNTHETIC_RULEPACK_DIAGNOSTIC_MARKER";
+    for filename in ["00_manifest.toml", "secrets.toml"] {
+        let dir = tempdir().unwrap();
+        let rules_dir = dir.path().join("rules/log");
+        fs::create_dir_all(&rules_dir).unwrap();
+        fs::write(
+            rules_dir.join(filename),
+            format!("# synthetic fixture\nvalue = \"{MARKER}\n"),
+        )
+        .unwrap();
+
+        let output = Command::new(env!("CARGO_BIN_EXE_veil"))
+            .current_dir(dir.path())
+            .args(["init", "--profile", "Logs"])
+            .output()
+            .unwrap();
+
+        assert_eq!(output.status.code(), Some(2), "{filename}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(filename),
+            "{filename}: missing file context"
+        );
+        assert!(
+            !stderr.contains(MARKER),
+            "{filename}: diagnostic included TOML source text"
+        );
+        assert!(
+            stderr.contains("line 2, column "),
+            "{filename}: missing TOML error location"
+        );
+    }
+}

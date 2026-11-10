@@ -202,7 +202,20 @@ fn parse_rules_from_path(path: &Path) -> Result<Vec<Rule>> {
 }
 
 pub fn parse_manifest(content: &str) -> Result<RulePackManifest> {
-    toml::from_str(content).map_err(Into::into)
+    parse_pack_toml(content).context("Failed to parse RulePack manifest")
+}
+
+fn parse_pack_toml<T: serde::de::DeserializeOwned>(content: &str) -> Result<T> {
+    toml::from_str(content).map_err(|error| {
+        // The original error can display source text and deserialized values.
+        if let Some(prefix) = error.span().and_then(|span| content.get(..span.start)) {
+            let line = prefix.bytes().filter(|&byte| byte == b'\n').count() + 1;
+            let column = prefix.rsplit('\n').next().unwrap_or("").chars().count() + 1;
+            anyhow::anyhow!("Invalid TOML at line {line}, column {column}")
+        } else {
+            anyhow::anyhow!("Invalid TOML")
+        }
+    })
 }
 
 fn verify_rule_pack_signature_if_required(dir: &Path, manifest: &RulePackManifest) -> Result<()> {
@@ -343,7 +356,7 @@ pub fn load_rules_from_content(
 }
 
 fn parse_rules_from_content(content: &str, source: Option<&Path>) -> Result<Vec<Rule>> {
-    let raw_file: RuleFile = toml::from_str(content)
+    let raw_file: RuleFile = parse_pack_toml(content)
         .with_context(|| format!("Failed to parse rule file content (source: {:?})", source))?;
 
     let mut rules = Vec::new();
