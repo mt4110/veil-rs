@@ -4,11 +4,12 @@ on:
   workflow_call:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   mac-ghost:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +26,8 @@ jobs:
             exit 1
           fi
   version-sync:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -16,11 +16,12 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   verify:
+    permissions:
+      contents: read
     runs-on: ${{ inputs.runner }}
     defaults:
       run:

@@ -11,8 +11,7 @@ on:
         required: false
         default: ""
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: dogfood-weekly
@@ -25,6 +24,8 @@ env:
 
 jobs:
   dogfood-weekly:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:

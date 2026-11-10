@@ -3,14 +3,15 @@ name: Legacy workspace checks
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   nix-check:
+    permissions:
+      contents: read
     name: Nix Check
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +24,8 @@ jobs:
       - run: nix run .#check
 
   go-test:
+    permissions:
+      contents: read
     name: Go Test
     runs-on: ubuntu-latest
     needs: [nix-check]
@@ -42,6 +45,8 @@ jobs:
       - run: nix develop -c go test ./...
 
   msrv:
+    permissions:
+      contents: read
     name: MSRV (1.92.0)
     runs-on: ubuntu-latest
     steps:
@@ -64,6 +69,8 @@ jobs:
         run: cargo test --workspace --lib --bins --verbose
 
   stable:
+    permissions:
+      contents: read
     name: Stable (Latest)
     runs-on: ubuntu-latest
     env:
@@ -164,6 +171,8 @@ jobs:
         run: cargo test --workspace --tests --exclude veil-guardian --verbose
 
   docs-ai-min:
+      permissions:
+        contents: read
       runs-on: ubuntu-22.04
       steps:
           - uses: actions/checkout@v4
@@ -199,6 +208,8 @@ jobs:
                 fi
 
   ai-pack-smoke:
+      permissions:
+        contents: read
       runs-on: ubuntu-22.04
       steps:
           - uses: actions/checkout@v4

@@ -3,11 +3,12 @@ name: Release Drafts (Cockpit)
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   gen:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.7

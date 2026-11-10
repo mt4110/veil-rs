@@ -3,11 +3,12 @@ name: Veil Security Scan
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   security-scan:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

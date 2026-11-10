@@ -4,11 +4,12 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   check-sot:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
