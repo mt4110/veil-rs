@@ -8,7 +8,7 @@ use axum::{
 };
 use base64::Engine;
 use clap::Parser;
-use rand::RngCore;
+use rand::Rng;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. Generate secure random token
     let mut token_bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut token_bytes);
+    rand::rng().fill_bytes(&mut token_bytes);
     let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(token_bytes);
 
     let oauth_config = auth::init_oauth();
@@ -79,8 +79,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/me", get(api::get_me))
         .route("/projects", get(api::list_projects))
         .route("/scan", post(api::scan_project))
-        .route("/runs/:run_id", get(api::get_run_meta))
-        .route("/runs/:run_id/evidence.zip", get(api::export_evidence))
+        .route("/runs/{run_id}", get(api::get_run_meta))
+        .route("/runs/{run_id}/evidence.zip", get(api::export_evidence))
         .route("/policy", get(api::get_policy))
         .route("/doctor", get(api::get_doctor))
         .route("/baseline", post(api::write_baseline))

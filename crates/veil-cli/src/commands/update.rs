@@ -185,7 +185,7 @@ pub fn update(args: &UpdateArgs) -> Result<()> {
             anyhow::bail!("RulePack contains a symbolic link entry");
         }
 
-        if file.name().ends_with('/') {
+        if file.name()?.ends_with('/') {
             std::fs::create_dir_all(&outpath)?;
         } else {
             if let Some(p) = outpath.parent() {

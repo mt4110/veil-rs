@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download, Printer } from 'lucide-svelte';
+  import { FolderSearch, AlertTriangle, ShieldCheck, Play, Loader2, RotateCcw, Download, Printer } from '@lucide/svelte';
   import type { ErrorEnvelope, PresetName, SafeFindingApiV1, ScanRequest, ScanResponse, SeverityName } from './api-contract';
   import type { ScanPreset, ScanState } from './ui-state';
   

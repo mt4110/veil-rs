@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Shield, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from 'lucide-svelte';
+  import { Shield, ScanSearch, FileCheck2, Settings, UserCircle, LogOut } from '@lucide/svelte';
   import ScanView from './ScanView.svelte';
   import PolicyView from './PolicyView.svelte';
   import type { AuthContextType } from './api-contract';

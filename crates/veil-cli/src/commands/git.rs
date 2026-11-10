@@ -182,7 +182,7 @@ fn format_finding(f: &Finding) -> String {
 fn resolve_pr_base(repo: &Repository) -> Result<String> {
     // 1. Try upstream of current HEAD
     if let Ok(head) = repo.head() {
-        if let Some(head_name) = head.shorthand() {
+        if let Ok(head_name) = head.shorthand() {
             if let Ok(branch) = repo.find_branch(head_name, git2::BranchType::Local) {
                 if let Ok(upstream) = branch.upstream() {
                     if let Ok(Some(upstream_name)) = upstream.name() {

@@ -5,8 +5,8 @@ use axum::{
     Router,
 };
 use oauth2::{
-    basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope,
-    TokenResponse, TokenUrl,
+    basic::BasicClient, AuthUrl, ClientId, ClientSecret, CsrfToken, EndpointNotSet, EndpointSet,
+    RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use reqwest::Client;
 use serde::Deserialize;
@@ -15,9 +15,12 @@ use tower_sessions::Session;
 
 use crate::AppState;
 
+type GoogleClient =
+    BasicClient<EndpointSet, EndpointNotSet, EndpointNotSet, EndpointNotSet, EndpointSet>;
+
 #[derive(Clone)]
 pub struct OAuthConfig {
-    pub google_client: Option<BasicClient>,
+    pub google_client: Option<GoogleClient>,
     pub apple_client: Option<BasicClient>,
 }
 
@@ -33,15 +36,19 @@ pub fn init_oauth() -> OAuthConfig {
         std::env::var("GOOGLE_CLIENT_SECRET"),
     ) {
         Some(
-            BasicClient::new(
-                ClientId::new(client_id),
-                Some(ClientSecret::new(client_secret)),
-                AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string()).unwrap(),
-                Some(TokenUrl::new("https://oauth2.googleapis.com/token".to_string()).unwrap()),
-            )
-            .set_redirect_uri(
-                RedirectUrl::new("http://127.0.0.1:3000/auth/google/callback".to_string()).unwrap(),
-            ),
+            BasicClient::new(ClientId::new(client_id))
+                .set_client_secret(ClientSecret::new(client_secret))
+                .set_auth_uri(
+                    AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
+                        .unwrap(),
+                )
+                .set_token_uri(
+                    TokenUrl::new("https://oauth2.googleapis.com/token".to_string()).unwrap(),
+                )
+                .set_redirect_uri(
+                    RedirectUrl::new("http://127.0.0.1:3000/auth/google/callback".to_string())
+                        .unwrap(),
+                ),
         )
     } else {
         None
@@ -104,10 +111,16 @@ async fn google_callback(
         return Redirect::to("/?error=csrf_mismatch");
     }
 
-    // Exchange token
+    // Exchange token without following redirects to another host.
+    let token_client = oauth2::reqwest::Client::builder()
+        .redirect(oauth2::reqwest::redirect::Policy::none())
+        .build();
+    let Ok(token_client) = token_client else {
+        return Redirect::to("/?error=token_exchange_failed");
+    };
     let token = match client
         .exchange_code(oauth2::AuthorizationCode::new(query.code))
-        .request_async(oauth2::reqwest::async_http_client)
+        .request_async(&token_client)
         .await
     {
         Ok(t) => t,

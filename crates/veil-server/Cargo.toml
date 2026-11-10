@@ -5,14 +5,14 @@ edition = "2021"
 rust-version.workspace = true
 
 [dependencies]
-axum = "0.7"
-tokio = { version = "1.0", features = ["full"] }
+axum = "0.8"
+tokio = { version = "1.54", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sqlx-core = { version = "0.8", default-features = false, features = ["json", "migrate", "rustls"] }
-sqlx-postgres = { version = "0.8", default-features = false, features = ["json", "migrate"] }
+sqlx-core = { version = "0.8.6", default-features = false, features = ["json", "migrate", "rustls"] }
+sqlx-postgres = { version = "0.8.6", default-features = false, features = ["json", "migrate"] }
 dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
-base64ct = "=1.6.0"
+base64ct = "=1.8.3"
