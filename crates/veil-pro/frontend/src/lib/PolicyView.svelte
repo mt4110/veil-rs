@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AlertTriangle, CheckCircle2, FileCheck2, RefreshCcw } from 'lucide-svelte';
+  import { AlertTriangle, CheckCircle2, FileCheck2, RefreshCcw } from '@lucide/svelte';
   import type { ConfigLayerName, ErrorEnvelope, PolicyResponse } from './api-contract';
   import type { PolicyViewState } from './ui-state';
 

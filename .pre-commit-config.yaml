@@ -7,3 +7,12 @@ repos:
         language: system
         types: [text]
         exclude: '\.git/|\.png$|\.jpg$'
+      - id: osv-scanner
+        name: Audit dependencies with OSV-Scanner
+        entry: >-
+          osv-scanner scan source --recursive --no-resolve
+          --x-exclude fixtures --x-exclude .local --x-exclude out
+          --x-exclude work --x-exclude node_modules --x-exclude target .
+        language: system
+        always_run: true
+        pass_filenames: false

@@ -939,7 +939,7 @@ pub fn verify_evidence_pack(
     // 2. Stream Process ZIP (Anti-ZipSlip, Anti-ZipBomb, Leakage Check)
     for i in 0..archive.len() {
         let mut zip_entry = archive.by_index(i)?;
-        let name = zip_entry.name().to_string();
+        let name = zip_entry.name()?.into_owned();
 
         if name.ends_with('/') {
             continue;

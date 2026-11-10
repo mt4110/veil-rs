@@ -40,7 +40,7 @@ pub fn generate_fingerprint(finding: &Finding) -> String {
     let mut hasher = Sha256::new();
     hasher.update(input.as_bytes());
     let digest = hasher.finalize();
-    format!("sha256:{:x}", digest)
+    format!("sha256:{}", hex::encode(digest))
 }
 
 pub fn from_findings(findings: &[Finding], tool_version: &str) -> BaselineSnapshot {

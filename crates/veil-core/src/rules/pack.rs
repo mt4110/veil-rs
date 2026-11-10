@@ -280,10 +280,10 @@ fn compute_rule_pack_digest(dir: &Path, manifest: &RulePackManifest) -> Result<S
             .with_context(|| format!("Failed to read RulePack file {:?}", file_path))?;
         let file_digest = Sha256::digest(&bytes);
         hasher.update(format!("file={}\n", file_name).as_bytes());
-        hasher.update(format!("sha256={:x}\n", file_digest).as_bytes());
+        hasher.update(format!("sha256={}\n", hex::encode(file_digest)).as_bytes());
     }
 
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn manifest_rule_files(dir: &Path, manifest: &RulePackManifest) -> Result<Vec<String>> {

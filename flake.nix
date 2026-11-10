@@ -3,15 +3,27 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-intel-mac.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { nixpkgs, nixpkgs-intel-mac, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs { inherit system overlays; };
+        # The unstable channel dropped Intel Mac support in Nixpkgs 26.11.
+        packageSet = if system == "x86_64-darwin" then nixpkgs-intel-mac else nixpkgs;
+        pkgs = import packageSet { inherit system overlays; };
+
+        # The nixpkgs 5.5.0 update kept the 5.4.0 Darwin vendor hash.
+        scorecard =
+          if system == "aarch64-darwin" && pkgs.scorecard.version == "5.5.0"
+          then pkgs.scorecard.overrideAttrs {
+            vendorHash = "sha256-0KKKZheDNRPLBWtwXgXXG+ixpESO+Gq1FsW83PldiVo=";
+          }
+          else pkgs.scorecard;
 
         # --- toolchains ---
         rustStable =
@@ -35,9 +47,11 @@
           # ワークスペースの中の CLI crate を明示
           cargoBuildFlags = [ "--package" "veil-cli" "--bin" "veil" ];
 
-          # OpenSSL とか必要ならここで
           nativeBuildInputs = [ pkgs.pkg-config ];
-          buildInputs = [ pkgs.openssl ];
+          nativeCheckInputs = [ pkgs.git ];
+          buildInputs = [ pkgs.openssl pkgs.zstd ];
+          # Match the CLI's vendored libgit2 configuration.
+          preBuild = "unset LIBGIT2_NO_VENDOR";
         };
 
         # Cockpit Go Binary
@@ -52,7 +66,7 @@
 
           postFixup = ''
             wrapProgram $out/bin/cockpit \
-              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.git pkgs.scorecard ]}
+              --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.git scorecard ]}
           '';
         };
 
@@ -63,6 +77,7 @@
           src = ./.;
           subPackages = [ "cmd/reviewbundle" ];
           vendorHash = null;
+          nativeCheckInputs = [ pkgs.git ];
         };
 
         veilApp = {
@@ -72,7 +87,7 @@
 
         checkScript = pkgs.writeShellApplication {
           name = "check";
-          runtimeInputs = [ pkgs.go_1_24 pkgs.git ];
+          runtimeInputs = [ pkgs.go pkgs.git ];
           text = ''
             unset GOROOT
             unset GOPATH
@@ -86,7 +101,7 @@
 
         goTestScript = pkgs.writeShellApplication {
           name = "go-test";
-          runtimeInputs = [ pkgs.go_1_24 pkgs.git ];
+          runtimeInputs = [ pkgs.go pkgs.git ];
           text = ''
             unset GOROOT
             unset GOPATH
@@ -124,7 +139,7 @@
         };
         prverifyScript = pkgs.writeShellApplication {
           name = "prverify";
-          runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.git pkgs.go_1_24 rustStable ];
+          runtimeInputs = [ pkgs.bash pkgs.coreutils pkgs.git pkgs.go rustStable ];
           text = ''
               set -u
               set -o pipefail
@@ -239,7 +254,7 @@
             rustStable
             pkg-config
             openssl
-            go_1_24
+            go
 
             # Tools
             git
