@@ -25,7 +25,10 @@ env:
 jobs:
   dogfood-weekly:
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      week_id: ${{ steps.week.outputs.week_id }}
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -46,18 +49,21 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           clean: true
+          persist-credentials: false
 
       - name: Install Nix
         uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
       - name: Compute WEEK_ID
         id: week
+        env:
+          REQUESTED_WEEK: ${{ inputs.week_id }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${{ inputs.week_id }}" ]]; then
-            week="${{ inputs.week_id }}"
-          else
-            week="$(date +%G-W%V)"
+          week="${REQUESTED_WEEK:-$(date +%G-W%V)}"
+          if [[ ! "$week" =~ ^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$ ]]; then
+            echo "::error::week_id must be an ISO week such as 2026-W03"
+            exit 1
           fi
           echo "WEEK_ID=$week" >> "$GITHUB_ENV"
           echo "week_id=$week" >> "$GITHUB_OUTPUT"
@@ -80,7 +86,7 @@ jobs:
           ./dist/cockpit-build/bin/cockpit dogfood weekly 2>&1 | tee "$OUTDIR/run.log"
 
       - name: Phase 14 Analysis
-        if: always()
+        if: ${{ !cancelled() && steps.week.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -91,7 +97,7 @@ jobs:
           fi
 
       - name: Ensure Artifacts (Unbreakable Ritual)
-        if: always()
+        if: ${{ !cancelled() && steps.week.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -120,24 +126,81 @@ jobs:
             fi
           done
 
-      - name: Commit and push dogfood artifacts
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "$(git status --porcelain docs/dogfood)" ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add docs/dogfood
-            git commit -m "chore(dogfood): weekly ${WEEK_ID} Tokyo" || true
-            git push || echo "::warning::git push failed (branch protection?). Artifacts were uploaded."
-          else
-            echo "No changes in docs/dogfood; skipping commit."
-          fi
-
       - name: Upload dogfood artifacts
-        if: always()
+        id: artifact
+        if: ${{ !cancelled() && steps.week.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dogfood-${{ steps.week.outputs.week_id }}-Tokyo
           path: docs/dogfood/${{ steps.week.outputs.week_id }}-Tokyo
+          if-no-files-found: error
+
+  publish-pr:
+    needs: dogfood-weekly
+    if: ${{ !cancelled() && needs.dogfood-weekly.outputs.artifact_id != '' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      WEEK_ID: ${{ needs.dogfood-weekly.outputs.week_id }}
+    steps:
+      - name: Create scoped Dogfood GitHub App token
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.DOGFOOD_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DOGFOOD_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          token: ${{ steps.app.outputs.token }}
+
+      - name: Select weekly branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="dogfood/weekly-${WEEK_ID}"
+          existing="$(git ls-remote --heads origin "refs/heads/$branch")"
+          if [[ -n "$existing" ]]; then
+            git fetch --no-tags origin "refs/heads/$branch"
+            git switch -c "$branch" FETCH_HEAD
+          else
+            git switch -c "$branch"
+          fi
+
+      - name: Download weekly artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.dogfood-weekly.outputs.artifact_id }}
+          path: docs/dogfood/${{ needs.dogfood-weekly.outputs.week_id }}-Tokyo
+
+      - name: Publish weekly pull request
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="dogfood/weekly-${WEEK_ID}"
+          target="docs/dogfood/${WEEK_ID}-Tokyo"
+          title="chore(dogfood): weekly ${WEEK_ID} Tokyo"
+          git add -- "$target"
+          if ! git diff --cached --quiet; then
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "$title"
+          fi
+          if git diff --quiet origin/main HEAD -- "$target"; then
+            echo "Weekly artifacts already match main."
+            exit 0
+          fi
+          git push origin "HEAD:refs/heads/$branch"
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base main --head "$branch" --json url --jq '.[0].url // empty')"
+          if [[ -n "$existing" ]]; then
+            echo "Weekly pull request: $existing"
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+              --title "$title" --body "Weekly Dogfood artifacts for ${WEEK_ID}."
+          fi
