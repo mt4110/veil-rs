@@ -4,6 +4,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # SQLx 0.9 requires Rust 1.94.0. Revisit when the workspace MSRV changes.
+      - dependency-name: "sqlx-core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlx-postgres"
+        update-types: ["version-update:semver-major"]
     groups:
       cargo:
         patterns:
@@ -13,6 +19,10 @@ updates:
     directory: /crates/veil-pro/frontend
     schedule:
       interval: weekly
+    ignore:
+      # Revisit when svelte-check supports TypeScript 7 in the existing check script.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend:
         patterns:
