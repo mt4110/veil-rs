@@ -9,12 +9,14 @@ fn test_init_logs_profile_generates_pack() {
     let dir_path = dir.path();
 
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_veil"));
-    cmd.current_dir(dir_path)
+    let init = cmd
+        .current_dir(dir_path)
         .arg("init")
         .arg("--profile")
         .arg("Logs")
-        .assert()
-        .success();
+        .output()
+        .expect("Failed to run veil init");
+    assert!(init.status.success(), "veil init failed");
 
     // Verify veil.toml
     let veil_toml = dir_path.join("veil.toml");
@@ -34,16 +36,11 @@ fn test_init_logs_profile_generates_pack() {
     assert!(rules_dir.join("observability_services.toml").exists());
     assert!(rules_dir.join("README.md").exists());
 
-    // Debug: Check if generated secrets.toml has the placeholder
     let secrets_content = fs::read_to_string(rules_dir.join("secrets.toml")).unwrap();
-    if !secrets_content.contains("placeholder = \"<REDACTED:SECRET>\"") {
-        panic!(
-            "Generated secrets.toml MISSING placeholder! Content snippet:\n{}",
-            &secrets_content[0..300]
-        );
-    } else {
-        println!("Generated secrets.toml HAS placeholder.");
-    }
+    assert!(
+        secrets_content.contains("placeholder = \"<REDACTED:SECRET>\""),
+        "Generated secrets.toml is missing the secret placeholder"
+    );
 
     // Verify filter works with generated pack
     // Secrets
@@ -54,16 +51,19 @@ fn test_init_logs_profile_generates_pack() {
         .arg("filter")
         .write_stdin(input_secret);
     let output = cmd_filter.output().unwrap();
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "veil filter failed for the secret fixture"
+    );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    if !stdout.contains("GH Token: <REDACTED:SECRET>") {
-        panic!("Secret masking failed. Output: '{}'", stdout);
-    }
+    assert!(
+        stdout.contains("GH Token: <REDACTED:SECRET>"),
+        "Secret masking failed"
+    );
 
     // Observability Key
     let input_obs = "OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317";
     let mut cmd_filter_obs = Command::new(env!("CARGO_BIN_EXE_veil"));
-    // Use output() instead of assert() to debug
     let output_obs = cmd_filter_obs
         .current_dir(dir_path)
         .arg("filter")
@@ -71,10 +71,15 @@ fn test_init_logs_profile_generates_pack() {
         .output()
         .unwrap();
 
+    assert!(
+        output_obs.status.success(),
+        "veil filter failed for the observability fixture"
+    );
     let stdout_obs = String::from_utf8_lossy(&output_obs.stdout);
-    if !stdout_obs.contains("<REDACTED:OBSERVABILITY>=http://localhost:4317") {
-        panic!("Obs masking failed. Output: '{}'", stdout_obs);
-    }
+    assert!(
+        stdout_obs.contains("<REDACTED:OBSERVABILITY>=http://localhost:4317"),
+        "Observability masking failed"
+    );
 }
 
 #[test]
