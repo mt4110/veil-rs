@@ -11,15 +11,14 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.7
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
           fetch-tags: true
           clean: true
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v27
-
+        uses: cachix/install-nix-action@ba0dd844c9180cbf77aa72a116d6fbc515d0e87b # v27
       - name: Resolve Version & Base Ref
         id: meta
         shell: bash
@@ -90,7 +89,7 @@ jobs:
           done
 
       - name: Upload release drafts (md only)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: "release_drafts_${{ env.VERSION }}"
           if-no-files-found: error
