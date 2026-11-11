@@ -104,6 +104,72 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 
 実行方式はnative/emulated/unknownを区別する。エミュレーション結果を実機互換性・性能の根拠にしない。HTTP/HTTPSリンクの到達性はofflineリンク検査の対象外。
 
+## CLI 配布 ZIP の分離署名
+
+新規リリースでは、上記の配布検証を通過した macOS arm64 と Linux x86_64 musl の最終 ZIP に、OpenSSH の分離署名を付ける。署名鍵にはリリース専用の Ed25519 鍵を使う。初回公開前に、対応する公開鍵と SHA-256 フィンガープリントを、リポジトリのレビュー済み履歴から取得できるようにする。署名に使う秘密鍵はリリース担当者の管理下に置く。
+
+### 署名する
+
+最終 ZIP 2本があるディレクトリで Bash を使う。`RELEASE_VERSION` に先頭の `v` を除いた版番号を設定し、`RELEASE_SIGNING_KEY` に秘密鍵の絶対パスを設定する。既存の署名があれば、両 ZIP を確認した時点で停止する。
+
+```bash
+(
+  set -euo pipefail
+  : "${RELEASE_VERSION:?set the release version without v}"
+  : "${RELEASE_SIGNING_KEY:?set the path to the release signing key}"
+  zips=(
+    "veil-${RELEASE_VERSION}-aarch64-apple-darwin.zip"
+    "veil-${RELEASE_VERSION}-x86_64-unknown-linux-musl.zip"
+  )
+
+  for zip in "${zips[@]}"; do
+    test -s "$zip"
+    if [[ -e "$zip.sig" || -L "$zip.sig" ]]; then
+      printf 'Signature already exists for %s\n' "$zip" >&2
+      exit 1
+    fi
+  done
+  for zip in "${zips[@]}"; do
+    ssh-keygen -Y sign -f "$RELEASE_SIGNING_KEY" -n veil-rs-release "$zip"
+  done
+)
+```
+
+### 検証する
+
+ZIP と対応する `.zip.sig` を同じディレクトリに置く。信頼済みの経路から取得した Ed25519 公開鍵のパスを `RELEASE_SIGNING_PUBLIC_KEY` に設定し、レビュー済みの記録にあるフィンガープリントを `RELEASE_SIGNING_FINGERPRINT` に設定する。フィンガープリントと両署名がすべて一致した場合だけ公開へ進む。
+
+```bash
+(
+  set -euo pipefail
+  : "${RELEASE_VERSION:?set the release version without v}"
+  : "${RELEASE_SIGNING_PUBLIC_KEY:?set the path to the trusted public key}"
+  : "${RELEASE_SIGNING_FINGERPRINT:?set the trusted SHA256 fingerprint}"
+  fingerprint="$(ssh-keygen -l -E sha256 -f "$RELEASE_SIGNING_PUBLIC_KEY" | awk 'NR == 1 {print $2}')"
+  if [[ "$fingerprint" != "$RELEASE_SIGNING_FINGERPRINT" ]]; then
+    printf 'Release signing key fingerprint mismatch\n' >&2
+    exit 1
+  fi
+
+  allowed_signers="$(mktemp)"
+  trap 'rm -f "$allowed_signers"' EXIT
+  awk 'NR == 1 && $1 == "ssh-ed25519" && NF >= 2 {
+    print "veil-rs-release namespaces=\"veil-rs-release\" " $1 " " $2
+  }' "$RELEASE_SIGNING_PUBLIC_KEY" > "$allowed_signers"
+  test -s "$allowed_signers"
+
+  for zip in \
+    "veil-${RELEASE_VERSION}-aarch64-apple-darwin.zip" \
+    "veil-${RELEASE_VERSION}-x86_64-unknown-linux-musl.zip"
+  do
+    ssh-keygen -Y verify -f "$allowed_signers" -I veil-rs-release \
+      -n veil-rs-release -s "$zip.sig" < "$zip"
+  done
+)
+```
+
+公開時は ZIP 2本、対応する `.zip.sig` 2本、`SHA256SUMS` を添付する。公開後に添付を取得し直し、署名と署名済みタグに記録したダイジェストを照合する。
+
 ## 未検証と公開前の判断
 
 以下はrc.1作成時の判断記録であり、現行0.21.0正式版の残条件ではない。現行の未完了作業は冒頭の「正式版0.21.0の公開状態」を参照する。
