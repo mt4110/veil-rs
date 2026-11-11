@@ -39,7 +39,7 @@
         # ★ ここが新規：veil バイナリパッケージ
         veilPkg = pkgs.rustPlatform.buildRustPackage {
           pname = "veil";
-          version = "0.22.1";
+          version = "0.22.2";
           src = ./.;
 
           cargoLock.lockFile = ./Cargo.lock;

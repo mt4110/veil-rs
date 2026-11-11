@@ -1008,7 +1008,7 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "veil-config"
-version = "0.22.1"
+version = "0.22.2"
 dependencies = [
  "anyhow",
  "regex",
@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "veil-core"
-version = "0.22.1"
+version = "0.22.2"
 dependencies = [
  "anyhow",
  "blake3",
