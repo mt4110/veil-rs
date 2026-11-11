@@ -137,7 +137,9 @@ python3 scripts/verify_cli_archive.py --archive <新規ZIP> --execution-mode nat
 
 ### 検証する
 
-ZIP と対応する `.zip.sig` を同じディレクトリに置く。信頼済みの経路から取得した Ed25519 公開鍵のパスを `RELEASE_SIGNING_PUBLIC_KEY` に設定し、レビュー済みの記録にあるフィンガープリントを `RELEASE_SIGNING_FINGERPRINT` に設定する。フィンガープリントと両署名がすべて一致した場合だけ公開へ進む。
+ZIP と対応する `.zip.sig` を同じディレクトリに置く。信頼済みのリポジトリの履歴から、配布対象に対応する [Ed25519 公開鍵](https://github.com/mt4110/veil-rs/blob/main/docs/security/veil-rs-release-ed25519.pub) とこの手順のフィンガープリントを取得する。例えば、確認済みのコミットを指定して `git show <commit>:docs/security/veil-rs-release-ed25519.pub` で鍵を取り出せる。ZIP を入手した経路とは独立に、公開鍵を取得したリポジトリとコミットを確認する。
+
+この鍵の SHA-256 フィンガープリントは `SHA256:UdvtwJ2HTocMm2555crXrgGdHEd30wtRO7LZT65X7nE`。取得した公開鍵の絶対パスを `RELEASE_SIGNING_PUBLIC_KEY` に設定し、確認済みの履歴に記載されたフィンガープリントを `RELEASE_SIGNING_FINGERPRINT` に設定する。以下の検証でフィンガープリントと両署名が一致することを確認する。
 
 ```bash
 (
