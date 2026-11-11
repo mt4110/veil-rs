@@ -170,6 +170,22 @@ ZIP と対応する `.zip.sig` を同じディレクトリに置く。信頼済�
 
 公開時は ZIP 2本、対応する `.zip.sig` 2本、`SHA256SUMS` を添付する。公開後に添付を取得し直し、署名と署名済みタグに記録したダイジェストを照合する。
 
+## GitHub Actions で配布候補と来歴証明を作る
+
+`release_provenance.yml` ワークフロー を `main` で手動実行し、`source_sha` に実行対象のフルコミット SHA を指定する。指定値が起動時の `main` の SHA と一致した場合に、macOS arm64 と Linux x86_64 musl の各ランナーで Rust 1.92.0 を使ってビルドする。
+
+各ジョブは最終 ZIP を作り、展開後の配布検査とインストール検証を通した後、その ZIP の SLSA 来歴証明を生成する。同じ実行の `veil-release-aarch64-apple-darwin` と `veil-release-x86_64-unknown-linux-musl` に、ZIP、対応する `.zip.intoto.jsonl`、検証記録を保存する。
+
+配布候補を取得したら、ZIP ごとに次のコマンドで来歴証明を再検証する。`ZIP` には対象ファイルのパス、`SOURCE_SHA` には起動時に指定したコミット SHA を設定する。
+
+```bash
+gh attestation verify "$ZIP" --bundle "$ZIP.intoto.jsonl" --repo mt4110/veil-rs \
+  --signer-workflow mt4110/veil-rs/.github/workflows/release_provenance.yml \
+  --source-ref refs/heads/main --source-digest "$SOURCE_SHA"
+```
+
+初回の公開判断では両 ZIP が検証に通り、ZIP を改変したコピーと誤ったソース SHA が拒否されることを確認する。公開を承認した場合は、検証した ZIP と対応する来歴証明を、分離署名と `SHA256SUMS` に添えて公開する。
+
 ## 未検証と公開前の判断
 
 以下はrc.1作成時の判断記録であり、現行0.21.0正式版の残条件ではない。現行の未完了作業は冒頭の「正式版0.21.0の公開状態」を参照する。

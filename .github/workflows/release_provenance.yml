@@ -1,0 +1,144 @@
+name: Build CLI release candidates with provenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full SHA of the main commit to build
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  release-candidate:
+    if: github.ref == 'refs/heads/main'
+    name: Release candidate (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            target: aarch64-apple-darwin
+            musl: false
+          - runner: ubuntu-24.04
+            arch: x86_64
+            target: x86_64-unknown-linux-musl
+            musl: true
+    defaults:
+      run:
+        shell: bash
+    env:
+      LIBGIT2_NO_VENDOR: "0"
+    steps:
+      - name: Verify source and runner
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          if [[ "$SOURCE_SHA" != "$GITHUB_SHA" ]]; then
+            echo "::error::source_sha must match the full SHA of main at dispatch"
+            exit 1
+          fi
+          test "$(uname -m)" = "$TARGET_ARCH"
+          printf 'RELEASE_DIR=%s/veil-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: '1.92.0'
+          targets: ${{ matrix.target }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install native musl C toolchain
+        if: matrix.musl
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes musl-tools
+
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+
+      - name: Build macOS CLI
+        if: ${{ !matrix.musl }}
+        run: cargo build --locked --offline --release -p veil-cli --bin veil --target aarch64-apple-darwin
+
+      - name: Build static Linux CLI
+        if: matrix.musl
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          RUSTFLAGS: -C target-feature=+crt-static
+          ZLIB_STATIC: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RELEASE_DIR"
+          cargo rustc --locked --offline --release -p veil-cli --bin veil --target x86_64-unknown-linux-musl -- \
+            -C "link-arg=-Wl,-Map,$RELEASE_DIR/musl-link.map"
+
+      - name: Package and verify final ZIP
+        id: package
+        env:
+          TARGET: ${{ matrix.target }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          MUSL_BUILD: ${{ matrix.musl }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RELEASE_DIR"
+          binary="target/$TARGET/release/veil"
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          zip="$RELEASE_DIR/veil-$version-$TARGET.zip"
+          bundle="$RELEASE_DIR/bundle"
+          python3 scripts/check_cli_release.py --binary "$binary" --bundle "$bundle" --archive "$zip"
+          options=()
+          if [[ "$MUSL_BUILD" == true ]]; then
+            options+=(--require-static --link-map "$RELEASE_DIR/musl-link.map")
+          fi
+          python3 scripts/verify_cli_archive.py --archive "$zip" --report "$RELEASE_DIR/archive-check.json" \
+            --execution-mode native --execution-host-architecture "$TARGET_ARCH" "${options[@]}"
+          python3 scripts/check_staged_workflow.py --binary "$bundle/veil" > "$RELEASE_DIR/staged-workflow.json"
+          python3 scripts/check_cli_install.py --archive "$zip" > "$RELEASE_DIR/installer-check.json"
+          python3 scripts/check_cli_onboarding.py --archive "$zip" > "$RELEASE_DIR/onboarding-check.json"
+          printf 'zip=%s\n' "$zip" >> "$GITHUB_OUTPUT"
+
+      - name: Attest the verified ZIP
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ steps.package.outputs.zip }}
+
+      - name: Verify the SLSA provenance bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ZIP: ${{ steps.package.outputs.zip }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          jq -c . "$BUNDLE" > "$ZIP.intoto.jsonl"
+          gh attestation verify "$ZIP" --bundle "$ZIP.intoto.jsonl" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release_provenance.yml" \
+            --source-ref refs/heads/main --source-digest "$GITHUB_SHA"
+
+      - name: Upload verified ZIP and provenance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: veil-release-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.zip }}.intoto.jsonl
+            ${{ env.RELEASE_DIR }}/archive-check.json
+            ${{ env.RELEASE_DIR }}/staged-workflow.json
+            ${{ env.RELEASE_DIR }}/installer-check.json
+            ${{ env.RELEASE_DIR }}/onboarding-check.json
