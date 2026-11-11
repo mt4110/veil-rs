@@ -1,5 +1,7 @@
 # Veil — Local secret detection and masking
 
+<a href="https://www.bestpractices.dev/en/projects/16556/passing"><img src="https://www.bestpractices.dev/projects/16556/badge" alt="OpenSSF Best Practices badge"></a>
+
 **[Download v0.22.2](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2).** The stable release includes Linux x86_64 musl and macOS ARM64 ZIPs, SHA256SUMS, and a detached Ed25519 signature and SLSA provenance bundle for each ZIP. [Verify your ZIP](docs/cli/install.en.md#verify-the-download) before extracting it. See the [release status and history](docs/ci/oss-cli-release.md) for the source commit and platform coverage. Windows is outside this release.
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
