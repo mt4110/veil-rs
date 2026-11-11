@@ -1,7 +1,7 @@
 # Weekly dogfood 2026-W46
 
 ## Summary
-- Scorecard: **6.7**
+- Scorecard: **6.9**
 - Total Failure Events: 0 (vs 2026-W45: +0)
 
 ## 改善対象 Top3 (Phase 13 Input)
