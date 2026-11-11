@@ -1,5 +1,7 @@
 # Veil — ローカルで検出・マスキングするシークレットスキャナー
 
+[![OpenSSF Best Practices バッジ](https://www.bestpractices.dev/projects/16556/badge)](https://www.bestpractices.dev/en/projects/16556/passing)
+
 **[v0.22.2 正式版をダウンロード](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2)。** Linux x86_64 musl・macOS ARM64 の ZIP、共通の SHA256SUMS、ZIP ごとの Ed25519 分離署名と SLSA 来歴証明を公開しています。展開前に[ダウンロードを検証](docs/cli/install.md#ダウンロードを検証する)してください。配布元コミットと検証範囲は[リリース状況](docs/ci/oss-cli-release.md)を参照してください。Windows は今回の配布対象外です。
 
 Veil は、ソースコードやログに含まれるシークレットをローカルで検出・マスキングする Rust の OSS CLI です。
