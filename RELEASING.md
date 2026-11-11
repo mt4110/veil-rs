@@ -56,3 +56,4 @@ The final GitHub Release should include:
 1. **Release Notes**: E.g., copy from `v1.0.0_release_notes.md`.
 2. **Binaries**: Pre-compiled artifacts for supported platforms.
 3. **Checksums**: `SHA256SUMS` for the generated binaries to ensure bundle integrity.
+4. **Detached signatures** for both CLI release ZIPs. Follow the [signing and verification procedure](docs/ci/oss-cli-release.md#cli-配布-zip-の分離署名).
