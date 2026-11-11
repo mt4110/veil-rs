@@ -1,0 +1,6 @@
+[[rules]]
+id = "example"
+description = "合成ルール"
+pattern = 'EXAMPLE-[0-9]+'
+severity = "low"
+tags = ["fuzz"]
