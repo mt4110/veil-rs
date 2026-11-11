@@ -1,0 +1,22 @@
+[package]
+name = "veil-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.13"
+veil-core = { path = "../crates/veil-core" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "rulepack_toml"
+path = "fuzz_targets/rulepack_toml.rs"
+test = false
+doc = false
+bench = false
