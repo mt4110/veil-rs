@@ -72,7 +72,9 @@ Release candidates are checked with `python3 scripts/check_cli_release.py --bina
 Keep detection, rules, and masking in `veil-core`; argument parsing, output, and exit-code policy belong in `veil-cli`; configuration types and validation belong in `veil-config`.
 Do not add network clients, license authentication, or services to the default dependency graph. Keep legacy work isolated by explicit package or feature selection. See [architecture](architecture/local-oss.md).
 
-For a change, describe the trigger, expected result, failure behavior, and how it was verified. Use runtime-generated fake credentials, never real keys. Add regression coverage for changed detection, masking, baseline, or exit-code behavior.
+For a change, describe the trigger, expected result, failure behavior, and how it was verified. Use runtime-generated fake credentials, never real keys.
+When adding major new functionality, add tests for its behavior to the existing automated test suite in the same PR.
+Add regression coverage for changed detection, masking, baseline, or exit-code behavior.
 Review dependencies for necessity, license, and security implications before adding them. Review generated reports and baseline metadata before publishing them.
 
 Python 3.11+ is required for the repository's release checks. From the source root:
