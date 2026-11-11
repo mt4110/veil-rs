@@ -8,7 +8,7 @@ Veil は、ソースコードやログに含まれるシークレットをロー
 
 [English](README_EN.md) · [チュートリアル](docs/cli/getting-started.md) · [利用ガイドライン](docs/cli/usage-guidelines.md) · [CLI](docs/cli/README.md) · [開発ガイド](docs/DEVELOPMENT.md) · [アーキテクチャ](docs/architecture/local-oss.md)
 
-一般の不具合や改善提案は [GitHub Issues](https://github.com/mt4110/veil-rs/issues) へお寄せください。脆弱性の疑いがある場合は [セキュリティポリシー](SECURITY.md) の非公開報告手順を使ってください。
+一般の不具合や改善提案は [GitHub Issues](https://github.com/mt4110/veil-rs/issues) へお寄せください。脆弱性の疑いがある場合は [セキュリティポリシー](https://github.com/mt4110/veil-rs/blob/main/SECURITY.md) の非公開報告手順を使ってください。
 
 ## Ubuntuで自分のコードを初回スキャンする
 

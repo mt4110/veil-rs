@@ -8,7 +8,7 @@ Detection can produce false positives and miss secrets; it does not prove that a
 
 [日本語](README.md) · [Tutorial](docs/cli/getting-started.en.md) · [Usage guidelines (日本語)](docs/cli/usage-guidelines.md) · [CLI](docs/cli/README.md) · [Development](docs/DEVELOPMENT_EN.md) · [Architecture](docs/architecture/local-oss.md)
 
-Report bugs and suggest improvements through [GitHub Issues](https://github.com/mt4110/veil-rs/issues). For suspected vulnerabilities, follow the private reporting instructions in the [security policy](SECURITY.md).
+Report bugs and suggest improvements through [GitHub Issues](https://github.com/mt4110/veil-rs/issues). For suspected vulnerabilities, follow the private reporting instructions in the [security policy](https://github.com/mt4110/veil-rs/blob/main/SECURITY.md).
 
 ## Install and scan
 
