@@ -46,4 +46,4 @@ veil scan --help
 - 旧版が作った `pre-commit.veil.bak` は自動実行・復元しません。内容を確認して必要なチェックを統合します。
 - 入力・設定・無視範囲の制限は通常scanと同じです。0件や終了0をリポジトリ全体の安全保証にしません。Git GUI等からの実行でも、その環境のPATHと有効フックを確認してください。
 
-日英の初回→ステージ点検→次回利用: [日本語](getting-started.md) / [English](getting-started.en.md)。0.22.1は誤検出2件を限定修正した公開済み正式版です。公開済みZIPは作成時点の文書を保持し、後続の文書更新では差し替えません。
+日英の初回→ステージ点検→次回利用: [日本語](getting-started.md) / [English](getting-started.en.md)。[v0.22.2](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2)が最新の正式版です。[ZIP の署名と来歴証明を検証](install.md#ダウンロードを検証する)できます。公開済みZIPは作成時点の文書を保持し、後続の文書更新では差し替えません。

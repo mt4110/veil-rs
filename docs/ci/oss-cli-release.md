@@ -1,11 +1,15 @@
 # OSS CLI release checks
 
 Status: `reference`
-Updated: 2026-10-18
+Updated: 2026-11-11
+
+## v0.22.2 の公開状態
+
+[v0.22.2](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2) は公開済みの正式版です。署名タグの配布元は main の `7dbb3fa249c32315c33209b1ad87b00018857d5f` です。[来歴証明ワークフロー](https://github.com/mt4110/veil-rs/actions/runs/42972013000)で Linux x86_64 musl と macOS arm64 の最終 ZIP を各ネイティブランナーで作成・検証しました。公開後に ZIP と添付ファイルを再取得し、SHA256SUMS・Ed25519 分離署名・SLSA 来歴証明を照合しました。利用者向けの再現手順は[日本語](../cli/install.md#ダウンロードを検証する)と[英語](../cli/install.en.md#verify-the-download)を参照してください。Windows は配布対象外です。
 
 ## 正式版0.22.1の公開状態（2026-10-18）
 
-[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1)は公開済み正式版で、Latestです。氏名・顧客／会員IDの誤検出2件の限定修正を含みます。通常の個人情報、同じ行の別ID、テスト用IPv4の検出を維持しています。
+[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1)は公開済み正式版です（公開時点では Latest）。氏名・顧客／会員IDの誤検出2件の限定修正を含みます。通常の個人情報、同じ行の別ID、テスト用IPv4の検出を維持しています。
 
 - 署名タグの配布元はPR #173マージ後main `62b713cccf23b02eb4210d743dce12b0b7f1186f`。[配布元main CI](https://github.com/mt4110/veil-rs/actions/runs/39083584473)は全6件成功。これは配布元の記録で、後続の文書更新や現行headの検証結果ではありません。
 - 固定ソースからRust1.92.0でLinux x86_64 musl・macOS ARM64をネイティブ生成し、ZIP展開後のCLI・秘匿・終了コード0/1/2・Gitステージ点検・導入時の保全・日英操作導線・第三者表記・内部チェックサム・今回の修正を検証済みです。
@@ -170,7 +174,7 @@ ZIP と対応する `.zip.sig` を同じディレクトリに置く。信頼済�
 )
 ```
 
-公開時は ZIP 2本、対応する `.zip.sig` 2本、`SHA256SUMS` を添付する。公開後に添付を取得し直し、署名と署名済みタグに記録したダイジェストを照合する。
+公開時は ZIP 2本、対応する `.zip.sig` と `.zip.intoto.jsonl` を各2本、共通の `SHA256SUMS` を添付する。公開後に添付を取得し直し、署名・来歴証明・チェックサムと署名済みタグに記録したダイジェストを照合する。
 
 ## GitHub Actions で配布候補と来歴証明を作る
 

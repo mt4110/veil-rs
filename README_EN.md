@@ -1,6 +1,6 @@
 # Veil — Local secret detection and masking
 
-**[0.22.1 is published as a stable release](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1).** ZIPs and SHA256SUMS are available for Linux x86_64 musl and macOS ARM64. The macOS binary remains an ad-hoc-signed trial asset; Developer ID signing, notarization, and Gatekeeper behavior after download remain unverified. Windows, Intel Mac, Linux ARM64, and standalone LSP distribution are excluded. See the [release status and history](docs/ci/oss-cli-release.md) for source and validation evidence. The [Ubuntu tutorial](docs/cli/getting-started.md#ubuntuで自分のコードを試す) uses the stable download URLs. Published rc.4 assets remain unchanged.
+**[Download v0.22.2](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2).** The stable release includes Linux x86_64 musl and macOS ARM64 ZIPs, SHA256SUMS, and a detached Ed25519 signature and SLSA provenance bundle for each ZIP. [Verify your ZIP](docs/cli/install.en.md#verify-the-download) before extracting it. See the [release status and history](docs/ci/oss-cli-release.md) for the source commit and platform coverage. Windows is outside this release.
 
 Veil is an open-source Rust CLI for local secret detection and masking in source code and logs.
 The default CLI includes no external API client, license authentication, or telemetry sender. Built-in rules work without initialization.
@@ -12,8 +12,8 @@ Detection can produce false positives and miss secrets; it does not prove that a
 
 ### Binary archive
 
-The published 0.22.1 archives contain `veil`, the READMEs, `docs/`, project license texts, and `SHA256SUMS`. There is no Windows archive for the current release.
-On macOS/Linux, run the following from the extracted directory. The PATH change applies to the current shell.
+The published v0.22.2 archives contain `veil`, the READMEs, `docs/`, project license texts, and `SHA256SUMS`. There is no Windows archive for the current release.
+On macOS/Linux, [verify the download](docs/cli/install.en.md#verify-the-download), then run the following from the extracted directory. The PATH change applies to the current shell.
 
 ```bash
 ./veil --version
@@ -21,11 +21,11 @@ export PATH="$PWD:$PATH"
 veil --help
 ```
 
-The [tutorial](docs/cli/getting-started.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
+The [tutorial](docs/cli/getting-started.en.md) and [usage guidelines](docs/cli/usage-guidelines.md) are included for offline reading.
 Source code and development scripts are not bundled; development commands require a source checkout.
-The 0.22.1 ZIPs are published. Their bundled documentation is the build-time snapshot and still includes preparation status and older download instructions; use this release's assets and the current tutorial. Later README/tutorial updates do not change existing ZIPs. Publication does not imply validation on every OS.
+The published ZIPs retain their build-time copies of the docs, which may point to an older release. Use the current guide for download and verification.
 
-Published 0.22.1 includes bilingual CLI help, an English tutorial and an offline installer. See the [installation and PATH guide](docs/cli/install.en.md). Version 0.22.1 includes two narrow false-positive fixes for person-name and customer/member-ID contexts. Published 0.22.1, 0.22.0, 0.21.0 and rc.4 ZIPs remain unchanged.
+v0.22.2 includes bilingual CLI help, an English tutorial and an offline installer. See the [installation and PATH guide](docs/cli/install.en.md).
 
 ### Linux environments and requirements
 

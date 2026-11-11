@@ -4,13 +4,53 @@ Status: `reference`
 
 [English](install.en.md)
 
-この手順は `install.sh` を同梱する公開済み[0.22.1](https://github.com/mt4110/veil-rs/releases/tag/v0.22.1)および0.22.0のZIPに適用します。公開済み0.21.0・rc.4にはスクリプトがないため、従来の直接実行を使います。既存ZIPは変更しません。
+[v0.22.2](https://github.com/mt4110/veil-rs/releases/tag/v0.22.2)、v0.22.1、v0.22.0 の ZIP には導入スクリプトが入っています。v0.21.0 と rc.4 は展開した CLI を直接実行し、取得元 Release の版番号と照合してください。
+
+## ダウンロードを検証する
+
+以下を新しい空のディレクトリで実行します。curl、SSH 署名に対応した OpenSSH、GitHub CLI（認証が求められたらログイン）、sha256sum または shasum が必要です。既定は Linux x86_64 musl 版です。macOS arm64 版は最初の ZIP 指定をコメントにある値へ置き換えてください。チェックサムは取得した ZIP と SHA256SUMS の一致を、分離署名は配布用鍵による ZIP の署名を、SLSA 来歴証明は同じ ZIP と指定の GitHub Actions ワークフロー・配布元コミットの結び付きを確認します。期待する鍵のフィンガープリントは、信頼するチェックアウトや経路で得た[配布用鍵のフィンガープリントの記録](https://github.com/mt4110/veil-rs/blob/7dbb3fa249c32315c33209b1ad87b00018857d5f/docs/ci/oss-cli-release.md#検証する)と照合してください。
+
+```sh
+(
+  set -eu
+  zip=veil-0.22.2-x86_64-unknown-linux-musl.zip
+  # macOS arm64: zip=veil-0.22.2-aarch64-apple-darwin.zip
+  repo=mt4110/veil-rs
+  source_sha=7dbb3fa249c32315c33209b1ad87b00018857d5f
+  release_url="https://github.com/$repo/releases/download/v0.22.2"
+  for asset in "$zip" "$zip.sig" "$zip.intoto.jsonl" SHA256SUMS; do
+    curl -fLO "$release_url/$asset"
+  done
+
+  awk -v zip="$zip" '$2 == zip {print; n++} END {if (n != 1) exit 1}' \
+    SHA256SUMS > selected.sha256
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -c selected.sha256
+  else
+    shasum -a 256 -c selected.sha256
+  fi
+
+  key=veil-rs-release-ed25519.pub
+  curl -fLO "https://raw.githubusercontent.com/$repo/$source_sha/docs/security/$key"
+  fingerprint=$(ssh-keygen -lf "$key" -E sha256 | awk 'NR == 1 {print $2}')
+  test "$fingerprint" = 'SHA256:UdvtwJ2HTocMm2555crXrgGdHEd30wtRO7LZT65X7nE'
+  awk 'NR == 1 {print "veil-rs-release namespaces=\"veil-rs-release\" " $1 " " $2}' \
+    "$key" > allowed_signers
+  ssh-keygen -Y verify -f allowed_signers -I veil-rs-release \
+    -n veil-rs-release -s "$zip.sig" < "$zip"
+
+  gh attestation verify "$zip" --bundle "$zip.intoto.jsonl" --repo "$repo" \
+    --signer-workflow "$repo/.github/workflows/release_provenance.yml" \
+    --source-ref refs/heads/main --source-digest "$source_sha" \
+    --predicate-type https://slsa.dev/provenance/v1
+)
+```
+
+どれかが失敗した場合は ZIP を展開・実行せずに止めてください。すべて通ったら新しいディレクトリへ展開し、同梱のライセンス表記を保管します。
 
 ## 導入する
 
-対象はLinux x86_64・macOS ARM64です。配布前にLinux版のmusl静的リンクも検証します。macOSはad-hoc署名の試用版で、Developer ID署名・公証・ダウンロード後のGatekeeper動作は未検証です。OSの実行保護を無効化する手順は含めません。
-
-Releaseの配布元・外側のSHA256SUMSを確認してから、新しいディレクトリへZIPを展開します。チェックサムの一致だけでは発行者の真正性を証明しません。必要に応じて信頼する公開鍵で署名タグを確認し、タグ内のZIPのSHA-256と照合してください。
+macOS の実行ファイルは ad-hoc 署名です。ZIP の分離署名は Developer ID 署名や公証に代わるものではなく、ダウンロード後の Gatekeeper の動作は未検証です。OS の実行保護は有効のままにしてください。
 
 展開したディレクトリで実行します。
 
@@ -49,7 +89,7 @@ command -v veil
 veil --version
 ```
 
-同梱CLIの表示が取得元Releaseと一致することを確認します。最新の正式版は `veil 0.22.1` と表示します。確認後は[初回スキャン→commit前点検→次回利用](getting-started.md#自分のファイルを一つスキャンする)へ進めます。導入スクリプトとCLIの言語は別々に指定します。CLI helpの言語設定は下記を参照してください。
+同梱CLIの表示が取得元Releaseと一致することを確認します。最新の正式版は `veil 0.22.2` と表示します。確認後は[初回スキャン→commit前点検→次回利用](getting-started.md#自分のファイルを一つスキャンする)へ進めます。導入スクリプトとCLIの言語は別々に指定します。CLI helpの言語設定は下記を参照してください。
 
 ## 衝突・失敗・以前の版への復帰
 
@@ -67,7 +107,7 @@ sh install.sh --lang ja --activate
 
 ## CLI helpの言語
 
-公開済み0.22.1および0.22.0では `veil --lang ja --help` と `veil --lang en help scan` でhelpを切り替えられます。公開済み0.21.0 / rc.4にはこのCLIオプションはありません。導入スクリプトとCLIの言語指定は別々です。
+公開済み0.22.2・0.22.1・0.22.0では `veil --lang ja --help` と `veil --lang en help scan` でhelpを切り替えられます。公開済み0.21.0 / rc.4にはこのCLIオプションはありません。導入スクリプトとCLIの言語指定は別々です。
 
 優先順は `--lang` > `VEIL_LANG` > `LC_ALL` > `LC_MESSAGES` > `LANG` > 英語です。空の環境値は無視し、localeは最初の非空値だけを採用します。`ja`系localeは日本語、それ以外は英語です。明示指定・`VEIL_LANG`の不正値は終了2になります。有効な明示指定は不正な環境値に優先します。
 
