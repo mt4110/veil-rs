@@ -1,0 +1,13 @@
+# Weekly dogfood 2026-W47
+
+## Summary
+- Scorecard: **7.8**
+- Total Failure Events: 0 (vs 2026-W46: +0)
+
+## 改善対象 Top3 (Phase 13 Input)
+| Rank | Action ID | Title | Hint Key | Count | Delta | Score | Playbook |
+|---|---|---|---|---|---|---|---|
+| - | - | *(No actions)* | - | - | - | - | - |
+
+## Improvement Memo
+- [ ] (Add actionable items here)
